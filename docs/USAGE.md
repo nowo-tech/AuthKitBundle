@@ -10,6 +10,8 @@
   - [Override in the application](#override-in-the-application-1)
 - [Registration flow](#registration-flow)
 - [Login flow](#login-flow)
+- [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
+- [Locale in URL paths](#locale-in-url-paths)
 - [Disabling registration link on login page](#disabling-registration-link-on-login-page)
 
 ## Twig template overrides (REQ-TWIG-001)
@@ -120,6 +122,72 @@ Symfony uses app translations first; missing keys fall back to the bundle.
 1. Guest opens `/login`.
 2. Controller renders the form; POST is handled by Symfony `form_login` on the firewall.
 3. CSRF token id: `authenticate` (Symfony default).
+
+## Embedded login/register (dropdown)
+
+Embed login and/or registration in any Twig layout (navbar, header, etc.) without duplicating forms.
+
+### Enable
+
+```yaml
+# config/packages/nowo_auth_kit.yaml
+nowo_auth_kit:
+    embed:
+        mode: dropdown          # disabled | dropdown
+        show_login: true
+        show_register: true
+        template: '@NowoAuthKitBundle/embed/dropdown.html.twig'
+        login_panel: '@NowoAuthKitBundle/embed/_login_panel.html.twig'
+        register_panel: '@NowoAuthKitBundle/embed/_register_panel.html.twig'
+        authenticated: '@NowoAuthKitBundle/embed/_authenticated.html.twig'
+```
+
+When `mode` is `disabled`, `auth_kit_dropdown()` returns an empty string.
+
+### Render in Twig
+
+```twig
+{# optional form_theme for Bootstrap or password toggle #}
+{{ auth_kit_dropdown({form_theme: 'form/auth_kit_theme.html.twig'}) }}
+```
+
+Forms POST to the same routes as full-page login/register (`form_login` on the firewall). After a failed login, Symfony redirects to the login page by default.
+
+### Authenticated state
+
+When a user is logged in, the bundle renders the `authenticated` template (default: user identifier + logout link). Override `nowo_auth_kit.embed.authenticated` for a custom menu.
+
+### Demo reference
+
+`demo/symfony7` and `demo/symfony8` enable `embed.mode: dropdown` and show the component in `templates/base.html.twig` on the public welcome page (`/{locale}`).
+
+## Locale in URL paths
+
+Prefix login, register, logout, and password-reset routes with `/{_locale}`:
+
+```yaml
+nowo_auth_kit:
+    default_locale: en
+    enabled_locales: [en, es]
+    locale_in_path: true
+```
+
+Routes become `/en/login`, `/es/register`, `/en/reset-password`, etc. Symfony `form_login` still uses route **names** in `security.yaml`; only URL paths change.
+
+### Twig links
+
+Use the helper so links keep the current locale:
+
+```twig
+<a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}">Sign in</a>
+<a href="{{ path('nowo_auth_kit_register', auth_kit_route_params({foo: 'bar'})) }}">Register</a>
+```
+
+When `locale_in_path` is `false`, `auth_kit_route_params()` returns an empty array (backward compatible).
+
+### access_control
+
+Run `php bin/console nowo:auth-kit:configure-security` after enabling `locale_in_path`, or add patterns such as `^/(en|es)/login` manually.
 
 ## Disabling registration link on login page
 

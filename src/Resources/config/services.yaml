@@ -8,6 +8,7 @@ services:
         resource: '../../'
         exclude:
             - '../../DependencyInjection/'
+            - '../../Form/'
             - '../../NowoAuthKitBundle.php'
 
     Nowo\AuthKitBundle\Controller\:
@@ -22,6 +23,19 @@ services:
         arguments:
             $registrationFields: '%nowo_auth_kit.registration_fields%'
 
+    Nowo\AuthKitBundle\Form\ResetPasswordRequestFormType:
+        arguments:
+            $userIdentifierField: '%nowo_auth_kit.user_identifier_field%'
+
+    Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType:
+        arguments:
+            $userIdentifierField: '%nowo_auth_kit.user_identifier_field%'
+            $codeLength: '%nowo_auth_kit.password_reset.code_length%'
+
+    Nowo\AuthKitBundle\Form\ResetPasswordFormType: ~
+
+    Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver: ~
+
     Nowo\AuthKitBundle\Security\RegistrationGate:
         arguments:
             $userClass: '%nowo_auth_kit.user_class%'
@@ -33,9 +47,62 @@ services:
             $registrationRole: '%nowo_auth_kit.registration_role%'
             $registrationFields: '%nowo_auth_kit.registration_fields%'
 
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetGate:
+        arguments:
+            $passwordResetMode: '%nowo_auth_kit.password_reset.mode%'
+
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver:
+        arguments:
+            $userClass: '%nowo_auth_kit.user_class%'
+            $userIdentifierField: '%nowo_auth_kit.user_identifier_field%'
+
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager:
+        arguments:
+            $userClass: '%nowo_auth_kit.user_class%'
+            $tokenField: '%nowo_auth_kit.password_reset.token_field%'
+            $tokenExpiresField: '%nowo_auth_kit.password_reset.token_expires_field%'
+            $tokenTtl: '%nowo_auth_kit.password_reset.token_ttl%'
+            $tokenBytes: '%nowo_auth_kit.password_reset.token_bytes%'
+            $codeLength: '%nowo_auth_kit.password_reset.code_length%'
+            $codeCharset: '%nowo_auth_kit.password_reset.code_charset%'
+            $deliveryMode: '%nowo_auth_kit.password_reset.delivery%'
+
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface:
+        alias: Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager
+
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface:
+        alias: Nowo\AuthKitBundle\PasswordReset\NullPasswordResetNotifier
+
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter:
+        arguments:
+            $registrationFields: '%nowo_auth_kit.registration_fields%'
+
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler:
+        arguments:
+            $routes: '%nowo_auth_kit.routes%'
+            $deliveryMode: '%nowo_auth_kit.password_reset.delivery%'
+
+    Nowo\AuthKitBundle\Embed\AuthEmbedContextFactory:
+        arguments:
+            $routes: '%nowo_auth_kit.routes%'
+            $embed: '%nowo_auth_kit.embed%'
+            $passwordResetMode: '%nowo_auth_kit.password_reset.mode%'
+
+    Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters:
+        arguments:
+            $localeInPath: '%nowo_auth_kit.locale_in_path%'
+            $defaultLocale: '%nowo_auth_kit.default_locale%'
+            $enabledLocales: '%nowo_auth_kit.enabled_locales%'
+
+    Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator: ~
+
     Nowo\AuthKitBundle\Routing\AuthKitRouteLoader:
         arguments:
             $routes: '%nowo_auth_kit.routes%'
+            $passwordResetDelivery: '%nowo_auth_kit.password_reset.delivery%'
+            $localeInPath: '%nowo_auth_kit.locale_in_path%'
+            $defaultLocale: '%nowo_auth_kit.default_locale%'
+            $enabledLocales: '%nowo_auth_kit.enabled_locales%'
         tags:
             - { name: routing.loader }
 
@@ -45,6 +112,7 @@ services:
             $templates: '%nowo_auth_kit.templates%'
             $routes: '%nowo_auth_kit.routes%'
             $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
+            $passwordResetMode: '%nowo_auth_kit.password_reset.mode%'
 
     Nowo\AuthKitBundle\Controller\RegisterController:
         public: true
@@ -52,6 +120,27 @@ services:
             $templates: '%nowo_auth_kit.templates%'
             $routes: '%nowo_auth_kit.routes%'
             $firewall: '%nowo_auth_kit.firewall%'
+            $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
+
+    Nowo\AuthKitBundle\Controller\ResetPasswordRequestController:
+        public: true
+        arguments:
+            $templates: '%nowo_auth_kit.templates%'
+            $routes: '%nowo_auth_kit.routes%'
+            $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
+
+    Nowo\AuthKitBundle\Controller\ResetPasswordController:
+        public: true
+        arguments:
+            $templates: '%nowo_auth_kit.templates%'
+            $routes: '%nowo_auth_kit.routes%'
+            $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
+
+    Nowo\AuthKitBundle\Controller\ResetPasswordCodeController:
+        public: true
+        arguments:
+            $templates: '%nowo_auth_kit.templates%'
+            $routes: '%nowo_auth_kit.routes%'
             $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
 
     Nowo\AuthKitBundle\Command\ConfigureSecurityCommand:
@@ -62,3 +151,5 @@ services:
             $userClass: '%nowo_auth_kit.user_class%'
             $userIdentifierField: '%nowo_auth_kit.user_identifier_field%'
             $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
+            $passwordResetMode: '%nowo_auth_kit.password_reset.mode%'
+            $routeLocaleParameters: '@Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters'

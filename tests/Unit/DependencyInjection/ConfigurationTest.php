@@ -22,6 +22,10 @@ final class ConfigurationTest extends TestCase
         self::assertSame('first_user_only', $config['registration_mode']);
         self::assertSame('nowo_auth_kit_login', $config['routes']['login']['name']);
         self::assertSame(['en', 'es'], $config['enabled_locales']);
+        self::assertSame('disabled', $config['embed']['mode']);
+        self::assertTrue($config['embed']['show_login']);
+        self::assertTrue($config['embed']['show_register']);
+        self::assertFalse($config['locale_in_path']);
     }
 
     public function testRegistrationModeValues(): void

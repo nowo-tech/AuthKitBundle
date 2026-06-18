@@ -6,3 +6,11 @@ nowo_auth_kit:
     login_success_route: demo_home
     default_locale: en
     enabled_locales: [en, es]
+    locale_in_path: true
+    embed:
+        mode: dropdown
+    password_reset:
+        mode: enabled
+        delivery: both
+        token_field: passwordResetToken
+        token_expires_field: passwordResetExpiresAt

@@ -1,0 +1,10 @@
+<div class="dropdown nowo-auth-kit__embed nowo-auth-kit__embed--authenticated">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        {{ user_identifier }}
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+            <a class="dropdown-item" href="{{ path(logout_route, auth_kit_route_params()) }}">{{ 'embed.authenticated.logout'|trans({}, 'NowoAuthKitBundle') }}</a>
+        </li>
+    </ul>
+</div>

@@ -7,7 +7,7 @@
     <p class="mb-3">{{ 'demo.home.logged_in'|trans({'%email%': user.userIdentifier}, 'demo') }}</p>
     <p class="text-muted small">{{ 'demo.home.registration_hint'|trans({}, 'demo') }}</p>
     <div class="d-flex flex-wrap gap-2 mt-4">
-        <a href="{{ path('nowo_auth_kit_register') }}" class="btn btn-outline-primary btn-sm">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
-        <a href="{{ path('nowo_auth_kit_logout') }}" class="btn btn-outline-secondary btn-sm">{{ 'demo.home.logout'|trans({}, 'demo') }}</a>
+        <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_logout', auth_kit_route_params()) }}" class="btn btn-outline-secondary btn-sm">{{ 'demo.home.logout'|trans({}, 'demo') }}</a>
     </div>
 {% endblock %}

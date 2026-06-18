@@ -4,7 +4,7 @@
 
 > ⭐ **Found this useful?** Install from [Packagist](https://packagist.org/packages/nowo-tech/auth-kit-bundle) and give the repo a star on GitHub.
 
-Symfony bundle for **configurable login and registration**: overridable Twig templates, registration modes (`disabled`, `first_user_only`, `always`), assignable registration role, configurable user entity and form fields, built-in routes, and translations (`en`, `es`).
+Symfony bundle for **configurable login, registration, and password reset**: overridable Twig templates, registration modes (`disabled`, `first_user_only`, `always`), optional embeddable auth dropdown, locale-prefixed routes, assignable registration role, configurable user entity and form fields, built-in routes, and translations (`en`, `es`).
 
 Works alongside Symfony Security — `security.yaml` remains required and is documented in [INSTALLATION.md](docs/INSTALLATION.md) with optional CLI helper `nowo:auth-kit:configure-security`.
 
@@ -12,6 +12,9 @@ Works alongside Symfony Security — `security.yaml` remains required and is doc
 
 - Login page compatible with Symfony `form_login`
 - Registration with Doctrine persistence and password hashing
+- **Password reset** (link, code, or both) with pluggable notifier
+- **Embedded auth dropdown** (`auth_kit_dropdown()`) for navbars and layouts
+- **Locale in URL paths** (`/en/login`, `/es/register`, …)
 - Registration modes: disabled, first user only, always open
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
 - Twig overrides via `templates/bundles/NowoAuthKitBundle/`
@@ -51,7 +54,7 @@ make -C demo up-symfony7   # Symfony 7.4 — http://localhost:8009
 make -C demo up-symfony8   # Symfony 8.1 — http://localhost:8010
 ```
 
-Register the first user, then sign in. Demos include **Bootstrap 5** UI overrides, **en/es** locale switcher, and FrankenPHP (Docker).
+Register the first user, then sign in. Demos include **Bootstrap 5** UI overrides, **en/es** locale-prefixed URLs, embed dropdown, password reset, and FrankenPHP (Docker).
 
 See [demo/README.md](demo/README.md) for template override paths and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup.
 
@@ -71,6 +74,7 @@ MIT — see [LICENSE](LICENSE).
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md)
+- [Password reset](docs/PASSWORD-RESET.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Changelog](docs/CHANGELOG.md)
 - [Upgrading](docs/UPGRADING.md)

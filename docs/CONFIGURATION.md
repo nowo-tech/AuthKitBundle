@@ -7,6 +7,9 @@
 - [Field configuration](#field-configuration)
   - [Login](#login)
   - [Registration](#registration)
+- [Password reset](#password-reset)
+- [Embedded auth UI](#embedded-auth-ui)
+- [Locale in paths](#locale-in-paths)
 - [Templates](#templates)
 - [Routes](#routes)
 - [Security.yaml checklist](#securityyaml-checklist)
@@ -50,6 +53,25 @@ nowo_auth_kit:
         layout: '@NowoAuthKitBundle/layout.html.twig'
         login: '@NowoAuthKitBundle/security/login.html.twig'
         register: '@NowoAuthKitBundle/security/register.html.twig'
+        reset_request: '@NowoAuthKitBundle/security/reset_request.html.twig'
+        reset_password: '@NowoAuthKitBundle/security/reset_password.html.twig'
+        reset_password_code: '@NowoAuthKitBundle/security/reset_password_code.html.twig'
+
+    embed:
+        mode: disabled              # disabled | dropdown
+        show_login: true
+        show_register: true
+        template: '@NowoAuthKitBundle/embed/dropdown.html.twig'
+        login_panel: '@NowoAuthKitBundle/embed/_login_panel.html.twig'
+        register_panel: '@NowoAuthKitBundle/embed/_register_panel.html.twig'
+        authenticated: '@NowoAuthKitBundle/embed/_authenticated.html.twig'
+
+    password_reset:
+        mode: disabled              # disabled | enabled
+        delivery: link              # link | code | both
+        token_ttl: 3600
+        token_field: passwordResetToken
+        token_expires_field: passwordResetExpiresAt
 
     routes:
         login:
@@ -61,6 +83,15 @@ nowo_auth_kit:
         register:
             path: /register
             name: nowo_auth_kit_register
+        reset_request:
+            path: /reset-password
+            name: nowo_auth_kit_reset_password_request
+        reset_password:
+            path: /reset-password/reset/{token}
+            name: nowo_auth_kit_reset_password
+        reset_password_code:
+            path: /reset-password/complete
+            name: nowo_auth_kit_reset_password_code
 
     # Documented for security.yaml (see INSTALLATION.md)
     firewall: main
@@ -68,6 +99,7 @@ nowo_auth_kit:
 
     default_locale: en
     enabled_locales: [en, es]
+    locale_in_path: false       # true → /{locale}/login, /{locale}/register, …
 ```
 
 ## Registration modes
@@ -95,6 +127,24 @@ Each field can be:
 
 Password fields use `RepeatedType` with minimum length validation. When `nowo-tech/password-toggle-bundle` is present, the toggle `PasswordType` is used; otherwise Symfony’s default `PasswordType` is used (no hard dependency in the bundle library).
 
+## Password reset
+
+When `password_reset.mode` is `enabled`, the bundle registers request and completion routes. Implement `PasswordResetNotifierInterface` for delivery.
+
+See [PASSWORD-RESET.md](PASSWORD-RESET.md) for entity fields, notifier wiring, and events.
+
+## Embedded auth UI
+
+When `embed.mode` is `dropdown`, render `{{ auth_kit_dropdown() }}` in Twig. Forms POST to the same routes as full-page login/register.
+
+See [USAGE.md](USAGE.md#embedded-loginregister-dropdown).
+
+## Locale in paths
+
+When `locale_in_path` is `true`, Auth Kit routes are prefixed with `/{_locale}`. Update `access_control` patterns accordingly (or run `nowo:auth-kit:configure-security`).
+
+Use `auth_kit_route_params()` in Twig for links. See [USAGE.md](USAGE.md#locale-in-url-paths).
+
 ## Templates
 
 Override bundle templates by copying to:
@@ -102,21 +152,27 @@ Override bundle templates by copying to:
 ```
 templates/bundles/NowoAuthKitBundle/security/login.html.twig
 templates/bundles/NowoAuthKitBundle/security/register.html.twig
+templates/bundles/NowoAuthKitBundle/security/reset_request.html.twig
+templates/bundles/NowoAuthKitBundle/security/reset_password.html.twig
+templates/bundles/NowoAuthKitBundle/security/reset_password_code.html.twig
 templates/bundles/NowoAuthKitBundle/layout.html.twig
+templates/bundles/NowoAuthKitBundle/embed/
 ```
 
-Or point `templates.login` / `templates.register` to your own Twig paths.
+Or point `templates.*` and `embed.*` to your own Twig paths.
 
 ## Routes
 
 Route **names** must stay in sync with `security.yaml` (`login_path`, `check_path`, `logout.path`). Paths are customizable for URL structure and `access_control` regexes.
+
+When `locale_in_path` is enabled, paths are resolved as `/{_locale}/login`, etc., but route names stay the same.
 
 ## Security.yaml checklist
 
 1. Entity provider with `user_class` and `user_identifier_field`
 2. `form_login.login_path` and `check_path` = login route name
 3. `logout.path` = logout route name
-4. `access_control` for login and register paths → `PUBLIC_ACCESS`
+4. `access_control` for login, register, and (if enabled) password-reset paths → `PUBLIC_ACCESS`
 5. Protected areas require `ROLE_USER` (or your roles)
 
 Run `php bin/console nowo:auth-kit:configure-security` to apply steps 1–4 automatically.

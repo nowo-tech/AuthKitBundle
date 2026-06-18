@@ -25,9 +25,12 @@ security:
                 target: nowo_auth_kit_login
 
     access_control:
-        - { path: ^/login, roles: PUBLIC_ACCESS }
-        - { path: ^/register, roles: PUBLIC_ACCESS }
-        - { path: ^/home, roles: ROLE_USER }
+        - { path: ^/(en|es)/login, roles: PUBLIC_ACCESS }
+        - { path: ^/(en|es)/register, roles: PUBLIC_ACCESS }
+        - { path: ^/(en|es)/reset-password, roles: PUBLIC_ACCESS }
+        - { path: ^/(en|es)/reset-password/reset, roles: PUBLIC_ACCESS }
+        - { path: ^/(en|es)/reset-password/complete, roles: PUBLIC_ACCESS }
+        - { path: ^/(en|es)/home, roles: ROLE_USER }
 
 when@test:
     security:

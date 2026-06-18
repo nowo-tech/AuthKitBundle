@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Command;
 
+use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -34,6 +35,8 @@ final class ConfigureSecurityCommand extends Command
         private readonly string $userClass,
         private readonly string $userIdentifierField,
         private readonly ?string $loginSuccessRoute,
+        private readonly string $passwordResetMode,
+        private readonly AuthKitRouteLocaleParameters $routeLocaleParameters,
     ) {
         parent::__construct();
     }
@@ -111,9 +114,30 @@ final class ConfigureSecurityCommand extends Command
 
         $accessControl = $security['security']['access_control'] ?? [];
         $publicPaths   = [
-            ['path' => '^' . preg_quote($loginPath, '/'), 'roles' => 'PUBLIC_ACCESS'],
-            ['path' => '^' . preg_quote($registerPath, '/'), 'roles' => 'PUBLIC_ACCESS'],
+            ['path' => $this->routeLocaleParameters->accessControlPattern($loginPath), 'roles' => 'PUBLIC_ACCESS'],
+            ['path' => $this->routeLocaleParameters->accessControlPattern($registerPath), 'roles' => 'PUBLIC_ACCESS'],
         ];
+
+        if ($this->passwordResetMode === 'enabled') {
+            $publicPaths[] = [
+                'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['reset_request']['path']),
+                'roles' => 'PUBLIC_ACCESS',
+            ];
+
+            if (isset($this->routes['reset_password']['path'])) {
+                $publicPaths[] = [
+                    'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['reset_password']['path']),
+                    'roles' => 'PUBLIC_ACCESS',
+                ];
+            }
+
+            if (isset($this->routes['reset_password_code']['path'])) {
+                $publicPaths[] = [
+                    'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['reset_password_code']['path']),
+                    'roles' => 'PUBLIC_ACCESS',
+                ];
+            }
+        }
 
         foreach ($publicPaths as $rule) {
             if (!$this->accessControlContains($accessControl, $rule['path'])) {

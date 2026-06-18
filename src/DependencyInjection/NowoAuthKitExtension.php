@@ -33,11 +33,22 @@ final class NowoAuthKitExtension extends Extension
             FieldConfigNormalizer::normalizeRegistrationFields($config['registration_fields']),
         );
         $container->setParameter('nowo_auth_kit.templates', $config['templates']);
+        $container->setParameter('nowo_auth_kit.embed', $config['embed']);
         $container->setParameter('nowo_auth_kit.routes', $config['routes']);
+        $container->setParameter('nowo_auth_kit.password_reset', $config['password_reset']);
+        $container->setParameter('nowo_auth_kit.password_reset.mode', $config['password_reset']['mode']);
+        $container->setParameter('nowo_auth_kit.password_reset.delivery', $config['password_reset']['delivery']);
+        $container->setParameter('nowo_auth_kit.password_reset.token_ttl', $config['password_reset']['token_ttl']);
+        $container->setParameter('nowo_auth_kit.password_reset.token_bytes', $config['password_reset']['token_bytes']);
+        $container->setParameter('nowo_auth_kit.password_reset.code_length', $config['password_reset']['code_length']);
+        $container->setParameter('nowo_auth_kit.password_reset.code_charset', $config['password_reset']['code_charset']);
+        $container->setParameter('nowo_auth_kit.password_reset.token_field', $config['password_reset']['token_field']);
+        $container->setParameter('nowo_auth_kit.password_reset.token_expires_field', $config['password_reset']['token_expires_field']);
         $container->setParameter('nowo_auth_kit.firewall', $config['firewall']);
         $container->setParameter('nowo_auth_kit.login_success_route', $config['login_success_route']);
         $container->setParameter('nowo_auth_kit.default_locale', $config['default_locale']);
         $container->setParameter('nowo_auth_kit.enabled_locales', $config['enabled_locales']);
+        $container->setParameter('nowo_auth_kit.locale_in_path', $config['locale_in_path']);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');

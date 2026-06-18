@@ -12,3 +12,6 @@ services:
     App\EventSubscriber\LocaleSubscriber:
         arguments:
             $defaultLocale: '%kernel.default_locale%'
+
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface:
+        alias: App\Security\DemoPasswordResetNotifier

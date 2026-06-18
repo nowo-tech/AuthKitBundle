@@ -59,7 +59,7 @@ update-bundle-symfony8:
 release-check:
 	@$(MAKE) up-symfony7
 	@$(MAKE) update-bundle-symfony7
-	@curl -sf http://localhost:8009/login >/dev/null && echo "Symfony 7.4 demo healthcheck OK" || (echo "Symfony 7.4 demo healthcheck failed" && exit 1)
+	@curl -sf http://localhost:8009/en/login >/dev/null && echo "Symfony 7.4 demo healthcheck OK" || (echo "Symfony 7.4 demo healthcheck failed" && exit 1)
 	@$(MAKE) up-symfony8
 	@$(MAKE) update-bundle-symfony8
-	@curl -sf http://localhost:8010/login >/dev/null && echo "Symfony 8 demo healthcheck OK" || (echo "Symfony 8 demo healthcheck failed" && exit 1)
+	@curl -sf http://localhost:8010/en/login >/dev/null && echo "Symfony 8 demo healthcheck OK" || (echo "Symfony 8 demo healthcheck failed" && exit 1)

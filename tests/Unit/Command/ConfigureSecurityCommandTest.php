@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\Command;
 
 use Nowo\AuthKitBundle\Command\ConfigureSecurityCommand;
+use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Yaml\Yaml;
+
+use function count;
 
 final class ConfigureSecurityCommandTest extends TestCase
 {
@@ -30,16 +34,7 @@ final class ConfigureSecurityCommandTest extends TestCase
 
     public function testFailsWhenSecurityYamlMissing(): void
     {
-        $command = new ConfigureSecurityCommand(
-            $this->testDir,
-            $this->routes(),
-            'main',
-            'App\\Entity\\User',
-            'email',
-            'demo_home',
-        );
-
-        $tester   = new CommandTester($command);
+        $tester   = new CommandTester($this->createCommand('disabled', 'demo_home'));
         $exitCode = $tester->execute([]);
 
         self::assertSame(1, $exitCode);
@@ -53,16 +48,7 @@ final class ConfigureSecurityCommandTest extends TestCase
             Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
         );
 
-        $command = new ConfigureSecurityCommand(
-            $this->testDir,
-            $this->routes(),
-            'main',
-            'App\\Entity\\User',
-            'email',
-            'demo_home',
-        );
-
-        $tester   = new CommandTester($command);
+        $tester   = new CommandTester($this->createCommand('disabled', 'demo_home'));
         $exitCode = $tester->execute([]);
 
         self::assertSame(0, $exitCode);
@@ -88,16 +74,7 @@ final class ConfigureSecurityCommandTest extends TestCase
             ], 2),
         );
 
-        $command = new ConfigureSecurityCommand(
-            $this->testDir,
-            $this->routes(),
-            'main',
-            'App\\Entity\\User',
-            'email',
-            null,
-        );
-
-        $tester   = new CommandTester($command);
+        $tester   = new CommandTester($this->createCommand('disabled'));
         $exitCode = $tester->execute([]);
 
         self::assertSame(0, $exitCode);
@@ -110,19 +87,40 @@ final class ConfigureSecurityCommandTest extends TestCase
 
     public function testConfigureDefinesForceOptionAndHelp(): void
     {
-        $command = new ConfigureSecurityCommand(
-            $this->testDir,
-            $this->routes(),
-            'main',
-            'App\\Entity\\User',
-            'email',
-            null,
+        $command = $this->createCommand('disabled');
+
+        self::assertTrue($command->getDefinition()->hasOption('force'));
+        self::assertStringContainsString('security.yaml', $command->getHelp());
+    }
+
+    public function testAddsResetAccessControlWhenEnabled(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
         );
 
-        $definition = $command->getDefinition();
+        $tester = new CommandTester($this->createCommand('enabled'));
+        self::assertSame(0, $tester->execute([]));
 
-        self::assertTrue($definition->hasOption('force'));
-        self::assertStringContainsString('security.yaml', $command->getHelp());
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertGreaterThanOrEqual(5, count($security['security']['access_control']));
+    }
+
+    public function testAddsLocalePrefixedAccessControlWhenEnabled(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', null, true));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('^/(en|es)\/login', $security['security']['access_control'][0]['path']);
     }
 
     public function testSkipsDuplicateAccessControlRules(): void
@@ -139,16 +137,7 @@ final class ConfigureSecurityCommandTest extends TestCase
             ], 2),
         );
 
-        $command = new ConfigureSecurityCommand(
-            $this->testDir,
-            $this->routes(),
-            'main',
-            'App\\Entity\\User',
-            'email',
-            null,
-        );
-
-        $tester = new CommandTester($command);
+        $tester = new CommandTester($this->createCommand('disabled'));
         self::assertSame(0, $tester->execute([]));
 
         /** @var array<string, mixed> $security */
@@ -168,16 +157,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         );
 
         try {
-            $command = new ConfigureSecurityCommand(
-                null,
-                $this->routes(),
-                'main',
-                'App\\Entity\\User',
-                'email',
-                null,
-            );
-
-            $tester   = new CommandTester($command);
+            $tester   = new CommandTester($this->createCommand('disabled', null, false));
             $exitCode = $tester->execute([]);
 
             self::assertSame(0, $exitCode);
@@ -201,16 +181,7 @@ final class ConfigureSecurityCommandTest extends TestCase
             ], 2),
         );
 
-        $command = new ConfigureSecurityCommand(
-            $this->testDir,
-            $this->routes(),
-            'main',
-            'App\\Entity\\User',
-            'email',
-            null,
-        );
-
-        $tester   = new CommandTester($command);
+        $tester   = new CommandTester($this->createCommand('disabled'));
         $exitCode = $tester->execute(['--force' => true]);
 
         self::assertSame(0, $exitCode);
@@ -219,15 +190,36 @@ final class ConfigureSecurityCommandTest extends TestCase
         self::assertSame('nowo_auth_kit_login', $security['security']['firewalls']['main']['form_login']['login_path']);
     }
 
+    private function createCommand(
+        string $passwordResetMode,
+        ?string $loginSuccessRoute = null,
+        bool $localeInPath = false,
+        ?string $projectDir = null,
+    ): ConfigureSecurityCommand {
+        return new ConfigureSecurityCommand(
+            $projectDir ?? $this->testDir,
+            $this->routes(),
+            'main',
+            'App\\Entity\\User',
+            'email',
+            $loginSuccessRoute,
+            $passwordResetMode,
+            new AuthKitRouteLocaleParameters(new RequestStack(), $localeInPath, 'en', ['en', 'es']),
+        );
+    }
+
     /**
      * @return array<string, array{path: string, name: string}>
      */
     private function routes(): array
     {
         return [
-            'login'    => ['path' => '/login', 'name' => 'nowo_auth_kit_login'],
-            'logout'   => ['path' => '/logout', 'name' => 'nowo_auth_kit_logout'],
-            'register' => ['path' => '/register', 'name' => 'nowo_auth_kit_register'],
+            'login'               => ['path' => '/login', 'name' => 'nowo_auth_kit_login'],
+            'logout'              => ['path' => '/logout', 'name' => 'nowo_auth_kit_logout'],
+            'register'            => ['path' => '/register', 'name' => 'nowo_auth_kit_register'],
+            'reset_request'       => ['path' => '/reset-password', 'name' => 'nowo_auth_kit_reset_password_request'],
+            'reset_password'      => ['path' => '/reset-password/reset/{token}', 'name' => 'nowo_auth_kit_reset_password'],
+            'reset_password_code' => ['path' => '/reset-password/complete', 'name' => 'nowo_auth_kit_reset_password_code'],
         ];
     }
 }

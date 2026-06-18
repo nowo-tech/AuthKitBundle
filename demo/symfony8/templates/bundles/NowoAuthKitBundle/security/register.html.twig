@@ -23,7 +23,7 @@
         {{ form_end(registration_form) }}
 
         <div class="auth-card__footer">
-            <a href="{{ path(login_route) }}" class="link-primary text-decoration-none fw-medium">{{ 'register.login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+            <a href="{{ path(login_route, auth_kit_route_params()) }}" class="link-primary text-decoration-none fw-medium">{{ 'register.login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
         </div>
     </div>
 </div>

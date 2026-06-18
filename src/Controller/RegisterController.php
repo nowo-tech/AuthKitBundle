@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Controller;
 
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
+use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Http\Event\InteractiveLoginEvent;
@@ -33,7 +33,7 @@ final class RegisterController
         private readonly RegistrationGate $registrationGate,
         private readonly UserRegistrar $userRegistrar,
         private readonly TokenStorageInterface $tokenStorage,
-        private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly array $templates,
         private readonly array $routes,

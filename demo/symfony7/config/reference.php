@@ -1253,6 +1253,28 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         layout?: scalar|Param|null, // Default: "@NowoAuthKitBundle/layout.html.twig"
  *         login?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/login.html.twig"
  *         register?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/register.html.twig"
+ *         reset_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_request.html.twig"
+ *         reset_password?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password.html.twig"
+ *         reset_password_code?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password_code.html.twig"
+ *     },
+ *     embed?: array{
+ *         mode?: "disabled"|"dropdown"|Param, // disabled: full-page routes only. dropdown: embed login/register via auth_kit_dropdown(). // Default: "disabled"
+ *         show_login?: bool|Param, // Include the login form in the embedded UI. // Default: true
+ *         show_register?: bool|Param, // Include registration when allowed by registration_mode. // Default: true
+ *         template?: scalar|Param|null, // Default: "@NowoAuthKitBundle/embed/dropdown.html.twig"
+ *         login_panel?: scalar|Param|null, // Default: "@NowoAuthKitBundle/embed/_login_panel.html.twig"
+ *         register_panel?: scalar|Param|null, // Default: "@NowoAuthKitBundle/embed/_register_panel.html.twig"
+ *         authenticated?: scalar|Param|null, // Default: "@NowoAuthKitBundle/embed/_authenticated.html.twig"
+ *     },
+ *     password_reset?: array{
+ *         mode?: "disabled"|"enabled"|Param, // disabled: hide reset flows. enabled: expose request and completion routes. // Default: "disabled"
+ *         delivery?: "link"|"code"|"both"|Param, // link: URL token. code: OTP/SMS/email code. both: link URL and code for notifiers. // Default: "link"
+ *         token_ttl?: int|Param, // Seconds until the reset credential expires. // Default: 3600
+ *         token_bytes?: int|Param, // Entropy for link tokens (bytes before hex encoding). // Default: 32
+ *         code_length?: int|Param, // Default: 6
+ *         code_charset?: "numeric"|"alphanumeric"|Param, // Default: "numeric"
+ *         token_field?: scalar|Param|null, // User entity property storing the hashed reset credential. // Default: "passwordResetToken"
+ *         token_expires_field?: scalar|Param|null, // User entity property storing credential expiry. // Default: "passwordResetExpiresAt"
  *     },
  *     routes?: array{
  *         login?: array{
@@ -1267,11 +1289,24 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             path?: scalar|Param|null, // Default: "/register"
  *             name?: scalar|Param|null, // Default: "nowo_auth_kit_register"
  *         },
+ *         reset_request?: array{
+ *             path?: scalar|Param|null, // Default: "/reset-password"
+ *             name?: scalar|Param|null, // Default: "nowo_auth_kit_reset_password_request"
+ *         },
+ *         reset_password?: array{
+ *             path?: scalar|Param|null, // Default: "/reset-password/reset/{token}"
+ *             name?: scalar|Param|null, // Default: "nowo_auth_kit_reset_password"
+ *         },
+ *         reset_password_code?: array{
+ *             path?: scalar|Param|null, // Default: "/reset-password/complete"
+ *             name?: scalar|Param|null, // Default: "nowo_auth_kit_reset_password_code"
+ *         },
  *     },
  *     firewall?: scalar|Param|null, // Symfony firewall name where form_login should point (documented for security.yaml). // Default: "main"
  *     login_success_route?: scalar|Param|null, // Route name after successful login. Null uses firewall default_target_path. // Default: null
  *     default_locale?: scalar|Param|null, // Default: "en"
  *     enabled_locales?: list<scalar|Param|null>,
+ *     locale_in_path?: bool|Param, // Prefix login, register, logout and password reset routes with /{_locale}. // Default: false
  * }
  * @psalm-type NowoPasswordToggleConfig = array{
  *     toggle?: bool|Param, // Enable/disable toggle functionality by default // Default: true

@@ -1,0 +1,26 @@
+{% if form_theme is defined and form_theme %}
+    {% form_theme login_form form_theme %}
+{% else %}
+    {% form_theme login_form '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig' %}
+{% endif %}
+
+{% if error %}
+    <div class="alert alert-danger py-2 small mb-3" role="alert">
+        {{ error.messageKey|trans(error.messageData, 'security') }}
+    </div>
+{% endif %}
+
+{{ form_start(login_form, {attr: {class: 'nowo-auth-kit__embed-form vstack gap-2'}}) }}
+    {{ form_row(login_form._username, {row_attr: {class: 'mb-0'}}) }}
+    {{ form_row(login_form._password, {row_attr: {class: 'mb-0'}}) }}
+    {% if login_form._remember_me is defined %}
+        {{ form_row(login_form._remember_me, {row_attr: {class: 'mb-0'}}) }}
+    {% endif %}
+    <button type="submit" class="btn btn-primary w-100 mt-1">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+{{ form_end(login_form) }}
+
+{% if password_reset_enabled %}
+    <p class="small text-center mb-0 mt-2">
+        <a href="{{ path(reset_password_route, auth_kit_route_params()) }}" class="text-decoration-none">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+    </p>
+{% endif %}

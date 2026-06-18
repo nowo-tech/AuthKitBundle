@@ -56,3 +56,23 @@
 .locale-switcher .btn {
   min-width: 5.5rem;
 }
+
+.nowo-auth-kit__embed-menu {
+  min-width: 18rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+}
+
+.nowo-auth-kit__embed-tabs .nav-link {
+  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem;
+}
+
+.nowo-auth-kit__embed-form .form-label {
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.nowo-auth-kit__embed-form .mb-3,
+.nowo-auth-kit__embed-form .form-floating {
+  margin-bottom: 0 !important;
+}

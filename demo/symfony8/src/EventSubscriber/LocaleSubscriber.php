@@ -9,8 +9,10 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Translation\LocaleSwitcher;
 
+use function is_string;
+
 /**
- * Applies the locale stored in session (set by LocaleController).
+ * Applies locale from the route or session.
  */
 final class LocaleSubscriber implements EventSubscriberInterface
 {
@@ -34,13 +36,19 @@ final class LocaleSubscriber implements EventSubscriberInterface
         }
 
         $request = $event->getRequest();
+        $locale  = $request->attributes->get('_locale');
 
-        if (!$request->hasSession()) {
-            return;
+        if (!is_string($locale) || $locale === '') {
+            $locale = $request->hasSession()
+                ? $request->getSession()->get('_locale', $this->defaultLocale)
+                : $this->defaultLocale;
         }
 
-        $locale = $request->getSession()->get('_locale', $this->defaultLocale);
         $request->setLocale($locale);
         $this->localeSwitcher->setLocale($locale);
+
+        if ($request->hasSession()) {
+            $request->getSession()->set('_locale', $locale);
+        }
     }
 }

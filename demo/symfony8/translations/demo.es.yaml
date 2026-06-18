@@ -3,6 +3,11 @@ demo:
         nav: Idioma
         en: Inglés
         es: Español
+    welcome:
+        title: Demo Auth Kit
+        heading: Bienvenido
+        lead: Usa el menú Cuenta de la barra superior para entrar o registrarte sin salir de esta página. Las rutas de página completa siguen disponibles abajo.
+        embed_hint: "Modo de registro first_user_only: solo se puede crear la primera cuenta; los registros posteriores se ocultan cuando ya existe un usuario."
     home:
         title: Demo Auth Kit
         heading: Auth Kit Bundle — Demo

@@ -3,6 +3,11 @@ demo:
         nav: Language
         en: English
         es: Spanish
+    welcome:
+        title: Auth Kit Demo
+        heading: Welcome
+        lead: Use the Account menu in the navbar to sign in or register without leaving this page. Full-page routes remain available below.
+        embed_hint: "Registration mode is first_user_only: only the first account can be created; further sign-ups are hidden once a user exists."
     home:
         title: Auth Kit Demo
         heading: Auth Kit Bundle — Demo

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Form;
 
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -24,6 +25,7 @@ final class RegistrationFormType extends AbstractType
      * @param list<array{name: string, type: string, property: string, hash: bool, required: bool, security_name: null}> $registrationFields
      */
     public function __construct(
+        #[Autowire(param: 'nowo_auth_kit.registration_fields')]
         private readonly array $registrationFields,
         private readonly PasswordFieldTypeResolver $passwordFieldTypeResolver,
     ) {

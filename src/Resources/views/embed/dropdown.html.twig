@@ -1,0 +1,37 @@
+{% if is_authenticated %}
+    {% include authenticated_template %}
+{% else %}
+<div class="dropdown nowo-auth-kit__embed">
+    <button class="btn btn-outline-primary dropdown-toggle nowo-auth-kit__embed-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+        {{ 'embed.dropdown.toggle'|trans({}, 'NowoAuthKitBundle') }}
+    </button>
+    <div class="dropdown-menu dropdown-menu-end nowo-auth-kit__embed-menu p-0 shadow">
+        {% if show_login and show_register %}
+            <ul class="nav nav-tabs nav-justified nowo-auth-kit__embed-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link{{ active_panel == 'login' ? ' active' : '' }}" id="auth-kit-tab-login" data-bs-toggle="tab" data-bs-target="#auth-kit-panel-login" type="button" role="tab" aria-controls="auth-kit-panel-login" aria-selected="{{ active_panel == 'login' ? 'true' : 'false' }}">
+                        {{ 'embed.tab.login'|trans({}, 'NowoAuthKitBundle') }}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link{{ active_panel == 'register' ? ' active' : '' }}" id="auth-kit-tab-register" data-bs-toggle="tab" data-bs-target="#auth-kit-panel-register" type="button" role="tab" aria-controls="auth-kit-panel-register" aria-selected="{{ active_panel == 'register' ? 'true' : 'false' }}">
+                        {{ 'embed.tab.register'|trans({}, 'NowoAuthKitBundle') }}
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content nowo-auth-kit__embed-panels p-3">
+                <div class="tab-pane fade{{ active_panel == 'login' ? ' show active' : '' }}" id="auth-kit-panel-login" role="tabpanel" aria-labelledby="auth-kit-tab-login" tabindex="0">
+                    {% if show_login %}{% include login_panel_template %}{% endif %}
+                </div>
+                <div class="tab-pane fade{{ active_panel == 'register' ? ' show active' : '' }}" id="auth-kit-panel-register" role="tabpanel" aria-labelledby="auth-kit-tab-register" tabindex="0">
+                    {% if show_register %}{% include register_panel_template %}{% endif %}
+                </div>
+            </div>
+        {% elseif show_login %}
+            <div class="p-3">{% include login_panel_template %}</div>
+        {% elseif show_register %}
+            <div class="p-3">{% include register_panel_template %}</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

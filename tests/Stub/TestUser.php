@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Stub;
 
+use DateTimeImmutable;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -12,6 +13,10 @@ final class TestUser implements UserInterface, PasswordAuthenticatedUserInterfac
     private string $email = '';
 
     private string $password = '';
+
+    private ?string $passwordResetToken = null;
+
+    private ?DateTimeImmutable $passwordResetExpiresAt = null;
 
     /** @var list<string> */
     private array $roles = [];
@@ -36,6 +41,26 @@ final class TestUser implements UserInterface, PasswordAuthenticatedUserInterfac
         $this->password = $password;
     }
 
+    public function getPasswordResetToken(): ?string
+    {
+        return $this->passwordResetToken;
+    }
+
+    public function setPasswordResetToken(?string $passwordResetToken): void
+    {
+        $this->passwordResetToken = $passwordResetToken;
+    }
+
+    public function getPasswordResetExpiresAt(): ?DateTimeImmutable
+    {
+        return $this->passwordResetExpiresAt;
+    }
+
+    public function setPasswordResetExpiresAt(?DateTimeImmutable $passwordResetExpiresAt): void
+    {
+        $this->passwordResetExpiresAt = $passwordResetExpiresAt;
+    }
+
     /** @return list<string> */
     public function getRoles(): array
     {
@@ -46,9 +71,5 @@ final class TestUser implements UserInterface, PasswordAuthenticatedUserInterfac
     public function setRoles(array $roles): void
     {
         $this->roles = $roles;
-    }
-
-    public function eraseCredentials(): void
-    {
     }
 }

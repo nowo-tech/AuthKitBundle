@@ -1,5 +1,56 @@
 # Upgrading
 
+## To 1.1.0
+
+From **1.0.0** — backward compatible; new features are opt-in via configuration defaults.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+### Optional: password reset
+
+1. Add nullable token fields to your user entity (see [PASSWORD-RESET.md](PASSWORD-RESET.md)).
+2. Enable in config:
+
+   ```yaml
+   nowo_auth_kit:
+       password_reset:
+           mode: enabled
+           delivery: link   # or code | both
+   ```
+
+3. Implement and register `PasswordResetNotifierInterface`.
+4. Run `php bin/console nowo:auth-kit:configure-security` to add public `access_control` paths.
+
+### Optional: embedded auth dropdown
+
+```yaml
+nowo_auth_kit:
+    embed:
+        mode: dropdown
+```
+
+Render in Twig: `{{ auth_kit_dropdown() }}`. See [USAGE.md](USAGE.md#embedded-loginregister-dropdown).
+
+### Optional: locale in URL paths
+
+```yaml
+nowo_auth_kit:
+    locale_in_path: true
+    default_locale: en
+    enabled_locales: [en, es]
+```
+
+Re-run `php bin/console nowo:auth-kit:configure-security` so `access_control` patterns include `^/(en|es)/login`, etc.
+
+Use `auth_kit_route_params()` in Twig for locale-aware links. See [USAGE.md](USAGE.md#locale-in-url-paths).
+
+### Demo users
+
+If you run the FrankenPHP demos, rebuild the PHP image after pulling (`docker compose build php`) and reset MySQL volumes if Doctrine warns about MySQL &lt; 8 (`docker compose down -v`).
+
 ## To 1.0.0
 
 This is the first public release. Install via Composer and follow [INSTALLATION.md](INSTALLATION.md).

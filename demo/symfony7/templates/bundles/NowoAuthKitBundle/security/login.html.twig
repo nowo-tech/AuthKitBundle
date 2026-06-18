@@ -30,8 +30,11 @@
             </div>
         {{ form_end(login_form) }}
 
-        <div class="auth-card__footer">
-            <a href="{{ path(register_route) }}" class="link-primary text-decoration-none fw-medium">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <div class="auth-card__footer d-flex flex-column gap-2 text-center">
+            {% if password_reset_enabled|default(false) %}
+                <a href="{{ path(reset_password_route, auth_kit_route_params()) }}" class="link-secondary text-decoration-none small">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+            {% endif %}
+            <a href="{{ path(register_route, auth_kit_route_params()) }}" class="link-primary text-decoration-none fw-medium">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
         </div>
     </div>
 </div>

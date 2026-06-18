@@ -36,6 +36,9 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertSame('App\\Entity\\User', $this->container->getParameter('nowo_auth_kit.user_class'));
         self::assertSame('always', $this->container->getParameter('nowo_auth_kit.registration_mode'));
         self::assertSame('ROLE_ADMIN', $this->container->getParameter('nowo_auth_kit.registration_role'));
+        $embed = $this->container->getParameter('nowo_auth_kit.embed');
+        self::assertIsArray($embed);
+        self::assertSame('disabled', $embed['mode']);
         self::assertTrue($this->container->hasDefinition(\Nowo\AuthKitBundle\Controller\LoginController::class));
         self::assertTrue($this->container->hasDefinition(\Nowo\AuthKitBundle\Security\RegistrationGate::class));
     }

@@ -1,9 +1,13 @@
-{# Demo locale switcher — persists choice in session via app_set_locale #}
-<nav class="locale-switcher d-flex justify-content-center justify-content-sm-end gap-2 mb-3"
+{# Demo locale switcher — keeps the same page and swaps {_locale} in the URL #}
+<nav class="locale-switcher d-flex gap-2"
      role="navigation"
      aria-label="{{ 'demo.locale.nav'|trans({}, 'demo') }}">
+    {% set route = app.request.attributes.get('_route') %}
+    {% set route_params = app.request.attributes.get('_route_params')|default({}) %}
     {% for locale in ['en', 'es'] %}
-        <a href="{{ path('app_set_locale', {_locale: locale}) }}"
+        {% set params = route ? route_params|merge({'_locale': locale}) : {'_locale': locale} %}
+        {% set target_route = route ?: 'app_welcome' %}
+        <a href="{{ path(target_route, params) }}"
            class="btn btn-sm {{ app.request.locale == locale ? 'btn-primary' : 'btn-outline-secondary' }}"
            hreflang="{{ locale }}"
            lang="{{ locale }}">

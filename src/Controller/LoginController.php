@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
+use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 use Twig\Environment;
@@ -18,7 +19,7 @@ use Twig\Environment;
 final class LoginController
 {
     /**
-     * @param array{layout: string, login: string, register: string} $templates
+     * @param array{layout: string, login: string, register: string, reset_request: string, reset_password: string, reset_password_code: string} $templates
      * @param array<string, array{path: string, name: string}> $routes
      */
     public function __construct(
@@ -26,10 +27,11 @@ final class LoginController
         private readonly FormFactoryInterface $formFactory,
         private readonly AuthenticationUtils $authenticationUtils,
         private readonly TokenStorageInterface $tokenStorage,
-        private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly array $templates,
         private readonly array $routes,
         private readonly ?string $loginSuccessRoute,
+        private readonly string $passwordResetMode,
     ) {
     }
 
@@ -51,10 +53,12 @@ final class LoginController
             $form->get('_username')->setData($lastUsername);
         }
         $content = $this->twig->render($this->templates['login'], [
-            'login_form'      => $form->createView(),
-            'error'           => $this->authenticationUtils->getLastAuthenticationError(),
-            'register_route'  => $this->routes['register']['name'],
-            'layout_template' => $this->templates['layout'],
+            'login_form'             => $form->createView(),
+            'error'                  => $this->authenticationUtils->getLastAuthenticationError(),
+            'register_route'         => $this->routes['register']['name'],
+            'reset_password_route'   => $this->routes['reset_request']['name'],
+            'password_reset_enabled' => $this->passwordResetMode === PasswordResetMode::Enabled->value,
+            'layout_template'        => $this->templates['layout'],
         ]);
 
         return new Response($content);

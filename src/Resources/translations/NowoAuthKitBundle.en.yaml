@@ -5,6 +5,7 @@ login:
     heading: Sign in
     submit: Sign in
     register_link: Create an account
+    forgot_password_link: Forgot your password?
     field:
         identifier: Email or username
         password: Password
@@ -23,3 +24,49 @@ register:
         mismatch: The password fields must match.
         required: Please enter a password.
         min_length: Your password should be at least {{ limit }} characters.
+embed:
+    dropdown:
+        toggle: Account
+    tab:
+        login: Sign in
+        register: Register
+    authenticated:
+        logout: Sign out
+reset:
+    request:
+        title: Reset password
+        heading: Reset your password
+        help: Enter your account identifier. If it exists, we will send reset instructions.
+        submit: Send reset instructions
+        back_to_login: Back to sign in
+        flash_sent: If an account matches, reset instructions have been sent.
+        identifier_required: Please enter your identifier.
+        field:
+            identifier: Email or username
+    password:
+        title: Choose a new password
+        heading: Choose a new password
+        submit: Update password
+        back_to_login: Back to sign in
+        flash_success: Your password has been updated. You can sign in now.
+        flash_invalid_token: This reset link is invalid or has expired.
+        mismatch: The password fields must match.
+        required: Please enter a password.
+        min_length: Your password should be at least {{ limit }} characters.
+        field:
+            password: New password
+            password_confirm: Confirm new password
+    code:
+        title: Complete password reset
+        heading: Enter your code
+        help: Enter the identifier and the code you received (SMS, email, or authenticator).
+        submit: Update password
+        request_new: Request a new code
+        back_to_login: Back to sign in
+        flash_invalid: The code is invalid or has expired.
+        identifier_required: Please enter your identifier.
+        code_required: Please enter the code.
+        code_length: The code must be exactly {{ limit }} characters.
+        field:
+            identifier: Email or username
+            code: Reset code

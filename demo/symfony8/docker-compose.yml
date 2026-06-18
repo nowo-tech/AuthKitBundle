@@ -19,7 +19,7 @@ services:
     environment:
       - COMPOSER_ALLOW_SUPERUSER=1
       - SERVER_NAME=:80
-      - DATABASE_URL=mysql://${MYSQL_USER:-demo}:${MYSQL_PASSWORD:-demo}@mysql:3306/${MYSQL_DATABASE:-auth_kit_demo}?serverVersion=8.0
+      - DATABASE_URL=mysql://${MYSQL_USER:-demo}:${MYSQL_PASSWORD:-demo}@mysql:3306/${MYSQL_DATABASE:-auth_kit_demo}?serverVersion=8.0.32&charset=utf8mb4
     # REQ-DEMO-009: public DNS for Composer / Packagist (Docker/WSL resolver issues).
     dns:
       - 8.8.8.8

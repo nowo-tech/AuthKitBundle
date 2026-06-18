@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-18
+
+### Added
+
+- **Password reset** flow: request, link/code/both delivery, completion routes, and Twig templates.
+- `PasswordResetNotifierInterface` for app-specific delivery (email, SMS, logging, etc.).
+- `PasswordResetRequestedEvent` for audit, rate limiting, or webhooks without a full notifier.
+- Configurable `password_reset.*` (mode, delivery, TTL, token/code settings, entity field names).
+- **Embedded auth UI** via `auth_kit_dropdown()` Twig function (`embed.mode: dropdown`).
+- Configurable embed templates for login, register, and authenticated states.
+- **`locale_in_path`**: prefix login, register, logout, and password-reset routes with `/{_locale}`.
+- Twig helper `auth_kit_route_params()` for locale-aware Auth Kit links.
+- `AuthKitUrlGenerator` and `AuthKitRouteLocaleParameters` for internal URL generation.
+- Password-reset and embed translation keys in `NowoAuthKitBundle` (`en`, `es`).
+- Documentation: [PASSWORD-RESET.md](PASSWORD-RESET.md); [USAGE.md](USAGE.md) sections for embed and locale paths.
+- Demo welcome page, embed dropdown in navbar, password reset wiring, and locale-prefixed URLs (`/en/login`, etc.).
+
+### Changed
+
+- `nowo:auth-kit:configure-security` adds `access_control` for password-reset routes when enabled and locale-aware patterns when `locale_in_path` is true.
+- Form types use explicit `#[Autowire]` for configuration parameters (fixes autowiring in consuming apps).
+- Demos: FrankenPHP images include the `intl` PHP extension; MySQL 8.0 with explicit `serverVersion`; Symfony 8.1 profiler option cleanup.
+
+### Fixed
+
+- Demo redirect loop at `/` when `locale_in_path` is enabled (default locale must not collapse `app_welcome` to `/`).
+- Demo `.env` PostgreSQL DSN leftover conflicting with MySQL configuration.
+
+[1.1.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.1.0
+[1.0.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.0.0
+
 ## [1.0.0] - 2026-06-18
 
 ### Added
@@ -35,5 +66,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - N/A (initial public release).
-
-[1.0.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.0.0

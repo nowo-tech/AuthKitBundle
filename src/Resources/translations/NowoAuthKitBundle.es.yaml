@@ -5,6 +5,7 @@ login:
     heading: Iniciar sesión
     submit: Entrar
     register_link: Crear una cuenta
+    forgot_password_link: ¿Olvidaste tu contraseña?
     field:
         identifier: Email o usuario
         password: Contraseña
@@ -23,3 +24,49 @@ register:
         mismatch: Las contraseñas deben coincidir.
         required: Introduce una contraseña.
         min_length: La contraseña debe tener al menos {{ limit }} caracteres.
+embed:
+    dropdown:
+        toggle: Cuenta
+    tab:
+        login: Entrar
+        register: Registro
+    authenticated:
+        logout: Cerrar sesión
+reset:
+    request:
+        title: Restablecer contraseña
+        heading: Restablece tu contraseña
+        help: Introduce tu identificador. Si existe una cuenta, enviaremos instrucciones.
+        submit: Enviar instrucciones
+        back_to_login: Volver al inicio de sesión
+        flash_sent: Si existe una cuenta coincidente, se han enviado las instrucciones.
+        identifier_required: Introduce tu identificador.
+        field:
+            identifier: Email o usuario
+    password:
+        title: Nueva contraseña
+        heading: Elige una nueva contraseña
+        submit: Actualizar contraseña
+        back_to_login: Volver al inicio de sesión
+        flash_success: Tu contraseña se ha actualizado. Ya puedes iniciar sesión.
+        flash_invalid_token: Este enlace no es válido o ha caducado.
+        mismatch: Las contraseñas deben coincidir.
+        required: Introduce una contraseña.
+        min_length: La contraseña debe tener al menos {{ limit }} caracteres.
+        field:
+            password: Nueva contraseña
+            password_confirm: Confirmar nueva contraseña
+    code:
+        title: Completar restablecimiento
+        heading: Introduce tu código
+        help: Introduce el identificador y el código recibido (SMS, email o autenticador).
+        submit: Actualizar contraseña
+        request_new: Solicitar un nuevo código
+        back_to_login: Volver al inicio de sesión
+        flash_invalid: El código no es válido o ha caducado.
+        identifier_required: Introduce tu identificador.
+        code_required: Introduce el código.
+        code_length: El código debe tener exactamente {{ limit }} caracteres.
+        field:
+            identifier: Email o usuario
+            code: Código de restablecimiento

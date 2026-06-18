@@ -15,7 +15,7 @@
     {{ form_end(registration_form) }}
 
     <p class="nowo-auth-kit__footer">
-        <a href="{{ path(login_route) }}">{{ 'register.login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path(login_route, auth_kit_route_params()) }}">{{ 'register.login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
     </p>
 </section>
 {% endblock %}

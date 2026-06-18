@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ 'demo.welcome.title'|trans({}, 'demo') }}{% endblock %}
+
+{% block body %}
+    <h1 class="h3 mb-3">{{ 'demo.welcome.heading'|trans({}, 'demo') }}</h1>
+    <p class="mb-3">{{ 'demo.welcome.lead'|trans({}, 'demo') }}</p>
+    <p class="text-muted small mb-0">{{ 'demo.welcome.embed_hint'|trans({}, 'demo') }}</p>
+    <div class="d-flex flex-wrap gap-2 mt-4">
+        <a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm">{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="btn btn-outline-secondary btn-sm">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+    </div>
+{% endblock %}
