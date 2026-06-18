@@ -58,17 +58,12 @@ Register the first user, then sign in. Demos include **Bootstrap 5** UI override
 
 ### Screenshots
 
-Welcome page with locale switcher and **Account** dropdown:
-
-![Auth Kit demo — welcome page](docs/assets/demo-welcome.png)
-
-Full-page login (`/en/login`):
-
-![Auth Kit demo — login page](docs/assets/demo-login.png)
-
-Embedded sign-in inside the navbar dropdown (`auth_kit_dropdown()`):
-
-![Auth Kit demo — embed dropdown](docs/assets/demo-embed-dropdown.png)
+<p align="center">
+  <img src="docs/assets/demo-welcome.png" width="280" alt="Welcome page with locale switcher and Account dropdown" />
+  <img src="docs/assets/demo-login.png" width="280" alt="Full-page login at /en/login" />
+  <img src="docs/assets/demo-embed-dropdown.png" width="280" alt="Embedded sign-in in navbar dropdown" />
+</p>
+<p align="center"><sub>Welcome · Login · <code>auth_kit_dropdown()</code></sub></p>
 
 See [demo/README.md](demo/README.md) for template override paths and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup.
 
