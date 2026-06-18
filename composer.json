@@ -1,0 +1,116 @@
+{
+    "name": "nowo-tech/auth-kit-bundle",
+    "description": "Symfony bundle for configurable login and registration with overridable templates, registration modes, and i18n",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": [
+        "symfony",
+        "bundle",
+        "security",
+        "login",
+        "registration",
+        "authentication",
+        "auth"
+    ],
+    "homepage": "https://github.com/nowo-tech/auth-kit-bundle",
+    "support": {
+        "issues": "https://github.com/nowo-tech/auth-kit-bundle/issues",
+        "source": "https://github.com/nowo-tech/auth-kit-bundle"
+    },
+    "authors": [
+        {
+            "name": "Héctor Franco Aceituno",
+            "email": "hectorfranco@nowo.tech",
+            "homepage": "https://github.com/HecFranco",
+            "role": "Developer"
+        },
+        {
+            "name": "Nowo.tech",
+            "homepage": "https://nowo.tech"
+        }
+    ],
+    "require": {
+        "php": ">=8.2 <8.6",
+        "doctrine/doctrine-bundle": "^2.10 || ^3.0",
+        "doctrine/orm": "^2.15 || ^3.0",
+        "symfony/asset": "^7.4 || ^8.0",
+        "symfony/config": "^7.4 || ^8.0",
+        "symfony/dependency-injection": "^7.4 || ^8.0",
+        "symfony/form": "^7.4 || ^8.0",
+        "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/http-kernel": "^7.4 || ^8.0",
+        "symfony/password-hasher": "^7.4 || ^8.0",
+        "symfony/property-access": "^7.4 || ^8.0",
+        "symfony/routing": "^7.4 || ^8.0",
+        "symfony/security-bundle": "^7.4 || ^8.0",
+        "symfony/translation": "^7.4 || ^8.0",
+        "symfony/twig-bundle": "^7.4 || ^8.0",
+        "symfony/validator": "^7.4 || ^8.0",
+        "symfony/yaml": "^7.4 || ^8.0"
+    },
+    "suggest": {
+        "nowo-tech/password-toggle-bundle": "Password fields with visibility toggle (^1.2.8)",
+        "symfony/ux-icons": "Required for password visibility toggle icons (^2.0 || ^3.0)",
+        "symfony/http-client": "Required with symfony/ux-icons to fetch toggle icons on demand"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "nowo-tech/password-toggle-bundle": "^1.2.8",
+        "phpstan/phpstan": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
+        "phpunit/phpunit": "^10.0",
+        "rector/rector": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nowo\\AuthKitBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nowo\\AuthKitBundle\\Tests\\": "tests/"
+        }
+    },
+    "archive": {
+        "exclude": [
+            "/demo",
+            "/.cursor"
+        ]
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "test-coverage": "vendor/bin/phpunit --colors=always --coverage-html coverage --coverage-clover coverage.xml --coverage-text",
+        "test-coverage-100": [
+            "@test-coverage",
+            "php scripts/check-coverage.php coverage.xml --min-percent=100"
+        ],
+        "coverage-check": "@test-coverage-100",
+        "cs-check": "vendor/bin/php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "vendor/bin/php-cs-fixer fix",
+        "phpstan": "phpstan analyse --memory-limit=512M",
+        "rector": "rector process",
+        "rector-dry": "rector process --dry-run --no-progress-bar",
+        "qa": [
+            "@cs-check",
+            "@test"
+        ]
+    },
+    "scripts-descriptions": {
+        "test": "Run PHPUnit tests",
+        "test-coverage": "Run PHPUnit tests with code coverage",
+        "test-coverage-100": "Run test-coverage and fail if coverage is below 100%",
+        "coverage-check": "Alias for test-coverage-100",
+        "cs-check": "Check code style with PHP-CS-Fixer",
+        "cs-fix": "Fix code style with PHP-CS-Fixer",
+        "phpstan": "Run PHPStan static analysis",
+        "rector": "Apply Rector refactoring",
+        "rector-dry": "Run Rector in dry-run mode",
+        "qa": "Run all quality assurance checks"
+    }
+}

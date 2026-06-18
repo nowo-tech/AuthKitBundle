@@ -1,0 +1,15 @@
+{
+    "bundles": {
+        "Nowo\\AuthKitBundle\\NowoAuthKitBundle": ["all"],
+        "Nowo\\PasswordToggleBundle\\NowoPasswordToggleBundle": ["all"]
+    },
+    "copy-from-recipe": {
+        "config/": "%CONFIG_DIR%/",
+        "assets/": "%PROJECT_DIR%/assets/"
+    },
+    "require": {
+        "nowo-tech/password-toggle-bundle": "^1.2.8",
+        "symfony/http-client": "^7.4 || ^8.0",
+        "symfony/ux-icons": "^2.0 || ^3.0"
+    }
+}

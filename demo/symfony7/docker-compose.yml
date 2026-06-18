@@ -1,0 +1,83 @@
+name: auth-kit-bundle-demo-symfony-7
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth-kit-demo-symfony7-php
+    working_dir: /app
+    ports:
+      - "${PORT:-8009}:80"
+    volumes:
+      - .:/app
+      - ../../:/var/auth-kit-bundle
+      - composer-cache:/root/.composer/cache
+      - ./docker/php-dev.ini:/usr/local/etc/php/conf.d/99-php-dev.ini:ro
+    env_file:
+      - .env
+    environment:
+      - COMPOSER_ALLOW_SUPERUSER=1
+      - SERVER_NAME=:80
+      - DATABASE_URL=mysql://${MYSQL_USER:-demo}:${MYSQL_PASSWORD:-demo}@mysql:3306/${MYSQL_DATABASE:-auth_kit_demo_symfony7}?serverVersion=8.0
+    # REQ-DEMO-009: public DNS for Composer / Packagist (Docker/WSL resolver issues).
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - auth-kit-demo-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: auth-kit-demo-symfony7-mysql
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-auth_kit_demo_symfony7}
+      MYSQL_USER: ${MYSQL_USER:-demo}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-demo}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - auth-kit-demo-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+###> doctrine/doctrine-bundle ###
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      # You should definitely change the password in production
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app}", "-U", "${POSTGRES_USER:-app}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - database_data:/var/lib/postgresql/data:rw
+      # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
+      # - ./docker/db/data:/var/lib/postgresql/data:rw
+###< doctrine/doctrine-bundle ###
+
+volumes:
+  composer-cache:
+    driver: local
+
+###> doctrine/doctrine-bundle ###
+  database_data:
+###< doctrine/doctrine-bundle ###
+  mysql-data:
+
+networks:
+  auth-kit-demo-network:
+    driver: bridge

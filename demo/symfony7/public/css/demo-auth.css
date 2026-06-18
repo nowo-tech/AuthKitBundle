@@ -1,0 +1,58 @@
+/**
+ * Auth Kit demo — form polish on top of Bootstrap 5.
+ */
+.auth-card .form-label {
+  font-weight: 500;
+  margin-bottom: 0.375rem;
+}
+
+.auth-card .mb-3,
+.auth-card .form-floating {
+  margin-bottom: 0 !important;
+}
+
+.auth-card .input-group {
+  width: 100%;
+}
+
+.auth-card .input-group > .form-control {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 1%;
+}
+
+.auth-card .form-password-toggle .input-group-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  padding-inline: 0.65rem;
+}
+
+.auth-card .form-check {
+  padding-top: 0.125rem;
+}
+
+.auth-card .form-check-label {
+  font-weight: 400;
+}
+
+.auth-card__header {
+  border-bottom: 1px solid var(--bs-border-color-translucent);
+  margin: -1.5rem -1.5rem 1.5rem;
+  padding: 1.25rem 1.5rem 1rem;
+  text-align: center;
+}
+
+.auth-card__footer {
+  border-top: 1px solid var(--bs-border-color-translucent);
+  margin: 1.5rem -1.5rem -1.5rem;
+  padding: 1rem 1.5rem;
+  text-align: center;
+  background-color: var(--bs-tertiary-bg);
+  border-radius: 0 0 var(--bs-card-border-radius) var(--bs-card-border-radius);
+}
+
+.locale-switcher .btn {
+  min-width: 5.5rem;
+}

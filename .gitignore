@@ -1,0 +1,46 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Symfony runtime
+/var/
+
+# Build outputs
+/dist/
+/build/
+/coverage/
+/.vite/
+
+# Caches / analysis
+/.php-cs-fixer.cache
+/.phpstan.cache
+/.phpunit.cache/
+coverage-php.txt
+coverage.xml
+
+# Package manager locks (optional local)
+composer.lock
+
+# IDE / local
+/.idea/
+/.vscode/
+.env
+.env.*
+!.env.example
+
+# Compressed archives
+*.zip
+*.tar
+*.gz
+*.tgz
+*.rar
+*.7z
+
+# Heavy / binary / logs
+*.log
+*.sql
+*.sql.gz
+
+# Secrets
+*.pem
+*.key

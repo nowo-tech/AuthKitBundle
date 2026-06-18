@@ -1,0 +1,64 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    Nowo\AuthKitBundle\:
+        resource: '../../'
+        exclude:
+            - '../../DependencyInjection/'
+            - '../../NowoAuthKitBundle.php'
+
+    Nowo\AuthKitBundle\Controller\:
+        resource: '../../Controller/'
+        public: true
+
+    Nowo\AuthKitBundle\Form\LoginFormType:
+        arguments:
+            $loginFields: '%nowo_auth_kit.login_fields%'
+
+    Nowo\AuthKitBundle\Form\RegistrationFormType:
+        arguments:
+            $registrationFields: '%nowo_auth_kit.registration_fields%'
+
+    Nowo\AuthKitBundle\Security\RegistrationGate:
+        arguments:
+            $userClass: '%nowo_auth_kit.user_class%'
+            $registrationMode: '%nowo_auth_kit.registration_mode%'
+
+    Nowo\AuthKitBundle\Security\UserRegistrar:
+        arguments:
+            $userClass: '%nowo_auth_kit.user_class%'
+            $registrationRole: '%nowo_auth_kit.registration_role%'
+            $registrationFields: '%nowo_auth_kit.registration_fields%'
+
+    Nowo\AuthKitBundle\Routing\AuthKitRouteLoader:
+        arguments:
+            $routes: '%nowo_auth_kit.routes%'
+        tags:
+            - { name: routing.loader }
+
+    Nowo\AuthKitBundle\Controller\LoginController:
+        public: true
+        arguments:
+            $templates: '%nowo_auth_kit.templates%'
+            $routes: '%nowo_auth_kit.routes%'
+            $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
+
+    Nowo\AuthKitBundle\Controller\RegisterController:
+        public: true
+        arguments:
+            $templates: '%nowo_auth_kit.templates%'
+            $routes: '%nowo_auth_kit.routes%'
+            $firewall: '%nowo_auth_kit.firewall%'
+            $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
+
+    Nowo\AuthKitBundle\Command\ConfigureSecurityCommand:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $routes: '%nowo_auth_kit.routes%'
+            $firewall: '%nowo_auth_kit.firewall%'
+            $userClass: '%nowo_auth_kit.user_class%'
+            $userIdentifierField: '%nowo_auth_kit.user_identifier_field%'
+            $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'

@@ -1,0 +1,3 @@
+# REQ-DEMO-002: disable Twig cache in dev for template overrides while developing the demo
+twig:
+    cache: false

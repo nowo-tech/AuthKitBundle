@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale|default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ 'layout.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ asset('bundles/nowopasswordtoggle/css/toggle_password.css') }}">
+    {% block stylesheets %}{% endblock %}
+</head>
+<body class="nowo-auth-kit">
+    <main class="nowo-auth-kit__main">
+        {% block body %}{% endblock %}
+    </main>
+    {% block javascripts %}{% endblock %}
+</body>
+</html>

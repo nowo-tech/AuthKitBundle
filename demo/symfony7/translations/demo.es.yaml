@@ -1,0 +1,11 @@
+demo:
+    locale:
+        nav: Idioma
+        en: Inglés
+        es: Español
+    home:
+        title: Demo Auth Kit
+        heading: Auth Kit Bundle — Demo
+        logged_in: "Sesión iniciada como %email%."
+        registration_hint: "Modo de registro first_user_only: solo se puede crear la primera cuenta en /register; los siguientes registros quedan deshabilitados cuando ya existe un usuario."
+        logout: Cerrar sesión

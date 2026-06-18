@@ -1,0 +1,21 @@
+{% extends layout_template %}
+
+{% block title %}{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
+
+{% block body %}
+{% form_theme registration_form '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig' %}
+<section class="nowo-auth-kit__panel">
+    <h1>{{ 'register.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+
+    {{ form_start(registration_form) }}
+        {% for field in registration_form %}
+            {{ form_row(field) }}
+        {% endfor %}
+        <button type="submit" class="nowo-auth-kit__button">{{ 'register.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+    {{ form_end(registration_form) }}
+
+    <p class="nowo-auth-kit__footer">
+        <a href="{{ path(login_route) }}">{{ 'register.login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+    </p>
+</section>
+{% endblock %}

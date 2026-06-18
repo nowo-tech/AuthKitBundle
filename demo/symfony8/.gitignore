@@ -1,0 +1,26 @@
+# Local environment (never commit secrets or machine-specific values)
+/.env
+/.env.dev
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+
+# Dependencies
+/vendor/
+
+# Symfony runtime / build
+/var/
+/public/bundles/
+
+# Test and coverage artifacts
+/.phpunit.cache/
+/phpunit.xml
+/coverage/
+/coverage.xml
+
+# Compressed archives
+*.zip
+*.tar
+*.gz
+*.tgz

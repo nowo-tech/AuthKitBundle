@@ -1,0 +1,8 @@
+nowo_auth_kit:
+    user_class: App\Entity\User
+    user_identifier_field: email
+    registration_mode: first_user_only
+    registration_role: ROLE_USER
+    login_success_route: demo_home
+    default_locale: en
+    enabled_locales: [en, es]

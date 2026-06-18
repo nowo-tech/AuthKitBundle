@@ -1,0 +1,25 @@
+layout:
+    title: Autenticación
+login:
+    title: Iniciar sesión
+    heading: Iniciar sesión
+    submit: Entrar
+    register_link: Crear una cuenta
+    field:
+        identifier: Email o usuario
+        password: Contraseña
+        remember_me: Recordarme
+register:
+    title: Crear cuenta
+    heading: Crear cuenta
+    submit: Registrarse
+    login_link: ¿Ya tienes cuenta? Inicia sesión
+    field:
+        email: Email
+        password: Contraseña
+        password_confirm: Confirmar contraseña
+        name: Nombre
+    password:
+        mismatch: Las contraseñas deben coincidir.
+        required: Introduce una contraseña.
+        min_length: La contraseña debe tener al menos {{ limit }} caracteres.

@@ -1,0 +1,2 @@
+nowo_auth_kit:
+    resource: '@NowoAuthKitBundle/Resources/config/routing.yaml'

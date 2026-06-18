@@ -1,0 +1,13 @@
+{# Demo locale switcher — persists choice in session via app_set_locale #}
+<nav class="locale-switcher d-flex justify-content-center justify-content-sm-end gap-2 mb-3"
+     role="navigation"
+     aria-label="{{ 'demo.locale.nav'|trans({}, 'demo') }}">
+    {% for locale in ['en', 'es'] %}
+        <a href="{{ path('app_set_locale', {_locale: locale}) }}"
+           class="btn btn-sm {{ app.request.locale == locale ? 'btn-primary' : 'btn-outline-secondary' }}"
+           hreflang="{{ locale }}"
+           lang="{{ locale }}">
+            {{ ('demo.locale.' ~ locale)|trans({}, 'demo') }}
+        </a>
+    {% endfor %}
+</nav>

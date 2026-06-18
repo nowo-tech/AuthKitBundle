@@ -1,0 +1,30 @@
+{#
+    Override: templates/bundles/NowoAuthKitBundle/security/register.html.twig
+#}
+{% extends layout_template %}
+
+{% block title %}{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
+
+{% block body %}
+{% form_theme registration_form 'form/auth_kit_theme.html.twig' %}
+<div class="card shadow-sm border-0 auth-card">
+    <div class="card-body p-4">
+        <div class="auth-card__header">
+            <h1 class="h4 mb-0 fw-semibold">{{ 'register.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+        </div>
+
+        {{ form_start(registration_form, {attr: {class: 'vstack gap-3'}}) }}
+            {% for field in registration_form %}
+                {{ form_row(field, {row_attr: {class: 'mb-0'}}) }}
+            {% endfor %}
+            <div class="pt-1">
+                <button type="submit" class="btn btn-primary w-100 btn-lg">{{ 'register.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+            </div>
+        {{ form_end(registration_form) }}
+
+        <div class="auth-card__footer">
+            <a href="{{ path(login_route) }}" class="link-primary text-decoration-none fw-medium">{{ 'register.login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

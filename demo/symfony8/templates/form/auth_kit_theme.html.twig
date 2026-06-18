@@ -1,0 +1,8 @@
+{# Combines Bootstrap 5 form layout with the password toggle widget. #}
+{% use "bootstrap_5_layout.html.twig" %}
+{% use "@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig" %}
+
+{% block toggle_password_widget %}
+    {% set attr = attr|merge({class: (attr.class|default('') ~ ' form-control')|trim}) %}
+    {{ parent() }}
+{% endblock %}

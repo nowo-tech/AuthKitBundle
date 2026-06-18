@@ -1,0 +1,3 @@
+nowo_auth_kit:
+    resource: .
+    type: nowo_auth_kit

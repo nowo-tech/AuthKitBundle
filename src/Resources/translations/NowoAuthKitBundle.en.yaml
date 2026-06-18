@@ -1,0 +1,25 @@
+layout:
+    title: Authentication
+login:
+    title: Sign in
+    heading: Sign in
+    submit: Sign in
+    register_link: Create an account
+    field:
+        identifier: Email or username
+        password: Password
+        remember_me: Remember me
+register:
+    title: Create account
+    heading: Create account
+    submit: Register
+    login_link: Already have an account? Sign in
+    field:
+        email: Email
+        password: Password
+        password_confirm: Confirm password
+        name: Name
+    password:
+        mismatch: The password fields must match.
+        required: Please enter a password.
+        min_length: Your password should be at least {{ limit }} characters.

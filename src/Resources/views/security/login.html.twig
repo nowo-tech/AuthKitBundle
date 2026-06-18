@@ -1,0 +1,29 @@
+{% extends layout_template %}
+
+{% block title %}{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
+
+{% block body %}
+{% form_theme login_form '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig' %}
+<section class="nowo-auth-kit__panel">
+    <h1>{{ 'login.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+
+    {% if error %}
+        <div class="nowo-auth-kit__alert nowo-auth-kit__alert--error" role="alert">
+            {{ error.messageKey|trans(error.messageData, 'security') }}
+        </div>
+    {% endif %}
+
+    {{ form_start(login_form) }}
+        {{ form_row(login_form._username) }}
+        {{ form_row(login_form._password) }}
+        {% if login_form._remember_me is defined %}
+            {{ form_row(login_form._remember_me) }}
+        {% endif %}
+        <button type="submit" class="nowo-auth-kit__button">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+    {{ form_end(login_form) }}
+
+    <p class="nowo-auth-kit__footer">
+        <a href="{{ path(register_route) }}">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+    </p>
+</section>
+{% endblock %}

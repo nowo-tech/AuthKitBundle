@@ -1,0 +1,17 @@
+{
+	frankenphp
+}
+
+:80 {
+	root * /app/public
+	encode zstd br gzip
+
+	@phpRoute {
+		not file {path}
+	}
+	rewrite @phpRoute /index.php
+
+	php_server {
+		worker /app/public/index.php 2
+	}
+}
