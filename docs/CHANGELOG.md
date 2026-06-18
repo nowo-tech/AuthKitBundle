@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-06-18
+## [1.1.1] - 2026-06-18
+
+### Added
+
+- Demo screenshots in the main [README](../README.md) (`docs/assets/`: welcome, login, embed dropdown).
+
+### Changed
+
+- CI: bump `actions/checkout` to v6 and `actions/github-script` to v9.
+
+### Fixed
+
+- `composer.json` `homepage` and `support` URLs now point to the GitHub repository `nowo-tech/AuthKitBundle`.
+
+[1.1.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.1.1
 
 ### Added
 

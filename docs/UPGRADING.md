@@ -1,5 +1,15 @@
 # Upgrading
 
+## To 1.1.1
+
+From **1.1.0** — no code or configuration changes required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+This release updates README screenshots, Composer package metadata URLs, and CI action versions only.
+
 ## To 1.1.0
 
 From **1.0.0** — backward compatible; new features are opt-in via configuration defaults.
