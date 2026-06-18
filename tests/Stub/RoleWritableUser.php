@@ -34,4 +34,8 @@ final class RoleWritableUser implements UserInterface, PasswordAuthenticatedUser
     {
         return $this->roles;
     }
+
+    public function eraseCredentials(): void
+    {
+    }
 }
