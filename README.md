@@ -56,6 +56,20 @@ make -C demo up-symfony8   # Symfony 8.1 — http://localhost:8010
 
 Register the first user, then sign in. Demos include **Bootstrap 5** UI overrides, **en/es** locale-prefixed URLs, embed dropdown, password reset, and FrankenPHP (Docker).
 
+### Screenshots
+
+Welcome page with locale switcher and **Account** dropdown:
+
+![Auth Kit demo — welcome page](docs/assets/demo-welcome.png)
+
+Full-page login (`/en/login`):
+
+![Auth Kit demo — login page](docs/assets/demo-login.png)
+
+Embedded sign-in inside the navbar dropdown (`auth_kit_dropdown()`):
+
+![Auth Kit demo — embed dropdown](docs/assets/demo-embed-dropdown.png)
+
 See [demo/README.md](demo/README.md) for template override paths and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup.
 
 ## Tests and coverage
