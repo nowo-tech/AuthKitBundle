@@ -12,10 +12,10 @@
         "authentication",
         "auth"
     ],
-    "homepage": "https://github.com/nowo-tech/auth-kit-bundle",
+    "homepage": "https://github.com/nowo-tech/AuthKitBundle",
     "support": {
-        "issues": "https://github.com/nowo-tech/auth-kit-bundle/issues",
-        "source": "https://github.com/nowo-tech/auth-kit-bundle"
+        "issues": "https://github.com/nowo-tech/AuthKitBundle/issues",
+        "source": "https://github.com/nowo-tech/AuthKitBundle"
     },
     "authors": [
         {
