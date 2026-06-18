@@ -47,4 +47,8 @@ final class TestUser implements UserInterface, PasswordAuthenticatedUserInterfac
     {
         $this->roles = $roles;
     }
+
+    public function eraseCredentials(): void
+    {
+    }
 }
