@@ -27,6 +27,8 @@ composer.lock
 .env
 .env.*
 !.env.example
+!.env.test
+!**/.env.test
 
 # Compressed archives
 *.zip

@@ -56,7 +56,25 @@ final class ConfigureSecurityCommandTest extends TestCase
         /** @var array<string, mixed> $security */
         $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
         self::assertSame('nowo_auth_kit_login', $security['security']['firewalls']['main']['form_login']['login_path']);
+        self::assertSame('login_form[_username]', $security['security']['firewalls']['main']['form_login']['username_parameter']);
         self::assertSame('App\\Entity\\User', $security['security']['providers']['app_user_provider']['entity']['class']);
+        self::assertArrayNotHasKey('remember_me', $security['security']['firewalls']['main']);
+    }
+
+    public function testAddsRememberMeWhenEnabled(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', 'demo_home', false, null, true));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('login_form[_remember_me]', $security['security']['firewalls']['main']['remember_me']['remember_me_parameter']);
+        self::assertSame(604800, $security['security']['firewalls']['main']['remember_me']['lifetime']);
     }
 
     public function testSkipsFormLoginWhenAlreadyConfigured(): void
@@ -83,6 +101,60 @@ final class ConfigureSecurityCommandTest extends TestCase
         /** @var array<string, mixed> $security */
         $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
         self::assertSame('custom_login', $security['security']['firewalls']['main']['form_login']['login_path']);
+    }
+
+    public function testRemovesRememberMeWhenDisabledEvenIfFormLoginExists(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump([
+                'security' => [
+                    'firewalls' => [
+                        'main' => [
+                            'form_login' => ['login_path' => 'custom_login'],
+                            'remember_me'  => [
+                                'secret'                => '%kernel.secret%',
+                                'lifetime'              => 604800,
+                                'path'                  => '/',
+                                'remember_me_parameter' => 'login_form[_remember_me]',
+                            ],
+                        ],
+                    ],
+                ],
+            ], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled'));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('custom_login', $security['security']['firewalls']['main']['form_login']['login_path']);
+        self::assertArrayNotHasKey('remember_me', $security['security']['firewalls']['main']);
+    }
+
+    public function testAddsRememberMeWhenEnabledEvenIfFormLoginExists(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump([
+                'security' => [
+                    'firewalls' => [
+                        'main' => [
+                            'form_login' => ['login_path' => 'custom_login'],
+                        ],
+                    ],
+                ],
+            ], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', 'demo_home', false, null, true));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('custom_login', $security['security']['firewalls']['main']['form_login']['login_path']);
+        self::assertSame('login_form[_remember_me]', $security['security']['firewalls']['main']['remember_me']['remember_me_parameter']);
     }
 
     public function testConfigureDefinesForceOptionAndHelp(): void
@@ -195,6 +267,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         ?string $loginSuccessRoute = null,
         bool $localeInPath = false,
         ?string $projectDir = null,
+        bool $rememberMeEnabled = false,
     ): ConfigureSecurityCommand {
         return new ConfigureSecurityCommand(
             $projectDir ?? $this->testDir,
@@ -205,6 +278,16 @@ final class ConfigureSecurityCommandTest extends TestCase
             $loginSuccessRoute,
             $passwordResetMode,
             new AuthKitRouteLocaleParameters(new RequestStack(), $localeInPath, 'en', ['en', 'es']),
+            [
+                ['name' => '_username', 'type' => 'text', 'property' => 'email', 'hash' => false, 'required' => true, 'security_name' => '_username'],
+                ['name' => '_password', 'type' => 'password', 'property' => null, 'hash' => false, 'required' => true, 'security_name' => '_password'],
+                ...($rememberMeEnabled ? [['name' => '_remember_me', 'type' => 'checkbox', 'property' => null, 'hash' => false, 'required' => false, 'security_name' => '_remember_me']] : []),
+            ],
+            [
+                'enabled'  => $rememberMeEnabled,
+                'lifetime' => 604800,
+                'path'     => '/',
+            ],
         );
     }
 

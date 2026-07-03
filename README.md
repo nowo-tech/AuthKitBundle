@@ -15,6 +15,7 @@ Works alongside Symfony Security — `security.yaml` remains required and is doc
 - **Password reset** (link, code, or both) with pluggable notifier
 - **Embedded auth dropdown** (`auth_kit_dropdown()`) for navbars and layouts
 - **Locale in URL paths** (`/en/login`, `/es/register`, …)
+- **Remember me** (optional persistent login cookie)
 - Registration modes: disabled, first user only, always open
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
 - Twig overrides via `templates/bundles/NowoAuthKitBundle/`
@@ -65,11 +66,11 @@ Register the first user, then sign in. Demos include **Bootstrap 5** UI override
 </p>
 <p align="center"><sub>Welcome · Login · <code>auth_kit_dropdown()</code></sub></p>
 
-See [demo/README.md](demo/README.md) for template override paths and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup.
+See [demo/README.md](demo/README.md) for template override paths and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup (including **worker mode** for production).
 
 ## Tests and coverage
 
-- Tests: PHPUnit (unit)
+- Tests: PHPUnit (unit + integration)
 - PHP: 100%
 - TS/JS: N/A
 - Python: N/A
@@ -83,7 +84,6 @@ MIT — see [LICENSE](LICENSE).
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md)
-- [Password reset](docs/PASSWORD-RESET.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Changelog](docs/CHANGELOG.md)
 - [Upgrading](docs/UPGRADING.md)
@@ -94,4 +94,5 @@ MIT — see [LICENSE](LICENSE).
 
 ### Additional documentation
 
+- [Password reset](docs/PASSWORD-RESET.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)

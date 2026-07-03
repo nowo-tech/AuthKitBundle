@@ -23,6 +23,8 @@ final class ConfigurationTest extends TestCase
         self::assertSame('nowo_auth_kit_login', $config['routes']['login']['name']);
         self::assertSame(['en', 'es'], $config['enabled_locales']);
         self::assertSame('disabled', $config['embed']['mode']);
+        self::assertFalse($config['remember_me']['enabled']);
+        self::assertSame(604800, $config['remember_me']['lifetime']);
         self::assertTrue($config['embed']['show_login']);
         self::assertTrue($config['embed']['show_register']);
         self::assertFalse($config['locale_in_path']);
