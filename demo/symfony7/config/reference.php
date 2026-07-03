@@ -1253,6 +1253,11 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         lifetime?: int|Param, // Cookie lifetime in seconds. // Default: 604800
  *         path?: scalar|Param|null, // Cookie path. // Default: "/"
  *     },
+ *     password_strength?: array{ // Optional integration with nowo-tech/password-strength-bundle for registration and password reset fields.
+ *         enabled?: bool|Param, // When true, uses PasswordStrengthType on new-password fields if that bundle is installed. // Default: false
+ *         level?: scalar|Param|null, // Policy level passed to PasswordStrengthType and PasswordStrength validator. // Default: "medium"
+ *         policy_mode?: "level"|"conditions"|Param, // Default: "level"
+ *     },
  *     registration_fields?: list<mixed>,
  *     templates?: array{
  *         layout?: scalar|Param|null, // Default: "@NowoAuthKitBundle/layout.html.twig"
