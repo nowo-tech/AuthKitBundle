@@ -1,5 +1,41 @@
 # Upgrading
 
+## To 1.3.0
+
+From **1.2.0** — backward compatible; password strength is opt-in (`password_strength.enabled: false` by default).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+No changes required unless you want strength policies on registration or password-reset fields.
+
+### Optional: password strength
+
+Requires `nowo-tech/password-strength-bundle` (not installed by default):
+
+```bash
+composer require nowo-tech/password-strength-bundle
+php bin/console assets:install
+```
+
+```yaml
+nowo_auth_kit:
+    password_strength:
+        enabled: true
+        level: medium
+        policy_mode: level
+```
+
+Include the client script in your layout:
+
+```twig
+<script src="{{ asset('bundles/passwordstrength/password-strength.js') }}" defer></script>
+```
+
+Policy details (`levels`, `form_theme`, live feedback) live in `nowo_password_strength.yaml`. See [CONFIGURATION.md](CONFIGURATION.md#password-strength-optional).
+
 ## To 1.2.0
 
 From **1.1.1** — backward compatible; remember-me is opt-in (`remember_me.enabled: false` by default).

@@ -28,6 +28,8 @@
 
 Without the password-toggle stack, login/register still work using Symfony’s default `PasswordType`.
 
+Optional: install `nowo-tech/password-strength-bundle` and set `nowo_auth_kit.password_strength.enabled: true` for strength policies on registration and password-reset fields — see [CONFIGURATION.md](CONFIGURATION.md#password-strength-optional).
+
 ## Composer
 
 ```bash

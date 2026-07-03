@@ -49,12 +49,14 @@
         "symfony/yaml": "^7.4 || ^8.0"
     },
     "suggest": {
+        "nowo-tech/password-strength-bundle": "Strength policies, live feedback, and validator for registration and password reset fields (^1.0)",
         "nowo-tech/password-toggle-bundle": "Password fields with visibility toggle (^1.2.8)",
         "symfony/ux-icons": "Required for password visibility toggle icons (^2.0 || ^3.0)",
         "symfony/http-client": "Required with symfony/ux-icons to fetch toggle icons on demand"
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.0",
+        "nowo-tech/password-strength-bundle": "^1.0",
         "nowo-tech/password-toggle-bundle": "^1.2.8",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",

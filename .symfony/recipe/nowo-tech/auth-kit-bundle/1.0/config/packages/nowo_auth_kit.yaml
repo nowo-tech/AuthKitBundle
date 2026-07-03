@@ -7,5 +7,9 @@ nowo_auth_kit:
     #     enabled: true
     #     lifetime: 604800
     #     path: /
+    # password_strength:
+    #     enabled: true
+    #     level: medium
+    #     policy_mode: level
     default_locale: en
     enabled_locales: [en, es]

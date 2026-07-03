@@ -7,6 +7,7 @@
 - [Field configuration](#field-configuration)
   - [Login](#login)
   - [Registration](#registration)
+  - [Password strength (optional)](#password-strength-optional)
 - [Password reset](#password-reset)
 - [Embedded auth UI](#embedded-auth-ui)
 - [Locale in paths](#locale-in-paths)
@@ -46,6 +47,12 @@ nowo_auth_kit:
         enabled: false
         lifetime: 604800
         path: /
+
+    # Optional: nowo-tech/password-strength-bundle for registration/reset password fields
+    password_strength:
+        enabled: false
+        level: medium
+        policy_mode: level
 
     # Registration form fields (string shorthand or expanded config)
     registration_fields:
@@ -169,6 +176,31 @@ Each field can be:
 - an array with `name`, `type` (`text`, `email`, `password`, `checkbox`), `property`, `hash` (default `true` for password), `required`.
 
 Password fields use `RepeatedType` with minimum length validation. When `nowo-tech/password-toggle-bundle` is present, the toggle `PasswordType` is used; otherwise Symfony’s default `PasswordType` is used (no hard dependency in the bundle library).
+
+When `password_strength.enabled` is `true` and `nowo-tech/password-strength-bundle` is installed, registration and password-reset fields use `PasswordStrengthType` with the `PasswordStrength` validator instead of the default `Length(min: 6)` rule. Login fields are unchanged.
+
+### Password strength (optional)
+
+```yaml
+nowo_auth_kit:
+    password_strength:
+        enabled: true
+        level: medium        # weak | medium | strong | custom (see PasswordStrengthBundle)
+        policy_mode: level   # level | conditions
+```
+
+Install the bundle and include its client script in your layout:
+
+```bash
+composer require nowo-tech/password-strength-bundle
+php bin/console assets:install
+```
+
+```twig
+<script src="{{ asset('bundles/passwordstrength/password-strength.js') }}" defer></script>
+```
+
+Policy details (`levels`, `form_theme`, live feedback) are configured in `nowo_password_strength.yaml` — see [PasswordStrengthBundle](https://github.com/nowo-tech/PasswordStrengthBundle). When both PasswordStrength and PasswordToggle bundles are installed, strength fields automatically use the toggle parent.
 
 ## Password reset
 

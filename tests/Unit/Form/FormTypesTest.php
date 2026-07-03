@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Form;
 
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Form\LoginFormType;
+use Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
@@ -28,15 +29,22 @@ final class FormTypesTest extends TestCase
 
     private PasswordFieldTypeResolver $passwordFieldTypeResolver;
 
+    private PasswordFieldConstraintResolver $passwordFieldConstraintResolver;
+
     protected function setUp(): void
     {
-        $this->passwordFieldTypeResolver = new PasswordFieldTypeResolver();
+        $this->passwordFieldTypeResolver       = new PasswordFieldTypeResolver();
+        $this->passwordFieldConstraintResolver = new PasswordFieldConstraintResolver($this->passwordFieldTypeResolver);
 
         $this->factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new PasswordType())
             ->addType(new LoginFormType(FieldConfigNormalizerFields::login(), $this->passwordFieldTypeResolver))
-            ->addType(new RegistrationFormType(FieldConfigNormalizerFields::registration(), $this->passwordFieldTypeResolver))
+            ->addType(new RegistrationFormType(
+                FieldConfigNormalizerFields::registration(),
+                $this->passwordFieldTypeResolver,
+                $this->passwordFieldConstraintResolver,
+            ))
             ->getFormFactory();
     }
 
@@ -80,7 +88,11 @@ final class FormTypesTest extends TestCase
         $resolver = new PasswordFieldTypeResolver(SymfonyPasswordType::class);
         $factory  = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new RegistrationFormType(FieldConfigNormalizerFields::registration(), $resolver))
+            ->addType(new RegistrationFormType(
+                FieldConfigNormalizerFields::registration(),
+                $resolver,
+                new PasswordFieldConstraintResolver($resolver),
+            ))
             ->getFormFactory();
 
         $field = $factory->create(RegistrationFormType::class)->get('password');
@@ -141,9 +153,13 @@ final class FormTypesTest extends TestCase
     {
         $factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new RegistrationFormType(FieldConfigNormalizer::normalizeRegistrationFields([
+            ->addType(new RegistrationFormType(
+                FieldConfigNormalizer::normalizeRegistrationFields([
                 'terms' => ['type' => 'checkbox'],
-            ]), $this->passwordFieldTypeResolver))
+            ]),
+                $this->passwordFieldTypeResolver,
+                $this->passwordFieldConstraintResolver,
+            ))
             ->getFormFactory();
 
         $field = $factory->create(RegistrationFormType::class)->get('terms');
@@ -155,9 +171,13 @@ final class FormTypesTest extends TestCase
     {
         $factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new RegistrationFormType(FieldConfigNormalizer::normalizeRegistrationFields([
+            ->addType(new RegistrationFormType(
+                FieldConfigNormalizer::normalizeRegistrationFields([
                 'fullName',
-            ]), $this->passwordFieldTypeResolver))
+            ]),
+                $this->passwordFieldTypeResolver,
+                $this->passwordFieldConstraintResolver,
+            ))
             ->getFormFactory();
 
         $field = $factory->create(RegistrationFormType::class)->get('fullName');
