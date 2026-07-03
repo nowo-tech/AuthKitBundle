@@ -6,8 +6,8 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Controller\RegisterController;
-use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
+use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
@@ -177,7 +177,11 @@ final class RegisterControllerTest extends TestCase
     ): RegisterController {
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new RegistrationFormType(FieldConfigNormalizerFields::registration(), new PasswordFieldTypeResolver()))
+            ->addType(new RegistrationFormType(
+                FieldConfigNormalizerFields::registration(),
+                PasswordFieldResolvers::typeResolver(),
+                PasswordFieldResolvers::constraintResolver(),
+            ))
             ->getFormFactory();
 
         $entityManager = $this->createMock(EntityManagerInterface::class);

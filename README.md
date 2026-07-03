@@ -16,6 +16,7 @@ Works alongside Symfony Security — `security.yaml` remains required and is doc
 - **Embedded auth dropdown** (`auth_kit_dropdown()`) for navbars and layouts
 - **Locale in URL paths** (`/en/login`, `/es/register`, …)
 - **Remember me** (optional persistent login cookie)
+- **Password strength** (optional integration with `nowo-tech/password-strength-bundle`)
 - Registration modes: disabled, first user only, always open
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
 - Twig overrides via `templates/bundles/NowoAuthKitBundle/`

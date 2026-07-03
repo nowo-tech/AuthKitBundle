@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-03
+
+### Added
+
+- Optional **`password_strength`** configuration for integration with `nowo-tech/password-strength-bundle` on registration and password-reset fields (`enabled`, `level`, `policy_mode`).
+- `PasswordFieldConstraintResolver`: applies `PasswordStrength` validator when strength is enabled, otherwise `Length(min: 6)`.
+- `PasswordFieldTypeResolver::resolveForNewPassword()` — login fields unchanged; new-password flows prefer `PasswordStrengthType` when configured and installed.
+
+### Changed
+
+- Documentation: password strength section in [CONFIGURATION.md](CONFIGURATION.md); upgrade notes in [UPGRADING.md](UPGRADING.md); Flex recipe comment in `nowo_auth_kit.yaml`.
+- `composer.json`: suggest and require-dev entry for `nowo-tech/password-strength-bundle`.
+
+[1.3.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.3.0
+
 ## [1.2.0] - 2026-07-03
 
 ### Added

@@ -34,6 +34,7 @@ final class NowoAuthKitExtension extends Extension
             FieldConfigNormalizer::normalizeLoginFields($loginFields, $config['user_identifier_field']),
         );
         $container->setParameter('nowo_auth_kit.remember_me', $config['remember_me']);
+        $container->setParameter('nowo_auth_kit.password_strength', $config['password_strength']);
         $container->setParameter(
             'nowo_auth_kit.registration_fields',
             FieldConfigNormalizer::normalizeRegistrationFields($config['registration_fields']),

@@ -25,6 +25,8 @@ final class ConfigurationTest extends TestCase
         self::assertSame('disabled', $config['embed']['mode']);
         self::assertFalse($config['remember_me']['enabled']);
         self::assertSame(604800, $config['remember_me']['lifetime']);
+        self::assertFalse($config['password_strength']['enabled']);
+        self::assertSame('medium', $config['password_strength']['level']);
         self::assertTrue($config['embed']['show_login']);
         self::assertTrue($config['embed']['show_register']);
         self::assertFalse($config['locale_in_path']);

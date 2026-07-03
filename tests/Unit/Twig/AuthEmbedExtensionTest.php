@@ -8,9 +8,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Embed\AuthEmbedContextFactory;
 use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
-use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Unit\Controller\AuthKitRoutesTrait;
 use Nowo\AuthKitBundle\Tests\Unit\Controller\FieldConfigNormalizerFields;
@@ -44,8 +44,12 @@ final class AuthEmbedExtensionTest extends TestCase
     {
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType(FieldConfigNormalizerFields::login(), new PasswordFieldTypeResolver()))
-            ->addType(new RegistrationFormType(FieldConfigNormalizerFields::registration(), new PasswordFieldTypeResolver()))
+            ->addType(new LoginFormType(FieldConfigNormalizerFields::login(), PasswordFieldResolvers::typeResolver()))
+            ->addType(new RegistrationFormType(
+                FieldConfigNormalizerFields::registration(),
+                PasswordFieldResolvers::typeResolver(),
+                PasswordFieldResolvers::constraintResolver(),
+            ))
             ->getFormFactory();
 
         $inner = $this->createMock(UrlGeneratorInterface::class);

@@ -6,9 +6,9 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Controller\ResetPasswordCodeController;
-use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
+use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
@@ -45,7 +45,12 @@ final class ResetPasswordCodeControllerTest extends TestCase
             $twig,
             Forms::createFormFactoryBuilder()
                 ->addExtension(new ValidatorExtension(Validation::createValidator()))
-                ->addType(new ResetPasswordCodeFormType('email', new PasswordFieldTypeResolver(), 6))
+                ->addType(new ResetPasswordCodeFormType(
+                    'email',
+                    PasswordFieldResolvers::typeResolver(),
+                    PasswordFieldResolvers::constraintResolver(),
+                    6,
+                ))
                 ->getFormFactory(),
             new PasswordResetGate('enabled'),
             $tokenManager,

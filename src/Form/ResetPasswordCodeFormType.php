@@ -25,6 +25,7 @@ final class ResetPasswordCodeFormType extends AbstractType
         #[Autowire(param: 'nowo_auth_kit.user_identifier_field')]
         private readonly string $userIdentifierField,
         private readonly PasswordFieldTypeResolver $passwordFieldTypeResolver,
+        private readonly PasswordFieldConstraintResolver $passwordFieldConstraintResolver,
         #[Autowire(param: 'nowo_auth_kit.password_reset.code_length')]
         private readonly int $codeLength,
     ) {
@@ -51,20 +52,20 @@ final class ResetPasswordCodeFormType extends AbstractType
                 ],
             ])
             ->add('password', RepeatedType::class, [
-                'type'          => $this->passwordFieldTypeResolver->resolve(),
-                'first_options' => [
+                'type'          => $this->passwordFieldTypeResolver->resolveForNewPassword(),
+                'first_options' => array_merge([
                     'label' => 'reset.password.field.password',
                     'attr'  => ['autocomplete' => 'new-password'],
-                ],
+                ], $this->passwordFieldTypeResolver->newPasswordFieldOptions()),
                 'second_options' => [
                     'label' => 'reset.password.field.password_confirm',
                     'attr'  => ['autocomplete' => 'new-password'],
                 ],
                 'invalid_message' => 'reset.password.mismatch',
-                'constraints'     => [
-                    new NotBlank(message: 'reset.password.required'),
-                    new Length(min: 6, minMessage: 'reset.password.min_length'),
-                ],
+                'constraints'     => $this->passwordFieldConstraintResolver->newPasswordConstraints(
+                    'reset.password.required',
+                    'reset.password.min_length',
+                ),
             ]);
     }
 

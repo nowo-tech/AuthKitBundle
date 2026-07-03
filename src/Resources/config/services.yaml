@@ -34,7 +34,11 @@ services:
 
     Nowo\AuthKitBundle\Form\ResetPasswordFormType: ~
 
-    Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver: ~
+    Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver:
+        arguments:
+            $passwordStrength: '%nowo_auth_kit.password_strength%'
+
+    Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver: ~
 
     Nowo\AuthKitBundle\Security\RegistrationGate:
         arguments:
