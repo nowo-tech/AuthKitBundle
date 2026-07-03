@@ -121,7 +121,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * }
  * @psalm-type ServicesConfig = array{
  *     _defaults?: DefaultsType,
- *     _instanceof?: InstanceofType,
+ *     _instanceof?: array<class-string, InstanceofType>,
  *     ...<string, DefinitionType|AliasType|PrototypeType|StackType|ArgumentsType|null>
  * }
  * @psalm-type ExtensionType = array<string, mixed>
@@ -1248,6 +1248,11 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     registration_role?: scalar|Param|null, // Role assigned to users created via registration (in addition to ROLE_USER from the entity). // Default: "ROLE_USER"
  *     registration_mode?: "disabled"|"first_user_only"|"always"|Param, // disabled: no registration. first_user_only: register only when no users exist. always: open registration. // Default: "first_user_only"
  *     login_fields?: list<mixed>,
+ *     remember_me?: array{ // Persistent login cookie (Symfony firewall remember_me). Set enabled: true or add remember_me to login_fields.
+ *         enabled?: bool|Param, // When true, configures firewall remember_me and ensures the login checkbox is shown. // Default: false
+ *         lifetime?: int|Param, // Cookie lifetime in seconds. // Default: 604800
+ *         path?: scalar|Param|null, // Cookie path. // Default: "/"
+ *     },
  *     registration_fields?: list<mixed>,
  *     templates?: array{
  *         layout?: scalar|Param|null, // Default: "@NowoAuthKitBundle/layout.html.twig"

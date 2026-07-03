@@ -41,6 +41,12 @@ nowo_auth_kit:
         - password
         # - remember_me
 
+    # Persistent login cookie (requires matching firewall remember_me — use configure-security)
+    remember_me:
+        enabled: false
+        lifetime: 604800
+        path: /
+
     # Registration form fields (string shorthand or expanded config)
     registration_fields:
         - email
@@ -116,7 +122,44 @@ nowo_auth_kit:
 
 Supported tokens: `identifier`, `password`, `remember_me`.
 
-The login form uses Symfony Security field names (`_username`, `_password`, `_csrf_token`) so `form_login` works without extra configuration.
+AuthKit renders login fields through Symfony Form with block prefix `login_form`, so POST keys are nested (`login_form[_username]`, not bare `_username`). Configure `security.yaml` accordingly, or run:
+
+```bash
+php bin/console nowo:auth-kit:configure-security --force
+```
+
+See `Nowo\AuthKitBundle\Security\AuthKitFormLoginParameters` for the exact parameter names.
+
+### Remember me
+
+Enable the checkbox and persistent cookie in one place:
+
+```yaml
+nowo_auth_kit:
+    remember_me:
+        enabled: true      # adds remember_me to login_fields and firewall remember_me
+        lifetime: 604800   # 7 days
+        path: /
+```
+
+Alternatively, add `remember_me` to `login_fields` only — the configure-security command will still add the firewall block when it detects that field.
+
+`nowo:auth-kit:configure-security` **always** adds or removes the firewall `remember_me` block to match bundle config, even when `form_login` is left unchanged (no `--force`). Use `--force` only to refresh `form_login` and logout settings.
+
+Manual `security.yaml` snippet:
+
+```yaml
+form_login:
+    username_parameter: login_form[_username]
+    password_parameter: login_form[_password]
+    csrf_parameter: login_form[_csrf_token]
+    csrf_token_id: authenticate
+remember_me:
+    secret: '%kernel.secret%'
+    lifetime: 604800
+    path: /
+    remember_me_parameter: login_form[_remember_me]
+```
 
 ### Registration
 

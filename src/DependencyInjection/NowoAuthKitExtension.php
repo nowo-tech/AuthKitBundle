@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\DependencyInjection;
 
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
+use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -24,10 +25,15 @@ final class NowoAuthKitExtension extends Extension
         $container->setParameter('nowo_auth_kit.user_identifier_field', $config['user_identifier_field']);
         $container->setParameter('nowo_auth_kit.registration_role', $config['registration_role']);
         $container->setParameter('nowo_auth_kit.registration_mode', $config['registration_mode']);
+        $loginFields = RememberMeConfigResolver::ensureLoginField(
+            $config['login_fields'],
+            (bool) $config['remember_me']['enabled'],
+        );
         $container->setParameter(
             'nowo_auth_kit.login_fields',
-            FieldConfigNormalizer::normalizeLoginFields($config['login_fields'], $config['user_identifier_field']),
+            FieldConfigNormalizer::normalizeLoginFields($loginFields, $config['user_identifier_field']),
         );
+        $container->setParameter('nowo_auth_kit.remember_me', $config['remember_me']);
         $container->setParameter(
             'nowo_auth_kit.registration_fields',
             FieldConfigNormalizer::normalizeRegistrationFields($config['registration_fields']),

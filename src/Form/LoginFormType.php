@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Form;
 
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
+use Nowo\AuthKitBundle\Security\AuthKitFormLoginParameters;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -54,5 +55,10 @@ final class LoginFormType extends AbstractType
             'csrf_field_name'    => '_csrf_token',
             'csrf_token_id'      => 'authenticate',
         ]);
+    }
+
+    public function getBlockPrefix(): string
+    {
+        return AuthKitFormLoginParameters::BLOCK_PREFIX;
     }
 }

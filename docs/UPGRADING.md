@@ -1,5 +1,39 @@
 # Upgrading
 
+## To 1.2.0
+
+From **1.1.1** — backward compatible; remember-me is opt-in (`remember_me.enabled: false` by default).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console nowo:auth-kit:configure-security --force
+php bin/console cache:clear
+```
+
+Login forms post nested field names (`login_form[_username]`, not bare `_username`). The command above adds `username_parameter`, `password_parameter`, `csrf_parameter`, and `invalidate_session: true` on logout.
+
+### Optional: remember me
+
+Enable persistent login in `config/packages/nowo_auth_kit.yaml`:
+
+```yaml
+nowo_auth_kit:
+    remember_me:
+        enabled: true
+        lifetime: 604800
+        path: /
+```
+
+Then sync the firewall (remember-me is updated on every run; `--force` only needed to refresh `form_login`):
+
+```bash
+php bin/console nowo:auth-kit:configure-security
+```
+
+To **disable** remember-me, set `enabled: false` (and remove `remember_me` from `login_fields` if present), then re-run the command above — the `remember_me` firewall block is removed automatically.
+
+See [CONFIGURATION.md](CONFIGURATION.md#remember-me).
+
 ## To 1.1.1
 
 From **1.1.0** — no code or configuration changes required.

@@ -153,3 +153,5 @@ services:
             $loginSuccessRoute: '%nowo_auth_kit.login_success_route%'
             $passwordResetMode: '%nowo_auth_kit.password_reset.mode%'
             $routeLocaleParameters: '@Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters'
+            $loginFields: '%nowo_auth_kit.login_fields%'
+            $rememberMe: '%nowo_auth_kit.remember_me%'

@@ -24,6 +24,8 @@
 *.tar
 *.gz
 *.tgz
+*.rar
+*.7z
 
 ###> symfony/framework-bundle ###
 /.env.local

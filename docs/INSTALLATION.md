@@ -105,9 +105,20 @@ security:
                 check_path: nowo_auth_kit_login
                 default_target_path: homepage
                 enable_csrf: true
+                username_parameter: login_form[_username]
+                password_parameter: login_form[_password]
+                csrf_parameter: login_form[_csrf_token]
+                csrf_token_id: authenticate
+            # Optional — enable when nowo_auth_kit.remember_me.enabled is true:
+            # remember_me:
+            #     secret: '%kernel.secret%'
+            #     lifetime: 604800
+            #     path: /
+            #     remember_me_parameter: login_form[_remember_me]
             logout:
                 path: nowo_auth_kit_logout
                 target: nowo_auth_kit_login
+                invalidate_session: true
 
     access_control:
         - { path: ^/login, roles: PUBLIC_ACCESS }

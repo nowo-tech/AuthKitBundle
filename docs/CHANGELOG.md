@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-03
+
+### Added
+
+- **`remember_me` configuration** (`enabled`, `lifetime`, `path`): optional persistent login cookie aligned with the login checkbox and Symfony firewall.
+- `AuthKitFormLoginParameters`: central mapping of nested `form_login` / `remember_me` parameter names.
+- `RememberMeConfigResolver`: resolves remember-me enablement from bundle config and login fields.
+- Integration smoke test for bundle extension loading.
+- Unit tests for remember-me config resolution and security command behaviour.
+
+### Changed
+
+- `nowo:auth-kit:configure-security` writes nested `form_login` parameters (`login_form[_username]`, etc.) and `invalidate_session: true` on logout.
+- `remember_me` firewall block is **synced on every** `configure-security` run (independent of the `--force` guard on `form_login`).
+- Demo `security.yaml` files updated with nested login parameters.
+- Documentation: remember-me section in [CONFIGURATION.md](CONFIGURATION.md); installation snippet in [INSTALLATION.md](INSTALLATION.md); upgrade guide in [UPGRADING.md](UPGRADING.md).
+
+### Fixed
+
+- Disabling remember-me in bundle config now removes a stale `remember_me` block from `security.yaml` without requiring `--force`.
+
+[1.2.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.2.0
+
 ## [1.1.1] - 2026-06-18
 
 ### Added
@@ -22,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `composer.json` `homepage` and `support` URLs now point to the GitHub repository `nowo-tech/AuthKitBundle`.
 
 [1.1.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.1.1
+
+## [1.1.0] - 2026-06-18
 
 ### Added
 
@@ -50,7 +75,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Demo `.env` PostgreSQL DSN leftover conflicting with MySQL configuration.
 
 [1.1.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.1.0
-[1.0.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.0.0
 
 ## [1.0.0] - 2026-06-18
 
@@ -80,3 +104,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - N/A (initial public release).
+
+[1.0.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.0.0
