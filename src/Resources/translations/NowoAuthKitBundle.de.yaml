@@ -1,0 +1,72 @@
+layout:
+    title: Authentifizierung
+login:
+    title: Anmelden
+    heading: Anmelden
+    submit: Anmelden
+    register_link: Konto erstellen
+    forgot_password_link: Passwort vergessen?
+    field:
+        identifier: E-Mail oder Benutzername
+        password: Passwort
+        remember_me: Angemeldet bleiben
+register:
+    title: Konto erstellen
+    heading: Konto erstellen
+    submit: Registrieren
+    login_link: Bereits ein Konto? Anmelden
+    field:
+        email: E-Mail
+        password: Passwort
+        password_confirm: Passwort bestätigen
+        name: Name
+    password:
+        mismatch: Die Passwörter müssen übereinstimmen.
+        required: Bitte geben Sie ein Passwort ein.
+        min_length: Ihr Passwort muss mindestens {{ limit }} Zeichen lang sein.
+embed:
+    dropdown:
+        toggle: Konto
+    tab:
+        login: Anmelden
+        register: Registrieren
+    authenticated:
+        logout: Abmelden
+reset:
+    request:
+        title: Passwort zurücksetzen
+        heading: Passwort zurücksetzen
+        help: Geben Sie Ihren Identifikator ein. Wenn ein Konto existiert, senden wir Anweisungen.
+        submit: Anweisungen senden
+        back_to_login: Zurück zur Anmeldung
+        flash_sent: Wenn ein passendes Konto existiert, wurden Anweisungen gesendet.
+        identifier_required: Bitte geben Sie Ihren Identifikator ein.
+        field:
+            identifier: E-Mail oder Benutzername
+    password:
+        title: Neues Passwort wählen
+        heading: Neues Passwort wählen
+        submit: Passwort aktualisieren
+        back_to_login: Zurück zur Anmeldung
+        flash_success: Ihr Passwort wurde aktualisiert. Sie können sich jetzt anmelden.
+        flash_invalid_token: Dieser Link ist ungültig oder abgelaufen.
+        mismatch: Die Passwörter müssen übereinstimmen.
+        required: Bitte geben Sie ein Passwort ein.
+        min_length: Ihr Passwort muss mindestens {{ limit }} Zeichen lang sein.
+        field:
+            password: Neues Passwort
+            password_confirm: Neues Passwort bestätigen
+    code:
+        title: Passwort-Reset abschließen
+        heading: Code eingeben
+        help: Geben Sie den Identifikator und den erhaltenen Code ein (SMS, E-Mail oder Authenticator).
+        submit: Passwort aktualisieren
+        request_new: Neuen Code anfordern
+        back_to_login: Zurück zur Anmeldung
+        flash_invalid: Der Code ist ungültig oder abgelaufen.
+        identifier_required: Bitte geben Sie Ihren Identifikator ein.
+        code_required: Bitte geben Sie den Code ein.
+        code_length: Der Code muss genau {{ limit }} Zeichen lang sein.
+        field:
+            identifier: E-Mail oder Benutzername
+            code: Reset-Code

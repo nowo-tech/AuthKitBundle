@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
+use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
@@ -39,6 +41,7 @@ final class LoginControllerTest extends TestCase
             $this->createMock(AuthenticationUtils::class),
             $tokenStorage,
             AuthKitTestUrlGenerator::fromMock($inner),
+            new RegistrationGate($this->createMock(EntityManagerInterface::class), TestUser::class, 'disabled'),
             $this->templates(),
             $this->routes(),
             'demo_home',
@@ -51,7 +54,7 @@ final class LoginControllerTest extends TestCase
         self::assertSame('/home', $response->headers->get('Location'));
     }
 
-    public function testRendersLoginTemplate(): void
+    public function testRendersLoginTemplateWithRegistrationAllowedFlag(): void
     {
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
@@ -62,8 +65,23 @@ final class LoginControllerTest extends TestCase
         $authenticationUtils->method('getLastUsername')->willReturn('user@example.com');
         $authenticationUtils->method('getLastAuthenticationError')->willReturn(null);
 
+        $registrationGate = new RegistrationGate(
+            $this->createMock(EntityManagerInterface::class),
+            TestUser::class,
+            'disabled',
+        );
+
         $twig = $this->createMock(Environment::class);
-        $twig->expects(self::once())->method('render')->willReturn('<html>login</html>');
+        $twig->expects(self::once())
+            ->method('render')
+            ->with(
+                self::identicalTo($this->templates()['login']),
+                self::callback(static function (array $context): bool {
+                    return isset($context['registration_allowed'])
+                        && $context['registration_allowed'] === false;
+                }),
+            )
+            ->willReturn('<html>login</html>');
 
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->willReturn('/login');
@@ -74,6 +92,7 @@ final class LoginControllerTest extends TestCase
             $authenticationUtils,
             $this->createMock(TokenStorageInterface::class),
             AuthKitTestUrlGenerator::fromMock($inner),
+            $registrationGate,
             $this->templates(),
             $this->routes(),
             null,

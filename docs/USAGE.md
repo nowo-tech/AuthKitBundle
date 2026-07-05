@@ -41,6 +41,9 @@ Symfony resolves app overrides before bundle defaults.
 | `login_form` | Login form view |
 | `error` | Last authentication error |
 | `register_route` | Route name for registration link |
+| `registration_allowed` | Whether self-registration is currently allowed (`registration_mode` + user count) |
+| `reset_password_route` | Route name for password reset request |
+| `password_reset_enabled` | Whether password reset flows are enabled |
 | `layout_template` | Parent layout template |
 
 **Register** (`security/register.html.twig`):
@@ -189,12 +192,14 @@ When `locale_in_path` is `false`, `auth_kit_route_params()` returns an empty arr
 
 Run `php bin/console nowo:auth-kit:configure-security` after enabling `locale_in_path`, or add patterns such as `^/(en|es)/login` manually.
 
-## Disabling registration link on login page
+## Registration link on login page
 
-When `registration_mode` is `disabled`, registration still has a URL but redirects. Hide the link in a template override:
+The login template receives `registration_allowed` from `RegistrationGate` (same logic as the register route and embed UI). Hide the link when it is false:
 
 ```twig
-{# omit the register link block #}
+{% if registration_allowed|default(false) %}
+    <a href="{{ path(register_route, auth_kit_route_params()) }}">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+{% endif %}
 ```
 
-Or use custom templates without the footer link.
+With `registration_mode: first_user_only`, the link appears only while the user table is empty. With `disabled`, it stays hidden. Custom template overrides must include this check if they render their own footer links.
