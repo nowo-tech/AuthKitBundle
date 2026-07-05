@@ -92,17 +92,18 @@ final class PasswordFieldTypeResolverTest extends TestCase
         ], $resolver->passwordStrengthConstraintOptions());
     }
 
-    public function testUsesPasswordStrengthWhenBundleIsInstalledWithoutClosureOverride(): void
+    public function testUsesPasswordStrengthChecksAvailabilityViaClassExists(): void
     {
-        if (!class_exists(PasswordStrengthType::class)) {
-            self::markTestSkipped('PasswordStrengthBundle is not installed.');
-        }
-
         $resolver = new PasswordFieldTypeResolver(
             passwordStrength: ['enabled' => true, 'level' => 'medium', 'policy_mode' => 'level'],
         );
 
-        self::assertTrue($resolver->usesPasswordStrengthForNewPassword());
-        self::assertSame(PasswordStrengthType::class, $resolver->resolveForNewPassword());
+        $strengthAvailable = class_exists(PasswordStrengthType::class);
+
+        self::assertSame($strengthAvailable, $resolver->usesPasswordStrengthForNewPassword());
+        self::assertSame(
+            $strengthAvailable ? PasswordStrengthType::class : TogglePasswordType::class,
+            $resolver->resolveForNewPassword(),
+        );
     }
 }
