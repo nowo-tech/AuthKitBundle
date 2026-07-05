@@ -1,5 +1,18 @@
 # Upgrading
 
+## To 1.4.2
+
+From **1.4.1** — backward compatible.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+No configuration changes required.
+
+If you use `password_strength.enabled: true`, the confirmation field now validates match only (fix for double strength UI/validation). Custom form overrides are unaffected unless they duplicated the old `RepeatedType` + `PasswordStrengthType` pattern.
+
 ## To 1.4.1
 
 From **1.4.0** — no code or configuration changes required.

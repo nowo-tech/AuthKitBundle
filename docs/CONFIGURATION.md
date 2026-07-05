@@ -177,7 +177,7 @@ Each field can be:
 
 Password fields use `RepeatedType` with minimum length validation. When `nowo-tech/password-toggle-bundle` is present, the toggle `PasswordType` is used; otherwise Symfony’s default `PasswordType` is used (no hard dependency in the bundle library).
 
-When `password_strength.enabled` is `true` and `nowo-tech/password-strength-bundle` is installed, registration and password-reset fields use `PasswordStrengthType` with the `PasswordStrength` validator instead of the default `Length(min: 6)` rule. Login fields are unchanged.
+When `password_strength.enabled` is `true` and `nowo-tech/password-strength-bundle` is installed, the primary password field uses `PasswordStrengthType` with the `PasswordStrength` validator. The confirmation field uses the basic toggle/Symfony password type and validates match only (not strength twice). Login fields are unchanged.
 
 ### Password strength (optional)
 
