@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-07-05
+
+### Fixed
+
+- Restore **100%** PHPUnit coverage (`PasswordFieldTypeResolver` `class_exists` path) required by CI.
+
+### Changed
+
+- CI: validate coverage with `scripts/check-coverage.php` (statements and elements); bump `actions/checkout` to v7.
+
+[1.4.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.4.1
+
 ## [1.4.0] - 2026-07-05
 
 ### Added

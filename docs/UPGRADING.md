@@ -1,5 +1,15 @@
 # Upgrading
 
+## To 1.4.1
+
+From **1.4.0** — no code or configuration changes required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+This release fixes CI coverage checks and bumps GitHub Actions only.
+
 ## To 1.4.0
 
 From **1.3.0** — backward compatible.
