@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
+use Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Tests\Unit\Controller\FieldConfigNormalizerFields;
@@ -29,12 +30,16 @@ final class FormTypesTest extends TestCase
 
     private PasswordFieldTypeResolver $passwordFieldTypeResolver;
 
-    private PasswordFieldConstraintResolver $passwordFieldConstraintResolver;
+    private PasswordRepeatedFieldBuilder $passwordRepeatedFieldBuilder;
 
     protected function setUp(): void
     {
         $this->passwordFieldTypeResolver       = new PasswordFieldTypeResolver();
         $this->passwordFieldConstraintResolver = new PasswordFieldConstraintResolver($this->passwordFieldTypeResolver);
+        $this->passwordRepeatedFieldBuilder    = new PasswordRepeatedFieldBuilder(
+            $this->passwordFieldTypeResolver,
+            $this->passwordFieldConstraintResolver,
+        );
 
         $this->factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
@@ -42,8 +47,7 @@ final class FormTypesTest extends TestCase
             ->addType(new LoginFormType(FieldConfigNormalizerFields::login(), $this->passwordFieldTypeResolver))
             ->addType(new RegistrationFormType(
                 FieldConfigNormalizerFields::registration(),
-                $this->passwordFieldTypeResolver,
-                $this->passwordFieldConstraintResolver,
+                $this->passwordRepeatedFieldBuilder,
             ))
             ->getFormFactory();
     }
@@ -90,8 +94,10 @@ final class FormTypesTest extends TestCase
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new RegistrationFormType(
                 FieldConfigNormalizerFields::registration(),
-                $resolver,
-                new PasswordFieldConstraintResolver($resolver),
+                new PasswordRepeatedFieldBuilder(
+                    $resolver,
+                    new PasswordFieldConstraintResolver($resolver),
+                ),
             ))
             ->getFormFactory();
 
@@ -157,8 +163,7 @@ final class FormTypesTest extends TestCase
                 FieldConfigNormalizer::normalizeRegistrationFields([
                 'terms' => ['type' => 'checkbox'],
             ]),
-                $this->passwordFieldTypeResolver,
-                $this->passwordFieldConstraintResolver,
+                $this->passwordRepeatedFieldBuilder,
             ))
             ->getFormFactory();
 
@@ -175,8 +180,7 @@ final class FormTypesTest extends TestCase
                 FieldConfigNormalizer::normalizeRegistrationFields([
                 'fullName',
             ]),
-                $this->passwordFieldTypeResolver,
-                $this->passwordFieldConstraintResolver,
+                $this->passwordRepeatedFieldBuilder,
             ))
             ->getFormFactory();
 

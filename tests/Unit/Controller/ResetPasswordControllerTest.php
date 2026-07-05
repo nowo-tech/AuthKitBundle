@@ -69,8 +69,7 @@ final class ResetPasswordControllerTest extends TestCase
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new ResetPasswordFormType(
-                PasswordFieldResolvers::typeResolver(),
-                PasswordFieldResolvers::constraintResolver(),
+                PasswordFieldResolvers::repeatedFieldBuilder(),
             ))
             ->getFormFactory();
 

@@ -40,6 +40,8 @@ services:
 
     Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver: ~
 
+    Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder: ~
+
     Nowo\AuthKitBundle\Security\RegistrationGate:
         arguments:
             $userClass: '%nowo_auth_kit.user_class%'

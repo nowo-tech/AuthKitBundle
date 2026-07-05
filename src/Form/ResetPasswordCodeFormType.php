@@ -9,7 +9,6 @@ use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
-use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -24,8 +23,7 @@ final class ResetPasswordCodeFormType extends AbstractType
     public function __construct(
         #[Autowire(param: 'nowo_auth_kit.user_identifier_field')]
         private readonly string $userIdentifierField,
-        private readonly PasswordFieldTypeResolver $passwordFieldTypeResolver,
-        private readonly PasswordFieldConstraintResolver $passwordFieldConstraintResolver,
+        private readonly PasswordRepeatedFieldBuilder $passwordRepeatedFieldBuilder,
         #[Autowire(param: 'nowo_auth_kit.password_reset.code_length')]
         private readonly int $codeLength,
     ) {
@@ -51,22 +49,17 @@ final class ResetPasswordCodeFormType extends AbstractType
                     new Length(exactly: $this->codeLength, exactMessage: 'reset.code.code_length'),
                 ],
             ])
-            ->add('password', RepeatedType::class, [
-                'type'          => $this->passwordFieldTypeResolver->resolveForNewPassword(),
-                'first_options' => array_merge([
-                    'label' => 'reset.password.field.password',
-                    'attr'  => ['autocomplete' => 'new-password'],
-                ], $this->passwordFieldTypeResolver->newPasswordFieldOptions()),
-                'second_options' => [
-                    'label' => 'reset.password.field.password_confirm',
-                    'attr'  => ['autocomplete' => 'new-password'],
-                ],
-                'invalid_message' => 'reset.password.mismatch',
-                'constraints'     => $this->passwordFieldConstraintResolver->newPasswordConstraints(
-                    'reset.password.required',
-                    'reset.password.min_length',
-                ),
-            ]);
+            ;
+
+        $this->passwordRepeatedFieldBuilder->add(
+            $builder,
+            'password',
+            'reset.password.field.password',
+            'reset.password.field.password_confirm',
+            'reset.password.mismatch',
+            'reset.password.required',
+            'reset.password.min_length',
+        );
     }
 
     public function configureOptions(OptionsResolver $resolver): void

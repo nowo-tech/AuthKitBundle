@@ -17,8 +17,7 @@ final class ResetPasswordCodeFormTypeTest extends TestCase
 
         new ResetPasswordCodeFormType(
             'email',
-            PasswordFieldResolvers::typeResolver(),
-            PasswordFieldResolvers::constraintResolver(),
+            PasswordFieldResolvers::repeatedFieldBuilder(),
             0,
         );
     }
