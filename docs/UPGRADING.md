@@ -1,5 +1,32 @@
 # Upgrading
 
+## To 1.4.0
+
+From **1.3.0** — backward compatible.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+No configuration changes required.
+
+### Login template: register link
+
+The bundle login template now uses `registration_allowed` instead of always showing the register link. If you override `security/login.html.twig`, wrap the register link:
+
+```twig
+{% if registration_allowed|default(false) %}
+    <a href="{{ path(register_route, auth_kit_route_params()) }}">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+{% endif %}
+```
+
+See [USAGE.md](USAGE.md#registration-link-on-login-page).
+
+### Optional: new translations
+
+Catalogues **de**, **fr**, **it**, **nl**, and **pt** ship with the bundle. Add locales to Symfony and `nowo_auth_kit.enabled_locales` as needed.
+
 ## To 1.3.0
 
 From **1.2.0** — backward compatible; password strength is opt-in (`password_strength.enabled: false` by default).

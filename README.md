@@ -4,7 +4,7 @@
 
 > ⭐ **Found this useful?** Install from [Packagist](https://packagist.org/packages/nowo-tech/auth-kit-bundle) and give the repo a star on GitHub.
 
-Symfony bundle for **configurable login, registration, and password reset**: overridable Twig templates, registration modes (`disabled`, `first_user_only`, `always`), optional embeddable auth dropdown, locale-prefixed routes, assignable registration role, configurable user entity and form fields, built-in routes, and translations (`en`, `es`).
+Symfony bundle for **configurable login, registration, and password reset**: overridable Twig templates, registration modes (`disabled`, `first_user_only`, `always`), optional embeddable auth dropdown, locale-prefixed routes, assignable registration role, configurable user entity and form fields, built-in routes, and translations (`de`, `en`, `es`, `fr`, `it`, `nl`, `pt`).
 
 Works alongside Symfony Security — `security.yaml` remains required and is documented in [INSTALLATION.md](docs/INSTALLATION.md) with optional CLI helper `nowo:auth-kit:configure-security`.
 
@@ -20,7 +20,7 @@ Works alongside Symfony Security — `security.yaml` remains required and is doc
 - Registration modes: disabled, first user only, always open
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
 - Twig overrides via `templates/bundles/NowoAuthKitBundle/`
-- Translation domain `NowoAuthKitBundle` with app overrides
+- Translation domain `NowoAuthKitBundle` with app overrides (`de`, `en`, `es`, `fr`, `it`, `nl`, `pt`)
 
 ## Installation
 

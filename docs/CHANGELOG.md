@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-07-05
+
+### Added
+
+- Translation catalogues **de**, **fr**, **it**, **nl**, and **pt** for domain `NowoAuthKitBundle`.
+- Login template variable `registration_allowed` (from `RegistrationGate`) to show or hide the register link consistently with `registration_mode`.
+
+### Changed
+
+- Default login template and demo overrides hide the register link when registration is not allowed (`disabled`, or `first_user_only` after the first user).
+- Login footer omits the whole block when neither password reset nor registration links apply.
+- [USAGE.md](USAGE.md): documents `registration_allowed`, `reset_password_route`, and `password_reset_enabled` template variables.
+
+[1.4.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.4.0
+
 ## [1.3.0] - 2026-07-03
 
 ### Added
