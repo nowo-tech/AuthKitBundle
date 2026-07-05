@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-07-05
+
+### Added
+
+- `PasswordRepeatedFieldBuilder` centralizes password + confirmation fields for registration and password-reset forms.
+
 ### Fixed
 
-- Password confirmation fields no longer use `PasswordStrengthType` when `password_strength.enabled` is true; they validate match only (registration and password-reset forms).
+- When `password_strength.enabled` is true, the confirmation field no longer uses `PasswordStrengthType` (match validation only via toggle/Symfony `PasswordType`).
+
+[1.4.2]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.4.2
 
 ## [1.4.1] - 2026-07-05
 
