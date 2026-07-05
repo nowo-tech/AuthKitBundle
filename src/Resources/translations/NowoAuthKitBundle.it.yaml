@@ -1,0 +1,72 @@
+layout:
+    title: Autenticazione
+login:
+    title: Accedi
+    heading: Accedi
+    submit: Accedi
+    register_link: Crea un account
+    forgot_password_link: Password dimenticata?
+    field:
+        identifier: Email o nome utente
+        password: Password di accesso
+        remember_me: Ricordami
+register:
+    title: Crea account
+    heading: Crea account
+    submit: Registrati
+    login_link: Hai già un account? Accedi
+    field:
+        email: Email
+        password: Password di accesso
+        password_confirm: Conferma password
+        name: Nome
+    password:
+        mismatch: Le password devono coincidere.
+        required: Inserisci una password.
+        min_length: La password deve contenere almeno {{ limit }} caratteri.
+embed:
+    dropdown:
+        toggle: Profilo
+    tab:
+        login: Accedi
+        register: Registrati
+    authenticated:
+        logout: Esci
+reset:
+    request:
+        title: Reimposta password
+        heading: Reimposta la tua password
+        help: Inserisci il tuo identificativo. Se esiste un account, invieremo le istruzioni.
+        submit: Invia istruzioni
+        back_to_login: Torna all'accesso
+        flash_sent: Se esiste un account corrispondente, le istruzioni sono state inviate.
+        identifier_required: Inserisci il tuo identificativo.
+        field:
+            identifier: Email o nome utente
+    password:
+        title: Scegli una nuova password
+        heading: Scegli una nuova password
+        submit: Aggiorna password
+        back_to_login: Torna all'accesso
+        flash_success: La password è stata aggiornata. Ora puoi accedere.
+        flash_invalid_token: Questo link non è valido o è scaduto.
+        mismatch: Le password devono coincidere.
+        required: Inserisci una password.
+        min_length: La password deve contenere almeno {{ limit }} caratteri.
+        field:
+            password: Nuova password
+            password_confirm: Conferma nuova password
+    code:
+        title: Completa il reset della password
+        heading: Inserisci il tuo codice
+        help: Inserisci l'identificativo e il codice ricevuto (SMS, email o autenticatore).
+        submit: Aggiorna password
+        request_new: Richiedi un nuovo codice
+        back_to_login: Torna all'accesso
+        flash_invalid: Il codice non è valido o è scaduto.
+        identifier_required: Inserisci il tuo identificativo.
+        code_required: Inserisci il codice.
+        code_length: Il codice deve contenere esattamente {{ limit }} caratteri.
+        field:
+            identifier: Email o nome utente
+            code: Codice di reset

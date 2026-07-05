@@ -1,0 +1,72 @@
+layout:
+    title: Autenticação
+login:
+    title: Iniciar sessão
+    heading: Iniciar sessão
+    submit: Entrar
+    register_link: Criar uma conta
+    forgot_password_link: Esqueceu a palavra-passe?
+    field:
+        identifier: E-mail ou nome de utilizador
+        password: Palavra-passe
+        remember_me: Lembrar-me
+register:
+    title: Criar conta
+    heading: Criar conta
+    submit: Registar
+    login_link: Já tem conta? Inicie sessão
+    field:
+        email: E-mail
+        password: Palavra-passe
+        password_confirm: Confirmar palavra-passe
+        name: Nome
+    password:
+        mismatch: As palavras-passe devem coincidir.
+        required: Introduza uma palavra-passe.
+        min_length: A palavra-passe deve ter pelo menos {{ limit }} caracteres.
+embed:
+    dropdown:
+        toggle: Conta
+    tab:
+        login: Entrar
+        register: Registar
+    authenticated:
+        logout: Terminar sessão
+reset:
+    request:
+        title: Repor palavra-passe
+        heading: Repor a sua palavra-passe
+        help: Introduza o seu identificador. Se existir uma conta, enviaremos instruções.
+        submit: Enviar instruções
+        back_to_login: Voltar ao início de sessão
+        flash_sent: Se existir uma conta correspondente, as instruções foram enviadas.
+        identifier_required: Introduza o seu identificador.
+        field:
+            identifier: E-mail ou nome de utilizador
+    password:
+        title: Escolher nova palavra-passe
+        heading: Escolher nova palavra-passe
+        submit: Atualizar palavra-passe
+        back_to_login: Voltar ao início de sessão
+        flash_success: A sua palavra-passe foi atualizada. Já pode iniciar sessão.
+        flash_invalid_token: Esta ligação é inválida ou expirou.
+        mismatch: As palavras-passe devem coincidir.
+        required: Introduza uma palavra-passe.
+        min_length: A palavra-passe deve ter pelo menos {{ limit }} caracteres.
+        field:
+            password: Nova palavra-passe
+            password_confirm: Confirmar nova palavra-passe
+    code:
+        title: Concluir reposição
+        heading: Introduza o seu código
+        help: Introduza o identificador e o código recebido (SMS, e-mail ou autenticador).
+        submit: Atualizar palavra-passe
+        request_new: Pedir novo código
+        back_to_login: Voltar ao início de sessão
+        flash_invalid: O código é inválido ou expirou.
+        identifier_required: Introduza o seu identificador.
+        code_required: Introduza o código.
+        code_length: O código deve ter exatamente {{ limit }} caracteres.
+        field:
+            identifier: E-mail ou nome de utilizador
+            code: Código de reposição

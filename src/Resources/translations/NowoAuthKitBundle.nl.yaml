@@ -1,0 +1,72 @@
+layout:
+    title: Authenticatie
+login:
+    title: Inloggen
+    heading: Inloggen
+    submit: Inloggen
+    register_link: Account aanmaken
+    forgot_password_link: Wachtwoord vergeten?
+    field:
+        identifier: E-mail of gebruikersnaam
+        password: Wachtwoord
+        remember_me: Onthoud mij
+register:
+    title: Account aanmaken
+    heading: Account aanmaken
+    submit: Registreren
+    login_link: Heb je al een account? Log in
+    field:
+        email: E-mail
+        password: Wachtwoord
+        password_confirm: Wachtwoord bevestigen
+        name: Naam
+    password:
+        mismatch: De wachtwoorden moeten overeenkomen.
+        required: Voer een wachtwoord in.
+        min_length: Je wachtwoord moet minimaal {{ limit }} tekens bevatten.
+embed:
+    dropdown:
+        toggle: Mijn account
+    tab:
+        login: Inloggen
+        register: Registreren
+    authenticated:
+        logout: Uitloggen
+reset:
+    request:
+        title: Wachtwoord resetten
+        heading: Reset je wachtwoord
+        help: Voer je identificatie in. Als er een account bestaat, sturen we instructies.
+        submit: Instructies versturen
+        back_to_login: Terug naar inloggen
+        flash_sent: Als er een overeenkomend account is, zijn de instructies verzonden.
+        identifier_required: Voer je identificatie in.
+        field:
+            identifier: E-mail of gebruikersnaam
+    password:
+        title: Nieuw wachtwoord kiezen
+        heading: Nieuw wachtwoord kiezen
+        submit: Wachtwoord bijwerken
+        back_to_login: Terug naar inloggen
+        flash_success: Je wachtwoord is bijgewerkt. Je kunt nu inloggen.
+        flash_invalid_token: Deze link is ongeldig of verlopen.
+        mismatch: De wachtwoorden moeten overeenkomen.
+        required: Voer een wachtwoord in.
+        min_length: Je wachtwoord moet minimaal {{ limit }} tekens bevatten.
+        field:
+            password: Nieuw wachtwoord
+            password_confirm: Nieuw wachtwoord bevestigen
+    code:
+        title: Wachtwoordreset voltooien
+        heading: Voer je code in
+        help: Voer de identificatie en de ontvangen code in (SMS, e-mail of authenticator).
+        submit: Wachtwoord bijwerken
+        request_new: Nieuwe code aanvragen
+        back_to_login: Terug naar inloggen
+        flash_invalid: De code is ongeldig of verlopen.
+        identifier_required: Voer je identificatie in.
+        code_required: Voer de code in.
+        code_length: De code moet exact {{ limit }} tekens bevatten.
+        field:
+            identifier: E-mail of gebruikersnaam
+            code: Resetcode

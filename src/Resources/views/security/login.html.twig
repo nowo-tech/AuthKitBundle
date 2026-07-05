@@ -22,12 +22,16 @@
         <button type="submit" class="nowo-auth-kit__button">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
     {{ form_end(login_form) }}
 
+    {% if password_reset_enabled|default(false) or registration_allowed|default(false) %}
     <p class="nowo-auth-kit__footer">
         {% if password_reset_enabled|default(false) %}
             <a href="{{ path(reset_password_route, auth_kit_route_params()) }}">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
-            ·
+            {% if registration_allowed|default(false) %} · {% endif %}
         {% endif %}
-        <a href="{{ path(register_route, auth_kit_route_params()) }}">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+        {% if registration_allowed|default(false) %}
+            <a href="{{ path(register_route, auth_kit_route_params()) }}">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+        {% endif %}
     </p>
+    {% endif %}
 </section>
 {% endblock %}

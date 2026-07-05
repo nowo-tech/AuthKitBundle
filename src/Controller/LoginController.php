@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Controller;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -28,6 +29,7 @@ final class LoginController
         private readonly AuthenticationUtils $authenticationUtils,
         private readonly TokenStorageInterface $tokenStorage,
         private readonly AuthKitUrlGenerator $urlGenerator,
+        private readonly RegistrationGate $registrationGate,
         private readonly array $templates,
         private readonly array $routes,
         private readonly ?string $loginSuccessRoute,
@@ -58,6 +60,7 @@ final class LoginController
             'register_route'         => $this->routes['register']['name'],
             'reset_password_route'   => $this->routes['reset_request']['name'],
             'password_reset_enabled' => $this->passwordResetMode === PasswordResetMode::Enabled->value,
+            'registration_allowed'   => $this->registrationGate->isRegistrationAllowed(),
             'layout_template'        => $this->templates['layout'],
         ]);
 

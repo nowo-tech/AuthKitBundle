@@ -34,7 +34,9 @@
             {% if password_reset_enabled|default(false) %}
                 <a href="{{ path(reset_password_route, auth_kit_route_params()) }}" class="link-secondary text-decoration-none small">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
             {% endif %}
-            <a href="{{ path(register_route, auth_kit_route_params()) }}" class="link-primary text-decoration-none fw-medium">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+            {% if registration_allowed|default(false) %}
+                <a href="{{ path(register_route, auth_kit_route_params()) }}" class="link-primary text-decoration-none fw-medium">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+            {% endif %}
         </div>
     </div>
 </div>
