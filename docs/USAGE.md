@@ -99,7 +99,7 @@ If `nowo-tech/password-toggle-bundle` is not installed, the bundle falls back to
 
 Domain: **`NowoAuthKitBundle`**
 
-Bundle ships `en` and `es` in `src/Resources/translations/`.
+Bundle ships `de`, `en`, `es`, `fr`, `it`, `nl`, and `pt` in `src/Resources/translations/`.
 
 ### Override in the application
 
