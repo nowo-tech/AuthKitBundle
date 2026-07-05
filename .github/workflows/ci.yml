@@ -56,13 +56,7 @@ jobs:
         if: matrix.php == '8.2' && matrix.symfony == '7.4'
         run: |
           composer test-coverage
-          php -r "
-          \$coverage = simplexml_load_file('coverage.xml');
-          \$metrics = \$coverage->project->metrics;
-          \$percentage = ((float)\$metrics['coveredelements'] / (float)\$metrics['elements']) * 100;
-          if (\$percentage < 100) { echo \"Coverage: \$percentage%\n\"; exit(1); }
-          echo \"✅ 100% coverage\n\";
-          "
+          php scripts/check-coverage.php coverage.xml --min-percent=100
 
   code-style-check:
     runs-on: ubuntu-latest
@@ -90,10 +84,4 @@ jobs:
           tools: composer:v2
       - run: composer update --prefer-dist --no-interaction
       - run: composer test-coverage
-      - run: |
-          php -r "
-          \$coverage = simplexml_load_file('coverage.xml');
-          \$metrics = \$coverage->project->metrics;
-          \$percentage = ((float)\$metrics['coveredelements'] / (float)\$metrics['elements']) * 100;
-          if (\$percentage < 100) { echo \"Coverage: \$percentage%\n\"; exit(1); }
-          "
+      - run: php scripts/check-coverage.php coverage.xml --min-percent=100
