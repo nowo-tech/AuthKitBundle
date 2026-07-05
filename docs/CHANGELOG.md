@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Password confirmation fields no longer use `PasswordStrengthType` when `password_strength.enabled` is true; they validate match only (registration and password-reset forms).
+
 ## [1.4.1] - 2026-07-05
 
 ### Fixed

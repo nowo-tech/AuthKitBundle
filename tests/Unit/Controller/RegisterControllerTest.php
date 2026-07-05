@@ -179,8 +179,7 @@ final class RegisterControllerTest extends TestCase
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new RegistrationFormType(
                 FieldConfigNormalizerFields::registration(),
-                PasswordFieldResolvers::typeResolver(),
-                PasswordFieldResolvers::constraintResolver(),
+                PasswordFieldResolvers::repeatedFieldBuilder(),
             ))
             ->getFormFactory();
 

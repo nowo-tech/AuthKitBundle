@@ -89,8 +89,7 @@ final class AuthEmbedContextFactoryTest extends TestCase
             ->addType(new LoginFormType(FieldConfigNormalizerFields::login(), PasswordFieldResolvers::typeResolver()))
             ->addType(new RegistrationFormType(
                 FieldConfigNormalizerFields::registration(),
-                PasswordFieldResolvers::typeResolver(),
-                PasswordFieldResolvers::constraintResolver(),
+                PasswordFieldResolvers::repeatedFieldBuilder(),
             ))
             ->getFormFactory();
 

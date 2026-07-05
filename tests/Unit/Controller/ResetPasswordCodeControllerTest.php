@@ -47,8 +47,8 @@ final class ResetPasswordCodeControllerTest extends TestCase
                 ->addExtension(new ValidatorExtension(Validation::createValidator()))
                 ->addType(new ResetPasswordCodeFormType(
                     'email',
-                    PasswordFieldResolvers::typeResolver(),
-                    PasswordFieldResolvers::constraintResolver(),
+                    PasswordFieldResolvers::repeatedFieldBuilder(),
+                    6,
                     6,
                 ))
                 ->getFormFactory(),
