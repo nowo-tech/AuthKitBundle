@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Form;
 use Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder;
+use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\PasswordStrengthBundle\Form\PasswordStrengthType;
 use Nowo\PasswordToggleBundle\Form\Type\PasswordType as TogglePasswordType;
 use PHPUnit\Framework\TestCase;
@@ -93,5 +94,60 @@ final class PasswordRepeatedFieldBuilderTest extends TestCase
         self::assertInstanceOf(NotBlank::class, $confirmConstraints[0]);
         self::assertInstanceOf(EqualTo::class, $confirmConstraints[1]);
         self::assertSame('parent.all[password].data', $confirmConstraints[1]->propertyPath);
+    }
+
+    public function testPasswordFieldsUseParentTranslationDomain(): void
+    {
+        $builder = new PasswordRepeatedFieldBuilder(
+            new PasswordFieldTypeResolver(),
+            new PasswordFieldConstraintResolver(new PasswordFieldTypeResolver()),
+        );
+
+        $formBuilder = $this->factory->createBuilder(FormType::class, null, [
+            'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
+        ]);
+        $builder->add(
+            $formBuilder,
+            'password',
+            'register.field.password',
+            'register.field.password_confirm',
+            'register.password.mismatch',
+            'register.password.required',
+            'register.password.min_length',
+        );
+
+        $options = $formBuilder->get('password')->getOptions();
+        self::assertSame(NowoAuthKitBundle::TRANSLATION_DOMAIN, $options['first_options']['translation_domain']);
+        self::assertSame(NowoAuthKitBundle::TRANSLATION_DOMAIN, $options['second_options']['translation_domain']);
+    }
+
+    public function testPasswordConfirmUsesParentTranslationDomainWhenStrengthEnabled(): void
+    {
+        $typeResolver = new PasswordFieldTypeResolver(
+            passwordStrength: ['enabled' => true, 'level' => 'medium', 'policy_mode' => 'level'],
+            strengthTypeExists: static fn (string $class): bool => $class === PasswordStrengthType::class,
+        );
+        $builder = new PasswordRepeatedFieldBuilder(
+            $typeResolver,
+            new PasswordFieldConstraintResolver($typeResolver),
+        );
+
+        $formBuilder = $this->factory->createBuilder(FormType::class, null, [
+            'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
+        ]);
+        $builder->add(
+            $formBuilder,
+            'password',
+            'register.field.password',
+            'register.field.password_confirm',
+            'register.password.mismatch',
+            'register.password.required',
+            'register.password.min_length',
+        );
+
+        self::assertSame(
+            NowoAuthKitBundle::TRANSLATION_DOMAIN,
+            $formBuilder->get('password_confirm')->getOptions()['translation_domain'],
+        );
     }
 }
