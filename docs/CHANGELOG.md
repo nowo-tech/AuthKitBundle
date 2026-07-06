@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-07-06
+
+### Fixed
+
+- Password field labels inherit the parent form `translation_domain` (`NowoAuthKitBundle`) instead of defaulting to `PasswordStrengthBundle` when password strength is enabled.
+
+[1.4.3]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.4.3
+
 ## [1.4.2] - 2026-07-05
 
 ### Added
