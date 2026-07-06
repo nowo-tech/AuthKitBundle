@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Form;
 
+use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Validator\Constraints\EqualTo;
@@ -41,20 +42,25 @@ final class PasswordRepeatedFieldBuilder
                 $mismatchMessage,
                 $requiredMessage,
                 $minLengthMessage,
+                $this->resolveTranslationDomain($builder),
             );
 
             return;
         }
 
+        $translationDomain = $this->resolveTranslationDomain($builder);
+
         $builder->add($name, RepeatedType::class, [
             'type'          => $this->passwordFieldTypeResolver->resolveForNewPassword(),
             'first_options' => array_merge([
-                'label' => $firstLabel,
-                'attr'  => ['autocomplete' => 'new-password'],
+                'label'               => $firstLabel,
+                'attr'                => ['autocomplete' => 'new-password'],
+                'translation_domain'  => $translationDomain,
             ], $this->passwordFieldTypeResolver->newPasswordFieldOptions()),
             'second_options' => [
-                'label' => $secondLabel,
-                'attr'  => ['autocomplete' => 'new-password'],
+                'label'              => $secondLabel,
+                'attr'               => ['autocomplete' => 'new-password'],
+                'translation_domain' => $translationDomain,
             ],
             'invalid_message' => $mismatchMessage,
             'constraints'     => $this->passwordFieldConstraintResolver->newPasswordConstraints(
@@ -72,20 +78,23 @@ final class PasswordRepeatedFieldBuilder
         string $mismatchMessage,
         string $requiredMessage,
         string $minLengthMessage,
+        string $translationDomain,
     ): void {
         $builder->add($name, $this->passwordFieldTypeResolver->resolveForNewPassword(), array_merge([
-            'label'       => $firstLabel,
-            'attr'        => ['autocomplete' => 'new-password'],
-            'constraints' => $this->passwordFieldConstraintResolver->newPasswordConstraints(
+            'label'              => $firstLabel,
+            'attr'               => ['autocomplete' => 'new-password'],
+            'translation_domain' => $translationDomain,
+            'constraints'        => $this->passwordFieldConstraintResolver->newPasswordConstraints(
                 $requiredMessage,
                 $minLengthMessage,
             ),
         ], $this->passwordFieldTypeResolver->newPasswordFieldOptions()));
 
         $builder->add($name . '_confirm', $this->passwordFieldTypeResolver->resolve(), [
-            'mapped'      => false,
-            'label'       => $secondLabel,
-            'attr'        => ['autocomplete' => 'new-password'],
+            'mapped'             => false,
+            'label'              => $secondLabel,
+            'attr'               => ['autocomplete' => 'new-password'],
+            'translation_domain' => $translationDomain,
             'constraints' => [
                 new NotBlank(message: $requiredMessage),
                 new EqualTo(
@@ -94,5 +103,12 @@ final class PasswordRepeatedFieldBuilder
                 ),
             ],
         ]);
+    }
+
+    private function resolveTranslationDomain(FormBuilderInterface $builder): string
+    {
+        $domain = $builder->getOption('translation_domain');
+
+        return is_string($domain) && $domain !== '' ? $domain : NowoAuthKitBundle::TRANSLATION_DOMAIN;
     }
 }

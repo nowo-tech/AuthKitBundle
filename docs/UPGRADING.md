@@ -1,5 +1,16 @@
 # Upgrading
 
+## To 1.4.3
+
+From **1.4.2** — backward compatible.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+No configuration changes required. Password field labels now use the AuthKit translation domain when `password_strength` is enabled.
+
 ## To 1.4.2
 
 From **1.4.1** — backward compatible.
