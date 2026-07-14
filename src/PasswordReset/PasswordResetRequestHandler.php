@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\PasswordReset;
 
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -16,40 +17,40 @@ use function strlen;
  */
 final class PasswordResetRequestHandler
 {
-    /**
-     * @param array<string, array{path: string, name: string}> $routes
-     */
     public function __construct(
         private readonly PasswordResetUserResolver $userResolver,
         private readonly PasswordResetTokenManagerInterface $tokenManager,
         private readonly PasswordResetNotifierInterface $notifier,
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly array $routes,
-        private readonly string $deliveryMode,
+        private readonly ProfileRegistry $profileRegistry,
     ) {
     }
 
-    public function handle(string $identifier): void
+    public function handle(string $identifier, ?string $profileName = null): void
     {
-        $user = $this->userResolver->findByIdentifier($identifier);
+        $profile = $profileName !== null
+            ? $this->profileRegistry->getByName($profileName)
+            : $this->profileRegistry->getDefault();
+
+        $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
 
         if ($user === null) {
             return;
         }
 
         $tokenResult = $this->tokenManager->createForUser($user);
-        $delivery    = PasswordResetDeliveryMode::from($this->deliveryMode);
+        $delivery    = PasswordResetDeliveryMode::from($profile->passwordReset['delivery']);
 
         $linkToken = $tokenResult->linkToken();
         $resetUrl  = $linkToken !== null
             ? $this->urlGenerator->generate(
-                $this->routes['reset_password']['name'],
+                $profile->routes['reset_password']['name'],
                 ['token' => $linkToken],
                 UrlGeneratorInterface::ABSOLUTE_URL,
             )
             : $this->urlGenerator->generate(
-                $this->routes['reset_password_code']['name'],
+                $profile->routes['reset_password_code']['name'],
                 referenceType: UrlGeneratorInterface::ABSOLUTE_URL,
             );
 

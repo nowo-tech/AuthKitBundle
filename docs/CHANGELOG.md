@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-14
+
+### Added
+
+- **Named configuration profiles** under `nowo_auth_kit.profiles` for applications with multiple user entities (e.g. `App\Entity\User` and `App\Entity\Admin`).
+- **`ProfileRegistry`** with O(1) class lookup and per-class resolution cache (inheritance supported).
+- **`RequestProfileResolver`** — resolves the active profile from the `_auth_kit_profile` route default (set automatically per profile route).
+- Each profile carries its own routes, templates, registration, password reset, embed, and firewall settings.
+
+### Changed
+
+- `RegistrationGate`, `UserRegistrar`, password-reset services, controllers, and form types resolve settings from the matching profile (by route context or entity class).
+- Configuration YAML and Flex recipe migrated to the `profiles` layout (flat config still accepted and normalized to `profiles.default`).
+- `AuthKitRouteLoader` registers routes for every configured profile with unique route names per profile.
+- Legacy container parameters (`nowo_auth_kit.user_class`, routes, templates, etc.) reflect the **default profile** for backward compatibility.
+- `docs/CONFIGURATION.md` and `docs/UPGRADING.md` document profiles and runtime resolution.
+
+### Fixed
+
+- Symfony DI: form types, `AuthKitRouteLocaleParameters`, and `PasswordResetNotifierInterface` remain correctly wired after the profiles refactor.
+
 ## [1.4.4] - 2026-07-14
 
 ### Added
@@ -18,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dev dependency: `nowo-tech/password-toggle-bundle` ^2.0.0 (`require-dev`).
 
+[1.5.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.5.0
 [1.4.4]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.4.4
 
 ## [1.4.3] - 2026-07-06

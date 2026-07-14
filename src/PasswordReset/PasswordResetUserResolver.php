@@ -5,26 +5,33 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\PasswordReset;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 
 /**
  * Resolves users by the configured identifier field.
  */
 final class PasswordResetUserResolver
 {
-    /**
-     * @param class-string<object> $userClass
-     */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly string $userClass,
-        private readonly string $userIdentifierField,
+        private readonly ProfileRegistry $profileRegistry,
     ) {
     }
 
-    public function findByIdentifier(string $identifier): ?object
+    public function findByIdentifier(string $identifier, ?string $profileName = null): ?object
     {
-        $repository = $this->entityManager->getRepository($this->userClass);
+        $profile = $this->resolveProfile($profileName);
 
-        return $repository->findOneBy([$this->userIdentifierField => $identifier]);
+        $repository = $this->entityManager->getRepository($profile->userClass);
+
+        return $repository->findOneBy([$profile->userIdentifierField => $identifier]);
+    }
+
+    private function resolveProfile(?string $profileName): ProfileSettings
+    {
+        return $profileName !== null
+            ? $this->profileRegistry->getByName($profileName)
+            : $this->profileRegistry->getDefault();
     }
 }

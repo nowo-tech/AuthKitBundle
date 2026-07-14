@@ -13,8 +13,8 @@ use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Controller\AuthKitRoutesTrait;
-use Nowo\AuthKitBundle\Tests\Unit\Controller\FieldConfigNormalizerFields;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
@@ -32,63 +32,21 @@ final class AuthEmbedContextFactoryTest extends TestCase
     use AuthKitRoutesTrait;
 
     /**
-     * @return array{
-     *     mode: string,
-     *     show_login: bool,
-     *     show_register: bool,
-     *     template: string,
-     *     login_panel: string,
-     *     register_panel: string,
-     *     authenticated: string
-     * }
-     */
-    private function embedConfig(string $mode = 'dropdown', bool $showLogin = true, bool $showRegister = true): array
-    {
-        return [
-            'mode'           => $mode,
-            'show_login'     => $showLogin,
-            'show_register'  => $showRegister,
-            'template'       => '@NowoAuthKitBundle/embed/dropdown.html.twig',
-            'login_panel'    => '@NowoAuthKitBundle/embed/_login_panel.html.twig',
-            'register_panel' => '@NowoAuthKitBundle/embed/_register_panel.html.twig',
-            'authenticated'  => '@NowoAuthKitBundle/embed/_authenticated.html.twig',
-        ];
-    }
-
-    private function registrationGate(string $mode = 'always'): RegistrationGate
-    {
-        $repository = $this->createMock(EntityRepository::class);
-        $repository->method('count')->willReturn($mode === 'first_user_only' ? 1 : 0);
-
-        $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')->willReturn($repository);
-
-        return new RegistrationGate($entityManager, TestUser::class, $mode);
-    }
-
-    /**
-     * @param array{
-     *     mode: string,
-     *     show_login: bool,
-     *     show_register: bool,
-     *     template: string,
-     *     login_panel: string,
-     *     register_panel: string,
-     *     authenticated: string
-     * } $embed
+     * @param array<string, mixed> $profileOverrides
      */
     private function createFactory(
-        array $embed,
+        array $profileOverrides,
         RegistrationGate $gate,
         ?AuthenticationUtils $authenticationUtils = null,
         ?TokenStorageInterface $tokenStorage = null,
-        string $passwordResetMode = 'disabled',
     ): AuthEmbedContextFactory {
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, $profileOverrides);
+
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType(FieldConfigNormalizerFields::login(), PasswordFieldResolvers::typeResolver()))
+            ->addType(new LoginFormType($profileRegistry, PasswordFieldResolvers::typeResolver()))
             ->addType(new RegistrationFormType(
-                FieldConfigNormalizerFields::registration(),
+                $profileRegistry,
                 PasswordFieldResolvers::repeatedFieldBuilder(),
             ))
             ->getFormFactory();
@@ -104,15 +62,48 @@ final class AuthEmbedContextFactoryTest extends TestCase
             $tokenStorage ?? $this->createMock(TokenStorageInterface::class),
             AuthKitTestUrlGenerator::fromMock($inner),
             $gate,
-            $this->routes(),
-            $embed,
-            $passwordResetMode,
+            $profileRegistry,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function embedConfig(string $mode = 'dropdown', bool $showLogin = true, bool $showRegister = true): array
+    {
+        return [
+            'embed' => [
+                'mode'           => $mode,
+                'show_login'     => $showLogin,
+                'show_register'  => $showRegister,
+                'template'       => '@NowoAuthKitBundle/embed/dropdown.html.twig',
+                'login_panel'    => '@NowoAuthKitBundle/embed/_login_panel.html.twig',
+                'register_panel' => '@NowoAuthKitBundle/embed/_register_panel.html.twig',
+                'authenticated'  => '@NowoAuthKitBundle/embed/_authenticated.html.twig',
+            ],
+        ];
+    }
+
+    private function registrationGate(string $mode = 'always'): RegistrationGate
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('count')->willReturn($mode === 'first_user_only' ? 1 : 0);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        return new RegistrationGate(
+            $entityManager,
+            ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => $mode]),
         );
     }
 
     public function testDisabledModeReturnsNull(): void
     {
-        $factory = $this->createFactory($this->embedConfig(AuthEmbedMode::Disabled->value), $this->registrationGate());
+        $factory = $this->createFactory(
+            $this->embedConfig(AuthEmbedMode::Disabled->value),
+            $this->registrationGate(),
+        );
 
         self::assertFalse($factory->isEnabled());
         self::assertNull($factory->create());
@@ -151,7 +142,11 @@ final class AuthEmbedContextFactoryTest extends TestCase
             new UsernamePasswordToken($user, 'main', ['ROLE_USER']),
         );
 
-        $context = $this->createFactory($this->embedConfig(), $this->registrationGate(), tokenStorage: $tokenStorage)->create();
+        $context = $this->createFactory(
+            $this->embedConfig(),
+            $this->registrationGate(),
+            tokenStorage: $tokenStorage,
+        )->create();
 
         self::assertNotNull($context);
         self::assertTrue($context->isAuthenticated);
@@ -206,14 +201,57 @@ final class AuthEmbedContextFactoryTest extends TestCase
     public function testPasswordResetFlag(): void
     {
         $context = $this->createFactory(
-            $this->embedConfig(),
+            array_replace_recursive($this->embedConfig(), [
+                'password_reset' => ['mode' => 'enabled'],
+            ]),
             $this->registrationGate(),
-            passwordResetMode: 'enabled',
         )->create();
 
         self::assertNotNull($context);
         self::assertTrue($context->passwordResetEnabled);
         self::assertSame('nowo_auth_kit_reset_password_request', $context->resetPasswordRoute);
+    }
+
+    public function testCreateUsesNamedProfileFromOptions(): void
+    {
+        $registry = ProfileRegistryFactory::fromProfiles([
+            'default' => array_replace_recursive(
+                ProfileRegistryFactory::defaultProfileConfig(TestUser::class),
+                $this->embedConfig(),
+            ),
+            'admin' => array_replace_recursive(
+                ProfileRegistryFactory::defaultProfileConfig(TestUser::class),
+                array_replace_recursive($this->embedConfig(), [
+                    'embed' => ['show_register' => false],
+                ]),
+            ),
+        ]);
+
+        $gate = new RegistrationGate(
+            $this->createMock(EntityManagerInterface::class),
+            $registry,
+        );
+
+        $factory = new AuthEmbedContextFactory(
+            Forms::createFormFactoryBuilder()
+                ->addExtension(new ValidatorExtension(Validation::createValidator()))
+                ->addType(new LoginFormType($registry, PasswordFieldResolvers::typeResolver()))
+                ->addType(new RegistrationFormType(
+                    $registry,
+                    PasswordFieldResolvers::repeatedFieldBuilder(),
+                ))
+                ->getFormFactory(),
+            $this->createMock(AuthenticationUtils::class),
+            $this->createMock(TokenStorageInterface::class),
+            AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
+            $gate,
+            $registry,
+        );
+
+        $context = $factory->create(['profile' => 'admin']);
+
+        self::assertNotNull($context);
+        self::assertFalse($context->showRegister);
     }
 
     public function testContextToArrayKeys(): void

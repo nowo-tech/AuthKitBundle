@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Form;
 
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -13,24 +14,24 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
+use function is_string;
+
 /**
  * Dynamic registration form built from bundle configuration.
  */
 final class RegistrationFormType extends AbstractType
 {
-    /**
-     * @param list<array{name: string, type: string, property: string, hash: bool, required: bool, security_name: null}> $registrationFields
-     */
     public function __construct(
-        #[Autowire(param: 'nowo_auth_kit.registration_fields')]
-        private readonly array $registrationFields,
+        private readonly ProfileRegistry $profileRegistry,
         private readonly PasswordRepeatedFieldBuilder $passwordRepeatedFieldBuilder,
     ) {
     }
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        foreach ($this->registrationFields as $field) {
+        $profile = $this->resolveProfile($options);
+
+        foreach ($profile->registrationFields as $field) {
             if ($field['type'] === 'password') {
                 $this->passwordRepeatedFieldBuilder->add(
                     $builder,
@@ -61,6 +62,20 @@ final class RegistrationFormType extends AbstractType
     {
         $resolver->setDefaults([
             'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
+            'profile'            => null,
         ]);
+        $resolver->setAllowedTypes('profile', ['null', 'string']);
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function resolveProfile(array $options): ProfileSettings
+    {
+        $profileName = $options['profile'];
+
+        return is_string($profileName) && $profileName !== ''
+            ? $this->profileRegistry->getByName($profileName)
+            : $this->profileRegistry->getDefault();
     }
 }

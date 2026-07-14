@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\Tests\Stub\RoleWritableUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
@@ -24,23 +25,24 @@ final class UserRegistrarTest extends TestCase
         $hasher->method('hashPassword')->willReturn('hashed-secret');
 
         $registrar = new UserRegistrar(
-            TestUser::class,
-            'ROLE_ADMIN',
-            [[
-                'name'          => 'email',
-                'type'          => 'email',
-                'property'      => 'email',
-                'hash'          => false,
-                'required'      => true,
-                'security_name' => null,
-            ], [
-                'name'          => 'password',
-                'type'          => 'password',
-                'property'      => 'password',
-                'hash'          => true,
-                'required'      => true,
-                'security_name' => null,
-            ]],
+            ProfileRegistryFactory::single(TestUser::class, [
+                'registration_role'   => 'ROLE_ADMIN',
+                'registration_fields' => [[
+                    'name'          => 'email',
+                    'type'          => 'email',
+                    'property'      => 'email',
+                    'hash'          => false,
+                    'required'      => true,
+                    'security_name' => null,
+                ], [
+                    'name'          => 'password',
+                    'type'          => 'password',
+                    'property'      => 'password',
+                    'hash'          => true,
+                    'required'      => true,
+                    'security_name' => null,
+                ]],
+            ]),
             $entityManager,
             $hasher,
             new PropertyAccessor(),
@@ -62,16 +64,17 @@ final class UserRegistrarTest extends TestCase
         $entityManager->expects(self::once())->method('flush');
 
         $registrar = new UserRegistrar(
-            RoleWritableUser::class,
-            'ROLE_EDITOR',
-            [[
-                'name'          => 'email',
-                'type'          => 'email',
-                'property'      => 'email',
-                'hash'          => false,
-                'required'      => true,
-                'security_name' => null,
-            ]],
+            ProfileRegistryFactory::single(RoleWritableUser::class, [
+                'registration_role'   => 'ROLE_EDITOR',
+                'registration_fields' => [[
+                    'name'          => 'email',
+                    'type'          => 'email',
+                    'property'      => 'email',
+                    'hash'          => false,
+                    'required'      => true,
+                    'security_name' => null,
+                ]],
+            ]),
             $entityManager,
             $this->createMock(UserPasswordHasherInterface::class),
             new PropertyAccessor(),

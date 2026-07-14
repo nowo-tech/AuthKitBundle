@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\PasswordReset;
 
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 
 /**
  * Checks whether password reset routes and flows are active.
@@ -12,12 +13,16 @@ use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 final class PasswordResetGate
 {
     public function __construct(
-        private readonly string $passwordResetMode,
+        private readonly ProfileRegistry $profileRegistry,
     ) {
     }
 
-    public function isEnabled(): bool
+    public function isEnabled(?string $profileName = null): bool
     {
-        return $this->passwordResetMode === PasswordResetMode::Enabled->value;
+        $profile = $profileName !== null
+            ? $this->profileRegistry->getByName($profileName)
+            : $this->profileRegistry->getDefault();
+
+        return $profile->passwordReset['mode'] === PasswordResetMode::Enabled->value;
     }
 }

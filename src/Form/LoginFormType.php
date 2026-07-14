@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Form;
 
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitFormLoginParameters;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -15,24 +16,24 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormTypeInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
+use function is_string;
+
 /**
  * Dynamic login form aligned with Symfony form_login field names.
  */
 final class LoginFormType extends AbstractType
 {
-    /**
-     * @param list<array{name: string, type: string, property: ?string, hash: bool, required: bool, security_name: ?string}> $loginFields
-     */
     public function __construct(
-        #[Autowire(param: 'nowo_auth_kit.login_fields')]
-        private readonly array $loginFields,
+        private readonly ProfileRegistry $profileRegistry,
         private readonly PasswordFieldTypeResolver $passwordFieldTypeResolver,
     ) {
     }
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        foreach ($this->loginFields as $field) {
+        $profile = $this->resolveProfile($options);
+
+        foreach ($profile->loginFields as $field) {
             /** @var class-string<FormTypeInterface> $type */
             $type = match ($field['type']) {
                 'email'    => EmailType::class,
@@ -54,11 +55,25 @@ final class LoginFormType extends AbstractType
             'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
             'csrf_field_name'    => '_csrf_token',
             'csrf_token_id'      => 'authenticate',
+            'profile'            => null,
         ]);
+        $resolver->setAllowedTypes('profile', ['null', 'string']);
     }
 
     public function getBlockPrefix(): string
     {
         return AuthKitFormLoginParameters::BLOCK_PREFIX;
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function resolveProfile(array $options): ProfileSettings
+    {
+        $profileName = $options['profile'];
+
+        return is_string($profileName) && $profileName !== ''
+            ? $this->profileRegistry->getByName($profileName)
+            : $this->profileRegistry->getDefault();
     }
 }

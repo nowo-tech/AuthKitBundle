@@ -6,38 +6,41 @@ namespace Nowo\AuthKitBundle\Security;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 
 /**
  * Determines whether registration is currently allowed.
  */
 final class RegistrationGate
 {
-    private readonly RegistrationMode $registrationMode;
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly ProfileRegistry $profileRegistry,
+    ) {
+    }
+
+    public function isRegistrationAllowed(?string $profileName = null): bool
+    {
+        $profile = $profileName !== null
+            ? $this->profileRegistry->getByName($profileName)
+            : $this->profileRegistry->getDefault();
+
+        $registrationMode = RegistrationMode::from($profile->registrationMode);
+
+        return match ($registrationMode) {
+            RegistrationMode::Disabled      => false,
+            RegistrationMode::Always        => true,
+            RegistrationMode::FirstUserOnly => $this->countUsers($profile->userClass) === 0,
+        };
+    }
 
     /**
      * @param class-string $userClass
      */
-    public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly string $userClass,
-        string $registrationMode,
-    ) {
-        $this->registrationMode = RegistrationMode::from($registrationMode);
-    }
-
-    public function isRegistrationAllowed(): bool
-    {
-        return match ($this->registrationMode) {
-            RegistrationMode::Disabled      => false,
-            RegistrationMode::Always        => true,
-            RegistrationMode::FirstUserOnly => $this->countUsers() === 0,
-        };
-    }
-
-    private function countUsers(): int
+    private function countUsers(string $userClass): int
     {
         return $this->entityManager
-            ->getRepository($this->userClass)
+            ->getRepository($userClass)
             ->count([]);
     }
 }

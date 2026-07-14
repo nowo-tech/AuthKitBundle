@@ -9,6 +9,8 @@ use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
 use function bin2hex;
@@ -16,6 +18,7 @@ use function hash;
 use function is_string;
 use function random_bytes;
 use function random_int;
+use function sprintf;
 use function strlen;
 
 /**
@@ -23,40 +26,29 @@ use function strlen;
  */
 final class PasswordResetTokenManager implements PasswordResetTokenManagerInterface
 {
-    /**
-     * @param class-string<object> $userClass
-     */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly PropertyAccessorInterface $propertyAccessor,
         private readonly PasswordResetUserResolver $userResolver,
-        private readonly string $userClass,
-        private readonly string $tokenField,
-        private readonly string $tokenExpiresField,
-        private readonly int $tokenTtl,
-        private readonly int $tokenBytes,
-        private readonly int $codeLength,
-        private readonly string $codeCharset,
-        private readonly string $deliveryMode,
+        private readonly ProfileRegistry $profileRegistry,
     ) {
-        if ($this->tokenBytes < 1) {
-            throw new LogicException('password_reset.token_bytes must be at least 1.');
-        }
     }
 
     public function createForUser(object $user): PasswordResetTokenResult
     {
-        $delivery = PasswordResetDeliveryMode::from($this->deliveryMode);
-        $expires  = new DateTimeImmutable('+' . $this->tokenTtl . ' seconds');
+        $profile  = $this->requireProfileForUser($user);
+        $settings = $profile->passwordReset;
+        $delivery = PasswordResetDeliveryMode::from($settings['delivery']);
+        $expires  = new DateTimeImmutable('+' . $settings['token_ttl'] . ' seconds');
         $plain    = match ($delivery) {
-            PasswordResetDeliveryMode::Link => bin2hex(random_bytes($this->tokenBytes)),
-            PasswordResetDeliveryMode::Code => $this->generateCode(),
-            PasswordResetDeliveryMode::Both => bin2hex(random_bytes($this->tokenBytes)) . ':' . $this->generateCode(),
+            PasswordResetDeliveryMode::Link => bin2hex(random_bytes($settings['token_bytes'])),
+            PasswordResetDeliveryMode::Code => $this->generateCode($profile),
+            PasswordResetDeliveryMode::Both => bin2hex(random_bytes($settings['token_bytes'])) . ':' . $this->generateCode($profile),
         };
         $stored = $this->storageValue($plain, $delivery);
 
-        $this->propertyAccessor->setValue($user, $this->tokenField, $stored);
-        $this->propertyAccessor->setValue($user, $this->tokenExpiresField, $expires);
+        $this->propertyAccessor->setValue($user, $settings['token_field'], $stored);
+        $this->propertyAccessor->setValue($user, $settings['token_expires_field'], $expires);
 
         $this->entityManager->persist($user);
         $this->entityManager->flush();
@@ -64,24 +56,26 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         return new PasswordResetTokenResult($user, $plain, $expires, $delivery);
     }
 
-    public function resolveUserByLinkToken(string $linkToken): ?object
+    public function resolveUserByLinkToken(string $linkToken, ?string $profileName = null): ?object
     {
-        $hash = hash('sha256', $linkToken);
+        $profile = $this->resolveProfile($profileName);
+        $hash    = hash('sha256', $linkToken);
+        $user    = $this->findUserByStoredToken($profile, $hash);
 
-        $user = $this->findUserByStoredToken($hash);
-
-        return $this->validateExpiry($user);
+        return $this->validateExpiry($profile, $user);
     }
 
-    public function resolveUserByIdentifierAndCode(string $identifier, string $code): ?object
+    public function resolveUserByIdentifierAndCode(string $identifier, string $code, ?string $profileName = null): ?object
     {
-        $user = $this->userResolver->findByIdentifier($identifier);
+        $profile = $this->resolveProfile($profileName);
+        $user    = $this->userResolver->findByIdentifier($identifier, $profile->name);
 
         if ($user === null) {
             return null;
         }
 
-        $stored = $this->propertyAccessor->getValue($user, $this->tokenField);
+        $tokenField = $profile->passwordReset['token_field'];
+        $stored     = $this->propertyAccessor->getValue($user, $tokenField);
 
         if (!is_string($stored)) {
             return null;
@@ -93,25 +87,30 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             return null;
         }
 
-        return $this->validateExpiry($user);
+        return $this->validateExpiry($profile, $user);
     }
 
     public function clearForUser(object $user): void
     {
-        $this->propertyAccessor->setValue($user, $this->tokenField, null);
-        $this->propertyAccessor->setValue($user, $this->tokenExpiresField, null);
+        $profile      = $this->requireProfileForUser($user);
+        $tokenField   = $profile->passwordReset['token_field'];
+        $expiresField = $profile->passwordReset['token_expires_field'];
+
+        $this->propertyAccessor->setValue($user, $tokenField, null);
+        $this->propertyAccessor->setValue($user, $expiresField, null);
 
         $this->entityManager->persist($user);
         $this->entityManager->flush();
     }
 
-    private function findUserByStoredToken(string $hash): ?object
+    private function findUserByStoredToken(ProfileSettings $profile, string $hash): ?object
     {
-        $repository = $this->entityManager->getRepository($this->userClass);
+        $tokenField = $profile->passwordReset['token_field'];
+        $repository = $this->entityManager->getRepository($profile->userClass);
 
         /** @var object|null $user */
         $user = $repository->createQueryBuilder('u')
-            ->where('u.' . $this->tokenField . ' = :hash OR u.' . $this->tokenField . ' LIKE :prefix')
+            ->where('u.' . $tokenField . ' = :hash OR u.' . $tokenField . ' LIKE :prefix')
             ->setParameter('hash', $hash)
             ->setParameter('prefix', $hash . '|%')
             ->setMaxResults(1)
@@ -121,13 +120,14 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         return $user;
     }
 
-    private function validateExpiry(?object $user): ?object
+    private function validateExpiry(ProfileSettings $profile, ?object $user): ?object
     {
         if ($user === null) {
             return null;
         }
 
-        $expires = $this->propertyAccessor->getValue($user, $this->tokenExpiresField);
+        $expiresField = $profile->passwordReset['token_expires_field'];
+        $expires      = $this->propertyAccessor->getValue($user, $expiresField);
 
         if (!$expires instanceof DateTimeImmutable && !$expires instanceof DateTimeInterface) {
             return null;
@@ -149,19 +149,39 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         };
     }
 
-    private function generateCode(): string
+    private function generateCode(ProfileSettings $profile): string
     {
-        $charset = $this->codeCharset === 'alphanumeric'
+        $settings = $profile->passwordReset;
+
+        $charset = $settings['code_charset'] === 'alphanumeric'
             ? '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
             : '0123456789';
 
         $maxIndex = strlen($charset) - 1;
         $code     = '';
 
-        for ($i = 0; $i < $this->codeLength; ++$i) {
+        for ($i = 0; $i < $settings['code_length']; ++$i) {
             $code .= $charset[random_int(0, $maxIndex)];
         }
 
         return $code;
+    }
+
+    private function requireProfileForUser(object $user): ProfileSettings
+    {
+        $profile = $this->profileRegistry->resolveForObject($user);
+
+        if (!$profile instanceof ProfileSettings) {
+            throw new LogicException(sprintf('No Auth Kit profile is configured for user class "%s".', $user::class));
+        }
+
+        return $profile;
+    }
+
+    private function resolveProfile(?string $profileName): ProfileSettings
+    {
+        return $profileName !== null
+            ? $this->profileRegistry->getByName($profileName)
+            : $this->profileRegistry->getDefault();
     }
 }

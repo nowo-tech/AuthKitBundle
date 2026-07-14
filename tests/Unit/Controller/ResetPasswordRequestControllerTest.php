@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
@@ -35,7 +36,12 @@ final class ResetPasswordRequestControllerTest extends TestCase
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->with('nowo_auth_kit_login')->willReturn('/login');
 
-        $controller = $this->controller(new PasswordResetGate('disabled'), AuthKitTestUrlGenerator::fromMock($inner));
+        $controller = $this->controller(
+            new PasswordResetGate(ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['mode' => 'disabled'],
+            ])),
+            AuthKitTestUrlGenerator::fromMock($inner),
+        );
 
         $response = $controller->request(new Request());
 
@@ -47,7 +53,16 @@ final class ResetPasswordRequestControllerTest extends TestCase
         $twig = $this->createMock(Environment::class);
         $twig->expects(self::once())->method('render')->willReturn('<html>reset</html>');
 
-        $controller = $this->controller(new PasswordResetGate('enabled'), AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)), $twig);
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'enabled'],
+        ]);
+
+        $controller = $this->controller(
+            new PasswordResetGate($profileRegistry),
+            AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
+            $twig,
+            $profileRegistry,
+        );
 
         $response = $controller->request(new Request());
 
@@ -58,7 +73,12 @@ final class ResetPasswordRequestControllerTest extends TestCase
         PasswordResetGate $gate,
         AuthKitUrlGenerator $urlGenerator,
         ?Environment $twig = null,
+        ?\Nowo\AuthKitBundle\Profile\ProfileRegistry $profileRegistry = null,
     ): ResetPasswordRequestController {
+        $profileRegistry ??= ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'enabled', 'delivery' => 'link'],
+        ]);
+
         $repository = $this->createMock(EntityRepository::class);
         $repository->method('findOneBy')->willReturn(null);
 
@@ -66,28 +86,27 @@ final class ResetPasswordRequestControllerTest extends TestCase
         $entityManager->method('getRepository')->willReturn($repository);
 
         $handler = new PasswordResetRequestHandler(
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
+            new PasswordResetUserResolver($entityManager, $profileRegistry),
             $this->createMock(PasswordResetTokenManagerInterface::class),
             new NullPasswordResetNotifier(),
             $urlGenerator,
             $this->createMock(EventDispatcherInterface::class),
-            $this->routes(),
-            'link',
+            $profileRegistry,
         );
 
         return new ResetPasswordRequestController(
             $twig ?? $this->createMock(Environment::class),
             Forms::createFormFactoryBuilder()
                 ->addExtension(new ValidatorExtension(Validation::createValidator()))
-                ->addType(new ResetPasswordRequestFormType('email'))
+                ->addType(new ResetPasswordRequestFormType($profileRegistry))
                 ->getFormFactory(),
             $gate,
             $handler,
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             $urlGenerator,
-            $this->templates(),
-            $this->routes(),
-            null,
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'password_reset' => ['mode' => 'enabled'],
+            ]),
         );
     }
 }

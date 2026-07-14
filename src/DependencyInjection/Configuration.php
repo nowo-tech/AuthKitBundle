@@ -8,8 +8,11 @@ use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+
+use function array_key_exists;
 
 /**
  * Configuration tree for AuthKitBundle.
@@ -18,232 +21,113 @@ final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_auth_kit';
 
+    /** @var list<string> */
+    private const PROFILE_KEYS = [
+        'user_class',
+        'user_identifier_field',
+        'registration_role',
+        'registration_mode',
+        'login_fields',
+        'remember_me',
+        'password_strength',
+        'registration_fields',
+        'templates',
+        'embed',
+        'password_reset',
+        'routes',
+        'firewall',
+        'login_success_route',
+    ];
+
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder(self::ALIAS);
         $root        = $treeBuilder->getRootNode();
 
         $root
+            ->beforeNormalization()
+                ->always()
+                ->then(static function (?array $config): array {
+                    $config ??= [];
+
+                    if (!isset($config['profiles'])) {
+                        $profile = [];
+                        foreach (self::PROFILE_KEYS as $key) {
+                            if (array_key_exists($key, $config)) {
+                                $profile[$key] = $config[$key];
+                                unset($config[$key]);
+                            }
+                        }
+
+                        $config['profiles'] = ['default' => $profile];
+                    }
+
+                    if (!isset($config['default_profile'])) {
+                        $profileNames              = array_keys($config['profiles']);
+                        $config['default_profile'] = $profileNames[0] ?? 'default';
+                    }
+
+                    return $config;
+                })
+            ->end()
+            ->addDefaultsIfNotSet()
             ->children()
-                ->scalarNode('user_class')
-                    ->info('FQCN of the application user entity (must implement UserInterface).')
-                    ->isRequired()
-                    ->cannotBeEmpty()
-                    ->example('App\\Entity\\User')
+                ->scalarNode('default_profile')
+                    ->info('Profile name used when no profile is specified explicitly.')
+                    ->defaultValue('default')
                 ->end()
-                ->scalarNode('user_identifier_field')
-                    ->info('Entity property used as the security user identifier (form_login username).')
-                    ->defaultValue('email')
-                    ->cannotBeEmpty()
-                ->end()
-                ->scalarNode('registration_role')
-                    ->info('Role assigned to users created via registration (in addition to ROLE_USER from the entity).')
-                    ->defaultValue('ROLE_USER')
-                    ->cannotBeEmpty()
-                ->end()
-                ->enumNode('registration_mode')
-                    ->values(array_map(static fn (RegistrationMode $mode): string => $mode->value, RegistrationMode::cases()))
-                    ->info('disabled: no registration. first_user_only: register only when no users exist. always: open registration.')
-                    ->defaultValue(RegistrationMode::FirstUserOnly->value)
-                ->end()
-                ->arrayNode('login_fields')
-                    ->info('Login form fields. Use identifier (maps to user_identifier_field), password, remember_me.')
-                    ->defaultValue(['identifier', 'password'])
-                    ->prototype('variable')->end()
-                ->end()
-                ->arrayNode('remember_me')
-                    ->addDefaultsIfNotSet()
-                    ->info('Persistent login cookie (Symfony firewall remember_me). Set enabled: true or add remember_me to login_fields.')
-                    ->children()
-                        ->booleanNode('enabled')
-                            ->info('When true, configures firewall remember_me and ensures the login checkbox is shown.')
-                            ->defaultFalse()
-                        ->end()
-                        ->integerNode('lifetime')
-                            ->info('Cookie lifetime in seconds.')
-                            ->defaultValue(604800)
-                            ->min(60)
-                        ->end()
-                        ->scalarNode('path')
-                            ->info('Cookie path.')
-                            ->defaultValue('/')
-                            ->cannotBeEmpty()
-                        ->end()
-                    ->end()
-                ->end()
-                ->arrayNode('password_strength')
-                    ->addDefaultsIfNotSet()
-                    ->info('Optional integration with nowo-tech/password-strength-bundle for registration and password reset fields.')
-                    ->children()
-                        ->booleanNode('enabled')
-                            ->info('When true, uses PasswordStrengthType on new-password fields if that bundle is installed.')
-                            ->defaultFalse()
-                        ->end()
-                        ->scalarNode('level')
-                            ->info('Policy level passed to PasswordStrengthType and PasswordStrength validator.')
-                            ->defaultValue('medium')
-                            ->cannotBeEmpty()
-                        ->end()
-                        ->enumNode('policy_mode')
-                            ->values(['level', 'conditions'])
-                            ->defaultValue('level')
-                        ->end()
-                    ->end()
-                ->end()
-                ->arrayNode('registration_fields')
-                    ->info('Registration form fields. String names or arrays with name, type, property, hash, required.')
-                    ->defaultValue(['email', 'password'])
-                    ->prototype('variable')->end()
-                ->end()
-                ->arrayNode('templates')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->scalarNode('layout')
-                            ->defaultValue('@NowoAuthKitBundle/layout.html.twig')
-                        ->end()
-                        ->scalarNode('login')
-                            ->defaultValue('@NowoAuthKitBundle/security/login.html.twig')
-                        ->end()
-                        ->scalarNode('register')
-                            ->defaultValue('@NowoAuthKitBundle/security/register.html.twig')
-                        ->end()
-                        ->scalarNode('reset_request')
-                            ->defaultValue('@NowoAuthKitBundle/security/reset_request.html.twig')
-                        ->end()
-                        ->scalarNode('reset_password')
-                            ->defaultValue('@NowoAuthKitBundle/security/reset_password.html.twig')
-                        ->end()
-                        ->scalarNode('reset_password_code')
-                            ->defaultValue('@NowoAuthKitBundle/security/reset_password_code.html.twig')
-                        ->end()
-                    ->end()
-                ->end()
-                ->arrayNode('embed')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->enumNode('mode')
-                            ->values(array_map(static fn (AuthEmbedMode $mode): string => $mode->value, AuthEmbedMode::cases()))
-                            ->info('disabled: full-page routes only. dropdown: embed login/register via auth_kit_dropdown().')
-                            ->defaultValue(AuthEmbedMode::Disabled->value)
-                        ->end()
-                        ->booleanNode('show_login')
-                            ->info('Include the login form in the embedded UI.')
-                            ->defaultTrue()
-                        ->end()
-                        ->booleanNode('show_register')
-                            ->info('Include registration when allowed by registration_mode.')
-                            ->defaultTrue()
-                        ->end()
-                        ->scalarNode('template')
-                            ->defaultValue('@NowoAuthKitBundle/embed/dropdown.html.twig')
-                        ->end()
-                        ->scalarNode('login_panel')
-                            ->defaultValue('@NowoAuthKitBundle/embed/_login_panel.html.twig')
-                        ->end()
-                        ->scalarNode('register_panel')
-                            ->defaultValue('@NowoAuthKitBundle/embed/_register_panel.html.twig')
-                        ->end()
-                        ->scalarNode('authenticated')
-                            ->defaultValue('@NowoAuthKitBundle/embed/_authenticated.html.twig')
-                        ->end()
-                    ->end()
-                ->end()
-                ->arrayNode('password_reset')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->enumNode('mode')
-                            ->values(array_map(static fn (PasswordResetMode $mode): string => $mode->value, PasswordResetMode::cases()))
-                            ->info('disabled: hide reset flows. enabled: expose request and completion routes.')
-                            ->defaultValue(PasswordResetMode::Disabled->value)
-                        ->end()
-                        ->enumNode('delivery')
-                            ->values(array_map(static fn (PasswordResetDeliveryMode $mode): string => $mode->value, PasswordResetDeliveryMode::cases()))
-                            ->info('link: URL token. code: OTP/SMS/email code. both: link URL and code for notifiers.')
-                            ->defaultValue(PasswordResetDeliveryMode::Link->value)
-                        ->end()
-                        ->integerNode('token_ttl')
-                            ->info('Seconds until the reset credential expires.')
-                            ->defaultValue(3600)
-                            ->min(60)
-                        ->end()
-                        ->integerNode('token_bytes')
-                            ->info('Entropy for link tokens (bytes before hex encoding).')
-                            ->defaultValue(32)
-                            ->min(16)
-                        ->end()
-                        ->integerNode('code_length')
-                            ->defaultValue(6)
-                            ->min(4)
-                            ->max(12)
-                        ->end()
-                        ->enumNode('code_charset')
-                            ->values(['numeric', 'alphanumeric'])
-                            ->defaultValue('numeric')
-                        ->end()
-                        ->scalarNode('token_field')
-                            ->info('User entity property storing the hashed reset credential.')
-                            ->defaultValue('passwordResetToken')
-                        ->end()
-                        ->scalarNode('token_expires_field')
-                            ->info('User entity property storing credential expiry.')
-                            ->defaultValue('passwordResetExpiresAt')
-                        ->end()
-                    ->end()
-                ->end()
-                ->arrayNode('routes')
-                    ->addDefaultsIfNotSet()
-                    ->children()
-                        ->arrayNode('login')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/login')->end()
-                                ->scalarNode('name')->defaultValue('nowo_auth_kit_login')->end()
+                ->arrayNode('profiles')
+                    ->requiresAtLeastOneElement()
+                    ->useAttributeAsKey('name')
+                    ->prototype('array')
+                        ->addDefaultsIfNotSet()
+                        ->children()
+                            ->scalarNode('user_class')
+                                ->info('FQCN of the application user entity (must implement UserInterface).')
+                                ->defaultNull()
+                                ->example('App\\Entity\\User')
                             ->end()
-                        ->end()
-                        ->arrayNode('logout')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/logout')->end()
-                                ->scalarNode('name')->defaultValue('nowo_auth_kit_logout')->end()
+                            ->scalarNode('user_identifier_field')
+                                ->info('Entity property used as the security user identifier (form_login username).')
+                                ->defaultValue('email')
+                                ->cannotBeEmpty()
                             ->end()
-                        ->end()
-                        ->arrayNode('register')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/register')->end()
-                                ->scalarNode('name')->defaultValue('nowo_auth_kit_register')->end()
+                            ->scalarNode('registration_role')
+                                ->info('Role assigned to users created via registration (in addition to ROLE_USER from the entity).')
+                                ->defaultValue('ROLE_USER')
+                                ->cannotBeEmpty()
                             ->end()
-                        ->end()
-                        ->arrayNode('reset_request')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/reset-password')->end()
-                                ->scalarNode('name')->defaultValue('nowo_auth_kit_reset_password_request')->end()
+                            ->enumNode('registration_mode')
+                                ->values(array_map(static fn (RegistrationMode $mode): string => $mode->value, RegistrationMode::cases()))
+                                ->info('disabled: no registration. first_user_only: register only when no users exist. always: open registration.')
+                                ->defaultValue(RegistrationMode::FirstUserOnly->value)
                             ->end()
-                        ->end()
-                        ->arrayNode('reset_password')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/reset-password/reset/{token}')->end()
-                                ->scalarNode('name')->defaultValue('nowo_auth_kit_reset_password')->end()
+                            ->arrayNode('login_fields')
+                                ->info('Login form fields. Use identifier (maps to user_identifier_field), password, remember_me.')
+                                ->defaultValue(['identifier', 'password'])
+                                ->prototype('variable')->end()
                             ->end()
-                        ->end()
-                        ->arrayNode('reset_password_code')
-                            ->addDefaultsIfNotSet()
-                            ->children()
-                                ->scalarNode('path')->defaultValue('/reset-password/complete')->end()
-                                ->scalarNode('name')->defaultValue('nowo_auth_kit_reset_password_code')->end()
+                            ->append($this->createRememberMeNode())
+                            ->append($this->createPasswordStrengthNode())
+                            ->arrayNode('registration_fields')
+                                ->info('Registration form fields. String names or arrays with name, type, property, hash, required.')
+                                ->defaultValue(['email', 'password'])
+                                ->prototype('variable')->end()
+                            ->end()
+                            ->append($this->createTemplatesNode())
+                            ->append($this->createEmbedNode())
+                            ->append($this->createPasswordResetNode())
+                            ->append($this->createRoutesNode())
+                            ->scalarNode('firewall')
+                                ->info('Symfony firewall name where form_login should point (documented for security.yaml).')
+                                ->defaultValue('main')
+                            ->end()
+                            ->scalarNode('login_success_route')
+                                ->info('Route name after successful login. Null uses firewall default_target_path.')
+                                ->defaultNull()
                             ->end()
                         ->end()
                     ->end()
-                ->end()
-                ->scalarNode('firewall')
-                    ->info('Symfony firewall name where form_login should point (documented for security.yaml).')
-                    ->defaultValue('main')
-                ->end()
-                ->scalarNode('login_success_route')
-                    ->info('Route name after successful login. Null uses firewall default_target_path.')
-                    ->defaultNull()
                 ->end()
                 ->scalarNode('default_locale')
                     ->defaultValue('en')
@@ -259,5 +143,222 @@ final class Configuration implements ConfigurationInterface
             ->end();
 
         return $treeBuilder;
+    }
+
+    private function createRememberMeNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('remember_me'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->info('Persistent login cookie (Symfony firewall remember_me). Set enabled: true or add remember_me to login_fields.')
+            ->children()
+                ->booleanNode('enabled')
+                    ->info('When true, configures firewall remember_me and ensures the login checkbox is shown.')
+                    ->defaultFalse()
+                ->end()
+                ->integerNode('lifetime')
+                    ->info('Cookie lifetime in seconds.')
+                    ->defaultValue(604800)
+                    ->min(60)
+                ->end()
+                ->scalarNode('path')
+                    ->info('Cookie path.')
+                    ->defaultValue('/')
+                    ->cannotBeEmpty()
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createPasswordStrengthNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('password_strength'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->info('Optional integration with nowo-tech/password-strength-bundle for registration and password reset fields.')
+            ->children()
+                ->booleanNode('enabled')
+                    ->info('When true, uses PasswordStrengthType on new-password fields if that bundle is installed.')
+                    ->defaultFalse()
+                ->end()
+                ->scalarNode('level')
+                    ->info('Policy level passed to PasswordStrengthType and PasswordStrength validator.')
+                    ->defaultValue('medium')
+                    ->cannotBeEmpty()
+                ->end()
+                ->enumNode('policy_mode')
+                    ->values(['level', 'conditions'])
+                    ->defaultValue('level')
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createTemplatesNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('templates'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->scalarNode('layout')
+                    ->defaultValue('@NowoAuthKitBundle/layout.html.twig')
+                ->end()
+                ->scalarNode('login')
+                    ->defaultValue('@NowoAuthKitBundle/security/login.html.twig')
+                ->end()
+                ->scalarNode('register')
+                    ->defaultValue('@NowoAuthKitBundle/security/register.html.twig')
+                ->end()
+                ->scalarNode('reset_request')
+                    ->defaultValue('@NowoAuthKitBundle/security/reset_request.html.twig')
+                ->end()
+                ->scalarNode('reset_password')
+                    ->defaultValue('@NowoAuthKitBundle/security/reset_password.html.twig')
+                ->end()
+                ->scalarNode('reset_password_code')
+                    ->defaultValue('@NowoAuthKitBundle/security/reset_password_code.html.twig')
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createEmbedNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('embed'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->enumNode('mode')
+                    ->values(array_map(static fn (AuthEmbedMode $mode): string => $mode->value, AuthEmbedMode::cases()))
+                    ->info('disabled: full-page routes only. dropdown: embed login/register via auth_kit_dropdown().')
+                    ->defaultValue(AuthEmbedMode::Disabled->value)
+                ->end()
+                ->booleanNode('show_login')
+                    ->info('Include the login form in the embedded UI.')
+                    ->defaultTrue()
+                ->end()
+                ->booleanNode('show_register')
+                    ->info('Include registration when allowed by registration_mode.')
+                    ->defaultTrue()
+                ->end()
+                ->scalarNode('template')
+                    ->defaultValue('@NowoAuthKitBundle/embed/dropdown.html.twig')
+                ->end()
+                ->scalarNode('login_panel')
+                    ->defaultValue('@NowoAuthKitBundle/embed/_login_panel.html.twig')
+                ->end()
+                ->scalarNode('register_panel')
+                    ->defaultValue('@NowoAuthKitBundle/embed/_register_panel.html.twig')
+                ->end()
+                ->scalarNode('authenticated')
+                    ->defaultValue('@NowoAuthKitBundle/embed/_authenticated.html.twig')
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createPasswordResetNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('password_reset'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->enumNode('mode')
+                    ->values(array_map(static fn (PasswordResetMode $mode): string => $mode->value, PasswordResetMode::cases()))
+                    ->info('disabled: hide reset flows. enabled: expose request and completion routes.')
+                    ->defaultValue(PasswordResetMode::Disabled->value)
+                ->end()
+                ->enumNode('delivery')
+                    ->values(array_map(static fn (PasswordResetDeliveryMode $mode): string => $mode->value, PasswordResetDeliveryMode::cases()))
+                    ->info('link: URL token. code: OTP/SMS/email code. both: link URL and code for notifiers.')
+                    ->defaultValue(PasswordResetDeliveryMode::Link->value)
+                ->end()
+                ->integerNode('token_ttl')
+                    ->info('Seconds until the reset credential expires.')
+                    ->defaultValue(3600)
+                    ->min(60)
+                ->end()
+                ->integerNode('token_bytes')
+                    ->info('Entropy for link tokens (bytes before hex encoding).')
+                    ->defaultValue(32)
+                    ->min(16)
+                ->end()
+                ->integerNode('code_length')
+                    ->defaultValue(6)
+                    ->min(4)
+                    ->max(12)
+                ->end()
+                ->enumNode('code_charset')
+                    ->values(['numeric', 'alphanumeric'])
+                    ->defaultValue('numeric')
+                ->end()
+                ->scalarNode('token_field')
+                    ->info('User entity property storing the hashed reset credential.')
+                    ->defaultValue('passwordResetToken')
+                ->end()
+                ->scalarNode('token_expires_field')
+                    ->info('User entity property storing credential expiry.')
+                    ->defaultValue('passwordResetExpiresAt')
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createRoutesNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('routes'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->arrayNode('login')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_login')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('logout')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/logout')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_logout')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('register')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/register')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_register')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('reset_request')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/reset-password')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_reset_password_request')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('reset_password')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/reset-password/reset/{token}')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_reset_password')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('reset_password_code')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/reset-password/complete')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_reset_password_code')->end()
+                    ->end()
+                ->end()
+            ->end();
+
+        return $node;
     }
 }

@@ -10,11 +10,13 @@ use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -41,14 +43,14 @@ final class LoginControllerTest extends TestCase
             $this->createMock(AuthenticationUtils::class),
             $tokenStorage,
             AuthKitTestUrlGenerator::fromMock($inner),
-            new RegistrationGate($this->createMock(EntityManagerInterface::class), TestUser::class, 'disabled'),
-            $this->templates(),
-            $this->routes(),
-            'demo_home',
-            'disabled',
+            new RegistrationGate(
+                $this->createMock(EntityManagerInterface::class),
+                ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'disabled']),
+            ),
+            ProfileRegistryFactory::requestResolver(TestUser::class, ['login_success_route' => 'demo_home']),
         );
 
-        $response = $controller->login();
+        $response = $controller->login(new Request());
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/home', $response->headers->get('Location'));
@@ -56,9 +58,11 @@ final class LoginControllerTest extends TestCase
 
     public function testRendersLoginTemplateWithRegistrationAllowedFlag(): void
     {
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'disabled']);
+
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType(FieldConfigNormalizerFields::login(), new PasswordFieldTypeResolver()))
+            ->addType(new LoginFormType($profileRegistry, new PasswordFieldTypeResolver()))
             ->getFormFactory();
 
         $authenticationUtils = $this->createMock(AuthenticationUtils::class);
@@ -67,8 +71,7 @@ final class LoginControllerTest extends TestCase
 
         $registrationGate = new RegistrationGate(
             $this->createMock(EntityManagerInterface::class),
-            TestUser::class,
-            'disabled',
+            $profileRegistry,
         );
 
         $twig = $this->createMock(Environment::class);
@@ -93,13 +96,10 @@ final class LoginControllerTest extends TestCase
             $this->createMock(TokenStorageInterface::class),
             AuthKitTestUrlGenerator::fromMock($inner),
             $registrationGate,
-            $this->templates(),
-            $this->routes(),
-            null,
-            'disabled',
+            ProfileRegistryFactory::requestResolver(TestUser::class, ['registration_mode' => 'disabled']),
         );
 
-        $response = $controller->login();
+        $response = $controller->login(new Request());
 
         self::assertSame('<html>login</html>', $response->getContent());
     }
