@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Security;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -17,14 +18,8 @@ use function is_string;
  */
 final class UserRegistrar
 {
-    /**
-     * @param class-string<PasswordAuthenticatedUserInterface&UserInterface> $userClass
-     * @param list<array{name: string, type: string, property: string, hash: bool, required: bool, security_name: null}> $registrationFields
-     */
     public function __construct(
-        private readonly string $userClass,
-        private readonly string $registrationRole,
-        private readonly array $registrationFields,
+        private readonly ProfileRegistry $profileRegistry,
         private readonly EntityManagerInterface $entityManager,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly PropertyAccessorInterface $propertyAccessor,
@@ -34,12 +29,16 @@ final class UserRegistrar
     /**
      * @param array<string, mixed> $formData keyed by field name
      */
-    public function register(array $formData): UserInterface&PasswordAuthenticatedUserInterface
+    public function register(array $formData, ?string $profileName = null): UserInterface&PasswordAuthenticatedUserInterface
     {
-        /** @var PasswordAuthenticatedUserInterface&UserInterface $user */
-        $user = new $this->userClass();
+        $profile = $profileName !== null
+            ? $this->profileRegistry->getByName($profileName)
+            : $this->profileRegistry->getDefault();
 
-        foreach ($this->registrationFields as $field) {
+        /** @var PasswordAuthenticatedUserInterface&UserInterface $user */
+        $user = new ($profile->userClass)();
+
+        foreach ($profile->registrationFields as $field) {
             $value = $formData[$field['name']] ?? null;
 
             if ($field['hash'] && is_string($value)) {
@@ -52,9 +51,9 @@ final class UserRegistrar
         }
 
         if (method_exists($user, 'setRoles')) {
-            $user->setRoles([$this->registrationRole]);
+            $user->setRoles([$profile->registrationRole]);
         } elseif ($this->propertyAccessor->isWritable($user, 'roles')) {
-            $this->propertyAccessor->setValue($user, 'roles', [$this->registrationRole]);
+            $this->propertyAccessor->setValue($user, 'roles', [$profile->registrationRole]);
         }
 
         $this->entityManager->persist($user);

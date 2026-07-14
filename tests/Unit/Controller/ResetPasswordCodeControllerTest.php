@@ -10,6 +10,8 @@ use Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
@@ -31,14 +33,17 @@ final class ResetPasswordCodeControllerTest extends TestCase
         $twig = $this->createMock(Environment::class);
         $twig->expects(self::once())->method('render')->willReturn('<html>code</html>');
 
-        $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
+        $tokenManager    = $this->createMock(PasswordResetTokenManagerInterface::class);
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'enabled'],
+        ]);
 
         $completer = new PasswordResetCompleter(
             $this->createMock(EntityManagerInterface::class),
             $this->createMock(UserPasswordHasherInterface::class),
             new PropertyAccessor(),
             $tokenManager,
-            FieldConfigNormalizerFields::registration(),
+            $profileRegistry,
         );
 
         $controller = new ResetPasswordCodeController(
@@ -46,19 +51,18 @@ final class ResetPasswordCodeControllerTest extends TestCase
             Forms::createFormFactoryBuilder()
                 ->addExtension(new ValidatorExtension(Validation::createValidator()))
                 ->addType(new ResetPasswordCodeFormType(
-                    'email',
+                    $profileRegistry,
                     PasswordFieldResolvers::repeatedFieldBuilder(),
-                    6,
                 ))
                 ->getFormFactory(),
-            new PasswordResetGate('enabled'),
+            new PasswordResetGate($profileRegistry),
             $tokenManager,
             $completer,
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
-            $this->templates(),
-            $this->routes(),
-            null,
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'password_reset' => ['mode' => 'enabled'],
+            ]),
         );
 
         $response = $controller->complete(new Request());

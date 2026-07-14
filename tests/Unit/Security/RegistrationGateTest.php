@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 
 final class RegistrationGateTest extends TestCase
@@ -16,8 +17,7 @@ final class RegistrationGateTest extends TestCase
     {
         $gate = new RegistrationGate(
             $this->createMock(EntityManagerInterface::class),
-            TestUser::class,
-            'disabled',
+            ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'disabled']),
         );
 
         self::assertFalse($gate->isRegistrationAllowed());
@@ -27,8 +27,7 @@ final class RegistrationGateTest extends TestCase
     {
         $gate = new RegistrationGate(
             $this->createMock(EntityManagerInterface::class),
-            TestUser::class,
-            'always',
+            ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'always']),
         );
 
         self::assertTrue($gate->isRegistrationAllowed());
@@ -42,7 +41,10 @@ final class RegistrationGateTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
-        $gate = new RegistrationGate($entityManager, TestUser::class, 'first_user_only');
+        $gate = new RegistrationGate(
+            $entityManager,
+            ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'first_user_only']),
+        );
 
         self::assertTrue($gate->isRegistrationAllowed());
     }
@@ -55,7 +57,10 @@ final class RegistrationGateTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
-        $gate = new RegistrationGate($entityManager, TestUser::class, 'first_user_only');
+        $gate = new RegistrationGate(
+            $entityManager,
+            ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'first_user_only']),
+        );
 
         self::assertFalse($gate->isRegistrationAllowed());
     }

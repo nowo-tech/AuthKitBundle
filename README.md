@@ -18,6 +18,7 @@ Works alongside Symfony Security — `security.yaml` remains required and is doc
 - **Remember me** (optional persistent login cookie)
 - **Password strength** (optional integration with `nowo-tech/password-strength-bundle`)
 - Registration modes: disabled, first user only, always open
+- **Named profiles** — separate auth config per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
 - Twig overrides via `templates/bundles/NowoAuthKitBundle/`
 - Translation domain `NowoAuthKitBundle` with app overrides (`de`, `en`, `es`, `fr`, `it`, `nl`, `pt`)
@@ -31,11 +32,16 @@ composer require nowo-tech/auth-kit-bundle
 ```yaml
 # config/packages/nowo_auth_kit.yaml
 nowo_auth_kit:
-    user_class: App\Entity\User
-    user_identifier_field: email
-    registration_mode: first_user_only
-    registration_role: ROLE_USER
+    default_profile: default
+    profiles:
+        default:
+            user_class: App\Entity\User
+            user_identifier_field: email
+            registration_mode: first_user_only
+            registration_role: ROLE_USER
 ```
+
+The legacy flat layout (`user_class` at root) remains supported. See [Configuration](docs/CONFIGURATION.md).
 
 ```bash
 php bin/console nowo:auth-kit:configure-security

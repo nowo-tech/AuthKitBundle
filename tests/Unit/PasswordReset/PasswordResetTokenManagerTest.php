@@ -13,7 +13,10 @@ use LogicException;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Tests\Stub\ParentTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 
@@ -22,25 +25,6 @@ use function strlen;
 
 final class PasswordResetTokenManagerTest extends TestCase
 {
-    public function testRejectsInvalidTokenBytes(): void
-    {
-        $this->expectException(LogicException::class);
-
-        new PasswordResetTokenManager(
-            $this->createMock(EntityManagerInterface::class),
-            new PropertyAccessor(),
-            new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), TestUser::class, 'email'),
-            TestUser::class,
-            'passwordResetToken',
-            'passwordResetExpiresAt',
-            3600,
-            0,
-            6,
-            'numeric',
-            'link',
-        );
-    }
-
     public function testCreateLinkToken(): void
     {
         $user    = new TestUser();
@@ -101,18 +85,15 @@ final class PasswordResetTokenManagerTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->with(TestUser::class)->willReturn($repository);
 
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => 'code'],
+        ]);
+
         $manager = new PasswordResetTokenManager(
             $entityManager,
             new PropertyAccessor(),
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
-            TestUser::class,
-            'passwordResetToken',
-            'passwordResetExpiresAt',
-            3600,
-            32,
-            6,
-            'numeric',
-            'code',
+            new PasswordResetUserResolver($entityManager, $registry),
+            $registry,
         );
 
         self::assertSame($user, $manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
@@ -179,18 +160,15 @@ final class PasswordResetTokenManagerTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => 'code'],
+        ]);
+
         $manager = new PasswordResetTokenManager(
             $entityManager,
             new PropertyAccessor(),
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
-            TestUser::class,
-            'passwordResetToken',
-            'passwordResetExpiresAt',
-            3600,
-            32,
-            6,
-            'numeric',
-            'code',
+            new PasswordResetUserResolver($entityManager, $registry),
+            $registry,
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
@@ -204,18 +182,15 @@ final class PasswordResetTokenManagerTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => 'code'],
+        ]);
+
         $manager = new PasswordResetTokenManager(
             $entityManager,
             new PropertyAccessor(),
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
-            TestUser::class,
-            'passwordResetToken',
-            'passwordResetExpiresAt',
-            3600,
-            32,
-            6,
-            'numeric',
-            'code',
+            new PasswordResetUserResolver($entityManager, $registry),
+            $registry,
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('missing@example.com', '123456'));
@@ -233,19 +208,9 @@ final class PasswordResetTokenManagerTest extends TestCase
 
     public function testGenerateNumericCode(): void
     {
-        $manager = new PasswordResetTokenManager(
-            $this->entityManagerForPersist(),
-            new PropertyAccessor(),
-            new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), TestUser::class, 'email'),
-            TestUser::class,
-            'passwordResetToken',
-            'passwordResetExpiresAt',
-            3600,
-            32,
-            6,
-            'numeric',
-            'code',
-        );
+        $manager = $this->createManager('code', $this->entityManagerForPersist(), [
+            'password_reset' => ['code_charset' => 'numeric'],
+        ]);
 
         $result = $manager->createForUser(new TestUser());
 
@@ -254,19 +219,9 @@ final class PasswordResetTokenManagerTest extends TestCase
 
     public function testGenerateAlphanumericCode(): void
     {
-        $manager = new PasswordResetTokenManager(
-            $this->entityManagerForPersist(),
-            new PropertyAccessor(),
-            new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), TestUser::class, 'email'),
-            TestUser::class,
-            'passwordResetToken',
-            'passwordResetExpiresAt',
-            3600,
-            32,
-            6,
-            'alphanumeric',
-            'code',
-        );
+        $manager = $this->createManager('code', $this->entityManagerForPersist(), [
+            'password_reset' => ['code_charset' => 'alphanumeric'],
+        ]);
 
         $result = $manager->createForUser(new TestUser());
 
@@ -287,38 +242,84 @@ final class PasswordResetTokenManagerTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => 'both'],
+        ]);
+
         $manager = new PasswordResetTokenManager(
             $entityManager,
             new PropertyAccessor(),
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
-            TestUser::class,
-            'passwordResetToken',
-            'passwordResetExpiresAt',
-            3600,
-            32,
-            6,
-            'numeric',
-            'both',
+            new PasswordResetUserResolver($entityManager, $registry),
+            $registry,
         );
 
         self::assertSame($user, $manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
     }
 
-    private function createManager(string $delivery, EntityManagerInterface $entityManager): PasswordResetTokenManager
+    public function testCreateForUserThrowsWhenProfileMissing(): void
     {
+        $registry = ProfileRegistryFactory::single(TestUser::class);
+        $manager  = new PasswordResetTokenManager(
+            $this->entityManagerForPersist(),
+            new PropertyAccessor(),
+            new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), $registry),
+            $registry,
+        );
+
+        $this->expectException(LogicException::class);
+
+        $manager->createForUser(new ParentTestUser());
+    }
+
+    public function testResolveUserByLinkTokenWithNamedProfile(): void
+    {
+        $plain = 'abc123';
+        $user  = new TestUser();
+        $user->setPasswordResetToken(hash('sha256', $plain));
+        $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
+
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => 'link'],
+        ]);
+
+        $manager = new PasswordResetTokenManager(
+            $this->entityManagerForLinkResolve($user),
+            new PropertyAccessor(),
+            new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), $registry),
+            $registry,
+        );
+
+        self::assertSame($user, $manager->resolveUserByLinkToken($plain, 'default'));
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     */
+    private function createManager(string $delivery, EntityManagerInterface $entityManager, array $overrides = []): PasswordResetTokenManager
+    {
+        $registry = $this->profileRegistry($delivery, $overrides);
+
         return new PasswordResetTokenManager(
             $entityManager,
             new PropertyAccessor(),
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
-            TestUser::class,
-            'passwordResetToken',
-            'passwordResetExpiresAt',
-            3600,
-            32,
-            6,
-            'alphanumeric',
-            $delivery,
+            new PasswordResetUserResolver($entityManager, $registry),
+            $registry,
         );
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     */
+    private function profileRegistry(string $delivery, array $overrides = []): ProfileRegistry
+    {
+        return ProfileRegistryFactory::single(TestUser::class, array_replace_recursive([
+            'password_reset' => [
+                'delivery'     => $delivery,
+                'token_bytes'  => 32,
+                'code_length'  => 6,
+                'code_charset' => 'alphanumeric',
+            ],
+        ], $overrides));
     }
 
     private function entityManagerForPersist(): EntityManagerInterface

@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -38,7 +39,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $tokenManager->expects(self::never())->method('createForUser');
 
         $handler = $this->handler(
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
+            new PasswordResetUserResolver($entityManager, ProfileRegistryFactory::single(TestUser::class)),
             $tokenManager,
             'link',
         );
@@ -83,13 +84,16 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $dispatcher->expects(self::once())->method('dispatch')->with(self::isInstanceOf(PasswordResetRequestedEvent::class));
 
         $handler = new PasswordResetRequestHandler(
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
+            new PasswordResetUserResolver($entityManager, ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['delivery' => 'link'],
+            ])),
             $tokenManager,
             $notifier,
             $urlGenerator,
             $dispatcher,
-            $this->routes(),
-            'link',
+            ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['delivery' => 'link'],
+            ]),
         );
 
         $handler->handle('user@example.com');
@@ -126,13 +130,16 @@ final class PasswordResetRequestHandlerTest extends TestCase
         };
 
         $handler = new PasswordResetRequestHandler(
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
+            new PasswordResetUserResolver($entityManager, ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['delivery' => 'code'],
+            ])),
             $tokenManager,
             $notifier,
             $this->authKitUrlGenerator(),
             $this->createMock(EventDispatcherInterface::class),
-            $this->routes(),
-            'code',
+            ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['delivery' => 'code'],
+            ]),
         );
 
         $handler->handle('user@example.com');
@@ -169,13 +176,16 @@ final class PasswordResetRequestHandlerTest extends TestCase
         };
 
         $handler = new PasswordResetRequestHandler(
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
+            new PasswordResetUserResolver($entityManager, ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['delivery' => 'code'],
+            ])),
             $tokenManager,
             $notifier,
             $this->authKitUrlGenerator(),
             $this->createMock(EventDispatcherInterface::class),
-            $this->routes(),
-            'code',
+            ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['delivery' => 'code'],
+            ]),
         );
 
         $handler->handle('ab');
@@ -212,13 +222,16 @@ final class PasswordResetRequestHandlerTest extends TestCase
         };
 
         $handler = new PasswordResetRequestHandler(
-            new PasswordResetUserResolver($entityManager, TestUser::class, 'email'),
+            new PasswordResetUserResolver($entityManager, ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['delivery' => 'code'],
+            ])),
             $tokenManager,
             $notifier,
             $this->authKitUrlGenerator(),
             $this->createMock(EventDispatcherInterface::class),
-            $this->routes(),
-            'code',
+            ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['delivery' => 'code'],
+            ]),
         );
 
         $handler->handle('username');
@@ -231,14 +244,17 @@ final class PasswordResetRequestHandlerTest extends TestCase
         PasswordResetTokenManagerInterface $tokenManager,
         string $delivery,
     ): PasswordResetRequestHandler {
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => $delivery],
+        ]);
+
         return new PasswordResetRequestHandler(
             $resolver,
             $tokenManager,
             new NullPasswordResetNotifier(),
             $this->authKitUrlGenerator(),
             $this->createMock(EventDispatcherInterface::class),
-            $this->routes(),
-            $delivery,
+            $profileRegistry,
         );
     }
 
@@ -248,16 +264,5 @@ final class PasswordResetRequestHandlerTest extends TestCase
             $this->createMock(UrlGeneratorInterface::class),
             new AuthKitRouteLocaleParameters(new RequestStack(), false, 'en', ['en', 'es']),
         );
-    }
-
-    /**
-     * @return array<string, array{path: string, name: string}>
-     */
-    private function routes(): array
-    {
-        return [
-            'reset_password'      => ['path' => '/reset/{token}', 'name' => 'nowo_auth_kit_reset_password'],
-            'reset_password_code' => ['path' => '/complete', 'name' => 'nowo_auth_kit_reset_password_code'],
-        ];
     }
 }

@@ -11,8 +11,8 @@ use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Controller\AuthKitRoutesTrait;
-use Nowo\AuthKitBundle\Tests\Unit\Controller\FieldConfigNormalizerFields;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use Nowo\AuthKitBundle\Twig\AuthEmbedExtension;
@@ -30,23 +30,17 @@ final class AuthEmbedExtensionTest extends TestCase
     use AuthKitRoutesTrait;
 
     /**
-     * @param array{
-     *     mode: string,
-     *     show_login: bool,
-     *     show_register: bool,
-     *     template: string,
-     *     login_panel: string,
-     *     register_panel: string,
-     *     authenticated: string
-     * } $embed
+     * @param array<string, mixed> $profileOverrides
      */
-    private function createFactory(array $embed): AuthEmbedContextFactory
+    private function createFactory(array $profileOverrides): AuthEmbedContextFactory
     {
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, $profileOverrides);
+
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType(FieldConfigNormalizerFields::login(), PasswordFieldResolvers::typeResolver()))
+            ->addType(new LoginFormType($profileRegistry, PasswordFieldResolvers::typeResolver()))
             ->addType(new RegistrationFormType(
-                FieldConfigNormalizerFields::registration(),
+                $profileRegistry,
                 PasswordFieldResolvers::repeatedFieldBuilder(),
             ))
             ->getFormFactory();
@@ -56,8 +50,7 @@ final class AuthEmbedExtensionTest extends TestCase
 
         $gate = new RegistrationGate(
             $this->createMock(EntityManagerInterface::class),
-            TestUser::class,
-            'always',
+            ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'always']),
         );
 
         return new AuthEmbedContextFactory(
@@ -66,22 +59,22 @@ final class AuthEmbedExtensionTest extends TestCase
             $this->createMock(TokenStorageInterface::class),
             AuthKitTestUrlGenerator::fromMock($inner),
             $gate,
-            $this->routes(),
-            $embed,
-            'disabled',
+            $profileRegistry,
         );
     }
 
     public function testReturnsEmptyWhenEmbedDisabled(): void
     {
         $factory = $this->createFactory([
-            'mode'           => AuthEmbedMode::Disabled->value,
-            'show_login'     => true,
-            'show_register'  => true,
-            'template'       => '@NowoAuthKitBundle/embed/dropdown.html.twig',
-            'login_panel'    => '@NowoAuthKitBundle/embed/_login_panel.html.twig',
-            'register_panel' => '@NowoAuthKitBundle/embed/_register_panel.html.twig',
-            'authenticated'  => '@NowoAuthKitBundle/embed/_authenticated.html.twig',
+            'embed' => [
+                'mode'           => AuthEmbedMode::Disabled->value,
+                'show_login'     => true,
+                'show_register'  => true,
+                'template'       => '@NowoAuthKitBundle/embed/dropdown.html.twig',
+                'login_panel'    => '@NowoAuthKitBundle/embed/_login_panel.html.twig',
+                'register_panel' => '@NowoAuthKitBundle/embed/_register_panel.html.twig',
+                'authenticated'  => '@NowoAuthKitBundle/embed/_authenticated.html.twig',
+            ],
         ]);
 
         $twig = $this->createMock(Environment::class);
@@ -95,13 +88,15 @@ final class AuthEmbedExtensionTest extends TestCase
     public function testRendersConfiguredTemplate(): void
     {
         $factory = $this->createFactory([
-            'mode'           => AuthEmbedMode::Dropdown->value,
-            'show_login'     => true,
-            'show_register'  => true,
-            'template'       => '@NowoAuthKitBundle/embed/dropdown.html.twig',
-            'login_panel'    => '@NowoAuthKitBundle/embed/_login_panel.html.twig',
-            'register_panel' => '@NowoAuthKitBundle/embed/_register_panel.html.twig',
-            'authenticated'  => '@NowoAuthKitBundle/embed/_authenticated.html.twig',
+            'embed' => [
+                'mode'           => AuthEmbedMode::Dropdown->value,
+                'show_login'     => true,
+                'show_register'  => true,
+                'template'       => '@NowoAuthKitBundle/embed/dropdown.html.twig',
+                'login_panel'    => '@NowoAuthKitBundle/embed/_login_panel.html.twig',
+                'register_panel' => '@NowoAuthKitBundle/embed/_register_panel.html.twig',
+                'authenticated'  => '@NowoAuthKitBundle/embed/_authenticated.html.twig',
+            ],
         ]);
 
         $twig = $this->createMock(Environment::class);

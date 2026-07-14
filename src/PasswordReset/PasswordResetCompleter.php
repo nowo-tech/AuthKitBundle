@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\PasswordReset;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -14,21 +15,19 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
  */
 final class PasswordResetCompleter
 {
-    /**
-     * @param list<array{name: string, type: string, property: string, hash: bool, required: bool, security_name: null}> $registrationFields
-     */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly PropertyAccessorInterface $propertyAccessor,
         private readonly PasswordResetTokenManagerInterface $tokenManager,
-        private readonly array $registrationFields,
+        private readonly ProfileRegistry $profileRegistry,
     ) {
     }
 
     public function complete(PasswordAuthenticatedUserInterface $user, string $plainPassword): void
     {
-        $passwordProperty = $this->resolvePasswordProperty();
+        $profile          = $this->profileRegistry->resolveForObject($user) ?? $this->profileRegistry->getDefault();
+        $passwordProperty = $this->resolvePasswordProperty($profile->registrationFields);
         $hashed           = $this->passwordHasher->hashPassword($user, $plainPassword);
 
         $this->propertyAccessor->setValue($user, $passwordProperty, $hashed);
@@ -38,9 +37,12 @@ final class PasswordResetCompleter
         $this->entityManager->flush();
     }
 
-    private function resolvePasswordProperty(): string
+    /**
+     * @param list<array<string, mixed>> $registrationFields
+     */
+    private function resolvePasswordProperty(array $registrationFields): string
     {
-        foreach ($this->registrationFields as $field) {
+        foreach ($registrationFields as $field) {
             if ($field['type'] === 'password') {
                 return $field['property'];
             }

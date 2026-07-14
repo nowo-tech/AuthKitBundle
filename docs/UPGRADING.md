@@ -1,5 +1,47 @@
 # Upgrading
 
+## To 1.5.0
+
+From **1.4.4**, **1.4.3**, **1.4.2**, **1.4.1**, **1.4.0**, or earlier 1.x — backward compatible for single-entity setups.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+**No migration required** if you keep the flat configuration (`user_class` at root). It is normalized internally to a single `default` profile.
+
+**What is new:**
+
+- Multiple user entities can each have their own login, registration, password reset, routes, templates, and firewall under `nowo_auth_kit.profiles`.
+- Routes are registered per profile; each route sets `_auth_kit_profile` so controllers resolve the correct settings automatically.
+- `ProfileRegistry::resolveForObject($user)` resolves the profile from the authenticated entity class (cached O(1) lookup).
+- Embed dropdown (`auth_kit_dropdown()`) uses the default profile unless you pass `profile` in Twig options.
+
+**Optional migration to profiles layout:**
+
+```yaml
+nowo_auth_kit:
+    default_profile: app_user
+    profiles:
+        app_user:
+            user_class: App\Entity\User
+            registration_mode: first_user_only
+            routes:
+                login:
+                    path: /login
+                    name: nowo_auth_kit_login
+        admin:
+            user_class: App\Entity\Admin
+            registration_mode: disabled
+            routes:
+                login:
+                    path: /admin/login
+                    name: nowo_auth_kit_admin_login
+```
+
+**Behavior note:** each profile must define a unique `user_class` and unique route **names** across all profiles. Route paths may differ per profile.
+
 ## To 1.4.4
 
 From **1.4.3** — backward compatible.

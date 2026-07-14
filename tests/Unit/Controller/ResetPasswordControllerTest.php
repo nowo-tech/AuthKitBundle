@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
@@ -66,6 +67,10 @@ final class ResetPasswordControllerTest extends TestCase
         AuthKitUrlGenerator $urlGenerator,
         ?Environment $twig = null,
     ): ResetPasswordController {
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'enabled'],
+        ]);
+
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new ResetPasswordFormType(
@@ -78,20 +83,20 @@ final class ResetPasswordControllerTest extends TestCase
             $this->createMock(UserPasswordHasherInterface::class),
             new PropertyAccessor(),
             $tokenManager,
-            FieldConfigNormalizerFields::registration(),
+            $profileRegistry,
         );
 
         return new ResetPasswordController(
             $twig ?? $this->createMock(Environment::class),
             $formFactory,
-            new PasswordResetGate('enabled'),
+            new PasswordResetGate($profileRegistry),
             $tokenManager,
             $completer,
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             $urlGenerator,
-            $this->templates(),
-            $this->routes(),
-            null,
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'password_reset' => ['mode' => 'enabled'],
+            ]),
         );
     }
 }

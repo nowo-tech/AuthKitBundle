@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Form\ResetPasswordFormType;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,10 +24,6 @@ use Twig\Environment;
  */
 final class ResetPasswordController
 {
-    /**
-     * @param array{layout: string, login: string, register: string, reset_request: string, reset_password: string, reset_password_code: string} $templates
-     * @param array<string, array{path: string, name: string}> $routes
-     */
     public function __construct(
         private readonly Environment $twig,
         private readonly FormFactoryInterface $formFactory,
@@ -35,29 +32,29 @@ final class ResetPasswordController
         private readonly PasswordResetCompleter $passwordResetCompleter,
         private readonly TokenStorageInterface $tokenStorage,
         private readonly AuthKitUrlGenerator $urlGenerator,
-        private readonly array $templates,
-        private readonly array $routes,
-        private readonly ?string $loginSuccessRoute,
+        private readonly RequestProfileResolver $profileResolver,
     ) {
     }
 
     public function reset(Request $request, string $token): Response
     {
+        $profile = $this->profileResolver->resolve($request);
+
         if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
-            $target = $this->loginSuccessRoute ?? $this->routes['login']['name'];
+            $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
             return new Response('', Response::HTTP_FOUND, [
                 'Location' => $this->urlGenerator->generate($target),
             ]);
         }
 
-        if (!$this->passwordResetGate->isEnabled()) {
+        if (!$this->passwordResetGate->isEnabled($profile->name)) {
             return new Response('', Response::HTTP_FOUND, [
-                'Location' => $this->urlGenerator->generate($this->routes['login']['name']),
+                'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
             ]);
         }
 
-        $user = $this->tokenManager->resolveUserByLinkToken($token);
+        $user = $this->tokenManager->resolveUserByLinkToken($token, $profile->name);
 
         if ($user === null) {
             if ($request->hasSession() && $request->getSession() instanceof FlashBagAwareSessionInterface) {
@@ -65,7 +62,7 @@ final class ResetPasswordController
             }
 
             return new Response('', Response::HTTP_FOUND, [
-                'Location' => $this->urlGenerator->generate($this->routes['reset_request']['name']),
+                'Location' => $this->urlGenerator->generate($profile->routes['reset_request']['name']),
             ]);
         }
 
@@ -88,14 +85,14 @@ final class ResetPasswordController
             }
 
             return new Response('', Response::HTTP_FOUND, [
-                'Location' => $this->urlGenerator->generate($this->routes['login']['name']),
+                'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
             ]);
         }
 
-        $content = $this->twig->render($this->templates['reset_password'], [
+        $content = $this->twig->render($profile->templates['reset_password'], [
             'reset_password_form' => $form->createView(),
-            'login_route'         => $this->routes['login']['name'],
-            'layout_template'     => $this->templates['layout'],
+            'login_route'         => $profile->routes['login']['name'],
+            'layout_template'     => $profile->templates['layout'],
         ]);
 
         return new Response($content);

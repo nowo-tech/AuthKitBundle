@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -59,7 +60,9 @@ final class ResetPasswordControllerCoverageTest extends TestCase
             AuthKitTestUrlGenerator::fromMock($inner),
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             null,
-            new PasswordResetGate('disabled'),
+            new PasswordResetGate(ProfileRegistryFactory::single(TestUser::class, [
+                'password_reset' => ['mode' => 'disabled'],
+            ])),
         );
 
         $response = $controller->reset(new Request(), 'token');
@@ -131,17 +134,21 @@ final class ResetPasswordControllerCoverageTest extends TestCase
         $request = Request::create('/reset', 'POST');
         $request->setSession(new Session(new MockArraySessionStorage()));
 
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'enabled'],
+        ]);
+
         $controller = new ResetPasswordController(
             $this->createMock(\Twig\Environment::class),
             $formFactory,
-            new PasswordResetGate('enabled'),
+            new PasswordResetGate($profileRegistry),
             $tokenManager,
-            new PasswordResetCompleter($entityManager, $hasher, new PropertyAccessor(), $tokenManager, FieldConfigNormalizerFields::registration()),
+            new PasswordResetCompleter($entityManager, $hasher, new PropertyAccessor(), $tokenManager, $profileRegistry),
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
-            $this->templates(),
-            $this->routes(),
-            null,
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'password_reset' => ['mode' => 'enabled'],
+            ]),
         );
 
         $response = $controller->reset($request, 'valid');
@@ -157,23 +164,29 @@ final class ResetPasswordControllerCoverageTest extends TestCase
         ?string $successRoute,
         ?PasswordResetGate $gate = null,
     ): ResetPasswordController {
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, array_filter([
+            'password_reset'      => ['mode' => 'enabled'],
+            'login_success_route' => $successRoute,
+        ]));
+
         return new ResetPasswordController(
             $this->createMock(\Twig\Environment::class),
             $this->createMock(FormFactoryInterface::class),
-            $gate ?? new PasswordResetGate('enabled'),
+            $gate ?? new PasswordResetGate($profileRegistry),
             $tokenManager,
             new PasswordResetCompleter(
                 $this->createMock(EntityManagerInterface::class),
                 $this->createMock(UserPasswordHasherInterface::class),
                 new PropertyAccessor(),
                 $tokenManager,
-                FieldConfigNormalizerFields::registration(),
+                $profileRegistry,
             ),
             $tokenStorage,
             $urlGenerator,
-            $this->templates(),
-            $this->routes(),
-            $successRoute,
+            ProfileRegistryFactory::requestResolver(TestUser::class, array_filter([
+                'password_reset'      => ['mode' => 'enabled'],
+                'login_success_route' => $successRoute,
+            ])),
         );
     }
 }

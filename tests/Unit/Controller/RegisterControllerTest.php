@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
@@ -43,14 +44,16 @@ final class RegisterControllerTest extends TestCase
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->with('demo_home')->willReturn('/home');
 
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'login_success_route' => 'demo_home',
+        ]);
+
         $controller = new RegisterController(
             $this->createMock(Environment::class),
             $this->createMock(FormFactoryInterface::class),
             $this->registrationGateAllowed(),
             new UserRegistrar(
-                TestUser::class,
-                'ROLE_USER',
-                FieldConfigNormalizerFields::registration(),
+                $profileRegistry,
                 $this->createMock(EntityManagerInterface::class),
                 $this->createMock(UserPasswordHasherInterface::class),
                 new PropertyAccessor(),
@@ -58,10 +61,7 @@ final class RegisterControllerTest extends TestCase
             $tokenStorage,
             AuthKitTestUrlGenerator::fromMock($inner),
             $this->createMock(EventDispatcherInterface::class),
-            $this->templates(),
-            $this->routes(),
-            'main',
-            'demo_home',
+            ProfileRegistryFactory::requestResolver(TestUser::class, ['login_success_route' => 'demo_home']),
         );
 
         $response = $controller->register(new Request());
@@ -73,7 +73,10 @@ final class RegisterControllerTest extends TestCase
     public function testRedirectsWhenRegistrationDisabled(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $gate          = new RegistrationGate($entityManager, TestUser::class, 'disabled');
+        $gate          = new RegistrationGate(
+            $entityManager,
+            ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'disabled']),
+        );
 
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->with('nowo_auth_kit_login')->willReturn('/login');
@@ -110,10 +113,10 @@ final class RegisterControllerTest extends TestCase
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed');
 
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class);
+
         $registrar = new UserRegistrar(
-            TestUser::class,
-            'ROLE_USER',
-            FieldConfigNormalizerFields::registration(),
+            $profileRegistry,
             $entityManager,
             $hasher,
             new PropertyAccessor(),
@@ -146,10 +149,7 @@ final class RegisterControllerTest extends TestCase
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
             $dispatcher,
-            $this->templates(),
-            $this->routes(),
-            'main',
-            'demo_home',
+            ProfileRegistryFactory::requestResolver(TestUser::class, ['login_success_route' => 'demo_home']),
         );
 
         $request = Request::create('/register', 'POST');
@@ -167,7 +167,10 @@ final class RegisterControllerTest extends TestCase
         $repository->method('count')->willReturn(0);
         $entityManager->method('getRepository')->willReturn($repository);
 
-        return new RegistrationGate($entityManager, TestUser::class, 'first_user_only');
+        return new RegistrationGate(
+            $entityManager,
+            ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'first_user_only']),
+        );
     }
 
     private function createController(
@@ -175,10 +178,12 @@ final class RegisterControllerTest extends TestCase
         ?AuthKitUrlGenerator $urlGenerator = null,
         ?Environment $twig = null,
     ): RegisterController {
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class);
+
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new RegistrationFormType(
-                FieldConfigNormalizerFields::registration(),
+                $profileRegistry,
                 PasswordFieldResolvers::repeatedFieldBuilder(),
             ))
             ->getFormFactory();
@@ -190,9 +195,7 @@ final class RegisterControllerTest extends TestCase
             $formFactory,
             $gate,
             new UserRegistrar(
-                TestUser::class,
-                'ROLE_USER',
-                FieldConfigNormalizerFields::registration(),
+                $profileRegistry,
                 $entityManager,
                 $this->createMock(UserPasswordHasherInterface::class),
                 new PropertyAccessor(),
@@ -200,34 +203,7 @@ final class RegisterControllerTest extends TestCase
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             $urlGenerator ?? AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
             $this->createMock(EventDispatcherInterface::class),
-            $this->templates(),
-            $this->routes(),
-            'main',
-            'demo_home',
+            ProfileRegistryFactory::requestResolver(TestUser::class),
         );
-    }
-
-    /**
-     * @return array{layout: string, login: string, register: string}
-     */
-    private function templates(): array
-    {
-        return [
-            'layout'   => '@NowoAuthKitBundle/layout.html.twig',
-            'login'    => '@NowoAuthKitBundle/security/login.html.twig',
-            'register' => '@NowoAuthKitBundle/security/register.html.twig',
-        ];
-    }
-
-    /**
-     * @return array<string, array{path: string, name: string}>
-     */
-    private function routes(): array
-    {
-        return [
-            'login'    => ['path' => '/login', 'name' => 'nowo_auth_kit_login'],
-            'logout'   => ['path' => '/logout', 'name' => 'nowo_auth_kit_logout'],
-            'register' => ['path' => '/register', 'name' => 'nowo_auth_kit_register'],
-        ];
     }
 }

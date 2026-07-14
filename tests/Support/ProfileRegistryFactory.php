@@ -1,0 +1,92 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Nowo\AuthKitBundle\Tests\Support;
+
+use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
+
+final class ProfileRegistryFactory
+{
+    /**
+     * @param array<string, mixed> $overrides
+     */
+    public static function single(string $userClass, array $overrides = [], string $profileName = 'default'): ProfileRegistry
+    {
+        return self::fromProfiles([
+            $profileName => array_replace_recursive(self::defaultProfileConfig($userClass), $overrides),
+        ], $profileName);
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    public static function fromProfiles(array $profiles, string $defaultProfileName = 'default'): ProfileRegistry
+    {
+        return new ProfileRegistry($profiles, $defaultProfileName);
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     */
+    public static function requestResolver(string $userClass, array $overrides = [], string $profileName = 'default'): RequestProfileResolver
+    {
+        return new RequestProfileResolver(self::single($userClass, $overrides, $profileName));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function defaultProfileConfig(string $userClass): array
+    {
+        return [
+            'user_class'            => $userClass,
+            'user_identifier_field' => 'email',
+            'registration_role'     => 'ROLE_USER',
+            'registration_mode'     => 'first_user_only',
+            'login_fields'          => FieldConfigNormalizer::normalizeLoginFields(['identifier', 'password'], 'email'),
+            'remember_me'           => ['enabled' => false, 'lifetime' => 604800, 'path' => '/'],
+            'password_strength'     => ['enabled' => false, 'level' => 'medium', 'policy_mode' => 'level'],
+            'registration_fields'   => FieldConfigNormalizer::normalizeRegistrationFields(['email', 'password']),
+            'templates'             => [
+                'layout'              => '@NowoAuthKitBundle/layout.html.twig',
+                'login'               => '@NowoAuthKitBundle/security/login.html.twig',
+                'register'            => '@NowoAuthKitBundle/security/register.html.twig',
+                'reset_request'       => '@NowoAuthKitBundle/security/reset_request.html.twig',
+                'reset_password'      => '@NowoAuthKitBundle/security/reset_password.html.twig',
+                'reset_password_code' => '@NowoAuthKitBundle/security/reset_password_code.html.twig',
+            ],
+            'embed' => [
+                'mode'           => 'disabled',
+                'show_login'     => true,
+                'show_register'  => true,
+                'template'       => '@NowoAuthKitBundle/embed/dropdown.html.twig',
+                'login_panel'    => '@NowoAuthKitBundle/embed/_login_panel.html.twig',
+                'register_panel' => '@NowoAuthKitBundle/embed/_register_panel.html.twig',
+                'authenticated'  => '@NowoAuthKitBundle/embed/_authenticated.html.twig',
+            ],
+            'password_reset' => [
+                'mode'                => 'disabled',
+                'delivery'            => 'link',
+                'token_ttl'           => 3600,
+                'token_bytes'         => 32,
+                'code_length'         => 6,
+                'code_charset'        => 'numeric',
+                'token_field'         => 'passwordResetToken',
+                'token_expires_field' => 'passwordResetExpiresAt',
+            ],
+            'routes' => [
+                'login'               => ['path' => '/login', 'name' => 'nowo_auth_kit_login'],
+                'logout'              => ['path' => '/logout', 'name' => 'nowo_auth_kit_logout'],
+                'register'            => ['path' => '/register', 'name' => 'nowo_auth_kit_register'],
+                'reset_request'       => ['path' => '/reset-password', 'name' => 'nowo_auth_kit_reset_password_request'],
+                'reset_password'      => ['path' => '/reset-password/reset/{token}', 'name' => 'nowo_auth_kit_reset_password'],
+                'reset_password_code' => ['path' => '/reset-password/complete', 'name' => 'nowo_auth_kit_reset_password_code'],
+            ],
+            'firewall'            => 'main',
+            'login_success_route' => null,
+        ];
+    }
+}

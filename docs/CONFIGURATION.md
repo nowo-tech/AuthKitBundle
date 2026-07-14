@@ -17,7 +17,62 @@
 
 All options live under the `nowo_auth_kit` root key in `config/packages/nowo_auth_kit.yaml`.
 
-## Reference
+## Profiles
+
+Each **profile** maps a `user_class` to its own auth settings (registration, login fields, password reset, routes, templates, firewall, embed). Use multiple profiles when the application has more than one authenticated user entity (for example `App\Entity\User` and `App\Entity\Admin`).
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `default_profile` | string | first profile key | Profile used when no route context or explicit name is available. |
+| `profiles` | map | `default` | Named profile definitions (at least one required). |
+| `default_locale` | string | `en` | Default locale when `locale_in_path` is enabled. |
+| `enabled_locales` | list | `[en, es]` | Allowed locales for prefixed routes. |
+| `locale_in_path` | bool | `false` | Prefix auth routes with `/{_locale}`. |
+
+Each profile supports all keys documented below (`user_class`, `registration_mode`, `routes`, `templates`, etc.). Every profile must use a **unique** `user_class` and **unique route names** across profiles.
+
+Example with two profiles:
+
+```yaml
+nowo_auth_kit:
+    default_profile: app_user
+    profiles:
+        app_user:
+            user_class: App\Entity\User
+            registration_mode: first_user_only
+            routes:
+                login:
+                    path: /login
+                    name: nowo_auth_kit_login
+        admin:
+            user_class: App\Entity\Admin
+            registration_mode: disabled
+            firewall: admin
+            routes:
+                login:
+                    path: /admin/login
+                    name: nowo_auth_kit_admin_login
+```
+
+Routes set `_auth_kit_profile` automatically so controllers, forms, and services resolve the correct profile per request.
+
+### Resolving profiles at runtime
+
+- **HTTP requests:** resolved from the matched route (`RequestProfileResolver`).
+- **Entity objects:** `ProfileRegistry::resolveForObject($user)` (O(1) lookup, inheritance supported).
+- **Explicit name:** pass a profile name to `RegistrationGate::isRegistrationAllowed('admin')`, `UserRegistrar::register($data, 'admin')`, or embed Twig options `auth_kit_dropdown({ profile: 'admin' })`.
+
+## Legacy flat configuration
+
+The previous flat layout remains supported and is normalized internally to `profiles.default`:
+
+```yaml
+nowo_auth_kit:
+    user_class: App\Entity\User
+    registration_mode: first_user_only
+```
+
+## Reference (per profile)
 
 ```yaml
 nowo_auth_kit:

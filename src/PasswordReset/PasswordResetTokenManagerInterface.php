@@ -11,9 +11,9 @@ interface PasswordResetTokenManagerInterface
 {
     public function createForUser(object $user): PasswordResetTokenResult;
 
-    public function resolveUserByLinkToken(string $linkToken): ?object;
+    public function resolveUserByLinkToken(string $linkToken, ?string $profileName = null): ?object;
 
-    public function resolveUserByIdentifierAndCode(string $identifier, string $code): ?object;
+    public function resolveUserByIdentifierAndCode(string $identifier, string $code, ?string $profileName = null): ?object;
 
     public function clearForUser(object $user): void;
 }

@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -54,23 +55,27 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
         $twig = $this->createMock(Environment::class);
         $twig->expects(self::once())->method('render')->willReturn('<html>error</html>');
 
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'enabled'],
+        ]);
+
         $controller = new ResetPasswordCodeController(
             $twig,
             $formFactory,
-            new PasswordResetGate('enabled'),
+            new PasswordResetGate($profileRegistry),
             $tokenManager,
             new PasswordResetCompleter(
                 $this->createMock(EntityManagerInterface::class),
                 $this->createMock(UserPasswordHasherInterface::class),
                 new PropertyAccessor(),
                 $tokenManager,
-                FieldConfigNormalizerFields::registration(),
+                $profileRegistry,
             ),
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
-            $this->templates(),
-            $this->routes(),
-            null,
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'password_reset' => ['mode' => 'enabled'],
+            ]),
         );
 
         self::assertSame('<html>error</html>', $controller->complete(new Request())->getContent());
@@ -108,17 +113,21 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
         $request = Request::create('/complete', 'POST');
         $request->setSession(new Session(new MockArraySessionStorage()));
 
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'enabled'],
+        ]);
+
         $controller = new ResetPasswordCodeController(
             $this->createMock(Environment::class),
             $formFactory,
-            new PasswordResetGate('enabled'),
+            new PasswordResetGate($profileRegistry),
             $tokenManager,
-            new PasswordResetCompleter($entityManager, $hasher, new PropertyAccessor(), $tokenManager, FieldConfigNormalizerFields::registration()),
+            new PasswordResetCompleter($entityManager, $hasher, new PropertyAccessor(), $tokenManager, $profileRegistry),
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
-            $this->templates(),
-            $this->routes(),
-            null,
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'password_reset' => ['mode' => 'enabled'],
+            ]),
         );
 
         $response = $controller->complete($request);
@@ -135,23 +144,28 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->willReturn('/home');
 
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'enabled'],
+        ]);
+
         $controller = new ResetPasswordCodeController(
             $this->createMock(Environment::class),
             $this->createMock(FormFactoryInterface::class),
-            new PasswordResetGate('enabled'),
+            new PasswordResetGate($profileRegistry),
             $this->createMock(PasswordResetTokenManagerInterface::class),
             new PasswordResetCompleter(
                 $this->createMock(EntityManagerInterface::class),
                 $this->createMock(UserPasswordHasherInterface::class),
                 new PropertyAccessor(),
                 $this->createMock(PasswordResetTokenManagerInterface::class),
-                FieldConfigNormalizerFields::registration(),
+                $profileRegistry,
             ),
             $storage,
             AuthKitTestUrlGenerator::fromMock($inner),
-            $this->templates(),
-            $this->routes(),
-            'demo_home',
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'password_reset'      => ['mode' => 'enabled'],
+                'login_success_route' => 'demo_home',
+            ]),
         );
 
         $response = $controller->complete(new Request());
@@ -164,23 +178,29 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->with('nowo_auth_kit_login')->willReturn('/login');
 
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['mode' => 'disabled'],
+        ]);
+
         $controller = new ResetPasswordCodeController(
             $this->createMock(Environment::class),
             $this->createMock(FormFactoryInterface::class),
-            new PasswordResetGate('disabled'),
+            new PasswordResetGate($profileRegistry),
             $this->createMock(PasswordResetTokenManagerInterface::class),
             new PasswordResetCompleter(
                 $this->createMock(EntityManagerInterface::class),
                 $this->createMock(UserPasswordHasherInterface::class),
                 new PropertyAccessor(),
                 $this->createMock(PasswordResetTokenManagerInterface::class),
-                FieldConfigNormalizerFields::registration(),
+                ProfileRegistryFactory::single(TestUser::class, [
+                    'password_reset' => ['mode' => 'enabled'],
+                ]),
             ),
             new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
-            $this->templates(),
-            $this->routes(),
-            null,
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'password_reset' => ['mode' => 'disabled'],
+            ]),
         );
 
         self::assertSame('/login', $controller->complete(new Request())->headers->get('Location'));

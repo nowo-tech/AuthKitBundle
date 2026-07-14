@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 
 final class PasswordResetUserResolverTest extends TestCase
@@ -22,7 +23,10 @@ final class PasswordResetUserResolverTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->with(TestUser::class)->willReturn($repository);
 
-        $resolver = new PasswordResetUserResolver($entityManager, TestUser::class, 'email');
+        $resolver = new PasswordResetUserResolver(
+            $entityManager,
+            ProfileRegistryFactory::single(TestUser::class),
+        );
 
         self::assertSame($user, $resolver->findByIdentifier('user@example.com'));
     }

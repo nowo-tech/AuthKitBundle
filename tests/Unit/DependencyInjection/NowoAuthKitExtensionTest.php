@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
+use InvalidArgumentException;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -41,5 +42,62 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertSame('disabled', $embed['mode']);
         self::assertTrue($this->container->hasDefinition(\Nowo\AuthKitBundle\Controller\LoginController::class));
         self::assertTrue($this->container->hasDefinition(\Nowo\AuthKitBundle\Security\RegistrationGate::class));
+    }
+
+    public function testLoadRejectsUnknownDefaultProfile(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->extension->load([[
+            'default_profile' => 'missing',
+            'profiles'        => [
+                'default' => ['user_class' => 'App\\Entity\\User'],
+            ],
+        ]], $this->container);
+    }
+
+    public function testLoadRejectsDuplicateUserClasses(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->extension->load([[
+            'profiles' => [
+                'default' => ['user_class' => 'App\\Entity\\User'],
+                'admin'   => ['user_class' => 'App\\Entity\\User'],
+            ],
+        ]], $this->container);
+    }
+
+    public function testLoadRejectsDuplicateRouteNames(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->extension->load([[
+            'profiles' => [
+                'default' => [
+                    'user_class' => 'App\\Entity\\User',
+                    'routes'     => [
+                        'login' => ['path' => '/login', 'name' => 'app_login'],
+                    ],
+                ],
+                'admin' => [
+                    'user_class' => 'App\\Entity\\Admin',
+                    'routes'     => [
+                        'login' => ['path' => '/admin/login', 'name' => 'app_login'],
+                    ],
+                ],
+            ],
+        ]], $this->container);
+    }
+
+    public function testLoadRejectsEmptyUserClass(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        $this->extension->load([[
+            'profiles' => [
+                'default' => ['user_class' => ''],
+            ],
+        ]], $this->container);
     }
 }
