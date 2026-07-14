@@ -10,6 +10,8 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Validator\Constraints\EqualTo;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
+use function is_string;
+
 /**
  * Builds password + confirmation fields for registration and reset flows.
  *
@@ -53,9 +55,9 @@ final class PasswordRepeatedFieldBuilder
         $builder->add($name, RepeatedType::class, [
             'type'          => $this->passwordFieldTypeResolver->resolveForNewPassword(),
             'first_options' => array_merge([
-                'label'               => $firstLabel,
-                'attr'                => ['autocomplete' => 'new-password'],
-                'translation_domain'  => $translationDomain,
+                'label'              => $firstLabel,
+                'attr'               => ['autocomplete' => 'new-password'],
+                'translation_domain' => $translationDomain,
             ], $this->passwordFieldTypeResolver->newPasswordFieldOptions()),
             'second_options' => [
                 'label'              => $secondLabel,
@@ -95,7 +97,7 @@ final class PasswordRepeatedFieldBuilder
             'label'              => $secondLabel,
             'attr'               => ['autocomplete' => 'new-password'],
             'translation_domain' => $translationDomain,
-            'constraints' => [
+            'constraints'        => [
                 new NotBlank(message: $requiredMessage),
                 new EqualTo(
                     propertyPath: 'parent.all[' . $name . '].data',

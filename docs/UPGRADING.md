@@ -1,5 +1,15 @@
 # Upgrading
 
+## To 1.4.4
+
+From **1.4.3** — backward compatible.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No configuration or template changes required. This release adds maintainer-only Spec Kit documentation and tooling (`specs/`, `.specify/`, `docs/SPEC-KIT.md`); integrator-facing behavior is unchanged.
+
 ## To 1.4.3
 
 From **1.4.2** — backward compatible.

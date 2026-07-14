@@ -30,7 +30,7 @@ final class ConfigureSecurityCommand extends Command
     /**
      * @param array<string, array{path: string, name: string}> $routes
      * @param list<array{name: string, type: string, property: ?string, hash: bool, required: bool, security_name: ?string}> $loginFields
-     * @param array{enabled: bool, lifetime: int, path: string}                         $rememberMe
+     * @param array{enabled: bool, lifetime: int, path: string} $rememberMe
      */
     public function __construct(
         private readonly ?string $projectDir,
@@ -100,8 +100,8 @@ final class ConfigureSecurityCommand extends Command
             $io->warning(sprintf('Firewall "%s" already has form_login. Use --force to overwrite.', $this->firewall));
         } else {
             $formLogin = [
-                'login_path'  => $loginRoute,
-                'check_path'  => $loginRoute,
+                'login_path' => $loginRoute,
+                'check_path' => $loginRoute,
                 ...AuthKitFormLoginParameters::formLoginOptions(),
             ];
 
@@ -111,9 +111,9 @@ final class ConfigureSecurityCommand extends Command
 
             $firewall['form_login'] = $formLogin;
             $firewall['logout']     = [
-                'path'                => $logoutRoute,
-                'target'              => $this->loginSuccessRoute ?? $loginRoute,
-                'invalidate_session'  => true,
+                'path'               => $logoutRoute,
+                'target'             => $this->loginSuccessRoute ?? $loginRoute,
+                'invalidate_session' => true,
             ];
 
             $firewall['provider'] = 'app_user_provider';

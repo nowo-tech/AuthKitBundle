@@ -43,10 +43,9 @@ final class PasswordFieldConstraintResolver
     /**
      * @param array<string, mixed> $options
      */
-    private function createStrengthConstraint(array $options): Constraint
+    private function createStrengthConstraint(array $options): \Nowo\PasswordStrengthBundle\Validator\PasswordStrength
     {
-        /** @var \Nowo\PasswordStrengthBundle\Validator\PasswordStrength $constraint */
-        $constraint = new (self::STRENGTH_CONSTRAINT)();
+        $constraint             = new (self::STRENGTH_CONSTRAINT)();
         $constraint->policyMode = $options['policyMode'] === 'conditions' ? 'conditions' : 'level';
         $constraint->level      = $options['level'];
 

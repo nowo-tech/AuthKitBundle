@@ -49,7 +49,7 @@ final class ResetPasswordCodeFormType extends AbstractType
                     new Length(exactly: $this->codeLength, exactMessage: 'reset.code.code_length'),
                 ],
             ])
-            ;
+        ;
 
         $this->passwordRepeatedFieldBuilder->add(
             $builder,

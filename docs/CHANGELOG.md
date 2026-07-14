@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-07-14
+
+### Added
+
+- **GitHub Spec Kit** baseline: `specs/001-baseline/` (`spec.md`, `code-inventory.md` covering 100% of `src/`), operator manual [`SPEC-KIT.md`](SPEC-KIT.md), Cursor Agent skills (`.cursor/skills/speckit-*`), and `.specify/` scaffolding.
+- Maintainer workflow and checklist in [`SPEC-DRIVEN-DEVELOPMENT.md`](SPEC-DRIVEN-DEVELOPMENT.md); link from root [`README.md`](../README.md).
+
+### Changed
+
+- Dev dependency: `nowo-tech/password-toggle-bundle` ^2.0.0 (`require-dev`).
+
+[1.4.4]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.4.4
+
 ## [1.4.3] - 2026-07-06
 
 ### Fixed

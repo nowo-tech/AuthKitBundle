@@ -27,7 +27,9 @@ final class AuthKitBundleIntegrationTest extends TestCase
 
     public function testBundleRegistersExtensionAlias(): void
     {
-        $bundle = new NowoAuthKitBundle();
-        self::assertSame('nowo_auth_kit', $bundle->getContainerExtension()->getAlias());
+        $bundle    = new NowoAuthKitBundle();
+        $extension = $bundle->getContainerExtension();
+        self::assertNotNull($extension);
+        self::assertSame('nowo_auth_kit', $extension->getAlias());
     }
 }

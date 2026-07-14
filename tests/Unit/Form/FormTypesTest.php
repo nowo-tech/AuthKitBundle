@@ -26,6 +26,7 @@ use function get_class;
 
 final class FormTypesTest extends TestCase
 {
+    private PasswordFieldConstraintResolver $passwordFieldConstraintResolver;
     private FormFactoryInterface $factory;
 
     private PasswordFieldTypeResolver $passwordFieldTypeResolver;
@@ -161,8 +162,8 @@ final class FormTypesTest extends TestCase
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new RegistrationFormType(
                 FieldConfigNormalizer::normalizeRegistrationFields([
-                'terms' => ['type' => 'checkbox'],
-            ]),
+                    'terms' => ['type' => 'checkbox'],
+                ]),
                 $this->passwordRepeatedFieldBuilder,
             ))
             ->getFormFactory();
@@ -178,8 +179,8 @@ final class FormTypesTest extends TestCase
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new RegistrationFormType(
                 FieldConfigNormalizer::normalizeRegistrationFields([
-                'fullName',
-            ]),
+                    'fullName',
+                ]),
                 $this->passwordRepeatedFieldBuilder,
             ))
             ->getFormFactory();

@@ -111,8 +111,8 @@ final class ConfigureSecurityCommandTest extends TestCase
                 'security' => [
                     'firewalls' => [
                         'main' => [
-                            'form_login' => ['login_path' => 'custom_login'],
-                            'remember_me'  => [
+                            'form_login'  => ['login_path' => 'custom_login'],
+                            'remember_me' => [
                                 'secret'                => '%kernel.secret%',
                                 'lifetime'              => 604800,
                                 'path'                  => '/',
