@@ -61,10 +61,10 @@ final class AuthKitFormLoginParameters
     public static function rememberMeOptions(int $lifetime, string $path = '/'): array
     {
         return [
-            'secret'                  => '%kernel.secret%',
-            'lifetime'                => $lifetime,
-            'path'                    => $path,
-            'remember_me_parameter'   => self::rememberMeParameter(),
+            'secret'                => '%kernel.secret%',
+            'lifetime'              => $lifetime,
+            'path'                  => $path,
+            'remember_me_parameter' => self::rememberMeParameter(),
         ];
     }
 }

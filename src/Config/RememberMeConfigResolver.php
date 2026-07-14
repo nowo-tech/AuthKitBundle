@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Config;
 
+use function in_array;
+
 /**
  * Resolves whether persistent remember-me cookies should be enabled.
  */
 final class RememberMeConfigResolver
 {
     /**
-     * @param list<string> $loginFields Raw login_fields tokens from configuration.
+     * @param list<string> $loginFields raw login_fields tokens from configuration
      */
     public static function isFirewallEnabled(bool $rememberMeEnabled, array $loginFields): bool
     {
@@ -31,7 +33,7 @@ final class RememberMeConfigResolver
         }
 
         foreach ($normalizedLoginFields as $field) {
-            if (($field['name'] ?? null) === '_remember_me') {
+            if ($field['name'] === '_remember_me') {
                 return true;
             }
         }
