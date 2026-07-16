@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-07-16
+
+### Added
+
+- [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md) (Contributor Covenant) and link from [`CONTRIBUTING.md`](CONTRIBUTING.md) / [`README.md`](../README.md).
+- [`docs/GITHUB_CI.md`](GITHUB_CI.md) — CI requirements for **REQ-GIT-001** (no Cursor co-author trailers).
+- Git hygiene tooling: `.scripts/check-no-cursor-coauthor.sh`, `.scripts/strip-cursor-coauthor-from-history.sh`, `.githooks/commit-msg`, `.cursor/rules/01-git-commits.mdc`.
+- CI job `git-hygiene` and Makefile targets `check-no-cursor-coauthor` / `strip-cursor-coauthor-from-history` (wired into `release-check`).
+
+### Removed
+
+- FrankenPHP demo for Symfony 7.4 (`demo/symfony7`, port `:8009`). Use `demo/symfony8` (`make -C demo up-symfony8`).
+
+### Changed
+
+- Demo docs (`README.md`, `demo/README.md`, `docs/DEMO-FRANKENPHP.md`, `docs/USAGE.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`) reference only the Symfony 8 demo.
+
+[1.5.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.5.1
+
 ## [1.5.0] - 2026-07-14
 
 ### Added
@@ -28,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Symfony DI: form types, `AuthKitRouteLocaleParameters`, and `PasswordResetNotifierInterface` remain correctly wired after the profiles refactor.
 
+[1.5.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.5.0
+
 ## [1.4.4] - 2026-07-14
 
 ### Added
@@ -39,7 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dev dependency: `nowo-tech/password-toggle-bundle` ^2.0.0 (`require-dev`).
 
-[1.5.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.5.0
 [1.4.4]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.4.4
 
 ## [1.4.3] - 2026-07-06

@@ -58,11 +58,10 @@ make release-check
 ## Demo
 
 ```bash
-make -C demo up-symfony7   # Symfony 7.4 — http://localhost:8009
 make -C demo up-symfony8   # Symfony 8.1 — http://localhost:8010
 ```
 
-Register the first user, then sign in. Demos include **Bootstrap 5** UI overrides, **en/es** locale-prefixed URLs, embed dropdown, password reset, and FrankenPHP (Docker).
+Register the first user, then sign in. The demo includes **Bootstrap 5** UI overrides, **en/es** locale-prefixed URLs, embed dropdown, password reset, and FrankenPHP (Docker).
 
 ### Screenshots
 
@@ -88,10 +87,12 @@ MIT — see [LICENSE](LICENSE).
 
 ## Documentation
 
+- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md)
 - [Contributing](docs/CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](docs/CHANGELOG.md)
 - [Upgrading](docs/UPGRADING.md)
 - [Release](docs/RELEASE.md)

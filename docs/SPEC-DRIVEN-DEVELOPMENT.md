@@ -45,8 +45,8 @@ PHPUnit and PHPStan enforce contracts in CI. There is no separate executable spe
 | REQ-MAKE-006 | Root `Makefile` | `setup-hooks` installs `.githooks/pre-commit` |
 | REQ-MAKE-008 | Root `Makefile` | `update-deps` includes bundle + demos |
 | REQ-TEST-006 | Root `Makefile` / `composer.json` | `test-coverage-100` / `coverage-check` |
-| REQ-DEMO-005 | `demo/symfony7/Makefile`, `demo/symfony8/Makefile` | `up` prints demo URL with `PORT` |
-| REQ-DEMO-007 | `demo/symfony7/Makefile`, `demo/symfony8/Makefile` | `update-bundle` syncs bundle code |
+| REQ-DEMO-005 | `demo/symfony8/Makefile` | `up` prints demo URL with `PORT` |
+| REQ-DEMO-007 | `demo/symfony8/Makefile` | `update-bundle` syncs bundle code |
 
 ## Suggested workflow for contributors
 

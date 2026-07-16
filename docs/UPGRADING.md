@@ -1,5 +1,20 @@
 # Upgrading
 
+## To 1.5.1
+
+From **1.5.0** — backward compatible for application integrators.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No configuration or template changes required. Package runtime behavior is unchanged.
+
+**Maintainer / demo notes:**
+
+- The FrankenPHP **Symfony 7.4** demo (`demo/symfony7`, port `:8009`) was removed. Use `demo/symfony8` (`make -C demo up-symfony8`, port `:8010`).
+- Contributors: run `make setup-hooks` and see [`GITHUB_CI.md`](GITHUB_CI.md) (**REQ-GIT-001** — no Cursor co-author trailers in commit messages).
+
 ## To 1.5.0
 
 From **1.4.4**, **1.4.3**, **1.4.2**, **1.4.1**, **1.4.0**, or earlier 1.x — backward compatible for single-entity setups.

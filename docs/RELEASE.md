@@ -25,3 +25,5 @@ Follow [Semantic Versioning](https://semver.org/):
 ## Sync missing releases
 
 If a tag exists without a GitHub Release, run the `sync-releases.yml` workflow manually or push an empty commit to trigger it.
+
+After creating the release commit and tag, run `make check-no-cursor-coauthor` again **before** `git push` (REQ-GIT-001). The release commit itself is not covered by an earlier `release-check` run.

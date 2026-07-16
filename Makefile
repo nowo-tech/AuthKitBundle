@@ -2,6 +2,7 @@ COMPOSE = docker compose
 SERVICE_PHP = php
 
 .PHONY: help ensure-up up down build shell install test test-coverage test-coverage-100 \
+	check-no-cursor-coauthor strip-cursor-coauthor-from-history \
 	coverage-check cs-check cs-fix rector rector-dry phpstan qa release-check \
 	release-check-demos composer-sync clean update validate validate-translations setup-hooks
 
@@ -14,7 +15,7 @@ help:
 	@echo "  validate-translations release-check release-check-demos composer-sync"
 	@echo "  setup-hooks clean update validate"
 	@echo ""
-	@echo "Demos: make -C demo up-symfony7 | make -C demo up-symfony8"
+	@echo "Demo: make -C demo up-symfony8"
 
 ensure-up:
 	@$(COMPOSE) ps -q $(SERVICE_PHP) >/dev/null 2>&1 || true
@@ -73,15 +74,20 @@ composer-sync: ensure-up
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer validate --strict
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer update --lock --no-interaction
 
-release-check: ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-100 validate-translations release-check-demos
+release-check: check-no-cursor-coauthor ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-100 validate-translations release-check-demos
 
 release-check-demos:
 	@$(MAKE) -C demo release-check
 
+check-no-cursor-coauthor:
+	@chmod +x .scripts/check-no-cursor-coauthor.sh
+	@./.scripts/check-no-cursor-coauthor.sh HEAD
+
 setup-hooks:
-	@chmod +x .githooks/pre-commit
+	@chmod +x .githooks/pre-commit 2>/dev/null || true
+	@chmod +x .githooks/commit-msg 2>/dev/null || true
 	@git config core.hooksPath .githooks
-	@echo "Git hooks installed. CS-check and tests will run before each commit."
+	@echo "✅ Git hooks installed (.githooks — includes commit-msg for REQ-GIT-001)."
 
 clean:
 	rm -rf vendor .phpunit.cache coverage coverage.xml .php-cs-fixer.cache coverage-php.txt
@@ -95,3 +101,7 @@ validate: ensure-up
 # REQ-MAKE-008: update-deps (REQ-MAKE-008)
 BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
+
+strip-cursor-coauthor-from-history:
+	@chmod +x .scripts/strip-cursor-coauthor-from-history.sh
+	@./.scripts/strip-cursor-coauthor-from-history.sh main

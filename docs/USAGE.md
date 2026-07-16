@@ -71,7 +71,7 @@ Or set `nowo_auth_kit.templates.layout` to your layout and override only the inn
 
 ### Bootstrap 5 and password toggle (demo reference)
 
-The demos under `demo/symfony7` and `demo/symfony8` show a full override with Bootstrap 5:
+The demo under `demo/symfony8` shows a full override with Bootstrap 5:
 
 1. Copy or adapt `templates/bundles/NowoAuthKitBundle/` (layout, login, register).
 2. Use a single combined form theme:
@@ -162,7 +162,7 @@ When a user is logged in, the bundle renders the `authenticated` template (defau
 
 ### Demo reference
 
-`demo/symfony7` and `demo/symfony8` enable `embed.mode: dropdown` and show the component in `templates/base.html.twig` on the public welcome page (`/{locale}`).
+`demo/symfony8` enables `embed.mode: dropdown` and shows the component in `templates/base.html.twig` on the public welcome page (`/{locale}`).
 
 ## Locale in URL paths
 

@@ -2,6 +2,10 @@
 
 Thank you for contributing to Auth Kit Bundle.
 
+## Code of Conduct
+
+This project follows the [Contributor Covenant Code of Conduct](../CODE_OF_CONDUCT.md). By participating, you are expected to uphold it. Please report unacceptable behavior to **hectorfranco@nowo.tech**.
+
 ## Table of contents
 
 - [Development setup](#development-setup)
@@ -9,13 +13,14 @@ Thank you for contributing to Auth Kit Bundle.
 - [Standards](#standards)
 - [Pull requests](#pull-requests)
 - [Security](#security)
+- [Git hooks (REQ-GIT-001)](#git-hooks-req-git-001)
 
 ## Development setup
 
 ```bash
 make up
 make install
-make setup-hooks   # optional: run cs-check + test before each commit
+make setup-hooks   # CS-check, tests, and commit-msg (REQ-GIT-001)
 make qa
 ```
 
@@ -27,7 +32,7 @@ Before opening a PR:
 make release-check
 ```
 
-This runs code style, PHPStan, PHPUnit with **100% coverage** (`test-coverage-100`), translation lint, and demo health checks.
+This runs git hygiene (REQ-GIT-001), code style, PHPStan, PHPUnit with **100% coverage** (`test-coverage-100`), translation lint, and demo health checks.
 
 ## Standards
 
@@ -46,3 +51,16 @@ This runs code style, PHPStan, PHPUnit with **100% coverage** (`test-coverage-10
 ## Security
 
 Report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
+
+## Git hooks (REQ-GIT-001)
+
+Do **not** add `Co-authored-by: Cursor` or `cursoragent@cursor.com` trailers to commit messages.
+
+```bash
+make setup-hooks
+make check-no-cursor-coauthor
+```
+
+`make setup-hooks` installs `.githooks/commit-msg` (or sets `core.hooksPath` to `.githooks`). Run it once per clone before your first commit.
+
+If CI fails because trailers are already on the remote, see [GITHUB_CI.md](GITHUB_CI.md) (REQ-GIT-001) and run `make strip-cursor-coauthor-from-history` before `git push --force-with-lease`.
