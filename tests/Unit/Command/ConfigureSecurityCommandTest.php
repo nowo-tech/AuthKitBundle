@@ -180,6 +180,69 @@ final class ConfigureSecurityCommandTest extends TestCase
         self::assertGreaterThanOrEqual(5, count($security['security']['access_control']));
     }
 
+    public function testAddsMagicLoginLinkAndAccessControlWhenEnabled(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', magicLoginMode: 'enabled'));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('nowo_auth_kit_magic_login_check', $security['security']['firewalls']['main']['login_link']['check_route']);
+        self::assertSame(600, $security['security']['firewalls']['main']['login_link']['lifetime']);
+        $paths = array_column($security['security']['access_control'], 'path');
+        self::assertContains('^\/magic\-login', $paths);
+        self::assertContains('^\/magic\-login\/check', $paths);
+    }
+
+    public function testMagicLoginLinkIncludesDefaultTargetPath(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', 'demo_home', magicLoginMode: 'enabled'));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('demo_home', $security['security']['firewalls']['main']['login_link']['default_target_path']);
+    }
+
+    public function testRemovesLoginLinkWhenMagicLoginDisabled(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump([
+                'security' => [
+                    'firewalls' => [
+                        'main' => [
+                            'form_login' => [
+                                'login_path' => 'nowo_auth_kit_login',
+                                'check_path' => 'nowo_auth_kit_login',
+                            ],
+                            'login_link' => [
+                                'check_route' => 'nowo_auth_kit_magic_login_check',
+                            ],
+                        ],
+                    ],
+                ],
+            ], 6),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', magicLoginMode: 'disabled'));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertArrayNotHasKey('login_link', $security['security']['firewalls']['main']);
+    }
+
     public function testAddsLocalePrefixedAccessControlWhenEnabled(): void
     {
         $this->filesystem->dumpFile(
@@ -268,6 +331,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         bool $localeInPath = false,
         ?string $projectDir = null,
         bool $rememberMeEnabled = false,
+        string $magicLoginMode = 'disabled',
     ): ConfigureSecurityCommand {
         return new ConfigureSecurityCommand(
             $projectDir ?? $this->testDir,
@@ -288,6 +352,11 @@ final class ConfigureSecurityCommandTest extends TestCase
                 'lifetime' => 604800,
                 'path'     => '/',
             ],
+            [
+                'mode'     => $magicLoginMode,
+                'lifetime' => 600,
+                'max_uses' => 1,
+            ],
         );
     }
 
@@ -303,6 +372,8 @@ final class ConfigureSecurityCommandTest extends TestCase
             'reset_request'       => ['path' => '/reset-password', 'name' => 'nowo_auth_kit_reset_password_request'],
             'reset_password'      => ['path' => '/reset-password/reset/{token}', 'name' => 'nowo_auth_kit_reset_password'],
             'reset_password_code' => ['path' => '/reset-password/complete', 'name' => 'nowo_auth_kit_reset_password_code'],
+            'magic_login_request' => ['path' => '/magic-login', 'name' => 'nowo_auth_kit_magic_login_request'],
+            'magic_login_check'   => ['path' => '/magic-login/check', 'name' => 'nowo_auth_kit_magic_login_check'],
         ];
     }
 }

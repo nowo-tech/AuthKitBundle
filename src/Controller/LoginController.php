@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Enum\MagicLoginMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -59,7 +60,9 @@ final class LoginController
             'error'                  => $this->authenticationUtils->getLastAuthenticationError(),
             'register_route'         => $profile->routes['register']['name'],
             'reset_password_route'   => $profile->routes['reset_request']['name'],
+            'magic_login_route'      => $profile->routes['magic_login_request']['name'],
             'password_reset_enabled' => $profile->passwordReset['mode'] === PasswordResetMode::Enabled->value,
+            'magic_login_enabled'    => $profile->magicLogin['mode'] === MagicLoginMode::Enabled->value,
             'registration_allowed'   => $this->registrationGate->isRegistrationAllowed($profile->name),
             'layout_template'        => $profile->templates['layout'],
         ]);

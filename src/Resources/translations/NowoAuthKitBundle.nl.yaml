@@ -6,6 +6,7 @@ login:
     submit: Inloggen
     register_link: Account aanmaken
     forgot_password_link: Wachtwoord vergeten?
+    magic_login_link: Inloggen via e-mailkoppeling
     field:
         identifier: E-mail of gebruikersnaam
         password: Wachtwoord
@@ -70,3 +71,15 @@ reset:
         field:
             identifier: E-mail of gebruikersnaam
             code: Resetcode
+
+magic_login:
+    request:
+        title: Inloggen via e-mailkoppeling
+        heading: Inloggen met een magic link
+        help: Voer je e-mail in. Als er een account bestaat, sturen we een eenmalige inloglink.
+        submit: Magic link versturen
+        back_to_login: Terug naar inloggen
+        flash_sent: Als er een account overeenkomt, is er een inloglink verzonden.
+        identifier_required: Voer je identifier in.
+        field:
+            identifier: E-mail of gebruikersnaam

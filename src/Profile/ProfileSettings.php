@@ -15,6 +15,7 @@ final readonly class ProfileSettings
      * @param array<string, string> $templates
      * @param array<string, mixed> $embed
      * @param array<string, mixed> $passwordReset
+     * @param array<string, mixed> $magicLogin
      * @param array<string, array{path: string, name: string}> $routes
      */
     public function __construct(
@@ -30,6 +31,7 @@ final readonly class ProfileSettings
         public array $templates,
         public array $embed,
         public array $passwordReset,
+        public array $magicLogin,
         public array $routes,
         public string $firewall,
         public ?string $loginSuccessRoute,
@@ -57,6 +59,7 @@ final readonly class ProfileSettings
             templates: $config['templates'],
             embed: $config['embed'],
             passwordReset: $config['password_reset'],
+            magicLogin: $config['magic_login'],
             routes: $config['routes'],
             firewall: $config['firewall'],
             loginSuccessRoute: $config['login_success_route'],

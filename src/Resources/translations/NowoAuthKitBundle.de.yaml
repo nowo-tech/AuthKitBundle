@@ -6,6 +6,7 @@ login:
     submit: Anmelden
     register_link: Konto erstellen
     forgot_password_link: Passwort vergessen?
+    magic_login_link: Mit E-Mail-Link anmelden
     field:
         identifier: E-Mail oder Benutzername
         password: Passwort
@@ -70,3 +71,15 @@ reset:
         field:
             identifier: E-Mail oder Benutzername
             code: Reset-Code
+
+magic_login:
+    request:
+        title: Mit E-Mail-Link anmelden
+        heading: Mit Magic Link anmelden
+        help: E-Mail eingeben. Wenn ein Konto existiert, senden wir einen einmaligen Anmeldelink.
+        submit: Magic Link senden
+        back_to_login: Zurück zur Anmeldung
+        flash_sent: Wenn ein Konto übereinstimmt, wurde ein Anmeldelink gesendet.
+        identifier_required: Bitte Identifier eingeben.
+        field:
+            identifier: E-Mail oder Benutzername

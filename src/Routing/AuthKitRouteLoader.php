@@ -6,6 +6,8 @@ namespace Nowo\AuthKitBundle\Routing;
 
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\Controller\LogoutController;
+use Nowo\AuthKitBundle\Controller\MagicLoginCheckController;
+use Nowo\AuthKitBundle\Controller\MagicLoginRequestController;
 use Nowo\AuthKitBundle\Controller\RegisterController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordCodeController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordController;
@@ -18,7 +20,7 @@ use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
 /**
- * Loads login, logout, register, and password reset routes from bundle configuration.
+ * Loads login, logout, register, password reset, and magic login routes from bundle configuration.
  */
 final class AuthKitRouteLoader extends Loader
 {
@@ -126,6 +128,24 @@ final class AuthKitRouteLoader extends Loader
                 ),
             );
         }
+
+        $collection->add(
+            $routes['magic_login_request']['name'],
+            $this->createRoute(
+                $routes['magic_login_request']['path'],
+                ['_controller' => MagicLoginRequestController::class . '::request'] + $profileDefaults,
+                ['GET', 'POST'],
+            ),
+        );
+
+        $collection->add(
+            $routes['magic_login_check']['name'],
+            $this->createRoute(
+                $routes['magic_login_check']['path'],
+                ['_controller' => MagicLoginCheckController::class . '::check'] + $profileDefaults,
+                ['GET'],
+            ),
+        );
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\DependencyInjection;
 
 use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
+use Nowo\AuthKitBundle\Enum\MagicLoginMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
@@ -34,6 +35,7 @@ final class Configuration implements ConfigurationInterface
         'templates',
         'embed',
         'password_reset',
+        'magic_login',
         'routes',
         'firewall',
         'login_success_route',
@@ -117,6 +119,7 @@ final class Configuration implements ConfigurationInterface
                             ->append($this->createTemplatesNode())
                             ->append($this->createEmbedNode())
                             ->append($this->createPasswordResetNode())
+                            ->append($this->createMagicLoginNode())
                             ->append($this->createRoutesNode())
                             ->scalarNode('firewall')
                                 ->info('Symfony firewall name where form_login should point (documented for security.yaml).')
@@ -137,7 +140,7 @@ final class Configuration implements ConfigurationInterface
                     ->defaultValue(['en', 'es'])
                 ->end()
                 ->booleanNode('locale_in_path')
-                    ->info('Prefix login, register, logout and password reset routes with /{_locale}.')
+                    ->info('Prefix login, register, logout, password reset and magic login routes with /{_locale}.')
                     ->defaultFalse()
                 ->end()
             ->end();
@@ -219,6 +222,9 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->scalarNode('reset_password_code')
                     ->defaultValue('@NowoAuthKitBundle/security/reset_password_code.html.twig')
+                ->end()
+                ->scalarNode('magic_login_request')
+                    ->defaultValue('@NowoAuthKitBundle/security/magic_login_request.html.twig')
                 ->end()
             ->end();
 
@@ -309,6 +315,32 @@ final class Configuration implements ConfigurationInterface
         return $node;
     }
 
+    private function createMagicLoginNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('magic_login'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->enumNode('mode')
+                    ->values(array_map(static fn (MagicLoginMode $mode): string => $mode->value, MagicLoginMode::cases()))
+                    ->info('disabled: hide magic login. enabled: request form + Symfony login_link check route.')
+                    ->defaultValue(MagicLoginMode::Disabled->value)
+                ->end()
+                ->integerNode('lifetime')
+                    ->info('Seconds until the magic login link expires (Symfony login_link lifetime).')
+                    ->defaultValue(600)
+                    ->min(60)
+                ->end()
+                ->integerNode('max_uses')
+                    ->info('How many times the signed login link can be used (Symfony login_link max_uses).')
+                    ->defaultValue(1)
+                    ->min(1)
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
     private function createRoutesNode(): ArrayNodeDefinition
     {
         $node = (new TreeBuilder('routes'))->getRootNode();
@@ -355,6 +387,20 @@ final class Configuration implements ConfigurationInterface
                     ->children()
                         ->scalarNode('path')->defaultValue('/reset-password/complete')->end()
                         ->scalarNode('name')->defaultValue('nowo_auth_kit_reset_password_code')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('magic_login_request')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/magic-login')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_magic_login_request')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('magic_login_check')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/magic-login/check')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_magic_login_check')->end()
                     ->end()
                 ->end()
             ->end();

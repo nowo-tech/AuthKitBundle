@@ -14,3 +14,7 @@ nowo_auth_kit:
         delivery: both
         token_field: passwordResetToken
         token_expires_field: passwordResetExpiresAt
+    magic_login:
+        mode: enabled
+        lifetime: 600
+        max_uses: 1

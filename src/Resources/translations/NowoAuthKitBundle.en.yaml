@@ -6,6 +6,7 @@ login:
     submit: Sign in
     register_link: Create an account
     forgot_password_link: Forgot your password?
+    magic_login_link: Sign in with email link
     field:
         identifier: Email or username
         password: Password
@@ -70,3 +71,15 @@ reset:
         field:
             identifier: Email or username
             code: Reset code
+
+magic_login:
+    request:
+        title: Sign in with email link
+        heading: Sign in with a magic link
+        help: Enter your email. If an account exists, we will send a one-time sign-in link.
+        submit: Send magic link
+        back_to_login: Back to sign in
+        flash_sent: If an account matches, a sign-in link has been sent.
+        identifier_required: Please enter your identifier.
+        field:
+            identifier: Email or username

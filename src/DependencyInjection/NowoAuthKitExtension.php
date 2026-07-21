@@ -58,6 +58,10 @@ final class NowoAuthKitExtension extends Extension
         $container->setParameter('nowo_auth_kit.password_reset.code_charset', $defaultProfile['password_reset']['code_charset']);
         $container->setParameter('nowo_auth_kit.password_reset.token_field', $defaultProfile['password_reset']['token_field']);
         $container->setParameter('nowo_auth_kit.password_reset.token_expires_field', $defaultProfile['password_reset']['token_expires_field']);
+        $container->setParameter('nowo_auth_kit.magic_login', $defaultProfile['magic_login']);
+        $container->setParameter('nowo_auth_kit.magic_login.mode', $defaultProfile['magic_login']['mode']);
+        $container->setParameter('nowo_auth_kit.magic_login.lifetime', $defaultProfile['magic_login']['lifetime']);
+        $container->setParameter('nowo_auth_kit.magic_login.max_uses', $defaultProfile['magic_login']['max_uses']);
         $container->setParameter('nowo_auth_kit.firewall', $defaultProfile['firewall']);
         $container->setParameter('nowo_auth_kit.login_success_route', $defaultProfile['login_success_route']);
         $container->setParameter('nowo_auth_kit.default_locale', $config['default_locale']);

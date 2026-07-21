@@ -13,6 +13,7 @@ Works alongside Symfony Security — `security.yaml` remains required and is doc
 - Login page compatible with Symfony `form_login`
 - Registration with Doctrine persistence and password hashing
 - **Password reset** (link, code, or both) with pluggable notifier
+- **Magic login** (passwordless email link via Symfony `login_link`)
 - **Embedded auth dropdown** (`auth_kit_dropdown()`) for navbars and layouts
 - **Locale in URL paths** (`/en/login`, `/es/register`, …)
 - **Remember me** (optional persistent login cookie)
@@ -104,4 +105,5 @@ MIT — see [LICENSE](LICENSE).
 ### Additional documentation
 
 - [Password reset](docs/PASSWORD-RESET.md)
+- [Magic login](docs/MAGIC-LOGIN.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)

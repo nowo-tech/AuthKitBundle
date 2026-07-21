@@ -30,6 +30,9 @@ services:
     Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface:
         alias: Nowo\AuthKitBundle\PasswordReset\NullPasswordResetNotifier
 
+    Nowo\AuthKitBundle\MagicLogin\MagicLoginNotifierInterface:
+        alias: Nowo\AuthKitBundle\MagicLogin\NullMagicLoginNotifier
+
     Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters:
         arguments:
             $localeInPath: '%nowo_auth_kit.locale_in_path%'
@@ -60,6 +63,12 @@ services:
     Nowo\AuthKitBundle\Controller\ResetPasswordCodeController:
         public: true
 
+    Nowo\AuthKitBundle\Controller\MagicLoginRequestController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\MagicLoginCheckController:
+        public: true
+
     Nowo\AuthKitBundle\Command\ConfigureSecurityCommand:
         arguments:
             $projectDir: '%kernel.project_dir%'
@@ -72,3 +81,4 @@ services:
             $routeLocaleParameters: '@Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters'
             $loginFields: '%nowo_auth_kit.login_fields%'
             $rememberMe: '%nowo_auth_kit.remember_me%'
+            $magicLogin: '%nowo_auth_kit.magic_login%'

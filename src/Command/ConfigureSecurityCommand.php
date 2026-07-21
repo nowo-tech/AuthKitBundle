@@ -19,7 +19,7 @@ use Symfony\Component\Yaml\Yaml;
 use function sprintf;
 
 /**
- * Merges form_login, logout, and access_control entries into security.yaml.
+ * Merges form_login, logout, optional login_link, and access_control entries into security.yaml.
  */
 #[AsCommand(
     name: 'nowo:auth-kit:configure-security',
@@ -31,6 +31,7 @@ final class ConfigureSecurityCommand extends Command
      * @param array<string, array{path: string, name: string}> $routes
      * @param list<array{name: string, type: string, property: ?string, hash: bool, required: bool, security_name: ?string}> $loginFields
      * @param array{enabled: bool, lifetime: int, path: string} $rememberMe
+     * @param array{mode: string, lifetime: int, max_uses: int} $magicLogin
      */
     public function __construct(
         private readonly ?string $projectDir,
@@ -43,6 +44,7 @@ final class ConfigureSecurityCommand extends Command
         private readonly AuthKitRouteLocaleParameters $routeLocaleParameters,
         private readonly array $loginFields,
         private readonly array $rememberMe,
+        private readonly array $magicLogin,
     ) {
         parent::__construct();
     }
@@ -51,7 +53,7 @@ final class ConfigureSecurityCommand extends Command
     {
         $this
             ->addOption('force', 'f', InputOption::VALUE_NONE, 'Overwrite existing form_login configuration on the target firewall')
-            ->setHelp('Reads nowo_auth_kit.yaml and updates config/packages/security.yaml with provider, form_login (including nested field names), optional remember_me, logout, and access_control.');
+            ->setHelp('Reads nowo_auth_kit.yaml and updates config/packages/security.yaml with provider, form_login (including nested field names), optional remember_me and login_link, logout, and access_control.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -121,6 +123,7 @@ final class ConfigureSecurityCommand extends Command
         }
 
         $this->syncRememberMe($firewall);
+        $this->syncLoginLink($firewall);
 
         $accessControl = $security['security']['access_control'] ?? [];
         $publicPaths   = [
@@ -149,6 +152,17 @@ final class ConfigureSecurityCommand extends Command
             }
         }
 
+        if (($this->magicLogin['mode'] ?? 'disabled') === 'enabled') {
+            $publicPaths[] = [
+                'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['magic_login_request']['path']),
+                'roles' => 'PUBLIC_ACCESS',
+            ];
+            $publicPaths[] = [
+                'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['magic_login_check']['path']),
+                'roles' => 'PUBLIC_ACCESS',
+            ];
+        }
+
         foreach ($publicPaths as $rule) {
             if (!$this->accessControlContains($accessControl, $rule['path'])) {
                 $accessControl[] = $rule;
@@ -163,7 +177,7 @@ final class ConfigureSecurityCommand extends Command
         $io->note([
             'Verify user_class and user_identifier_field match your entity.',
             'form_login uses nested parameters (login_form[_username]) — see AuthKitFormLoginParameters.',
-            'remember_me is synced on every run; use --force to refresh form_login and logout.',
+            'remember_me and login_link are synced on every run; use --force to refresh form_login and logout.',
             'Import bundle routes: config/routes/nowo_auth_kit.yaml',
             'Override templates: templates/bundles/NowoAuthKitBundle/security/',
         ]);
@@ -186,6 +200,30 @@ final class ConfigureSecurityCommand extends Command
         }
 
         unset($firewall['remember_me']);
+    }
+
+    /**
+     * @param array<string, mixed> $firewall
+     */
+    private function syncLoginLink(array &$firewall): void
+    {
+        if (($this->magicLogin['mode'] ?? 'disabled') !== 'enabled') {
+            unset($firewall['login_link']);
+
+            return;
+        }
+
+        $loginLink = [
+            'check_route' => $this->routes['magic_login_check']['name'],
+            'lifetime'    => (int) $this->magicLogin['lifetime'],
+            'max_uses'    => (int) $this->magicLogin['max_uses'],
+        ];
+
+        if ($this->loginSuccessRoute !== null) {
+            $loginLink['default_target_path'] = $this->loginSuccessRoute;
+        }
+
+        $firewall['login_link'] = $loginLink;
     }
 
     /**

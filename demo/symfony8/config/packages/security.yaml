@@ -28,6 +28,11 @@ security:
                 path: nowo_auth_kit_logout
                 target: nowo_auth_kit_login
                 invalidate_session: true
+            login_link:
+                check_route: nowo_auth_kit_magic_login_check
+                lifetime: 600
+                max_uses: 1
+                default_target_path: demo_home
 
     access_control:
         - { path: ^/(en|es)/login, roles: PUBLIC_ACCESS }
@@ -35,6 +40,7 @@ security:
         - { path: ^/(en|es)/reset-password, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/reset-password/reset, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/reset-password/complete, roles: PUBLIC_ACCESS }
+        - { path: ^/(en|es)/magic-login, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/home, roles: ROLE_USER }
 
 when@test:

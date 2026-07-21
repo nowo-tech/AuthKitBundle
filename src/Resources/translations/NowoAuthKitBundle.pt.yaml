@@ -6,6 +6,7 @@ login:
     submit: Entrar
     register_link: Criar uma conta
     forgot_password_link: Esqueceu a palavra-passe?
+    magic_login_link: Entrar com link de e-mail
     field:
         identifier: E-mail ou nome de utilizador
         password: Palavra-passe
@@ -70,3 +71,15 @@ reset:
         field:
             identifier: E-mail ou nome de utilizador
             code: Código de reposição
+
+magic_login:
+    request:
+        title: Entrar com link de e-mail
+        heading: Entrar com magic link
+        help: Introduza o seu e-mail. Se a conta existir, enviaremos um link de acesso de utilização única.
+        submit: Enviar magic link
+        back_to_login: Voltar ao início de sessão
+        flash_sent: Se existir uma conta correspondente, foi enviado um link de acesso.
+        identifier_required: Introduza o seu identificador.
+        field:
+            identifier: E-mail ou nome de utilizador

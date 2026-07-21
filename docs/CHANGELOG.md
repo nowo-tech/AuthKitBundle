@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-21
+
+### Added
+
+- **Passwordless magic login**: enter identifier → receive one-time signed URL → click to authenticate (Symfony `login_link`).
+- Config `magic_login` (`mode`, `lifetime`, `max_uses`) per profile; routes `magic_login_request` / `magic_login_check`.
+- `MagicLoginRequestHandler`, `MagicLoginGate`, `MagicLoginNotifierInterface` (+ null/logging samples), `MagicLoginRequestedEvent`.
+- `nowo:auth-kit:configure-security` syncs firewall `login_link` and public `access_control` paths.
+- Docs: [`MAGIC-LOGIN.md`](MAGIC-LOGIN.md); login template link when enabled.
+- Demo Symfony 8 enables magic login with `DemoMagicLoginNotifier`.
+
+[1.6.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.6.0
+
 ## [1.5.1] - 2026-07-16
 
 ### Added

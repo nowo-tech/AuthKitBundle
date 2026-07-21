@@ -15,3 +15,6 @@ services:
 
     Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface:
         alias: App\Security\DemoPasswordResetNotifier
+
+    Nowo\AuthKitBundle\MagicLogin\MagicLoginNotifierInterface:
+        alias: App\Security\DemoMagicLoginNotifier

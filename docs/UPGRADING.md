@@ -1,5 +1,32 @@
 # Upgrading
 
+## To 1.6.0
+
+From **1.5.1** / **1.5.0** — backward compatible when magic login stays disabled (default).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+**Optional — enable passwordless magic login:**
+
+```yaml
+nowo_auth_kit:
+    magic_login:
+        mode: enabled
+        lifetime: 600
+        max_uses: 1
+```
+
+```bash
+php bin/console nowo:auth-kit:configure-security
+```
+
+Implement `MagicLoginNotifierInterface` (email the `loginUrl`) and alias it in `services.yaml`. See [`MAGIC-LOGIN.md`](MAGIC-LOGIN.md).
+
+No entity fields are required (links are signed by Symfony `login_link`).
+
 ## To 1.5.1
 
 From **1.5.0** — backward compatible for application integrators.

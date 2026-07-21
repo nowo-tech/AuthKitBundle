@@ -44,6 +44,8 @@ Symfony resolves app overrides before bundle defaults.
 | `registration_allowed` | Whether self-registration is currently allowed (`registration_mode` + user count) |
 | `reset_password_route` | Route name for password reset request |
 | `password_reset_enabled` | Whether password reset flows are enabled |
+| `magic_login_route` | Route name for passwordless magic login request |
+| `magic_login_enabled` | Whether magic login is enabled |
 | `layout_template` | Parent layout template |
 
 **Register** (`security/register.html.twig`):

@@ -124,6 +124,7 @@ nowo_auth_kit:
         reset_request: '@NowoAuthKitBundle/security/reset_request.html.twig'
         reset_password: '@NowoAuthKitBundle/security/reset_password.html.twig'
         reset_password_code: '@NowoAuthKitBundle/security/reset_password_code.html.twig'
+        magic_login_request: '@NowoAuthKitBundle/security/magic_login_request.html.twig'
 
     embed:
         mode: disabled              # disabled | dropdown
@@ -140,6 +141,11 @@ nowo_auth_kit:
         token_ttl: 3600
         token_field: passwordResetToken
         token_expires_field: passwordResetExpiresAt
+
+    magic_login:
+        mode: disabled              # disabled | enabled
+        lifetime: 600
+        max_uses: 1
 
     routes:
         login:
@@ -160,6 +166,12 @@ nowo_auth_kit:
         reset_password_code:
             path: /reset-password/complete
             name: nowo_auth_kit_reset_password_code
+        magic_login_request:
+            path: /magic-login
+            name: nowo_auth_kit_magic_login_request
+        magic_login_check:
+            path: /magic-login/check
+            name: nowo_auth_kit_magic_login_check
 
     # Documented for security.yaml (see INSTALLATION.md)
     firewall: main
@@ -262,6 +274,12 @@ Policy details (`levels`, `form_theme`, live feedback) are configured in `nowo_p
 When `password_reset.mode` is `enabled`, the bundle registers request and completion routes. Implement `PasswordResetNotifierInterface` for delivery.
 
 See [PASSWORD-RESET.md](PASSWORD-RESET.md) for entity fields, notifier wiring, and events.
+
+## Magic login (passwordless)
+
+When `magic_login.mode` is `enabled`, users can request a one-time sign-in link. Requires Symfony firewall `login_link` (synced by `nowo:auth-kit:configure-security`). Implement `MagicLoginNotifierInterface` to email the URL.
+
+See [MAGIC-LOGIN.md](MAGIC-LOGIN.md).
 
 ## Embedded auth UI
 

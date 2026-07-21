@@ -14,5 +14,9 @@ nowo_auth_kit:
             #     enabled: true
             #     level: medium
             #     policy_mode: level
+            # magic_login:
+            #     mode: enabled
+            #     lifetime: 600
+            #     max_uses: 1
     default_locale: en
     enabled_locales: [en, es]

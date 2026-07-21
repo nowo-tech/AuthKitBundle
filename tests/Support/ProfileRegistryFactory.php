@@ -57,6 +57,7 @@ final class ProfileRegistryFactory
                 'reset_request'       => '@NowoAuthKitBundle/security/reset_request.html.twig',
                 'reset_password'      => '@NowoAuthKitBundle/security/reset_password.html.twig',
                 'reset_password_code' => '@NowoAuthKitBundle/security/reset_password_code.html.twig',
+                'magic_login_request' => '@NowoAuthKitBundle/security/magic_login_request.html.twig',
             ],
             'embed' => [
                 'mode'           => 'disabled',
@@ -77,6 +78,11 @@ final class ProfileRegistryFactory
                 'token_field'         => 'passwordResetToken',
                 'token_expires_field' => 'passwordResetExpiresAt',
             ],
+            'magic_login' => [
+                'mode'     => 'disabled',
+                'lifetime' => 600,
+                'max_uses' => 1,
+            ],
             'routes' => [
                 'login'               => ['path' => '/login', 'name' => 'nowo_auth_kit_login'],
                 'logout'              => ['path' => '/logout', 'name' => 'nowo_auth_kit_logout'],
@@ -84,6 +90,8 @@ final class ProfileRegistryFactory
                 'reset_request'       => ['path' => '/reset-password', 'name' => 'nowo_auth_kit_reset_password_request'],
                 'reset_password'      => ['path' => '/reset-password/reset/{token}', 'name' => 'nowo_auth_kit_reset_password'],
                 'reset_password_code' => ['path' => '/reset-password/complete', 'name' => 'nowo_auth_kit_reset_password_code'],
+                'magic_login_request' => ['path' => '/magic-login', 'name' => 'nowo_auth_kit_magic_login_request'],
+                'magic_login_check'   => ['path' => '/magic-login/check', 'name' => 'nowo_auth_kit_magic_login_check'],
             ],
             'firewall'            => 'main',
             'login_success_route' => null,
