@@ -36,6 +36,83 @@ final class ConfigurationTest extends TestCase
         self::assertTrue($config['profiles']['default']['embed']['show_login']);
         self::assertTrue($config['profiles']['default']['embed']['show_register']);
         self::assertFalse($config['locale_in_path']);
+        self::assertSame('never', $config['locale']['in_path']);
+        self::assertSame('en', $config['locale']['default']);
+        self::assertSame(['en', 'es'], $config['locale']['enabled']);
+        self::assertSame('redirect', $config['locale']['unlocalized']);
+    }
+
+    public function testLegacyLocaleInPathTrueMapsToAlways(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                ],
+            ],
+            'locale_in_path' => true,
+        ]]);
+
+        self::assertSame('always', $config['locale']['in_path']);
+        self::assertTrue($config['locale_in_path']);
+    }
+
+    public function testNestedLocaleBoth(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                ],
+            ],
+            'locale' => [
+                'in_path'     => 'both',
+                'default'     => 'es',
+                'enabled'     => ['es', 'en'],
+                'unlocalized' => 'serve',
+            ],
+        ]]);
+
+        self::assertSame('both', $config['locale']['in_path']);
+        self::assertSame('es', $config['locale']['default']);
+        self::assertSame('serve', $config['locale']['unlocalized']);
+        self::assertSame('es', $config['default_locale']);
+        self::assertTrue($config['locale_in_path']);
+    }
+
+    public function testNestedLocaleInPathBoolTrue(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                ],
+            ],
+            'locale' => [
+                'in_path' => true,
+            ],
+        ]]);
+
+        self::assertSame('always', $config['locale']['in_path']);
+    }
+
+    public function testInvalidLegacyLocaleInPathFallsBackToNever(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                ],
+            ],
+            'locale_in_path' => 99,
+        ]]);
+
+        self::assertSame('never', $config['locale']['in_path']);
+        self::assertFalse($config['locale_in_path']);
     }
 
     public function testRegistrationModeValues(): void

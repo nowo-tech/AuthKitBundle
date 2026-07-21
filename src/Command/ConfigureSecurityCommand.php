@@ -126,41 +126,41 @@ final class ConfigureSecurityCommand extends Command
         $this->syncLoginLink($firewall);
 
         $accessControl = $security['security']['access_control'] ?? [];
-        $publicPaths   = [
-            ['path' => $this->routeLocaleParameters->accessControlPattern($loginPath), 'roles' => 'PUBLIC_ACCESS'],
-            ['path' => $this->routeLocaleParameters->accessControlPattern($registerPath), 'roles' => 'PUBLIC_ACCESS'],
-        ];
+        $publicPaths   = [];
+        foreach ([
+            $loginPath,
+            $registerPath,
+        ] as $path) {
+            foreach ($this->routeLocaleParameters->accessControlPatterns($path) as $pattern) {
+                $publicPaths[] = ['path' => $pattern, 'roles' => 'PUBLIC_ACCESS'];
+            }
+        }
 
         if ($this->passwordResetMode === 'enabled') {
-            $publicPaths[] = [
-                'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['reset_request']['path']),
-                'roles' => 'PUBLIC_ACCESS',
-            ];
-
+            $resetPaths = [$this->routes['reset_request']['path']];
             if (isset($this->routes['reset_password']['path'])) {
-                $publicPaths[] = [
-                    'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['reset_password']['path']),
-                    'roles' => 'PUBLIC_ACCESS',
-                ];
+                $resetPaths[] = $this->routes['reset_password']['path'];
+            }
+            if (isset($this->routes['reset_password_code']['path'])) {
+                $resetPaths[] = $this->routes['reset_password_code']['path'];
             }
 
-            if (isset($this->routes['reset_password_code']['path'])) {
-                $publicPaths[] = [
-                    'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['reset_password_code']['path']),
-                    'roles' => 'PUBLIC_ACCESS',
-                ];
+            foreach ($resetPaths as $path) {
+                foreach ($this->routeLocaleParameters->accessControlPatterns($path) as $pattern) {
+                    $publicPaths[] = ['path' => $pattern, 'roles' => 'PUBLIC_ACCESS'];
+                }
             }
         }
 
         if ($this->magicLogin['mode'] === 'enabled') {
-            $publicPaths[] = [
-                'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['magic_login_request']['path']),
-                'roles' => 'PUBLIC_ACCESS',
-            ];
-            $publicPaths[] = [
-                'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['magic_login_check']['path']),
-                'roles' => 'PUBLIC_ACCESS',
-            ];
+            foreach ([
+                $this->routes['magic_login_request']['path'],
+                $this->routes['magic_login_check']['path'],
+            ] as $path) {
+                foreach ($this->routeLocaleParameters->accessControlPatterns($path) as $pattern) {
+                    $publicPaths[] = ['path' => $pattern, 'roles' => 'PUBLIC_ACCESS'];
+                }
+            }
         }
 
         foreach ($publicPaths as $rule) {

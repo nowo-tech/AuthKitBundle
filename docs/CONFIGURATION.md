@@ -25,9 +25,10 @@ Each **profile** maps a `user_class` to its own auth settings (registration, log
 | --- | --- | --- | --- |
 | `default_profile` | string | first profile key | Profile used when no route context or explicit name is available. |
 | `profiles` | map | `default` | Named profile definitions (at least one required). |
-| `default_locale` | string | `en` | Default locale when `locale_in_path` is enabled. |
-| `enabled_locales` | list | `[en, es]` | Allowed locales for prefixed routes. |
-| `locale_in_path` | bool | `false` | Prefix auth routes with `/{_locale}`. |
+| `locale` | map | see below | Preferred locale / path configuration. |
+| `default_locale` | string | `en` | **Deprecated** — use `locale.default`. |
+| `enabled_locales` | list | `[en, es]` | **Deprecated** — use `locale.enabled`. |
+| `locale_in_path` | bool\|string | `false` | **Deprecated** — use `locale.in_path` (`never`\|`always`\|`both`). Bool `true` ≡ `always`. |
 
 Each profile supports all keys documented below (`user_class`, `registration_mode`, `routes`, `templates`, etc.). Every profile must use a **unique** `user_class` and **unique route names** across profiles.
 
@@ -177,9 +178,11 @@ nowo_auth_kit:
     firewall: main
     login_success_route: null   # route name after login/register; null uses firewall default
 
-    default_locale: en
-    enabled_locales: [en, es]
-    locale_in_path: false       # true → /{locale}/login, /{locale}/register, …
+    locale:
+        in_path: never          # never | always | both
+        default: en
+        enabled: [en, es]
+        unlocalized: redirect   # serve | redirect (only when in_path: both)
 ```
 
 ## Registration modes
@@ -289,9 +292,29 @@ See [USAGE.md](USAGE.md#embedded-loginregister-dropdown).
 
 ## Locale in paths
 
-When `locale_in_path` is `true`, Auth Kit routes are prefixed with `/{_locale}`. Update `access_control` patterns accordingly (or run `nowo:auth-kit:configure-security`).
+```yaml
+nowo_auth_kit:
+    locale:
+        in_path: always          # never | always | both
+        default: en
+        enabled: [en, es]
+        unlocalized: redirect    # serve | redirect (when in_path: both)
+```
 
-Use `auth_kit_route_params()` in Twig for links. See [USAGE.md](USAGE.md#locale-in-url-paths).
+| `in_path` | Behaviour |
+|-----------|-----------|
+| `never` | Only `/login`, `/register`, … |
+| `always` | Only `/{_locale}/login`, … |
+| `both` | Localized routes (canonical names) **and** bare `/login` as `{name}_unlocalized` |
+
+When `in_path: both`:
+
+- `unlocalized: redirect` — bare URL redirects to `/{default}/…` (or current request locale via `auth_kit_route_params()`).
+- `unlocalized: serve` — bare URL renders with `_locale = locale.default`.
+
+Legacy keys `default_locale`, `enabled_locales`, and `locale_in_path` (bool) still work and map into `locale.*`.
+
+Update `access_control` (or run `nowo:auth-kit:configure-security`). Use `auth_kit_route_params()` in Twig. See [USAGE.md](USAGE.md#locale-in-url-paths).
 
 ## Templates
 
@@ -313,7 +336,7 @@ Or point `templates.*` and `embed.*` to your own Twig paths.
 
 Route **names** must stay in sync with `security.yaml` (`login_path`, `check_path`, `logout.path`). Paths are customizable for URL structure and `access_control` regexes.
 
-When `locale_in_path` is enabled, paths are resolved as `/{_locale}/login`, etc., but route names stay the same.
+When `locale.in_path` is `always` or `both`, localized paths are `/{_locale}/login`, etc.; canonical route **names** stay the same. Bare aliases use the `_unlocalized` suffix when `both`.
 
 ## Security.yaml checklist
 

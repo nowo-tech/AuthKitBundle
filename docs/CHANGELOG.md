@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-07-21
+
+### Added
+
+- Nested **`locale`** config: `in_path` (`never` \| `always` \| `both`), `default`, `enabled`, `unlocalized` (`serve` \| `redirect`).
+- Dual auth routes when `locale.in_path: both`: canonical `/{_locale}/…` plus bare `*_unlocalized` routes.
+- `UnlocalizedLocaleRedirectController` for `unlocalized: redirect`.
+- `accessControlPatterns()` + `configure-security` dual `access_control` entries for `both`.
+
+### Changed
+
+- Docs: [`CONFIGURATION.md`](CONFIGURATION.md) / [`USAGE.md`](USAGE.md) describe the locale node; legacy flat keys remain supported.
+
+[1.7.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.7.0
+
 ## [1.6.1] - 2026-07-21
 
 ### Fixed

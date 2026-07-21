@@ -168,31 +168,37 @@ When a user is logged in, the bundle renders the `authenticated` template (defau
 
 ## Locale in URL paths
 
-Prefix login, register, logout, and password-reset routes with `/{_locale}`:
-
 ```yaml
 nowo_auth_kit:
-    default_locale: en
-    enabled_locales: [en, es]
-    locale_in_path: true
+    locale:
+        in_path: always          # never | always | both
+        default: en
+        enabled: [en, es]
+        unlocalized: redirect    # when in_path: both
 ```
 
-Routes become `/en/login`, `/es/register`, `/en/reset-password`, etc. Symfony `form_login` still uses route **names** in `security.yaml`; only URL paths change.
+| Mode | Example URLs |
+|------|----------------|
+| `always` | `/en/login`, `/es/register` |
+| `both` | `/en/login` **and** `/login` (`nowo_auth_kit_login_unlocalized`) |
+| `never` | `/login` only |
+
+Symfony `form_login` should keep using the **canonical** route names (`nowo_auth_kit_login`, …). With `both` + `redirect`, bare URLs 302 to the localized path. With `both` + `serve`, bare URLs render using `locale.default`.
 
 ### Twig links
 
-Use the helper so links keep the current locale:
+Use the helper so links keep the current locale when prefixes are enabled:
 
 ```twig
 <a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}">Sign in</a>
 <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params({foo: 'bar'})) }}">Register</a>
 ```
 
-When `locale_in_path` is `false`, `auth_kit_route_params()` returns an empty array (backward compatible).
+When `locale.in_path` is `never`, `auth_kit_route_params()` returns an empty array (backward compatible).
 
 ### access_control
 
-Run `php bin/console nowo:auth-kit:configure-security` after enabling `locale_in_path`, or add patterns such as `^/(en|es)/login` manually.
+Run `php bin/console nowo:auth-kit:configure-security` after changing `locale.in_path`. For `both`, it adds localized **and** bare patterns (e.g. `^/(en|es)/login` and `^/login`).
 
 ## Registration link on login page
 

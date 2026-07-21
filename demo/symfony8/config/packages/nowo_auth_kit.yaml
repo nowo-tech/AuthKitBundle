@@ -4,9 +4,11 @@ nowo_auth_kit:
     registration_mode: first_user_only
     registration_role: ROLE_USER
     login_success_route: demo_home
-    default_locale: en
-    enabled_locales: [en, es]
-    locale_in_path: true
+    locale:
+        in_path: always
+        default: en
+        enabled: [en, es]
+        unlocalized: redirect
     embed:
         mode: dropdown
     password_reset:

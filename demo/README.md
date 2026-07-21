@@ -54,7 +54,7 @@ The public welcome page (`/en`, `/es`) and the logged-in home (`/en/home`) use `
 
 ## Locale switching
 
-The demo uses `nowo_auth_kit.locale_in_path: true` so Auth Kit routes are `/en/login`, `/es/register`, etc.
+The demo uses `nowo_auth_kit.locale.in_path: always` so Auth Kit routes are `/en/login`, `/es/register`, etc.
 
 | Piece | Location |
 |-------|----------|

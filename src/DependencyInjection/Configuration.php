@@ -14,6 +14,10 @@ use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
 use function array_key_exists;
+use function in_array;
+use function is_array;
+use function is_bool;
+use function is_string;
 
 /**
  * Configuration tree for AuthKitBundle.
@@ -68,6 +72,34 @@ final class Configuration implements ConfigurationInterface
                         $profileNames              = array_keys($config['profiles']);
                         $config['default_profile'] = $profileNames[0] ?? 'default';
                     }
+
+                    $legacyInPath = $config['locale_in_path'] ?? false;
+                    if (is_bool($legacyInPath)) {
+                        $legacyInPath = $legacyInPath ? 'always' : 'never';
+                    } elseif (!is_string($legacyInPath) || !in_array($legacyInPath, ['never', 'always', 'both'], true)) {
+                        $legacyInPath = 'never';
+                    }
+
+                    if (!isset($config['locale']) || !is_array($config['locale'])) {
+                        $config['locale'] = [
+                            'in_path'     => $legacyInPath,
+                            'default'     => $config['default_locale'] ?? 'en',
+                            'enabled'     => $config['enabled_locales'] ?? ['en', 'es'],
+                            'unlocalized' => 'redirect',
+                        ];
+                    } else {
+                        $inPath = $config['locale']['in_path'] ?? 'never';
+                        if (is_bool($inPath)) {
+                            $config['locale']['in_path'] = $inPath ? 'always' : 'never';
+                        }
+                        $config['locale']['default'] ??= $config['default_locale'] ?? 'en';
+                        $config['locale']['enabled'] ??= $config['enabled_locales'] ?? ['en', 'es'];
+                        $config['locale']['unlocalized'] ??= 'redirect';
+                    }
+
+                    $config['default_locale']  = $config['locale']['default'];
+                    $config['enabled_locales'] = $config['locale']['enabled'];
+                    $config['locale_in_path']  = ($config['locale']['in_path'] ?? 'never') !== 'never';
 
                     return $config;
                 })
@@ -132,15 +164,41 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+                ->arrayNode('locale')
+                    ->info('Auth route localization. Prefer this node over legacy default_locale / enabled_locales / locale_in_path.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->enumNode('in_path')
+                            ->values(['never', 'always', 'both'])
+                            ->info('never: /login only. always: /{_locale}/login only. both: register both (see unlocalized).')
+                            ->defaultValue('never')
+                        ->end()
+                        ->scalarNode('default')
+                            ->info('Default locale for prefixed routes and bare serve/redirect.')
+                            ->defaultValue('en')
+                        ->end()
+                        ->arrayNode('enabled')
+                            ->scalarPrototype()->end()
+                            ->defaultValue(['en', 'es'])
+                        ->end()
+                        ->enumNode('unlocalized')
+                            ->values(['serve', 'redirect'])
+                            ->info('When in_path=both: serve bare URLs with default locale, or redirect to /{default}/…')
+                            ->defaultValue('redirect')
+                        ->end()
+                    ->end()
+                ->end()
                 ->scalarNode('default_locale')
+                    ->info('Deprecated: use locale.default.')
                     ->defaultValue('en')
                 ->end()
                 ->arrayNode('enabled_locales')
+                    ->info('Deprecated: use locale.enabled.')
                     ->scalarPrototype()->end()
                     ->defaultValue(['en', 'es'])
                 ->end()
-                ->booleanNode('locale_in_path')
-                    ->info('Prefix login, register, logout, password reset and magic login routes with /{_locale}.')
+                ->variableNode('locale_in_path')
+                    ->info('Deprecated: use locale.in_path (never|always|both). Bool true/false still accepted.')
                     ->defaultFalse()
                 ->end()
             ->end();

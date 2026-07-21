@@ -64,9 +64,14 @@ final class NowoAuthKitExtension extends Extension
         $container->setParameter('nowo_auth_kit.magic_login.max_uses', $defaultProfile['magic_login']['max_uses']);
         $container->setParameter('nowo_auth_kit.firewall', $defaultProfile['firewall']);
         $container->setParameter('nowo_auth_kit.login_success_route', $defaultProfile['login_success_route']);
-        $container->setParameter('nowo_auth_kit.default_locale', $config['default_locale']);
-        $container->setParameter('nowo_auth_kit.enabled_locales', $config['enabled_locales']);
-        $container->setParameter('nowo_auth_kit.locale_in_path', $config['locale_in_path']);
+        $container->setParameter('nowo_auth_kit.locale', $config['locale']);
+        $container->setParameter('nowo_auth_kit.locale.in_path', $config['locale']['in_path']);
+        $container->setParameter('nowo_auth_kit.locale.default', $config['locale']['default']);
+        $container->setParameter('nowo_auth_kit.locale.enabled', $config['locale']['enabled']);
+        $container->setParameter('nowo_auth_kit.locale.unlocalized', $config['locale']['unlocalized']);
+        $container->setParameter('nowo_auth_kit.default_locale', $config['locale']['default']);
+        $container->setParameter('nowo_auth_kit.enabled_locales', $config['locale']['enabled']);
+        $container->setParameter('nowo_auth_kit.locale_in_path', $config['locale']['in_path']);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');

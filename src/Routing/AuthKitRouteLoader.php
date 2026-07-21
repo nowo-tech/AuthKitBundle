@@ -12,19 +12,30 @@ use Nowo\AuthKitBundle\Controller\RegisterController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordCodeController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordRequestController;
+use Nowo\AuthKitBundle\Controller\UnlocalizedLocaleRedirectController;
+use Nowo\AuthKitBundle\Enum\LocaleInPathMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
+use Nowo\AuthKitBundle\Enum\UnlocalizedLocaleMode;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use RuntimeException;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
+use function is_bool;
+
 /**
  * Loads login, logout, register, password reset, and magic login routes from bundle configuration.
  */
 final class AuthKitRouteLoader extends Loader
 {
+    public const UNLOCALIZED_ROUTE_SUFFIX = '_unlocalized';
+
     private bool $loaded = false;
+
+    private readonly LocaleInPathMode $localeInPathMode;
+
+    private readonly UnlocalizedLocaleMode $unlocalizedMode;
 
     /**
      * @param array<string, array<string, mixed>> $profiles
@@ -32,10 +43,13 @@ final class AuthKitRouteLoader extends Loader
      */
     public function __construct(
         private readonly array $profiles,
-        private readonly bool $localeInPath,
+        string|bool $localeInPath,
         private readonly string $defaultLocale,
         private readonly array $enabledLocales,
+        string $unlocalizedMode = 'redirect',
     ) {
+        $this->localeInPathMode = $this->normalizeInPathMode($localeInPath);
+        $this->unlocalizedMode  = UnlocalizedLocaleMode::from($unlocalizedMode);
     }
 
     public function load(mixed $resource, ?string $type = null): RouteCollection
@@ -71,80 +85,72 @@ final class AuthKitRouteLoader extends Loader
         $passwordResetMode = $passwordReset['delivery'] ?? 'link';
         $delivery          = PasswordResetDeliveryMode::from($passwordResetMode);
 
-        $collection->add(
+        $this->addAuthRoute(
+            $collection,
             $routes['login']['name'],
-            $this->createRoute(
-                $routes['login']['path'],
-                ['_controller' => LoginController::class . '::login'] + $profileDefaults,
-                ['GET', 'POST'],
-            ),
+            $routes['login']['path'],
+            ['_controller' => LoginController::class . '::login'] + $profileDefaults,
+            ['GET', 'POST'],
         );
 
-        $collection->add(
+        $this->addAuthRoute(
+            $collection,
             $routes['logout']['name'],
-            $this->createRoute(
-                $routes['logout']['path'],
-                ['_controller' => LogoutController::class . '::logout'] + $profileDefaults,
-                ['GET'],
-            ),
+            $routes['logout']['path'],
+            ['_controller' => LogoutController::class . '::logout'] + $profileDefaults,
+            ['GET'],
         );
 
-        $collection->add(
+        $this->addAuthRoute(
+            $collection,
             $routes['register']['name'],
-            $this->createRoute(
-                $routes['register']['path'],
-                ['_controller' => RegisterController::class . '::register'] + $profileDefaults,
-                ['GET', 'POST'],
-            ),
+            $routes['register']['path'],
+            ['_controller' => RegisterController::class . '::register'] + $profileDefaults,
+            ['GET', 'POST'],
         );
 
-        $collection->add(
+        $this->addAuthRoute(
+            $collection,
             $routes['reset_request']['name'],
-            $this->createRoute(
-                $routes['reset_request']['path'],
-                ['_controller' => ResetPasswordRequestController::class . '::request'] + $profileDefaults,
-                ['GET', 'POST'],
-            ),
+            $routes['reset_request']['path'],
+            ['_controller' => ResetPasswordRequestController::class . '::request'] + $profileDefaults,
+            ['GET', 'POST'],
         );
 
         if ($delivery !== PasswordResetDeliveryMode::Code) {
-            $collection->add(
+            $this->addAuthRoute(
+                $collection,
                 $routes['reset_password']['name'],
-                $this->createRoute(
-                    $routes['reset_password']['path'],
-                    ['_controller' => ResetPasswordController::class . '::reset'] + $profileDefaults,
-                    ['GET', 'POST'],
-                ),
+                $routes['reset_password']['path'],
+                ['_controller' => ResetPasswordController::class . '::reset'] + $profileDefaults,
+                ['GET', 'POST'],
             );
         }
 
         if ($delivery !== PasswordResetDeliveryMode::Link) {
-            $collection->add(
+            $this->addAuthRoute(
+                $collection,
                 $routes['reset_password_code']['name'],
-                $this->createRoute(
-                    $routes['reset_password_code']['path'],
-                    ['_controller' => ResetPasswordCodeController::class . '::complete'] + $profileDefaults,
-                    ['GET', 'POST'],
-                ),
+                $routes['reset_password_code']['path'],
+                ['_controller' => ResetPasswordCodeController::class . '::complete'] + $profileDefaults,
+                ['GET', 'POST'],
             );
         }
 
-        $collection->add(
+        $this->addAuthRoute(
+            $collection,
             $routes['magic_login_request']['name'],
-            $this->createRoute(
-                $routes['magic_login_request']['path'],
-                ['_controller' => MagicLoginRequestController::class . '::request'] + $profileDefaults,
-                ['GET', 'POST'],
-            ),
+            $routes['magic_login_request']['path'],
+            ['_controller' => MagicLoginRequestController::class . '::request'] + $profileDefaults,
+            ['GET', 'POST'],
         );
 
-        $collection->add(
+        $this->addAuthRoute(
+            $collection,
             $routes['magic_login_check']['name'],
-            $this->createRoute(
-                $routes['magic_login_check']['path'],
-                ['_controller' => MagicLoginCheckController::class . '::check'] + $profileDefaults,
-                ['GET'],
-            ),
+            $routes['magic_login_check']['path'],
+            ['_controller' => MagicLoginCheckController::class . '::check'] + $profileDefaults,
+            ['GET'],
         );
     }
 
@@ -152,12 +158,64 @@ final class AuthKitRouteLoader extends Loader
      * @param list<string> $methods
      * @param array<string, mixed> $defaults
      */
-    private function createRoute(string $path, array $defaults, array $methods): Route
-    {
-        if (!$this->localeInPath) {
-            return new Route($path, $defaults, [], [], '', [], $methods);
+    private function addAuthRoute(
+        RouteCollection $collection,
+        string $name,
+        string $path,
+        array $defaults,
+        array $methods,
+    ): void {
+        if ($this->localeInPathMode->registersLocalizedRoutes()) {
+            $collection->add($name, $this->createLocalizedRoute($path, $defaults, $methods));
         }
 
+        if ($this->localeInPathMode === LocaleInPathMode::Never) {
+            $collection->add($name, $this->createBareRoute($path, $defaults, $methods));
+
+            return;
+        }
+
+        if ($this->localeInPathMode !== LocaleInPathMode::Both) {
+            return;
+        }
+
+        $bareName = $name . self::UNLOCALIZED_ROUTE_SUFFIX;
+
+        if ($this->unlocalizedMode === UnlocalizedLocaleMode::Redirect) {
+            $collection->add($bareName, $this->createBareRoute(
+                $path,
+                [
+                    '_controller'               => UnlocalizedLocaleRedirectController::class . '::redirect',
+                    '_auth_kit_canonical_route' => $name,
+                ] + $defaults,
+                $methods,
+            ));
+
+            return;
+        }
+
+        $collection->add($bareName, $this->createBareRoute(
+            $path,
+            ['_locale' => $this->defaultLocale] + $defaults,
+            $methods,
+        ));
+    }
+
+    /**
+     * @param list<string> $methods
+     * @param array<string, mixed> $defaults
+     */
+    private function createBareRoute(string $path, array $defaults, array $methods): Route
+    {
+        return new Route($path, $defaults, [], [], '', [], $methods);
+    }
+
+    /**
+     * @param list<string> $methods
+     * @param array<string, mixed> $defaults
+     */
+    private function createLocalizedRoute(string $path, array $defaults, array $methods): Route
+    {
         return new Route(
             '/{_locale}' . $path,
             ['_locale' => $this->defaultLocale] + $defaults,
@@ -167,5 +225,14 @@ final class AuthKitRouteLoader extends Loader
             [],
             $methods,
         );
+    }
+
+    private function normalizeInPathMode(string|bool $localeInPath): LocaleInPathMode
+    {
+        if (is_bool($localeInPath)) {
+            return $localeInPath ? LocaleInPathMode::Always : LocaleInPathMode::Never;
+        }
+
+        return LocaleInPathMode::from($localeInPath);
     }
 }

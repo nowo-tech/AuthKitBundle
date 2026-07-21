@@ -57,6 +57,24 @@ final class AuthKitRouteLocaleParametersTest extends TestCase
         self::assertSame('^/(en|es)\/reset\-password\/reset\/[^/]+', $pattern);
     }
 
+    public function testAccessControlPatternsBothModes(): void
+    {
+        $patterns = (new AuthKitRouteLocaleParameters(new RequestStack(), 'both', 'en', ['en', 'es']))
+            ->accessControlPatterns('/login');
+
+        self::assertSame([
+            '^/(en|es)\/login',
+            '^\/login',
+        ], $patterns);
+    }
+
+    public function testMergeInjectsLocaleWhenBoth(): void
+    {
+        $parameters = (new AuthKitRouteLocaleParameters(new RequestStack(), 'both', 'en', ['en', 'es']))->merge();
+
+        self::assertSame(['_locale' => 'en'], $parameters);
+    }
+
     private function createParameters(bool $localeInPath): AuthKitRouteLocaleParameters
     {
         return new AuthKitRouteLocaleParameters(new RequestStack(), $localeInPath, 'en', ['en', 'es']);

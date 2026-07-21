@@ -39,6 +39,33 @@ final class AuthKitRouteLoaderTest extends TestCase
         self::assertSame('en|es', $loginRoute->getRequirement('_locale'));
     }
 
+    public function testBothModeRegistersLocalizedAndUnlocalizedRedirect(): void
+    {
+        $loader     = new AuthKitRouteLoader($this->profiles('link'), 'both', 'en', ['en', 'es'], 'redirect');
+        $collection = $loader->load('.', 'nowo_auth_kit');
+
+        $localized = $collection->get('nowo_auth_kit_login');
+        $bare      = $collection->get('nowo_auth_kit_login_unlocalized');
+
+        self::assertNotNull($localized);
+        self::assertSame('/{_locale}/login', $localized->getPath());
+        self::assertNotNull($bare);
+        self::assertSame('/login', $bare->getPath());
+        self::assertSame('nowo_auth_kit_login', $bare->getDefault('_auth_kit_canonical_route'));
+    }
+
+    public function testBothModeServeSetsDefaultLocaleOnBareRoute(): void
+    {
+        $loader     = new AuthKitRouteLoader($this->profiles('link'), 'both', 'en', ['en', 'es'], 'serve');
+        $collection = $loader->load('.', 'nowo_auth_kit');
+        $bare       = $collection->get('nowo_auth_kit_login_unlocalized');
+
+        self::assertNotNull($bare);
+        self::assertSame('/login', $bare->getPath());
+        self::assertSame('en', $bare->getDefault('_locale'));
+        self::assertNull($bare->getDefault('_auth_kit_canonical_route'));
+    }
+
     public function testLoadsCodeRouteWhenDeliveryIsCode(): void
     {
         $loader     = new AuthKitRouteLoader($this->profiles('code'), false, 'en', ['en', 'es']);

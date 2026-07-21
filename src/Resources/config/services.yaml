@@ -35,16 +35,17 @@ services:
 
     Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters:
         arguments:
-            $localeInPath: '%nowo_auth_kit.locale_in_path%'
-            $defaultLocale: '%nowo_auth_kit.default_locale%'
-            $enabledLocales: '%nowo_auth_kit.enabled_locales%'
+            $localeInPath: '%nowo_auth_kit.locale.in_path%'
+            $defaultLocale: '%nowo_auth_kit.locale.default%'
+            $enabledLocales: '%nowo_auth_kit.locale.enabled%'
 
     Nowo\AuthKitBundle\Routing\AuthKitRouteLoader:
         arguments:
             $profiles: '%nowo_auth_kit.profiles%'
-            $localeInPath: '%nowo_auth_kit.locale_in_path%'
-            $defaultLocale: '%nowo_auth_kit.default_locale%'
-            $enabledLocales: '%nowo_auth_kit.enabled_locales%'
+            $localeInPath: '%nowo_auth_kit.locale.in_path%'
+            $defaultLocale: '%nowo_auth_kit.locale.default%'
+            $enabledLocales: '%nowo_auth_kit.locale.enabled%'
+            $unlocalizedMode: '%nowo_auth_kit.locale.unlocalized%'
         tags:
             - { name: routing.loader }
 
@@ -67,6 +68,9 @@ services:
         public: true
 
     Nowo\AuthKitBundle\Controller\MagicLoginCheckController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\UnlocalizedLocaleRedirectController:
         public: true
 
     Nowo\AuthKitBundle\Command\ConfigureSecurityCommand:

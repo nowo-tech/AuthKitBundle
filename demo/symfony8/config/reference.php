@@ -1341,9 +1341,15 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         firewall?: scalar|Param|null, // Symfony firewall name where form_login should point (documented for security.yaml). // Default: "main"
  *         login_success_route?: scalar|Param|null, // Route name after successful login. Null uses firewall default_target_path. // Default: null
  *     }>,
- *     default_locale?: scalar|Param|null, // Default: "en"
+ *     locale?: array{ // Auth route localization. Prefer this node over legacy default_locale / enabled_locales / locale_in_path.
+ *         in_path?: "never"|"always"|"both"|Param, // never: /login only. always: /{_locale}/login only. both: register both (see unlocalized). // Default: "never"
+ *         default?: scalar|Param|null, // Default locale for prefixed routes and bare serve/redirect. // Default: "en"
+ *         enabled?: list<scalar|Param|null>,
+ *         unlocalized?: "serve"|"redirect"|Param, // When in_path=both: serve bare URLs with default locale, or redirect to /{default}/… // Default: "redirect"
+ *     },
+ *     default_locale?: scalar|Param|null, // Deprecated: use locale.default. // Default: "en"
  *     enabled_locales?: list<scalar|Param|null>,
- *     locale_in_path?: bool|Param, // Prefix login, register, logout, password reset and magic login routes with /{_locale}. // Default: false
+ *     locale_in_path?: mixed, // Deprecated: use locale.in_path (never|always|both). Bool true/false still accepted. // Default: false
  * }
  * @psalm-type UxIconsConfig = array{
  *     icon_dir?: scalar|Param|null, // The local directory where icons are stored. // Default: "%kernel.project_dir%/assets/icons"

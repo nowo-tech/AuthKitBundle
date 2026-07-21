@@ -1,5 +1,35 @@
 # Upgrading
 
+## To 1.7.0
+
+From **1.6.1** / **1.6.0** — backward compatible.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+**Locale routing** is now configured under `locale`:
+
+```yaml
+nowo_auth_kit:
+    locale:
+        in_path: always          # never | always | both
+        default: en
+        enabled: [en, es]
+        unlocalized: redirect    # serve | redirect (only for both)
+```
+
+Legacy `default_locale`, `enabled_locales`, and `locale_in_path: true|false` still work (`true` ≡ `always`).
+
+When using `in_path: both`, re-run:
+
+```bash
+php bin/console nowo:auth-kit:configure-security
+```
+
+so `access_control` covers both `/{locale}/…` and bare paths. Keep `form_login` on the canonical route names (not `*_unlocalized`).
+
 ## To 1.6.1
 
 From **1.6.0** — backward-compatible patch.
