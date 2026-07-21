@@ -42,6 +42,10 @@ security:
         - { path: ^/(en|es)/reset-password/reset, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/reset-password/complete, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/magic-login, roles: PUBLIC_ACCESS }
+        - { path: ^/login, roles: PUBLIC_ACCESS }
+        - { path: ^/register, roles: PUBLIC_ACCESS }
+        - { path: ^/reset-password, roles: PUBLIC_ACCESS }
+        - { path: ^/magic-login, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/home, roles: ROLE_USER }
 
 when@test:

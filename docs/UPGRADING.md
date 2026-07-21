@@ -1,5 +1,15 @@
 # Upgrading
 
+## To 1.7.1
+
+From **1.7.0** — demo-only patch; no application config changes required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+If you run the FrankenPHP demo, pull and restart: bare auth URLs (`/login`, …) now redirect to `/{locale}/…` (`locale.in_path: both`). See [`demo/README.md`](../demo/README.md).
+
 ## To 1.7.0
 
 From **1.6.1** / **1.6.0** — backward compatible.

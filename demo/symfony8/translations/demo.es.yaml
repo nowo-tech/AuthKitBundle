@@ -6,7 +6,7 @@ demo:
     welcome:
         title: Demo Auth Kit
         heading: Bienvenido
-        lead: Usa el menú Cuenta de la barra superior para entrar o registrarte sin salir de esta página. Las rutas de página completa y las tarjetas de casos de uso cubren login con contraseña, reset y magic login.
+        lead: Usa el menú Cuenta de la barra superior para entrar o registrarte sin salir de esta página. Las rutas de página completa y las tarjetas de casos de uso cubren login con contraseña, reset, magic login y URLs con/sin locale (/{locale}/… y /login).
         embed_hint: "Modo de registro first_user_only: solo se puede crear la primera cuenta; los registros posteriores se ocultan cuando ya existe un usuario."
     home:
         title: Demo Auth Kit
@@ -49,3 +49,15 @@ demo:
         register:
             title: Registro
             body: first_user_only — disponible hasta que exista la primera cuenta.
+        locale:
+            title: Rutas locale (both + redirect)
+            body: "locale.in_path: both — rutas canónicas /{locale}/… y URLs bare que redirigen al locale por defecto (o al actual)."
+            step1: Abre /en/login o /es/login (localizadas; canónicas para form_login).
+            step2: Abre /login (sin locale) — la demo redirige a /en/login (o a tu locale actual).
+            step3: "Para probar serve en lugar de redirect, pon locale.unlocalized: serve en nowo_auth_kit.yaml y limpia la caché."
+            link_en: /en/login
+            link_es: /es/login
+            link_bare: /login (redirect)
+            link_bare_reset: /reset-password
+            link_bare_magic: /magic-login
+            link_bare_register: /register

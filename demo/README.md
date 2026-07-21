@@ -14,14 +14,20 @@ Register the first user on `/en/register` or via the **Account** dropdown on `/e
 
 ## Use cases (no real mailer)
 
-Password reset and magic login are **enabled**. Notifiers only log to the app logger and store the last payload in the session **demo inbox** (clickable link / OTP code in the UI).
+Password reset and magic login are **enabled**. Locale mode is **`both` + `redirect`**: canonical `/{locale}/…` and bare URLs (e.g. `/login`) that redirect to the default/current locale.
+
+Notifiers only log and store the last payload in the session **demo inbox**.
 
 | Flow | URL | What to do |
 |------|-----|------------|
 | Password login | `/en/login` | Sign in with email + password |
-| Password reset | `/en/reset-password` | Submit a registered email → open the link (or use the code) from the demo inbox |
-| Magic login | `/en/magic-login` | Submit a registered email → click the signed link in the demo inbox |
-| Register | `/en/register` | Available until the first user exists (`first_user_only`) |
+| Bare login (redirect) | `/login` | Redirects to `/en/login` (or current locale) |
+| Locale ES | `/es/login` | Same form in Spanish |
+| Password reset | `/en/reset-password` or `/reset-password` | Submit email → inbox link/code |
+| Magic login | `/en/magic-login` or `/magic-login` | Submit email → inbox signed link |
+| Register | `/en/register` or `/register` | Until the first user exists (`first_user_only`) |
+
+To try **serve** instead of redirect, set `locale.unlocalized: serve` in `symfony8/config/packages/nowo_auth_kit.yaml` and clear the cache — bare URLs then render with `locale.default`.
 
 The welcome page (`/en`) lists the same use cases as cards.
 
@@ -54,17 +60,21 @@ The public welcome page (`/en`, `/es`) and the logged-in home (`/en/home`) use `
 
 ## Locale switching
 
-The demo uses `nowo_auth_kit.locale.in_path: always` so Auth Kit routes are `/en/login`, `/es/register`, etc.
+The demo uses `locale.in_path: both` with `unlocalized: redirect`:
+
+- Canonical auth routes: `/en/login`, `/es/register`, …
+- Bare aliases: `/login`, `/register`, … → 302 to `/{locale}/…`
 
 | Piece | Location |
 |-------|----------|
+| Config | `symfony8/config/packages/nowo_auth_kit.yaml` → `locale` |
 | UI | `templates/demo/_locale_switcher.html.twig` (swaps `{_locale}` in the current URL) |
 | Fallback route | `GET /locale/{_locale}` → `App\Controller\LocaleController` |
 | Persistence | `App\EventSubscriber\LocaleSubscriber` (session `_locale`) |
 | Demo labels | `translations/demo.en.yaml`, `translations/demo.es.yaml` |
 | Bundle copy | `translations/NowoAuthKitBundle.<locale>.yaml` (optional) |
 
-`framework.enabled_locales` and `nowo_auth_kit.enabled_locales` are both `[en, es]`.
+`framework.enabled_locales` and `nowo_auth_kit.locale.enabled` are both `[en, es]`.
 
 ## Commands
 

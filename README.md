@@ -62,7 +62,7 @@ make release-check
 make -C demo up-symfony8   # Symfony 8.1 — http://localhost:8010
 ```
 
-Register the first user, then try password login, **password reset**, and **magic login**. The demo includes **Bootstrap 5** UI overrides, **en/es** locale-prefixed URLs, embed dropdown, a session **delivery inbox** (no mailer), and FrankenPHP (Docker).
+Register the first user, then try password login, **password reset**, **magic login**, and **dual locale URLs** (`/en/login` and bare `/login` → redirect). The demo includes **Bootstrap 5** UI overrides, embed dropdown, a session **delivery inbox** (no mailer), and FrankenPHP (Docker).
 
 ### Screenshots
 

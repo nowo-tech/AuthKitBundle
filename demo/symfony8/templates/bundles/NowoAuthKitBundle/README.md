@@ -44,6 +44,10 @@ Login and register templates stack Symfony’s Bootstrap 5 form theme with the p
 
 ## Locales
 
+Demo config: `locale.in_path: both` + `unlocalized: redirect` (see `config/packages/nowo_auth_kit.yaml`).
+
+- Canonical: `/en/login`, `/es/login`, …
+- Bare: `/login` → 302 to localized URL (`*_unlocalized` routes)
 - Switcher: `templates/demo/_locale_switcher.html.twig`
 - Route: `app_set_locale` → `LocaleController`
 - Session locale: `App\EventSubscriber\LocaleSubscriber`

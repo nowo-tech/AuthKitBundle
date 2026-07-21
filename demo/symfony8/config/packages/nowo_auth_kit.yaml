@@ -5,7 +5,10 @@ nowo_auth_kit:
     registration_role: ROLE_USER
     login_success_route: demo_home
     locale:
-        in_path: always
+        # both: /en/login (canonical) + /login (_unlocalized)
+        # unlocalized: redirect → 302 to /{default|current}/…
+        # switch to "serve" to render bare URLs with locale.default instead
+        in_path: both
         default: en
         enabled: [en, es]
         unlocalized: redirect

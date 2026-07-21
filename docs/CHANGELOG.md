@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-07-21
+
+### Changed
+
+- Demo Symfony 8 uses `locale.in_path: both` + `unlocalized: redirect`, with welcome use-case cards and bare-path `access_control` for `/login`, `/register`, `/reset-password`, `/magic-login`.
+
+[1.7.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.7.1
+
 ## [1.7.0] - 2026-07-21
 
 ### Added
