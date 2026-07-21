@@ -1,0 +1,34 @@
+{# Demo-only: last password-reset / magic-login deliveries (no real mailer). #}
+{% set deliveries = demo_auth_deliveries() %}
+{% if deliveries is not empty %}
+    <div class="alert alert-info border-0 shadow-sm mb-3" role="status">
+        <div class="fw-semibold mb-2">{{ 'demo.inbox.title'|trans({}, 'demo') }}</div>
+        <p class="small mb-3 mb-md-2">{{ 'demo.inbox.help'|trans({}, 'demo') }}</p>
+        <ul class="list-unstyled mb-0 vstack gap-3">
+            {% for item in deliveries|reverse %}
+                <li class="border-top pt-2">
+                    {% if item.type == 'magic_login' %}
+                        <div class="small text-uppercase text-muted mb-1">{{ 'demo.inbox.magic_login'|trans({}, 'demo') }}</div>
+                        <div class="small mb-1">{{ 'demo.inbox.for'|trans({'%id%': item.masked_identifier}, 'demo') }}</div>
+                        <a class="btn btn-sm btn-primary" href="{{ item.login_url }}">{{ 'demo.inbox.open_magic_link'|trans({}, 'demo') }}</a>
+                        <div class="form-text text-break mt-1">{{ item.login_url }}</div>
+                    {% elseif item.type == 'password_reset' %}
+                        <div class="small text-uppercase text-muted mb-1">{{ 'demo.inbox.password_reset'|trans({}, 'demo') }}</div>
+                        <div class="small mb-1">{{ 'demo.inbox.for'|trans({'%id%': item.masked_identifier}, 'demo') }}
+                            · {{ 'demo.inbox.delivery'|trans({'%mode%': item.delivery}, 'demo') }}</div>
+                        {% if item.reset_url %}
+                            <a class="btn btn-sm btn-outline-primary" href="{{ item.reset_url }}">{{ 'demo.inbox.open_reset_link'|trans({}, 'demo') }}</a>
+                            <div class="form-text text-break mt-1">{{ item.reset_url }}</div>
+                        {% endif %}
+                        {% if item.code %}
+                            <div class="mt-2">
+                                <span class="small">{{ 'demo.inbox.code'|trans({}, 'demo') }}</span>
+                                <code class="fs-6 user-select-all">{{ item.code }}</code>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}

@@ -6,7 +6,7 @@ demo:
     welcome:
         title: Demo Auth Kit
         heading: Bienvenido
-        lead: Usa el menú Cuenta de la barra superior para entrar o registrarte sin salir de esta página. Las rutas de página completa siguen disponibles abajo.
+        lead: Usa el menú Cuenta de la barra superior para entrar o registrarte sin salir de esta página. Las rutas de página completa y las tarjetas de casos de uso cubren login con contraseña, reset y magic login.
         embed_hint: "Modo de registro first_user_only: solo se puede crear la primera cuenta; los registros posteriores se ocultan cuando ya existe un usuario."
     home:
         title: Demo Auth Kit
@@ -14,3 +14,38 @@ demo:
         logged_in: "Sesión iniciada como %email%."
         registration_hint: "Modo de registro first_user_only: solo se puede crear la primera cuenta en /register; los siguientes registros quedan deshabilitados cuando ya existe un usuario."
         logout: Cerrar sesión
+    inbox:
+        title: Buzón de entrega (demo)
+        help: "No hay mailer. El último reset / magic login se guarda en esta sesión para que puedas abrir el enlace o copiar el código."
+        magic_login: Enlace magic login
+        password_reset: Reset de contraseña
+        for: "Para %id%"
+        delivery: "Entrega: %mode%"
+        open_magic_link: Abrir enlace magic login
+        open_reset_link: Abrir enlace de reset
+        code: "Código:"
+    usecase:
+        heading: Prueba estos flujos
+        reset_hint: Tras enviar, la URL/código de reset aparece en el buzón demo de arriba (y en los logs del contenedor). No se envía email.
+        magic_hint: Tras enviar, la URL firmada aparece en el buzón demo de arriba (y en los logs). Haz clic para autenticarte.
+        password:
+            title: Login con contraseña
+            body: form_login clásico con email y contraseña.
+            step1: Registra el primer usuario (o usa uno existente).
+            step2: Abre Iniciar sesión y envía las credenciales.
+            step3: Llegas a la home autenticada.
+        reset:
+            title: Reset de contraseña
+            body: Solicita un reset aunque el notifier solo registre (y guarde) la credencial.
+            step1: Abre Reset password e introduce un email registrado.
+            step2: Usa el enlace del buzón demo (o el código en /reset-password/complete).
+            step3: Elige una nueva contraseña e inicia sesión.
+        magic:
+            title: Magic login
+            body: Acceso sin contraseña con Symfony login_link.
+            step1: Abre Magic login e introduce un email registrado.
+            step2: Haz clic en el enlace del buzón demo.
+            step3: Quedas autenticado sin contraseña.
+        register:
+            title: Registro
+            body: first_user_only — disponible hasta que exista la primera cuenta.

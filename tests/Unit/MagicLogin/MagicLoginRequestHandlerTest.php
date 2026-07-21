@@ -119,7 +119,6 @@ final class MagicLoginRequestHandlerTest extends TestCase
             $this->createMock(EventDispatcherInterface::class),
             ProfileRegistryFactory::single(TestUser::class),
             new RequestStack(),
-            null,
         );
 
         $this->expectException(LogicException::class);
@@ -159,12 +158,13 @@ final class MagicLoginRequestHandlerTest extends TestCase
 
     public function testNullNotifierIsNoop(): void
     {
+        $this->expectNotToPerformAssertions();
+
         (new NullMagicLoginNotifier())->notify(new MagicLoginNotificationContext(
             'a@b.c',
             'https://example.test/link',
             new DateTimeImmutable('+5 minutes'),
         ));
-        self::assertTrue(true);
     }
 
     public function testRequestedEventExposesContext(): void

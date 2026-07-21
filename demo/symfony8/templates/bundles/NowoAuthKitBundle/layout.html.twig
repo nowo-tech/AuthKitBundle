@@ -17,6 +17,14 @@
     <main class="container flex-grow-1 d-flex align-items-center py-5">
         <div class="w-100 mx-auto" style="max-width: 28rem;">
             {% include 'demo/_locale_switcher.html.twig' %}
+            {% include 'demo/_delivery_inbox.html.twig' %}
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ label == 'success' ? 'success' : 'secondary' }} border-0 shadow-sm mb-3" role="status">
+                        {{ message|trans({}, 'NowoAuthKitBundle') }}
+                    </div>
+                {% endfor %}
+            {% endfor %}
             {% block body %}{% endblock %}
         </div>
     </main>

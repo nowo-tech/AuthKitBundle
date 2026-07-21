@@ -152,7 +152,7 @@ final class ConfigureSecurityCommand extends Command
             }
         }
 
-        if (($this->magicLogin['mode'] ?? 'disabled') === 'enabled') {
+        if ($this->magicLogin['mode'] === 'enabled') {
             $publicPaths[] = [
                 'path'  => $this->routeLocaleParameters->accessControlPattern($this->routes['magic_login_request']['path']),
                 'roles' => 'PUBLIC_ACCESS',
@@ -207,16 +207,17 @@ final class ConfigureSecurityCommand extends Command
      */
     private function syncLoginLink(array &$firewall): void
     {
-        if (($this->magicLogin['mode'] ?? 'disabled') !== 'enabled') {
+        if ($this->magicLogin['mode'] !== 'enabled') {
             unset($firewall['login_link']);
 
             return;
         }
 
         $loginLink = [
-            'check_route' => $this->routes['magic_login_check']['name'],
-            'lifetime'    => (int) $this->magicLogin['lifetime'],
-            'max_uses'    => (int) $this->magicLogin['max_uses'],
+            'check_route'          => $this->routes['magic_login_check']['name'],
+            'signature_properties' => [$this->userIdentifierField],
+            'lifetime'             => (int) $this->magicLogin['lifetime'],
+            'max_uses'             => (int) $this->magicLogin['max_uses'],
         ];
 
         if ($this->loginSuccessRoute !== null) {

@@ -10,7 +10,20 @@ See [docs/DEMO-FRANKENPHP.md](../docs/DEMO-FRANKENPHP.md) for dev vs production 
 make up-symfony8   # http://localhost:8010
 ```
 
-Register the first user on `/en/register` or via the **Account** dropdown on `/en`, then sign in at `/en/login` or from the same dropdown. Use **English** / **Español** in the navbar switcher (updates the `/{locale}` segment in the URL).
+Register the first user on `/en/register` or via the **Account** dropdown on `/en`, then try the flows below.
+
+## Use cases (no real mailer)
+
+Password reset and magic login are **enabled**. Notifiers only log to the app logger and store the last payload in the session **demo inbox** (clickable link / OTP code in the UI).
+
+| Flow | URL | What to do |
+|------|-----|------------|
+| Password login | `/en/login` | Sign in with email + password |
+| Password reset | `/en/reset-password` | Submit a registered email → open the link (or use the code) from the demo inbox |
+| Magic login | `/en/magic-login` | Submit a registered email → click the signed link in the demo inbox |
+| Register | `/en/register` | Available until the first user exists (`first_user_only`) |
+
+The welcome page (`/en`) lists the same use cases as cards.
 
 ## Template overrides & Bootstrap
 
@@ -21,7 +34,9 @@ symfony8/templates/bundles/NowoAuthKitBundle/
 ├── layout.html.twig
 └── security/
     ├── login.html.twig
-    └── register.html.twig
+    ├── register.html.twig
+    ├── reset_request.html.twig
+    └── magic_login_request.html.twig
 ```
 
 Symfony resolves these before the bundle defaults (`@NowoAuthKitBundle/…`). The overrides:
@@ -30,6 +45,7 @@ Symfony resolves these before the bundle defaults (`@NowoAuthKitBundle/…`). Th
 - Use `bootstrap_5_layout.html.twig` for form fields
 - Keep `@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig` for password fields
 - Include `demo/_locale_switcher.html.twig` in the demo navbar
+- Show the session **demo delivery inbox** (last reset / magic-login link or code) on auth pages
 - Render `auth_kit_dropdown()` in `templates/base.html.twig` (`embed.mode: dropdown`)
 
 Details: `symfony8/templates/bundles/NowoAuthKitBundle/README.md`.

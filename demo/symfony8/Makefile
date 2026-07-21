@@ -1,4 +1,7 @@
-COMPOSE = docker compose
+# Prefer absolute docker binary: a local `docker/` directory would otherwise
+# shadow `docker` on PATH when Make expands recipe commands.
+DOCKER  ?= $(shell command -v docker)
+COMPOSE  = $(DOCKER) compose
 SERVICE_PHP = php
 
 .PHONY: help ensure-env up down build install database shell test update-bundle

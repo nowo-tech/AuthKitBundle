@@ -6,7 +6,7 @@ demo:
     welcome:
         title: Auth Kit Demo
         heading: Welcome
-        lead: Use the Account menu in the navbar to sign in or register without leaving this page. Full-page routes remain available below.
+        lead: Use the Account menu in the navbar to sign in or register without leaving this page. Full-page routes and the use-case cards below cover password login, password reset, and magic login.
         embed_hint: "Registration mode is first_user_only: only the first account can be created; further sign-ups are hidden once a user exists."
     home:
         title: Auth Kit Demo
@@ -14,3 +14,38 @@ demo:
         logged_in: "Logged in as %email%."
         registration_hint: "Registration mode is first_user_only: only the first account can be created via /register; further sign-ups are disabled once a user exists."
         logout: Logout
+    inbox:
+        title: Demo delivery inbox
+        help: "No mailer is configured. The last password-reset / magic-login payloads are stored in this session so you can open the link or copy the code."
+        magic_login: Magic login link
+        password_reset: Password reset
+        for: "For %id%"
+        delivery: "Delivery: %mode%"
+        open_magic_link: Open magic login link
+        open_reset_link: Open reset link
+        code: "Code:"
+    usecase:
+        heading: Try these flows
+        reset_hint: After submit, the reset URL/code appears in the demo inbox above (and in the container logs). No email is sent.
+        magic_hint: After submit, the signed login URL appears in the demo inbox above (and in the container logs). Click it to authenticate.
+        password:
+            title: Password login
+            body: Classic form_login with email and password.
+            step1: Register the first user (or use an existing one).
+            step2: Open Sign in and submit credentials.
+            step3: You land on the authenticated home page.
+        reset:
+            title: Password reset
+            body: Request a reset even though the notifier only logs (and stores) the credential.
+            step1: Open Reset password and enter a registered email.
+            step2: Use the demo inbox link (or code + /reset-password/complete).
+            step3: Set a new password and sign in.
+        magic:
+            title: Magic login
+            body: Passwordless sign-in via Symfony login_link.
+            step1: Open Magic login and enter a registered email.
+            step2: Click the link shown in the demo inbox.
+            step3: You are authenticated without a password.
+        register:
+            title: Registration
+            body: first_user_only — available until the first account exists.

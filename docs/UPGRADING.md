@@ -1,5 +1,34 @@
 # Upgrading
 
+## To 1.6.1
+
+From **1.6.0** — backward-compatible patch.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+**If magic login is enabled:** Symfony requires `login_link.signature_properties`. Re-run:
+
+```bash
+php bin/console nowo:auth-kit:configure-security
+```
+
+Or add manually (use your `user_identifier_field`, typically `email`):
+
+```yaml
+security:
+    firewalls:
+        main:
+            login_link:
+                check_route: nowo_auth_kit_magic_login_check
+                signature_properties: [email]
+                # …
+```
+
+No other application changes required. Demo-only: try reset / magic login via the session delivery inbox (no mailer).
+
 ## To 1.6.0
 
 From **1.5.1** / **1.5.0** — backward compatible when magic login stays disabled (default).
@@ -22,6 +51,8 @@ nowo_auth_kit:
 ```bash
 php bin/console nowo:auth-kit:configure-security
 ```
+
+Prefer **1.6.1+** so `configure-security` also writes `signature_properties` (required by Symfony). If you stay on 1.6.0 and configure `login_link` by hand, include e.g. `signature_properties: [email]`.
 
 Implement `MagicLoginNotifierInterface` (email the `loginUrl`) and alias it in `services.yaml`. See [`MAGIC-LOGIN.md`](MAGIC-LOGIN.md).
 

@@ -49,7 +49,7 @@ final class MagicLoginRequestHandler
             return;
         }
 
-        if ($this->loginLinkHandler === null) {
+        if (!$this->loginLinkHandler instanceof LoginLinkHandlerInterface) {
             throw new LogicException('Magic login requires Symfony firewall "login_link". Run: php bin/console nowo:auth-kit:configure-security');
         }
 

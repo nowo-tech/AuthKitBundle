@@ -5,9 +5,61 @@
 {% block body %}
     <h1 class="h3 mb-3">{{ 'demo.welcome.heading'|trans({}, 'demo') }}</h1>
     <p class="mb-3">{{ 'demo.welcome.lead'|trans({}, 'demo') }}</p>
-    <p class="text-muted small mb-0">{{ 'demo.welcome.embed_hint'|trans({}, 'demo') }}</p>
-    <div class="d-flex flex-wrap gap-2 mt-4">
+    <p class="text-muted small mb-4">{{ 'demo.welcome.embed_hint'|trans({}, 'demo') }}</p>
+
+    {% include 'demo/_delivery_inbox.html.twig' %}
+
+    <h2 class="h5 mb-3">{{ 'demo.usecase.heading'|trans({}, 'demo') }}</h2>
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="border rounded-3 p-3 h-100 bg-body">
+                <h3 class="h6">{{ 'demo.usecase.password.title'|trans({}, 'demo') }}</h3>
+                <p class="small text-muted mb-3">{{ 'demo.usecase.password.body'|trans({}, 'demo') }}</p>
+                <ol class="small mb-3 ps-3">
+                    <li>{{ 'demo.usecase.password.step1'|trans({}, 'demo') }}</li>
+                    <li>{{ 'demo.usecase.password.step2'|trans({}, 'demo') }}</li>
+                    <li>{{ 'demo.usecase.password.step3'|trans({}, 'demo') }}</li>
+                </ol>
+                <a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}" class="btn btn-sm btn-outline-primary">{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="border rounded-3 p-3 h-100 bg-body">
+                <h3 class="h6">{{ 'demo.usecase.reset.title'|trans({}, 'demo') }}</h3>
+                <p class="small text-muted mb-3">{{ 'demo.usecase.reset.body'|trans({}, 'demo') }}</p>
+                <ol class="small mb-3 ps-3">
+                    <li>{{ 'demo.usecase.reset.step1'|trans({}, 'demo') }}</li>
+                    <li>{{ 'demo.usecase.reset.step2'|trans({}, 'demo') }}</li>
+                    <li>{{ 'demo.usecase.reset.step3'|trans({}, 'demo') }}</li>
+                </ol>
+                <a href="{{ path('nowo_auth_kit_reset_password_request', auth_kit_route_params()) }}" class="btn btn-sm btn-outline-primary">{{ 'reset.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="border rounded-3 p-3 h-100 bg-body">
+                <h3 class="h6">{{ 'demo.usecase.magic.title'|trans({}, 'demo') }}</h3>
+                <p class="small text-muted mb-3">{{ 'demo.usecase.magic.body'|trans({}, 'demo') }}</p>
+                <ol class="small mb-3 ps-3">
+                    <li>{{ 'demo.usecase.magic.step1'|trans({}, 'demo') }}</li>
+                    <li>{{ 'demo.usecase.magic.step2'|trans({}, 'demo') }}</li>
+                    <li>{{ 'demo.usecase.magic.step3'|trans({}, 'demo') }}</li>
+                </ol>
+                <a href="{{ path('nowo_auth_kit_magic_login_request', auth_kit_route_params()) }}" class="btn btn-sm btn-outline-primary">{{ 'magic_login.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="border rounded-3 p-3 h-100 bg-body">
+                <h3 class="h6">{{ 'demo.usecase.register.title'|trans({}, 'demo') }}</h3>
+                <p class="small text-muted mb-3">{{ 'demo.usecase.register.body'|trans({}, 'demo') }}</p>
+                <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="btn btn-sm btn-outline-secondary">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
         <a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm">{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_magic_login_request', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm">{{ 'magic_login.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_reset_password_request', auth_kit_route_params()) }}" class="btn btn-outline-secondary btn-sm">{{ 'reset.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
         <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="btn btn-outline-secondary btn-sm">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
     </div>
 {% endblock %}

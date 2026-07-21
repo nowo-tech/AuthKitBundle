@@ -8,10 +8,12 @@ Files here take precedence over `@NowoAuthKitBundle/…`:
 
 ```
 templates/bundles/NowoAuthKitBundle/
-├── layout.html.twig          # Bootstrap shell + locale switcher
+├── layout.html.twig          # Bootstrap shell + locale switcher + demo inbox
 └── security/
-    ├── login.html.twig       # Card layout + bootstrap_5 form theme
-    └── register.html.twig
+    ├── login.html.twig
+    ├── register.html.twig
+    ├── reset_request.html.twig
+    └── magic_login_request.html.twig
 ```
 
 No `nowo_auth_kit.templates` config is required when using this folder structure.
@@ -47,5 +49,9 @@ Login and register templates stack Symfony’s Bootstrap 5 form theme with the p
 - Session locale: `App\EventSubscriber\LocaleSubscriber`
 - Demo strings: `translations/demo.en.yaml`, `translations/demo.es.yaml`
 - Bundle strings: override `translations/NowoAuthKitBundle.<locale>.yaml`
+
+## Demo delivery inbox (no mailer)
+
+Password reset and magic login are enabled with notifiers that only log and store the last payload in session (`App\Security\DemoDeliveryInbox`). Auth layout includes `demo/_delivery_inbox.html.twig` so you can click the link or copy the OTP without a real mailer. Use-case cards live on `templates/demo/welcome.html.twig`.
 
 See [USAGE.md](../../../docs/USAGE.md) in the bundle for full override documentation.

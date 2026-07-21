@@ -1278,6 +1278,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             reset_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_request.html.twig"
  *             reset_password?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password.html.twig"
  *             reset_password_code?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password_code.html.twig"
+ *             magic_login_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/magic_login_request.html.twig"
  *         },
  *         embed?: array{
  *             mode?: "disabled"|"dropdown"|Param, // disabled: full-page routes only. dropdown: embed login/register via auth_kit_dropdown(). // Default: "disabled"
@@ -1297,6 +1298,11 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             code_charset?: "numeric"|"alphanumeric"|Param, // Default: "numeric"
  *             token_field?: scalar|Param|null, // User entity property storing the hashed reset credential. // Default: "passwordResetToken"
  *             token_expires_field?: scalar|Param|null, // User entity property storing credential expiry. // Default: "passwordResetExpiresAt"
+ *         },
+ *         magic_login?: array{
+ *             mode?: "disabled"|"enabled"|Param, // disabled: hide magic login. enabled: request form + Symfony login_link check route. // Default: "disabled"
+ *             lifetime?: int|Param, // Seconds until the magic login link expires (Symfony login_link lifetime). // Default: 600
+ *             max_uses?: int|Param, // How many times the signed login link can be used (Symfony login_link max_uses). // Default: 1
  *         },
  *         routes?: array{
  *             login?: array{
@@ -1323,13 +1329,21 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 path?: scalar|Param|null, // Default: "/reset-password/complete"
  *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_reset_password_code"
  *             },
+ *             magic_login_request?: array{
+ *                 path?: scalar|Param|null, // Default: "/magic-login"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_magic_login_request"
+ *             },
+ *             magic_login_check?: array{
+ *                 path?: scalar|Param|null, // Default: "/magic-login/check"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_magic_login_check"
+ *             },
  *         },
  *         firewall?: scalar|Param|null, // Symfony firewall name where form_login should point (documented for security.yaml). // Default: "main"
  *         login_success_route?: scalar|Param|null, // Route name after successful login. Null uses firewall default_target_path. // Default: null
  *     }>,
  *     default_locale?: scalar|Param|null, // Default: "en"
  *     enabled_locales?: list<scalar|Param|null>,
- *     locale_in_path?: bool|Param, // Prefix login, register, logout and password reset routes with /{_locale}. // Default: false
+ *     locale_in_path?: bool|Param, // Prefix login, register, logout, password reset and magic login routes with /{_locale}. // Default: false
  * }
  * @psalm-type UxIconsConfig = array{
  *     icon_dir?: scalar|Param|null, // The local directory where icons are stored. // Default: "%kernel.project_dir%/assets/icons"

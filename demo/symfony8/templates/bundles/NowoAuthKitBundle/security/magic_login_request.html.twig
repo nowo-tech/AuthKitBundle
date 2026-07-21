@@ -1,0 +1,30 @@
+{#
+    Override: templates/bundles/NowoAuthKitBundle/security/magic_login_request.html.twig
+#}
+{% extends layout_template %}
+
+{% block title %}{{ 'magic_login.request.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
+
+{% block body %}
+{% form_theme magic_login_form 'form/auth_kit_theme.html.twig' %}
+<div class="card shadow-sm border-0 auth-card">
+    <div class="card-body p-4">
+        <div class="auth-card__header">
+            <h1 class="h4 mb-0 fw-semibold">{{ 'magic_login.request.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+        </div>
+        <p class="text-muted small">{{ 'magic_login.request.help'|trans({}, 'NowoAuthKitBundle') }}</p>
+        <p class="alert alert-secondary small py-2">{{ 'demo.usecase.magic_hint'|trans({}, 'demo') }}</p>
+
+        {{ form_start(magic_login_form, {attr: {class: 'vstack gap-3'}}) }}
+            {{ form_row(magic_login_form.identifier, {row_attr: {class: 'mb-0'}}) }}
+            <div class="pt-1">
+                <button type="submit" class="btn btn-primary w-100 btn-lg">{{ 'magic_login.request.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+            </div>
+        {{ form_end(magic_login_form) }}
+
+        <div class="auth-card__footer text-center">
+            <a href="{{ path(login_route, auth_kit_route_params()) }}" class="link-secondary text-decoration-none small">{{ 'magic_login.request.back_to_login'|trans({}, 'NowoAuthKitBundle') }}</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

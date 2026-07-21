@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
-use Nowo\AuthKitBundle\Enum\MagicLoginMode;
-use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
+use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
@@ -29,6 +29,8 @@ final class LoginController
         private readonly TokenStorageInterface $tokenStorage,
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RegistrationGate $registrationGate,
+        private readonly PasswordResetGate $passwordResetGate,
+        private readonly MagicLoginGate $magicLoginGate,
         private readonly RequestProfileResolver $profileResolver,
     ) {
     }
@@ -61,8 +63,8 @@ final class LoginController
             'register_route'         => $profile->routes['register']['name'],
             'reset_password_route'   => $profile->routes['reset_request']['name'],
             'magic_login_route'      => $profile->routes['magic_login_request']['name'],
-            'password_reset_enabled' => $profile->passwordReset['mode'] === PasswordResetMode::Enabled->value,
-            'magic_login_enabled'    => $profile->magicLogin['mode'] === MagicLoginMode::Enabled->value,
+            'password_reset_enabled' => $this->passwordResetGate->isEnabled($profile->name),
+            'magic_login_enabled'    => $this->magicLoginGate->isEnabled($profile->name),
             'registration_allowed'   => $this->registrationGate->isRegistrationAllowed($profile->name),
             'layout_template'        => $profile->templates['layout'],
         ]);

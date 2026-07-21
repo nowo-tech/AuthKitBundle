@@ -7,6 +7,7 @@
 
 {% block body %}
 {% form_theme login_form 'form/auth_kit_theme.html.twig' %}
+
 <div class="card shadow-sm border-0 auth-card">
     <div class="card-body p-4">
         <div class="auth-card__header">
@@ -31,6 +32,9 @@
         {{ form_end(login_form) }}
 
         <div class="auth-card__footer d-flex flex-column gap-2 text-center">
+            {% if magic_login_enabled|default(false) %}
+                <a href="{{ path(magic_login_route, auth_kit_route_params()) }}" class="link-primary text-decoration-none fw-medium small">{{ 'login.magic_login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+            {% endif %}
             {% if password_reset_enabled|default(false) %}
                 <a href="{{ path(reset_password_route, auth_kit_route_params()) }}" class="link-secondary text-decoration-none small">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
             {% endif %}

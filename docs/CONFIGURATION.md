@@ -277,7 +277,7 @@ See [PASSWORD-RESET.md](PASSWORD-RESET.md) for entity fields, notifier wiring, a
 
 ## Magic login (passwordless)
 
-When `magic_login.mode` is `enabled`, users can request a one-time sign-in link. Requires Symfony firewall `login_link` (synced by `nowo:auth-kit:configure-security`). Implement `MagicLoginNotifierInterface` to email the URL.
+When `magic_login.mode` is `enabled`, users can request a one-time sign-in link. Requires Symfony firewall `login_link` with **`signature_properties`** (synced by `nowo:auth-kit:configure-security` from `user_identifier_field`). Implement `MagicLoginNotifierInterface` to email the URL.
 
 See [MAGIC-LOGIN.md](MAGIC-LOGIN.md).
 

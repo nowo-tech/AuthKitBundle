@@ -10,20 +10,19 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenResult;
 
 /**
- * Sample password reset delivery for the demo app.
- *
- * Logs link/code to the application logger. Replace with email, SMS, push, or OTP
- * by implementing PasswordResetNotifierInterface in your project.
+ * Demo password-reset delivery: logs + stores the link/code in session for UI try-out.
  */
 final class DemoPasswordResetNotifier implements PasswordResetNotifierInterface
 {
     public function __construct(
         private readonly LoggingPasswordResetNotifier $loggingNotifier,
+        private readonly DemoDeliveryInbox $inbox,
     ) {
     }
 
     public function notify(PasswordResetTokenResult $token, PasswordResetNotificationContext $context): void
     {
         $this->loggingNotifier->notify($token, $context);
+        $this->inbox->rememberPasswordReset($token, $context);
     }
 }

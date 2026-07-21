@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-07-21
+
+### Fixed
+
+- `nowo:auth-kit:configure-security` writes required Symfony `login_link.signature_properties` (from `user_identifier_field`). Without this, enabling magic login fails container compilation on Symfony 8.
+
+### Changed
+
+- Login template flags for password reset / magic login go through `PasswordResetGate` / `MagicLoginGate` (same pattern as registration).
+- Demo Symfony 8: use-case cards (password / reset / magic / register), session **delivery inbox** for reset and magic login without a mailer, and `signature_properties` on the demo firewall.
+- Demo Makefile resolves `docker` via absolute path so a local `docker/` directory does not break `make` targets.
+- Docs: [`MAGIC-LOGIN.md`](MAGIC-LOGIN.md) / [`UPGRADING.md`](UPGRADING.md) document `signature_properties`.
+
+[1.6.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.6.1
+
 ## [1.6.0] - 2026-07-21
 
 ### Added

@@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
+use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
@@ -47,6 +49,8 @@ final class LoginControllerTest extends TestCase
                 $this->createMock(EntityManagerInterface::class),
                 ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'disabled']),
             ),
+            new PasswordResetGate(ProfileRegistryFactory::single(TestUser::class)),
+            new MagicLoginGate(ProfileRegistryFactory::single(TestUser::class)),
             ProfileRegistryFactory::requestResolver(TestUser::class, ['login_success_route' => 'demo_home']),
         );
 
@@ -96,6 +100,8 @@ final class LoginControllerTest extends TestCase
             $this->createMock(TokenStorageInterface::class),
             AuthKitTestUrlGenerator::fromMock($inner),
             $registrationGate,
+            new PasswordResetGate($profileRegistry),
+            new MagicLoginGate($profileRegistry),
             ProfileRegistryFactory::requestResolver(TestUser::class, ['registration_mode' => 'disabled']),
         );
 

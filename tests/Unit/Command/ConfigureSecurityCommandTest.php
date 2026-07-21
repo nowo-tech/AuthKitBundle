@@ -193,6 +193,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         /** @var array<string, mixed> $security */
         $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
         self::assertSame('nowo_auth_kit_magic_login_check', $security['security']['firewalls']['main']['login_link']['check_route']);
+        self::assertSame(['email'], $security['security']['firewalls']['main']['login_link']['signature_properties']);
         self::assertSame(600, $security['security']['firewalls']['main']['login_link']['lifetime']);
         $paths = array_column($security['security']['access_control'], 'path');
         self::assertContains('^\/magic\-login', $paths);

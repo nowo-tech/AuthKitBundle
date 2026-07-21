@@ -37,12 +37,15 @@ security:
         main:
             login_link:
                 check_route: nowo_auth_kit_magic_login_check
+                signature_properties: [email]  # required; properties that invalidate links when changed
                 lifetime: 600
                 max_uses: 1
                 default_target_path: homepage   # optional
 ```
 
 Keep `magic_login_check` as a **public** `access_control` path.
+
+`signature_properties` is **required** by Symfony (typically your user identifier field, e.g. `email`). `nowo:auth-kit:configure-security` writes it from `user_identifier_field`.
 
 ## Delivery (`MagicLoginNotifierInterface`)
 
