@@ -2,7 +2,7 @@
 
 FrankenPHP demo for **Symfony 8.1** with login, logout, first-user registration, **Bootstrap 5** UI, and **en/es** locale switching.
 
-See [docs/DEMO-FRANKENPHP.md](../docs/DEMO-FRANKENPHP.md) for dev vs production (worker) setup and troubleshooting.
+See [docs/DEMO-FRANKENPHP.md](../docs/DEMO-FRANKENPHP.md) for **`FRANKENPHP_MODE`** (`worker` default / `classic`) and troubleshooting.
 
 ## Quick start
 

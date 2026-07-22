@@ -1,5 +1,15 @@
 # Upgrading
 
+## To 1.7.3
+
+From **1.7.2** — demo-only change; no application config required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+If you run the FrankenPHP demo: Caddyfile selection is now driven by **`FRANKENPHP_MODE=worker|classic`** (default `worker`), not by `APP_ENV`. Copy the new key from `.env.example`, then recreate the container (`docker compose up -d` / `make -C demo up-symfony8`). See [`DEMO-FRANKENPHP.md`](DEMO-FRANKENPHP.md).
+
 ## To 1.7.2
 
 From **1.7.1** / **1.7.0** — backward compatible.

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.3] - 2026-07-22
+
+### Changed
+
+- Demo FrankenPHP selects **worker** vs **classic** via `FRANKENPHP_MODE` (`.env` / Compose), not `APP_ENV`. Default: `worker`. Docs: [`DEMO-FRANKENPHP.md`](DEMO-FRANKENPHP.md).
+
+[1.7.3]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.7.3
+
 ## [1.7.2] - 2026-07-22
 
 ### Changed

@@ -17,6 +17,7 @@ services:
     env_file:
       - .env
     environment:
+      - FRANKENPHP_MODE=${FRANKENPHP_MODE:-worker}
       - COMPOSER_ALLOW_SUPERUSER=1
       - SERVER_NAME=:80
       - DATABASE_URL=mysql://${MYSQL_USER:-demo}:${MYSQL_PASSWORD:-demo}@mysql:3306/${MYSQL_DATABASE:-auth_kit_demo}?serverVersion=8.0.32&charset=utf8mb4
