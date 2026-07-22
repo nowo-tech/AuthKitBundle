@@ -18,6 +18,7 @@ use function in_array;
 use function is_array;
 use function is_bool;
 use function is_string;
+use function trigger_deprecation;
 
 /**
  * Configuration tree for AuthKitBundle.
@@ -71,6 +72,19 @@ final class Configuration implements ConfigurationInterface
                     if (!isset($config['default_profile'])) {
                         $profileNames              = array_keys($config['profiles']);
                         $config['default_profile'] = $profileNames[0] ?? 'default';
+                    }
+
+                    $hasExplicitLocale = isset($config['locale']) && is_array($config['locale']);
+                    $hasLegacyLocale   = array_key_exists('locale_in_path', $config)
+                        || array_key_exists('default_locale', $config)
+                        || array_key_exists('enabled_locales', $config);
+
+                    if ($hasExplicitLocale && $hasLegacyLocale) {
+                        trigger_deprecation(
+                            'nowo-tech/auth-kit-bundle',
+                            '1.7.0',
+                            'Using "default_locale", "enabled_locales", and/or "locale_in_path" together with "locale" is deprecated; configure only the "locale" node. Nested "locale" values take precedence.',
+                        );
                     }
 
                     $legacyInPath = $config['locale_in_path'] ?? false;

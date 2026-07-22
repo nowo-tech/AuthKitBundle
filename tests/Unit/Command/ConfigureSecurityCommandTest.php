@@ -259,6 +259,26 @@ final class ConfigureSecurityCommandTest extends TestCase
         self::assertSame('^/(en|es)\/login', $security['security']['access_control'][0]['path']);
     }
 
+    public function testBothLocaleModeAddsLocalizedAndBareAccessControl(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', null, 'both'));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        $paths    = array_column($security['security']['access_control'], 'path');
+
+        self::assertContains('^/(en|es)\/login', $paths);
+        self::assertContains('^\/login', $paths);
+        self::assertContains('^/(en|es)\/register', $paths);
+        self::assertContains('^\/register', $paths);
+    }
+
     public function testSkipsDuplicateAccessControlRules(): void
     {
         $this->filesystem->dumpFile(
@@ -329,7 +349,7 @@ final class ConfigureSecurityCommandTest extends TestCase
     private function createCommand(
         string $passwordResetMode,
         ?string $loginSuccessRoute = null,
-        bool $localeInPath = false,
+        string|bool $localeInPath = false,
         ?string $projectDir = null,
         bool $rememberMeEnabled = false,
         string $magicLoginMode = 'disabled',

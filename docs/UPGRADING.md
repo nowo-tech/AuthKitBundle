@@ -1,5 +1,16 @@
 # Upgrading
 
+## To 1.7.2
+
+From **1.7.1** / **1.7.0** — backward compatible.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+If you still set flat `default_locale` / `enabled_locales` / `locale_in_path` **and** a nested `locale` block, Symfony will emit a deprecation; keep only `locale` (nested values already took precedence).
+
 ## To 1.7.1
 
 From **1.7.0** — demo-only patch; no application config changes required.
@@ -30,7 +41,7 @@ nowo_auth_kit:
         unlocalized: redirect    # serve | redirect (only for both)
 ```
 
-Legacy `default_locale`, `enabled_locales`, and `locale_in_path: true|false` still work (`true` ≡ `always`).
+Legacy `default_locale`, `enabled_locales`, and `locale_in_path: true|false` still work (`true` ≡ `always`). Mixing those flat keys with a nested `locale` node triggers a deprecation; prefer only `locale`.
 
 When using `in_path: both`, re-run:
 

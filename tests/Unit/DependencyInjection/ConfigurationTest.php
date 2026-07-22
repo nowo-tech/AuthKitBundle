@@ -115,6 +115,28 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['locale_in_path']);
     }
 
+    public function testLegacyKeysWithLocaleNodeStillProcess(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                ],
+            ],
+            'locale' => [
+                'in_path' => 'both',
+                'default' => 'es',
+            ],
+            'default_locale' => 'en',
+            'locale_in_path' => true,
+        ]]);
+
+        self::assertSame('both', $config['locale']['in_path']);
+        self::assertSame('es', $config['locale']['default']);
+        self::assertSame('es', $config['default_locale']);
+    }
+
     public function testRegistrationModeValues(): void
     {
         $processor = new Processor();
