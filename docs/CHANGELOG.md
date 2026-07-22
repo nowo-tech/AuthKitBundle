@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.4] - 2026-07-22
+
+### Fixed
+
+- `sync-releases` workflow: stop running on tag push (avoids duplicate GitHub Releases racing with `release.yml`), dedupe existing releases by `tag_name`, paginate the Releases API, and tolerate `422` on create/update.
+
+[1.7.4]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.7.4
+
 ## [1.7.3] - 2026-07-22
 
 ### Changed

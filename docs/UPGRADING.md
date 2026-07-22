@@ -1,5 +1,15 @@
 # Upgrading
 
+## To 1.7.4
+
+From **1.7.3** — CI/maintainers only; no application config required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No runtime or demo changes. GitHub release sync no longer runs on tag push (use **Create Release** for new tags; run **Sync Missing Releases** manually or wait for the daily schedule if a release is missing). See [`RELEASE.md`](RELEASE.md).
+
 ## To 1.7.3
 
 From **1.7.2** — demo-only change; no application config required.
