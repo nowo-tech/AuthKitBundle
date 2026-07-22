@@ -5,9 +5,8 @@ on:
   schedule:
     # Run daily at 2 AM UTC to check for missing releases
     - cron: '0 2 * * *'
-  push:
-    tags:
-      - 'v*'  # Also run when a new tag is pushed (as backup)
+  # Do not run on tag push: Create Release already handles new tags.
+  # Running both concurrently can create duplicate releases for the same tag_name.
 
 jobs:
   sync-releases:
@@ -40,24 +39,70 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const { data: releases } = await github.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
-            
-            const existingReleaseTags = releases.map(r => r.tag_name);
+            const releases = [];
+            for (let page = 1; ; page++) {
+              const { data } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100,
+                page
+              });
+              releases.push(...data);
+              if (data.length < 100) break;
+            }
+
+            // Prefer the release with a changelog body when duplicates exist.
+            const preferredByTag = {};
+            const duplicatesToDelete = [];
+
+            const score = (r) => {
+              const body = r.body || '';
+              let s = 0;
+              if (body.includes('## Changelog')) s += 2;
+              if (body.length > 80) s += 1;
+              return s;
+            };
+
+            for (const r of releases) {
+              const prev = preferredByTag[r.tag_name];
+              if (!prev) {
+                preferredByTag[r.tag_name] = r;
+                continue;
+              }
+              if (score(r) > score(prev) || (score(r) === score(prev) && r.id < prev.id)) {
+                duplicatesToDelete.push(prev);
+                preferredByTag[r.tag_name] = r;
+              } else {
+                duplicatesToDelete.push(r);
+              }
+            }
+
+            for (const dup of duplicatesToDelete) {
+              console.log('Deleting duplicate release id=' + dup.id + ' tag=' + dup.tag_name);
+              try {
+                await github.rest.repos.deleteRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: dup.id
+                });
+                console.log('✅ Deleted duplicate release ' + dup.id);
+              } catch (error) {
+                console.log('⚠️ Could not delete duplicate ' + dup.id + ': ' + error.message);
+              }
+            }
+
+            const existingReleaseTags = Object.keys(preferredByTag);
             const releasesMap = {};
-            releases.forEach(r => {
-              releasesMap[r.tag_name] = {
+            for (const [tag, r] of Object.entries(preferredByTag)) {
+              releasesMap[tag] = {
                 id: r.id,
                 body: r.body || '',
                 hasChangelog: (r.body || '').includes('## Changelog')
               };
-            });
-            
+            }
+
             console.log('Existing releases:', existingReleaseTags);
-            
+
             core.setOutput('tags', JSON.stringify(existingReleaseTags));
             core.setOutput('releases_map', JSON.stringify(releasesMap));
 
@@ -73,15 +118,15 @@ jobs:
             const tags = (process.env.TAGS || '').trim().split('\n').filter(t => t);
             const existingReleases = JSON.parse(process.env.EXISTING_RELEASES || '[]');
             const releasesMap = JSON.parse(process.env.RELEASES_MAP || '{}');
-            
+
             const missingTags = tags.filter(tag => !existingReleases.includes(tag));
             const outdatedTags = tags.filter(tag => {
               const release = releasesMap[tag];
               return release && !release.hasChangelog;
             });
-            
+
             const allTagsToProcess = [...new Set([...missingTags, ...outdatedTags])];
-            
+
             if (allTagsToProcess.length > 0) {
               console.log('Missing releases for tags:', missingTags);
               console.log('Outdated releases (missing changelog) for tags:', outdatedTags);
@@ -108,17 +153,17 @@ jobs:
             const missingTags = (process.env.MISSING_TAGS || '').trim().split('\n').filter(t => t);
             const outdatedTags = (process.env.OUTDATED_TAGS || '').trim().split('\n').filter(t => t);
             const releasesMap = JSON.parse(process.env.RELEASES_MAP || '{}');
-            
+
             const fs = require('fs');
             const { execSync } = require('child_process');
-            
+
             for (const tag of allTags) {
               const isMissing = missingTags.includes(tag);
               const isOutdated = outdatedTags.includes(tag);
-              
+
               // Extract version from tag (remove 'v' prefix)
               const version = tag.replace(/^v/, '');
-              
+
               // Get tag message using git
               let tagMessage = '';
               try {
@@ -127,11 +172,11 @@ jobs:
               } catch (e) {
                 tagMessage = 'Release ' + tag;
               }
-              
+
               if (!tagMessage) {
                 tagMessage = 'Release ' + tag;
               }
-              
+
               // Get changelog entry
               let changelogEntry = '';
               if (fs.existsSync('docs/CHANGELOG.md')) {
@@ -144,16 +189,16 @@ jobs:
                   changelogEntry = match[1].trim();
                 }
               }
-              
+
               // Build release body
               let releaseBody = tagMessage;
               if (changelogEntry) {
                 releaseBody = tagMessage + '\n\n## Changelog\n\n' + changelogEntry;
               }
-              
+
               // Determine if prerelease
               const isPrerelease = tag.includes('-alpha') || tag.includes('-beta') || tag.includes('-rc');
-              
+
               if (isMissing) {
                 // Create new release (check if it exists first to avoid errors)
                 try {
@@ -170,7 +215,7 @@ jobs:
                   });
                   console.log('✅ Created release for ' + tag);
                 } catch (error) {
-                  if (error.status === 422 && error.response?.data?.errors?.[0]?.code === 'already_exists') {
+                  if (error.status === 422) {
                     console.log('⚠️ Release for ' + tag + ' already exists, skipping creation');
                   } else {
                     throw error;
@@ -180,14 +225,22 @@ jobs:
                 // Update existing release
                 const release = releasesMap[tag];
                 console.log('Updating release for tag: ' + tag + ' (release ID: ' + release.id + ')');
-                await github.rest.repos.updateRelease({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  release_id: release.id,
-                  body: releaseBody,
-                  prerelease: isPrerelease
-                });
-                console.log('✅ Updated release for ' + tag + ' with changelog');
+                try {
+                  await github.rest.repos.updateRelease({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    release_id: release.id,
+                    body: releaseBody,
+                    prerelease: isPrerelease
+                  });
+                  console.log('✅ Updated release for ' + tag + ' with changelog');
+                } catch (error) {
+                  if (error.status === 422) {
+                    console.log('⚠️ Could not update release for ' + tag + ' (422): ' + error.message + '; skipping');
+                  } else {
+                    throw error;
+                  }
+                }
               }
             }
 
@@ -203,7 +256,7 @@ jobs:
             const foundMissing = process.env.FOUND_MISSING === 'true';
             const missingTags = foundMissing ? (process.env.MISSING_TAGS || '').trim().split('\n').filter(t => t) : [];
             const outdatedTags = foundMissing ? (process.env.OUTDATED_TAGS || '').trim().split('\n').filter(t => t) : [];
-            
+
             let summary = '';
             if (foundMissing) {
               let parts = [];
@@ -217,10 +270,9 @@ jobs:
             } else {
               summary = '## ✅ All tags have releases with changelog\n\nNo missing or outdated releases found. Everything is in sync! 🎉';
             }
-            
+
             core.summary.addRaw(summary);
             await core.summary.write();
 
 # Maintainer: Héctor Franco Aceituno (@HecFranco)
 # Organization: nowo-tech (https://github.com/nowo-tech)
-
