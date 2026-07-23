@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Form;
 
+use Nowo\PasswordStrengthBundle\Validator\PasswordStrength;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -43,7 +44,7 @@ final class PasswordFieldConstraintResolver
     /**
      * @param array<string, mixed> $options
      */
-    private function createStrengthConstraint(array $options): \Nowo\PasswordStrengthBundle\Validator\PasswordStrength
+    private function createStrengthConstraint(array $options): PasswordStrength
     {
         $constraint             = new (self::STRENGTH_CONSTRAINT)();
         $constraint->policyMode = $options['policyMode'] === 'conditions' ? 'conditions' : 'level';

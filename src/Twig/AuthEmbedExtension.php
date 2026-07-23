@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Twig;
 
+use Nowo\AuthKitBundle\Embed\AuthEmbedContext;
 use Nowo\AuthKitBundle\Embed\AuthEmbedContextFactory;
 use Twig\Attribute\AsTwigFunction;
 use Twig\Environment;
@@ -27,7 +28,7 @@ final class AuthEmbedExtension
     {
         $context = $this->contextFactory->create($options);
 
-        if (!$context instanceof \Nowo\AuthKitBundle\Embed\AuthEmbedContext) {
+        if (!$context instanceof AuthEmbedContext) {
             return '';
         }
 

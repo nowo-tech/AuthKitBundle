@@ -1,5 +1,15 @@
 # Upgrading
 
+## To 1.7.5
+
+From **1.7.4** — maintainer / demo / CI only; no application config required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No runtime API changes. Package QA now includes FrankenPHP PHPStan rulesets; the README shows the worker-friendly banner. Demo Makefiles expose `restart` / `ensure-up` / `update-deps` / `release-check`; root `make down-dev` stops the bundle container without removing volumes. See [`DEMO-FRANKENPHP.md`](DEMO-FRANKENPHP.md).
+
 ## To 1.7.4
 
 From **1.7.3** — CI/maintainers only; no application config required.

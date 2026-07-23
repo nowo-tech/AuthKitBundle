@@ -1,3 +1,8 @@
+includes:
+    - vendor/nowo-tech/phpstan-frankenphp/extension.neon
+    - vendor/nowo-tech/phpstan-frankenphp/ruleset-classic.neon
+    - vendor/nowo-tech/phpstan-frankenphp/ruleset-worker.neon
+
 parameters:
     level: 8
     paths:

@@ -23,6 +23,8 @@ use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Twig\Environment;
 
 final class ResetPasswordCodeControllerCoverageTest extends TestCase
@@ -71,7 +73,7 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
                 $tokenManager,
                 $profileRegistry,
             ),
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
             ProfileRegistryFactory::requestResolver(TestUser::class, [
                 'password_reset' => ['mode' => 'enabled'],
@@ -123,7 +125,7 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
             new PasswordResetGate($profileRegistry),
             $tokenManager,
             new PasswordResetCompleter($entityManager, $hasher, new PropertyAccessor(), $tokenManager, $profileRegistry),
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
             ProfileRegistryFactory::requestResolver(TestUser::class, [
                 'password_reset' => ['mode' => 'enabled'],
@@ -138,8 +140,8 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
 
     public function testRedirectsWhenAuthenticated(): void
     {
-        $storage = new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage();
-        $storage->setToken(new \Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken(new TestUser(), 'main', ['ROLE_USER']));
+        $storage = new TokenStorage();
+        $storage->setToken(new UsernamePasswordToken(new TestUser(), 'main', ['ROLE_USER']));
 
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->willReturn('/home');
@@ -196,7 +198,7 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
                     'password_reset' => ['mode' => 'enabled'],
                 ]),
             ),
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
             ProfileRegistryFactory::requestResolver(TestUser::class, [
                 'password_reset' => ['mode' => 'disabled'],

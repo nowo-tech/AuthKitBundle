@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 final class NowoAuthKitBundleTest extends TestCase
@@ -23,7 +24,7 @@ final class NowoAuthKitBundleTest extends TestCase
         (new NowoAuthKitBundle())->build($container);
 
         $passes = $container->getCompilerPassConfig()->getPasses();
-        self::assertNotEmpty(array_filter($passes, static fn (\Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface $pass): bool => $pass instanceof TwigPathsPass));
+        self::assertNotEmpty(array_filter($passes, static fn (CompilerPassInterface $pass): bool => $pass instanceof TwigPathsPass));
     }
 
     public function testGetContainerExtension(): void

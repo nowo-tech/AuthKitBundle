@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
@@ -23,6 +24,7 @@ use Symfony\Component\Form\Forms;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Validator\Validation;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Twig\Environment;
@@ -73,7 +75,7 @@ final class ResetPasswordRequestControllerTest extends TestCase
         PasswordResetGate $gate,
         AuthKitUrlGenerator $urlGenerator,
         ?Environment $twig = null,
-        ?\Nowo\AuthKitBundle\Profile\ProfileRegistry $profileRegistry = null,
+        ?ProfileRegistry $profileRegistry = null,
     ): ResetPasswordRequestController {
         $profileRegistry ??= ProfileRegistryFactory::single(TestUser::class, [
             'password_reset' => ['mode' => 'enabled', 'delivery' => 'link'],
@@ -102,7 +104,7 @@ final class ResetPasswordRequestControllerTest extends TestCase
                 ->getFormFactory(),
             $gate,
             $handler,
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             $urlGenerator,
             ProfileRegistryFactory::requestResolver(TestUser::class, [
                 'password_reset' => ['mode' => 'enabled'],

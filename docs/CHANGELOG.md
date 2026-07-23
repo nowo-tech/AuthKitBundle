@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.5] - 2026-07-23
+
+### Added
+
+- PHPStan FrankenPHP rules (`nowo-tech/phpstan-frankenphp` in require-dev; classic + worker rulesets) — REQ-CS-005.
+- FrankenPHP Friendly Worker Mode banner in README — REQ-DOCS-017.
+- Root Makefile `down-dev` target — REQ-MAKE-007.
+- Demo Makefile targets (`restart`, `ensure-up`, `logs`, `test-coverage`, `release-check`, `update-deps`) and aggregator aliases — REQ-MAKE-003 / REQ-MAKE-008.
+
+### Changed
+
+- Demo `.gitignore` ignores `/.pnpm-store` (REQ-GITIGNORE-003).
+
+[1.7.5]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.7.5
+
 ## [1.7.4] - 2026-07-22
 
 ### Fixed

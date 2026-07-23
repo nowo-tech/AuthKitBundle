@@ -24,7 +24,9 @@ use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Twig\Environment;
 
 final class ResetPasswordControllerCoverageTest extends TestCase
 {
@@ -32,7 +34,7 @@ final class ResetPasswordControllerCoverageTest extends TestCase
 
     public function testRedirectsAuthenticatedUser(): void
     {
-        $storage = new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage();
+        $storage = new TokenStorage();
         $storage->setToken(new UsernamePasswordToken(new TestUser(), 'main', ['ROLE_USER']));
 
         $inner = $this->createMock(UrlGeneratorInterface::class);
@@ -58,7 +60,7 @@ final class ResetPasswordControllerCoverageTest extends TestCase
         $controller = $this->buildController(
             $this->createMock(PasswordResetTokenManagerInterface::class),
             AuthKitTestUrlGenerator::fromMock($inner),
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             null,
             new PasswordResetGate(ProfileRegistryFactory::single(TestUser::class, [
                 'password_reset' => ['mode' => 'disabled'],
@@ -81,7 +83,7 @@ final class ResetPasswordControllerCoverageTest extends TestCase
         $request = Request::create('/reset-password/reset/bad');
         $request->setSession(new Session(new MockArraySessionStorage()));
 
-        $controller = $this->buildController($tokenManager, AuthKitTestUrlGenerator::fromMock($inner), new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(), null);
+        $controller = $this->buildController($tokenManager, AuthKitTestUrlGenerator::fromMock($inner), new TokenStorage(), null);
 
         $controller->reset($request, 'bad');
 
@@ -98,7 +100,7 @@ final class ResetPasswordControllerCoverageTest extends TestCase
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->with('nowo_auth_kit_reset_password_request')->willReturn('/reset-password');
 
-        $controller = $this->buildController($tokenManager, AuthKitTestUrlGenerator::fromMock($inner), new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(), null);
+        $controller = $this->buildController($tokenManager, AuthKitTestUrlGenerator::fromMock($inner), new TokenStorage(), null);
 
         $response = $controller->reset(new Request(), 'bad');
 
@@ -139,12 +141,12 @@ final class ResetPasswordControllerCoverageTest extends TestCase
         ]);
 
         $controller = new ResetPasswordController(
-            $this->createMock(\Twig\Environment::class),
+            $this->createMock(Environment::class),
             $formFactory,
             new PasswordResetGate($profileRegistry),
             $tokenManager,
             new PasswordResetCompleter($entityManager, $hasher, new PropertyAccessor(), $tokenManager, $profileRegistry),
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
             ProfileRegistryFactory::requestResolver(TestUser::class, [
                 'password_reset' => ['mode' => 'enabled'],
@@ -160,7 +162,7 @@ final class ResetPasswordControllerCoverageTest extends TestCase
     private function buildController(
         PasswordResetTokenManagerInterface $tokenManager,
         AuthKitUrlGenerator $urlGenerator,
-        \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage $tokenStorage,
+        TokenStorage $tokenStorage,
         ?string $successRoute,
         ?PasswordResetGate $gate = null,
     ): ResetPasswordController {
@@ -170,7 +172,7 @@ final class ResetPasswordControllerCoverageTest extends TestCase
         ]));
 
         return new ResetPasswordController(
-            $this->createMock(\Twig\Environment::class),
+            $this->createMock(Environment::class),
             $this->createMock(FormFactoryInterface::class),
             $gate ?? new PasswordResetGate($profileRegistry),
             $tokenManager,

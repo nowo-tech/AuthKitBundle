@@ -14,6 +14,7 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 use Twig\Environment;
 
@@ -39,7 +40,7 @@ final class LoginController
     {
         $profile = $this->profileResolver->resolve($request);
 
-        if ($this->tokenStorage->getToken()?->getUser() instanceof \Symfony\Component\Security\Core\User\UserInterface) {
+        if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
             $target = $profile->loginSuccessRoute ?? 'homepage';
 
             return new Response('', Response::HTTP_FOUND, [

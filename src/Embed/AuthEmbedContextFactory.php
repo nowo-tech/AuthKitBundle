@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
@@ -86,7 +87,7 @@ final class AuthEmbedContextFactory
             $activePanel = 'register';
         }
 
-        if ($showLogin && $this->authenticationUtils->getLastAuthenticationError() instanceof \Symfony\Component\Security\Core\Exception\AuthenticationException) {
+        if ($showLogin && $this->authenticationUtils->getLastAuthenticationError() instanceof AuthenticationException) {
             $activePanel = 'login';
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Controller\RegisterController;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -17,7 +18,9 @@ use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\Forms;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
@@ -25,6 +28,7 @@ use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Http\Event\InteractiveLoginEvent;
 use Symfony\Component\Validator\Validation;
@@ -38,7 +42,7 @@ final class RegisterControllerTest extends TestCase
         $user = new TestUser();
         $user->setEmail('logged@example.com');
 
-        $tokenStorage = new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage();
+        $tokenStorage = new TokenStorage();
         $tokenStorage->setToken(new UsernamePasswordToken($user, 'main', $user->getRoles()));
 
         $inner = $this->createMock(UrlGeneratorInterface::class);
@@ -128,7 +132,7 @@ final class RegisterControllerTest extends TestCase
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->willReturn('/home');
 
-        $form = $this->createMock(\Symfony\Component\Form\FormInterface::class);
+        $form = $this->createMock(FormInterface::class);
         $form->method('handleRequest');
         $form->method('isSubmitted')->willReturn(true);
         $form->method('isValid')->willReturn(true);
@@ -136,7 +140,7 @@ final class RegisterControllerTest extends TestCase
             'email'    => 'new@example.com',
             'password' => 'secret12',
         ]);
-        $form->method('createView')->willReturn($this->createMock(\Symfony\Component\Form\FormView::class));
+        $form->method('createView')->willReturn($this->createMock(FormView::class));
 
         $formFactory = $this->createMock(FormFactoryInterface::class);
         $formFactory->method('create')->willReturn($form);
@@ -146,7 +150,7 @@ final class RegisterControllerTest extends TestCase
             $formFactory,
             $gate,
             $registrar,
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
             $dispatcher,
             ProfileRegistryFactory::requestResolver(TestUser::class, ['login_success_route' => 'demo_home']),
@@ -163,7 +167,7 @@ final class RegisterControllerTest extends TestCase
     private function registrationGateAllowed(): RegistrationGate
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $repository    = $this->createMock(\Doctrine\ORM\EntityRepository::class);
+        $repository    = $this->createMock(EntityRepository::class);
         $repository->method('count')->willReturn(0);
         $entityManager->method('getRepository')->willReturn($repository);
 
@@ -200,7 +204,7 @@ final class RegisterControllerTest extends TestCase
                 $this->createMock(UserPasswordHasherInterface::class),
                 new PropertyAccessor(),
             ),
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             $urlGenerator ?? AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
             $this->createMock(EventDispatcherInterface::class),
             ProfileRegistryFactory::requestResolver(TestUser::class),

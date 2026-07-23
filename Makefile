@@ -1,7 +1,7 @@
 COMPOSE = docker compose
 SERVICE_PHP = php
 
-.PHONY: help ensure-up up down build shell install test test-coverage test-coverage-100 \
+.PHONY: help ensure-up up down down-dev build shell install test test-coverage test-coverage-100 \
 	check-no-cursor-coauthor strip-cursor-coauthor-from-history \
 	coverage-check cs-check cs-fix rector rector-dry phpstan qa release-check \
 	release-check-demos composer-sync clean update validate validate-translations setup-hooks
@@ -9,11 +9,12 @@ SERVICE_PHP = php
 help:
 	@echo "Auth Kit Bundle - Development Commands"
 	@echo ""
-	@echo "  up down build shell install"
+	@echo "  up down down-dev build shell install"
 	@echo "  test test-coverage test-coverage-100 coverage-check"
 	@echo "  cs-check cs-fix rector rector-dry phpstan qa"
 	@echo "  validate-translations release-check release-check-demos composer-sync"
 	@echo "  setup-hooks clean update validate"
+	@echo "  down-dev      Stop root container (non-destructive; --remove-orphans)"
 	@echo ""
 	@echo "Demo: make -C demo up-symfony8"
 
@@ -27,6 +28,10 @@ up: ensure-up
 
 down:
 	@$(COMPOSE) down
+
+# REQ-MAKE-007: non-destructive stop for the root PHP container
+down-dev:
+	@$(COMPOSE) down --remove-orphans
 
 build:
 	@$(COMPOSE) build --no-cache

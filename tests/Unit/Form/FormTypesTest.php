@@ -18,6 +18,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType as SymfonyPasswordType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
@@ -204,7 +205,7 @@ final class FormTypesTest extends TestCase
 
         $field = $factory->create(RegistrationFormType::class)->get('fullName');
 
-        self::assertSame(\Symfony\Component\Form\Extension\Core\Type\TextType::class, get_class($field->getConfig()->getType()->getInnerType()));
+        self::assertSame(TextType::class, get_class($field->getConfig()->getType()->getInnerType()));
     }
 
     public function testRegistrationFormConfigureOptions(): void

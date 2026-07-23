@@ -27,6 +27,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Twig\Environment;
 
@@ -85,7 +87,7 @@ final class ResetPasswordRequestControllerCoverageTest extends TestCase
             $formFactory,
             new PasswordResetGate($profileRegistry),
             $handler,
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($inner),
             ProfileRegistryFactory::requestResolver(TestUser::class, [
                 'password_reset' => ['mode' => 'enabled'],
@@ -99,8 +101,8 @@ final class ResetPasswordRequestControllerCoverageTest extends TestCase
 
     public function testRedirectsWhenAuthenticated(): void
     {
-        $storage = new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage();
-        $storage->setToken(new \Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken(new TestUser(), 'main', ['ROLE_USER']));
+        $storage = new TokenStorage();
+        $storage->setToken(new UsernamePasswordToken(new TestUser(), 'main', ['ROLE_USER']));
 
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->with('demo_home')->willReturn('/home');

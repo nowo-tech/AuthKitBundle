@@ -23,6 +23,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Validator\Validation;
 use Twig\Environment;
 
@@ -92,7 +93,7 @@ final class ResetPasswordControllerTest extends TestCase
             new PasswordResetGate($profileRegistry),
             $tokenManager,
             $completer,
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             $urlGenerator,
             ProfileRegistryFactory::requestResolver(TestUser::class, [
                 'password_reset' => ['mode' => 'enabled'],

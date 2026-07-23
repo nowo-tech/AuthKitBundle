@@ -9,6 +9,10 @@
 # Dependencies
 /vendor/
 
+# pnpm local store (REQ-GITIGNORE-003)
+/.pnpm-store
+
+
 # Symfony runtime / build
 /var/
 /public/bundles/

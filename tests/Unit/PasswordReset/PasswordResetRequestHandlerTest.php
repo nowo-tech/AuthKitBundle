@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\PasswordReset\NullPasswordResetNotifier;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotificationContext;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestedEvent;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
@@ -65,7 +66,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
         $tokenManager->method('createForUser')->willReturn($result);
 
-        $notifier = new class implements \Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface {
+        $notifier = new class implements PasswordResetNotifierInterface {
             public bool $called = false;
 
             public function notify(
@@ -120,7 +121,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
         $tokenManager->method('createForUser')->willReturn($result);
 
-        $notifier = new class implements \Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface {
+        $notifier = new class implements PasswordResetNotifierInterface {
             public ?PasswordResetNotificationContext $context = null;
 
             public function notify(PasswordResetTokenResult $token, PasswordResetNotificationContext $context): void
@@ -166,7 +167,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
         $tokenManager->method('createForUser')->willReturn($result);
 
-        $notifier = new class implements \Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface {
+        $notifier = new class implements PasswordResetNotifierInterface {
             public ?PasswordResetNotificationContext $context = null;
 
             public function notify(PasswordResetTokenResult $token, PasswordResetNotificationContext $context): void
@@ -212,7 +213,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
         $tokenManager->method('createForUser')->willReturn($result);
 
-        $notifier = new class implements \Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface {
+        $notifier = new class implements PasswordResetNotifierInterface {
             public ?PasswordResetNotificationContext $context = null;
 
             public function notify(PasswordResetTokenResult $token, PasswordResetNotificationContext $context): void

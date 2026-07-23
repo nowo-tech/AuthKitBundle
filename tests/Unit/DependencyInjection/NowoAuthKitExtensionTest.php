@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
 use InvalidArgumentException;
+use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
+use Nowo\AuthKitBundle\Security\RegistrationGate;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
@@ -40,8 +42,8 @@ final class NowoAuthKitExtensionTest extends TestCase
         $embed = $this->container->getParameter('nowo_auth_kit.embed');
         self::assertIsArray($embed);
         self::assertSame('disabled', $embed['mode']);
-        self::assertTrue($this->container->hasDefinition(\Nowo\AuthKitBundle\Controller\LoginController::class));
-        self::assertTrue($this->container->hasDefinition(\Nowo\AuthKitBundle\Security\RegistrationGate::class));
+        self::assertTrue($this->container->hasDefinition(LoginController::class));
+        self::assertTrue($this->container->hasDefinition(RegistrationGate::class));
     }
 
     public function testLoadRejectsUnknownDefaultProfile(): void

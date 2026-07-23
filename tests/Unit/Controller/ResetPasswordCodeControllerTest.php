@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Validator\Validation;
 use Twig\Environment;
 
@@ -58,7 +59,7 @@ final class ResetPasswordCodeControllerTest extends TestCase
             new PasswordResetGate($profileRegistry),
             $tokenManager,
             $completer,
-            new \Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage(),
+            new TokenStorage(),
             AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
             ProfileRegistryFactory::requestResolver(TestUser::class, [
                 'password_reset' => ['mode' => 'enabled'],

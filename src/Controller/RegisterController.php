@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Event\InteractiveLoginEvent;
 use Symfony\Component\Security\Http\SecurityEvents;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -40,7 +41,7 @@ final class RegisterController
     {
         $profile = $this->profileResolver->resolve($request);
 
-        if ($this->tokenStorage->getToken()?->getUser() instanceof \Symfony\Component\Security\Core\User\UserInterface) {
+        if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
             $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
             return new Response('', Response::HTTP_FOUND, [

@@ -1,14 +1,19 @@
-.PHONY: help up-symfony8 down-symfony8 install-symfony8 database-symfony8 shell-symfony8 test-symfony8 \
-	release-check update-bundle-symfony8
+DEMOS := symfony8
+
+.PHONY: help up down update-bundle test test-coverage release-check \
+	up-symfony8 down-symfony8 install-symfony8 database-symfony8 shell-symfony8 \
+	test-symfony8 test-coverage-symfony8 update-bundle-symfony8
 
 help:
 	@echo "Auth Kit Bundle — Demos"
 	@echo ""
 	@echo "Symfony 8.1 (port 8010):"
-	@echo "  up-symfony8 down-symfony8 install-symfony8 database-symfony8 shell-symfony8 test-symfony8"
+	@echo "  up-symfony8 down-symfony8 install-symfony8 database-symfony8 shell-symfony8"
+	@echo "  test-symfony8 test-coverage-symfony8 update-bundle-symfony8"
 	@echo ""
+	@echo "Aliases: up down update-bundle test test-coverage"
 	@echo "  release-check          Verify demo"
-	@echo "  update-bundle-symfony8"
+	@echo "  update-deps-all        composer update in all demos (REQ-MAKE-008)"
 
 up-symfony8:
 	@$(MAKE) -C symfony8 up
@@ -28,10 +33,29 @@ shell-symfony8:
 test-symfony8:
 	@$(MAKE) -C symfony8 test
 
+test-coverage-symfony8:
+	@$(MAKE) -C symfony8 test-coverage
+
 update-bundle-symfony8:
 	@$(MAKE) -C symfony8 update-bundle
 
+up:
+	@$(MAKE) -C symfony8 up
+
+down:
+	@$(MAKE) -C symfony8 down
+
+update-bundle:
+	@$(MAKE) -C symfony8 update-bundle
+
+test:
+	@$(MAKE) -C symfony8 test
+
+test-coverage:
+	@$(MAKE) -C symfony8 test-coverage
+
 release-check:
-	@$(MAKE) up-symfony8
-	@$(MAKE) update-bundle-symfony8
-	@curl -sf http://localhost:8010/en/login >/dev/null && echo "Symfony 8 demo healthcheck OK" || (echo "Symfony 8 demo healthcheck failed" && exit 1)
+	@$(MAKE) -C symfony8 release-check
+
+BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+include $(BUNDLE_ROOT)/../.scripts/Makefile.demo-aggregate-update-deps.mk

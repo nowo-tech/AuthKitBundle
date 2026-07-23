@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Profile;
 
+use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\Profile\UnknownProfileException;
 use Nowo\AuthKitBundle\Tests\Stub\ChildTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\ParentTestUser;
@@ -11,6 +12,7 @@ use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use stdClass;
+use Symfony\Component\Config\Definition\Processor;
 
 final class ProfileRegistryTest extends TestCase
 {
@@ -90,8 +92,8 @@ final class ProfileRegistryTest extends TestCase
 
     public function testLegacyFlatConfigurationIsNormalizedViaExtension(): void
     {
-        $config = (new \Symfony\Component\Config\Definition\Processor())->processConfiguration(
-            new \Nowo\AuthKitBundle\DependencyInjection\Configuration(),
+        $config = (new Processor())->processConfiguration(
+            new Configuration(),
             [[
                 'user_class'        => TestUser::class,
                 'registration_mode' => 'always',
