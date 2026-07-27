@@ -2,9 +2,10 @@
 
 ## Preconditions
 
-1. `make release-check` passes locally.
-2. [Security release checklist (12.4.1)](SECURITY.md#release-security-checklist-1241) completed.
-3. [CHANGELOG.md](CHANGELOG.md) updated with the target version section.
+1. `make release-check` passes locally (`ensure-up` → `check-no-cursor-coauthor` → `check-open-prs` → QA → demos).
+2. [Security release checklist (12.4.1)](SECURITY.md#release-security-checklist-1241) completed, including [REQ-SEC-004](SECURITY.md#ai-security-audit) Pass.
+3. Open PR queue clear: `make check-open-prs` (REQ-REL-003).
+4. [CHANGELOG.md](CHANGELOG.md) updated with the target version section.
 
 ## Steps
 

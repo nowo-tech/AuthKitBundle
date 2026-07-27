@@ -83,7 +83,12 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
 
         $codeHash = hash('sha256', $code);
 
-        if ($stored !== $codeHash && !str_ends_with($stored, '|' . $codeHash)) {
+        if (str_contains($stored, '|')) {
+            $parts = explode('|', $stored, 2);
+            if (!hash_equals($parts[1], $codeHash)) {
+                return null;
+            }
+        } elseif (!hash_equals($stored, $codeHash)) {
             return null;
         }
 

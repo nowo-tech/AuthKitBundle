@@ -256,6 +256,33 @@ final class PasswordResetTokenManagerTest extends TestCase
         self::assertSame($user, $manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
     }
 
+    public function testResolveCodeWithBothModeRejectsWrongCode(): void
+    {
+        $user = new TestUser();
+        $user->setEmail('user@example.com');
+        $user->setPasswordResetToken(hash('sha256', 'link') . '|' . hash('sha256', '123456'));
+        $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->with(['email' => 'user@example.com'])->willReturn($user);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => 'both'],
+        ]);
+
+        $manager = new PasswordResetTokenManager(
+            $entityManager,
+            new PropertyAccessor(),
+            new PasswordResetUserResolver($entityManager, $registry),
+            $registry,
+        );
+
+        self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '000000'));
+    }
+
     public function testCreateForUserThrowsWhenProfileMissing(): void
     {
         $registry = ProfileRegistryFactory::single(TestUser::class);

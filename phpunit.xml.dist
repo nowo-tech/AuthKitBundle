@@ -18,4 +18,9 @@
             <directory>src/Resources</directory>
         </exclude>
     </source>
+
+    <php>
+        <!-- REQ-SF-005: fail on direct deprecations from this package -->
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[direct]=0"/>
+    </php>
 </phpunit>

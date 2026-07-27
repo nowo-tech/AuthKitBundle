@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-07-27
+
+### Added
+
+- `SYMFONY_DEPRECATIONS_HELPER=max[direct]=0` in `phpunit.xml.dist` (REQ-SF-005).
+- `make check-open-prs` / `.scripts/check-open-prs.sh` wired into `release-check` (REQ-REL-003).
+- AI security audit record (Pass conditional) in [`SECURITY.md`](SECURITY.md) (REQ-SEC-004).
+
+### Changed
+
+- Registration auto-login migrates the session ID (session fixation hardening).
+- Password-reset OTP verification uses `hash_equals` for stored hashes.
+- `configure-security` and demo firewall enable logout CSRF; embed logout link passes `_csrf_token`.
+- GitHub About Description / Website / Topics filled (REQ-DOCS-018).
+- `require-dev` / suggest: `nowo-tech/password-strength-bundle` ^2.0.
+
+[1.7.6]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.7.6
+
 ## [1.7.5] - 2026-07-23
 
 ### Added

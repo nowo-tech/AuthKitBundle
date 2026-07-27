@@ -2,7 +2,7 @@ COMPOSE = docker compose
 SERVICE_PHP = php
 
 .PHONY: help ensure-up up down down-dev build shell install test test-coverage test-coverage-100 \
-	check-no-cursor-coauthor strip-cursor-coauthor-from-history \
+	check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history \
 	coverage-check cs-check cs-fix rector rector-dry phpstan qa release-check \
 	release-check-demos composer-sync clean update validate validate-translations setup-hooks
 
@@ -15,6 +15,7 @@ help:
 	@echo "  validate-translations release-check release-check-demos composer-sync"
 	@echo "  setup-hooks clean update validate"
 	@echo "  down-dev      Stop root container (non-destructive; --remove-orphans)"
+	@echo "  check-open-prs Fail if unresolved open GitHub PRs remain (REQ-REL-003)"
 	@echo ""
 	@echo "Demo: make -C demo up-symfony8"
 
@@ -79,7 +80,7 @@ composer-sync: ensure-up
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer validate --strict
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer update --lock --no-interaction
 
-release-check: check-no-cursor-coauthor ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-100 validate-translations release-check-demos
+release-check: check-no-cursor-coauthor check-open-prs ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-100 validate-translations release-check-demos
 
 release-check-demos:
 	@$(MAKE) -C demo release-check
@@ -87,6 +88,10 @@ release-check-demos:
 check-no-cursor-coauthor:
 	@chmod +x .scripts/check-no-cursor-coauthor.sh
 	@./.scripts/check-no-cursor-coauthor.sh HEAD
+
+check-open-prs:
+	@chmod +x .scripts/check-open-prs.sh
+	@bash .scripts/check-open-prs.sh
 
 setup-hooks:
 	@chmod +x .githooks/pre-commit 2>/dev/null || true

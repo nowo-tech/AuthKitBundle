@@ -28,6 +28,7 @@ security:
                 path: nowo_auth_kit_logout
                 target: nowo_auth_kit_login
                 invalidate_session: true
+                enable_csrf: true
             login_link:
                 check_route: nowo_auth_kit_magic_login_check
                 signature_properties: [email]

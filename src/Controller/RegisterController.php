@@ -68,9 +68,12 @@ final class RegisterController
             $data = $form->getData();
             $user = $this->userRegistrar->register($data, $profile->name);
 
+            $session = $request->getSession();
+            $session->migrate(true);
+
             $token = new UsernamePasswordToken($user, $profile->firewall, $user->getRoles());
             $this->tokenStorage->setToken($token);
-            $request->getSession()->set('_security_' . $profile->firewall, serialize($token));
+            $session->set('_security_' . $profile->firewall, serialize($token));
 
             $loginEvent = new InteractiveLoginEvent($request, $token);
             $this->eventDispatcher->dispatch($loginEvent, SecurityEvents::INTERACTIVE_LOGIN);

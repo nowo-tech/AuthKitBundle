@@ -1,5 +1,18 @@
 # Upgrading
 
+## To 1.7.6
+
+From **1.7.5** — backward compatible for apps; re-run security config if you use the CLI helper.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+**Logout CSRF:** `nowo:auth-kit:configure-security` now writes `logout.enable_csrf: true`. Re-run with `--force` if your firewall was generated earlier, or add `enable_csrf: true` under `logout` manually. If you override the embed authenticated partial, include `_csrf_token` / `csrf_token('logout')` on the logout URL.
+
+**Optional:** bump `nowo-tech/password-strength-bundle` to ^2.0 when integrating strength UI (Twig namespace / translation domain rename — see that package’s UPGRADING).
+
 ## To 1.7.5
 
 From **1.7.4** — maintainer / demo / CI only; no application config required.

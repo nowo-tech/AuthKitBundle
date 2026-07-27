@@ -4,7 +4,7 @@
     </button>
     <ul class="dropdown-menu dropdown-menu-end">
         <li>
-            <a class="dropdown-item" href="{{ path(logout_route, auth_kit_route_params()) }}">{{ 'embed.authenticated.logout'|trans({}, 'NowoAuthKitBundle') }}</a>
+            <a class="dropdown-item" href="{{ path(logout_route, auth_kit_route_params()|merge({_csrf_token: csrf_token('logout')})) }}">{{ 'embed.authenticated.logout'|trans({}, 'NowoAuthKitBundle') }}</a>
         </li>
     </ul>
 </div>

@@ -116,6 +116,7 @@ final class ConfigureSecurityCommand extends Command
                 'path'               => $logoutRoute,
                 'target'             => $this->loginSuccessRoute ?? $loginRoute,
                 'invalidate_session' => true,
+                'enable_csrf'        => true,
             ];
 
             $firewall['provider'] = 'app_user_provider';
