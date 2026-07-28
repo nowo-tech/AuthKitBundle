@@ -27,6 +27,8 @@ use Symfony\Component\Security\Http\LoginLink\LoginLinkDetails;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkHandlerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
+use function array_key_exists;
+
 final class MagicLoginRequestHandlerTest extends TestCase
 {
     public function testDoesNothingWhenUserMissing(): void
@@ -146,7 +148,13 @@ final class MagicLoginRequestHandlerTest extends TestCase
     public function testLoggingNotifierLogs(): void
     {
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::once())->method('info');
+        $logger->expects(self::once())->method('info')->with(
+            'Magic login link requested',
+            self::callback(static function (array $context): bool {
+                return !array_key_exists('login_url', $context)
+                    && ($context['action'] ?? null) === 'magic_login_notify';
+            }),
+        );
 
         (new LoggingMagicLoginNotifier($logger))->notify(new MagicLoginNotificationContext(
             'a@b.c',

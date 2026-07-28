@@ -2,138 +2,164 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-07-07
+**Last audited**: 2026-07-28  
 
 ## Symfony config
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Resources/config/services.yaml` | Service wiring | FR-DI-001 |
-| `Resources/config/routing.yaml` | Route imports | FR-ROUT-001 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Resources/config/routing.yaml` | production | FR-DI-001 | Mapped |
+| `Resources/config/services.yaml` | production | FR-DI-001 | Mapped |
 
 ## Bundle & DI
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `NowoAuthKitBundle.php` | Bundle entry | FR-BUNDLE-001 |
-| `DependencyInjection/Configuration.php` | Config tree | FR-CFG-001 |
-| `DependencyInjection/NowoAuthKitExtension.php` | DI extension | FR-CFG-002 |
-| `DependencyInjection/Compiler/TwigPathsPass.php` | Twig namespace | FR-TWIG-001 |
-| `Config/FieldConfigNormalizer.php` | Field config normalizer | FR-CFG-002 |
-| `Config/RememberMeConfigResolver.php` | Remember-me resolver | FR-CFG-002 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Config/FieldConfigNormalizer.php` | production | FR-CFG-002 | Mapped |
+| `Config/RememberMeConfigResolver.php` | production | FR-CFG-002 | Mapped |
+| `DependencyInjection/Compiler/TwigPathsPass.php` | production | FR-CFG-001 | Mapped |
+| `DependencyInjection/Configuration.php` | production | FR-CFG-001 | Mapped |
+| `DependencyInjection/NowoAuthKitExtension.php` | production | FR-CFG-001 | Mapped |
+| `NowoAuthKitBundle.php` | production | FR-BUNDLE-001 | Mapped |
 
 ## Enums
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Enum/RegistrationMode.php` | Registration gate modes | FR-ENUM-001 |
-| `Enum/AuthEmbedMode.php` | Embed layout modes | FR-EMBED-001 |
-| `Enum/PasswordResetMode.php` | Reset flow mode | FR-RESET-001 |
-| `Enum/PasswordResetDeliveryMode.php` | Email/code delivery | FR-RESET-001 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Enum/AuthEmbedMode.php` | production | FR-ENUM-001 | Mapped |
+| `Enum/LocaleInPathMode.php` | production | FR-LOCALE-001 | Mapped |
+| `Enum/MagicLoginMode.php` | production | FR-MAGIC-001 | Mapped |
+| `Enum/PasswordResetDeliveryMode.php` | production | FR-ENUM-001 | Mapped |
+| `Enum/PasswordResetMode.php` | production | FR-ENUM-001 | Mapped |
+| `Enum/RegistrationMode.php` | production | FR-ENUM-001 | Mapped |
+| `Enum/UnlocalizedLocaleMode.php` | production | FR-LOCALE-001 | Mapped |
 
 ## Controllers
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Controller/LoginController.php` | Login page | FR-CTRL-001 |
-| `Controller/LogoutController.php` | Logout route | FR-CTRL-001 |
-| `Controller/RegisterController.php` | Registration | FR-CTRL-001 |
-| `Controller/ResetPasswordRequestController.php` | Reset request | FR-CTRL-002 |
-| `Controller/ResetPasswordCodeController.php` | Code verification | FR-CTRL-002 |
-| `Controller/ResetPasswordController.php` | New password form | FR-CTRL-002 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Controller/LoginController.php` | production | FR-CTRL-001 | Mapped |
+| `Controller/LogoutController.php` | production | FR-CTRL-001 | Mapped |
+| `Controller/MagicLoginCheckController.php` | production | FR-MAGIC-001 | Mapped |
+| `Controller/MagicLoginRequestController.php` | production | FR-MAGIC-001 | Mapped |
+| `Controller/RegisterController.php` | production | FR-CTRL-001 | Mapped |
+| `Controller/ResetPasswordCodeController.php` | production | FR-CTRL-002 | Mapped |
+| `Controller/ResetPasswordController.php` | production | FR-CTRL-002 | Mapped |
+| `Controller/ResetPasswordRequestController.php` | production | FR-CTRL-002 | Mapped |
+| `Controller/UnlocalizedLocaleRedirectController.php` | production | FR-LOCALE-001 | Mapped |
 
 ## Forms
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Form/LoginFormType.php` | Login form | FR-FORM-001 |
-| `Form/RegistrationFormType.php` | Register form | FR-FORM-001 |
-| `Form/ResetPasswordRequestFormType.php` | Request form | FR-FORM-001 |
-| `Form/ResetPasswordCodeFormType.php` | Code form | FR-FORM-001 |
-| `Form/ResetPasswordFormType.php` | Password form | FR-FORM-001 |
-| `Form/PasswordFieldConstraintResolver.php` | Password constraints | FR-FORM-002 |
-| `Form/PasswordFieldTypeResolver.php` | Password field type | FR-FORM-002 |
-| `Form/PasswordRepeatedFieldBuilder.php` | Repeated password | FR-FORM-002 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Form/LoginFormType.php` | production | FR-FORM-001 | Mapped |
+| `Form/MagicLoginRequestFormType.php` | production | FR-MAGIC-001 | Mapped |
+| `Form/PasswordFieldConstraintResolver.php` | production | FR-FORM-001 | Mapped |
+| `Form/PasswordFieldTypeResolver.php` | production | FR-FORM-001 | Mapped |
+| `Form/PasswordRepeatedFieldBuilder.php` | production | FR-FORM-001 | Mapped |
+| `Form/RegistrationFormType.php` | production | FR-FORM-001 | Mapped |
+| `Form/ResetPasswordCodeFormType.php` | production | FR-FORM-001 | Mapped |
+| `Form/ResetPasswordFormType.php` | production | FR-FORM-001 | Mapped |
+| `Form/ResetPasswordRequestFormType.php` | production | FR-FORM-001 | Mapped |
 
 ## Password reset
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `PasswordReset/PasswordResetTokenManagerInterface.php` | Token contract | FR-RESET-001 |
-| `PasswordReset/PasswordResetTokenManager.php` | Token storage/TTL | FR-RESET-001 |
-| `PasswordReset/PasswordResetTokenResult.php` | Token DTO | FR-RESET-001 |
-| `PasswordReset/PasswordResetUserResolver.php` | User lookup | FR-RESET-001 |
-| `PasswordReset/PasswordResetRequestHandler.php` | Request orchestration | FR-RESET-001 |
-| `PasswordReset/PasswordResetGate.php` | Feature gate | FR-RESET-001 |
-| `PasswordReset/PasswordResetCompleter.php` | Password change | FR-RESET-001 |
-| `PasswordReset/PasswordResetNotifierInterface.php` | Notify contract | FR-RESET-002 |
-| `PasswordReset/LoggingPasswordResetNotifier.php` | Log notifier | FR-RESET-002 |
-| `PasswordReset/NullPasswordResetNotifier.php` | No-op notifier | FR-RESET-002 |
-| `PasswordReset/PasswordResetNotificationContext.php` | Notify payload | FR-RESET-002 |
-| `PasswordReset/PasswordResetRequestedEvent.php` | Domain event | FR-RESET-002 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `PasswordReset/LoggingPasswordResetNotifier.php` | production | FR-RESET-002 | Mapped |
+| `PasswordReset/NullPasswordResetNotifier.php` | production | FR-RESET-002 | Mapped |
+| `PasswordReset/PasswordResetCompleter.php` | production | FR-RESET-001 | Mapped |
+| `PasswordReset/PasswordResetGate.php` | production | FR-RESET-001 | Mapped |
+| `PasswordReset/PasswordResetNotificationContext.php` | production | FR-RESET-002 | Mapped |
+| `PasswordReset/PasswordResetNotifierInterface.php` | production | FR-RESET-002 | Mapped |
+| `PasswordReset/PasswordResetRequestHandler.php` | production | FR-RESET-001 | Mapped |
+| `PasswordReset/PasswordResetRequestedEvent.php` | production | FR-RESET-002 | Mapped |
+| `PasswordReset/PasswordResetTokenManager.php` | production | FR-RESET-001 | Mapped |
+| `PasswordReset/PasswordResetTokenManagerInterface.php` | production | FR-RESET-001 | Mapped |
+| `PasswordReset/PasswordResetTokenResult.php` | production | FR-RESET-001 | Mapped |
+| `PasswordReset/PasswordResetUserResolver.php` | production | FR-RESET-001 | Mapped |
+
+## Magic login
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `MagicLogin/LoggingMagicLoginNotifier.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/MagicLoginGate.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/MagicLoginNotificationContext.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/MagicLoginNotifierInterface.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/MagicLoginRequestHandler.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/MagicLoginRequestedEvent.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/MagicLoginUserResolver.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/NullMagicLoginNotifier.php` | production | FR-MAGIC-001 | Mapped |
+
+## Profiles
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Profile/ProfileRegistry.php` | production | FR-PROFILE-001 | Mapped |
+| `Profile/ProfileSettings.php` | production | FR-PROFILE-001 | Mapped |
+| `Profile/RequestProfileResolver.php` | production | FR-PROFILE-001 | Mapped |
+| `Profile/UnknownProfileException.php` | production | FR-PROFILE-001 | Mapped |
 
 ## Security & registration
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Security/RegistrationGate.php` | Registration access | FR-SEC-001 |
-| `Security/UserRegistrar.php` | User persistence | FR-SEC-001 |
-| `Security/AuthKitFormLoginParameters.php` | form_login params | FR-SEC-001 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Security/AuthKitFormLoginParameters.php` | production | FR-SEC-001 | Mapped |
+| `Security/RegistrationGate.php` | production | FR-SEC-001 | Mapped |
+| `Security/UserRegistrar.php` | production | FR-SEC-001 | Mapped |
 
 ## Embed
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Embed/AuthEmbedContext.php` | Embed view model | FR-EMBED-001 |
-| `Embed/AuthEmbedContextFactory.php` | Context factory | FR-EMBED-001 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Embed/AuthEmbedContext.php` | production | FR-EMBED-001 | Mapped |
+| `Embed/AuthEmbedContextFactory.php` | production | FR-EMBED-001 | Mapped |
+| `Embed/AuthEmbedOptions.php` | production | FR-EMBED-002 | Mapped |
 
 ## Routing
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Routing/AuthKitRouteLoader.php` | Dynamic routes | FR-ROUT-001 |
-| `Routing/AuthKitRouteLocaleParameters.php` | Locale params | FR-ROUT-001 |
-| `Routing/AuthKitUrlGenerator.php` | URL generation | FR-ROUT-001 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Routing/AuthKitRouteLoader.php` | production | FR-ROUT-001 | Mapped |
+| `Routing/AuthKitRouteLocaleParameters.php` | production | FR-ROUT-001 | Mapped |
+| `Routing/AuthKitUrlGenerator.php` | production | FR-ROUT-001 | Mapped |
 
-## Twig
+## Twig extension & command
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Twig/AuthKitRoutingExtension.php` | Route helpers | FR-TWIG-001 |
-| `Twig/AuthEmbedExtension.php` | Embed function | FR-TWIG-001 |
-
-## CLI
-
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Command/ConfigureSecurityCommand.php` | Security YAML scaffold | FR-CLI-001 |
-
-## Translations
-
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Resources/translations/NowoAuthKitBundle.en.yaml` | English UI | FR-I18N-001 |
-| `Resources/translations/NowoAuthKitBundle.es.yaml` | Spanish UI | FR-I18N-001 |
-| `Resources/translations/NowoAuthKitBundle.de.yaml` | German UI | FR-I18N-001 |
-| `Resources/translations/NowoAuthKitBundle.fr.yaml` | French UI | FR-I18N-001 |
-| `Resources/translations/NowoAuthKitBundle.it.yaml` | Italian UI | FR-I18N-001 |
-| `Resources/translations/NowoAuthKitBundle.nl.yaml` | Dutch UI | FR-I18N-001 |
-| `Resources/translations/NowoAuthKitBundle.pt.yaml` | Portuguese UI | FR-I18N-001 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Command/ConfigureSecurityCommand.php` | production | FR-CLI-001 | Mapped |
+| `Twig/AuthEmbedExtension.php` | production | FR-TWIG-002 | Mapped |
+| `Twig/AuthKitRoutingExtension.php` | production | FR-TWIG-002 | Mapped |
 
 ## Twig views
 
-| Source file | Spec section | Requirement IDs |
-| --- | --- | --- |
-| `Resources/views/layout.html.twig` | Base layout | FR-TWIG-002 |
-| `Resources/views/security/login.html.twig` | Login page | FR-TWIG-002 |
-| `Resources/views/security/register.html.twig` | Register page | FR-TWIG-002 |
-| `Resources/views/security/reset_request.html.twig` | Reset request | FR-TWIG-002 |
-| `Resources/views/security/reset_password_code.html.twig` | Code entry | FR-TWIG-002 |
-| `Resources/views/security/reset_password.html.twig` | New password | FR-TWIG-002 |
-| `Resources/views/embed/dropdown.html.twig` | Embed dropdown | FR-TWIG-002 |
-| `Resources/views/embed/_login_panel.html.twig` | Login partial | FR-TWIG-002 |
-| `Resources/views/embed/_register_panel.html.twig` | Register partial | FR-TWIG-002 |
-| `Resources/views/embed/_authenticated.html.twig` | Logged-in partial | FR-TWIG-002 |
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Resources/views/embed/_authenticated.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/embed/_login_panel.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/embed/_register_panel.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/embed/dropdown.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/layout.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/security/login.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/security/magic_login_request.html.twig` | production | FR-MAGIC-001 | Mapped |
+| `Resources/views/security/register.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/security/reset_password.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/security/reset_password_code.html.twig` | production | FR-TWIG-001 | Mapped |
+| `Resources/views/security/reset_request.html.twig` | production | FR-TWIG-001 | Mapped |
+
+## Translations
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Resources/translations/NowoAuthKitBundle.de.yaml` | production | FR-I18N-001 | Mapped |
+| `Resources/translations/NowoAuthKitBundle.en.yaml` | production | FR-I18N-001 | Mapped |
+| `Resources/translations/NowoAuthKitBundle.es.yaml` | production | FR-I18N-001 | Mapped |
+| `Resources/translations/NowoAuthKitBundle.fr.yaml` | production | FR-I18N-001 | Mapped |
+| `Resources/translations/NowoAuthKitBundle.it.yaml` | production | FR-I18N-001 | Mapped |
+| `Resources/translations/NowoAuthKitBundle.nl.yaml` | production | FR-I18N-001 | Mapped |
+| `Resources/translations/NowoAuthKitBundle.pt.yaml` | production | FR-I18N-001 | Mapped |
 
 ## Coverage summary
 
@@ -141,15 +167,16 @@
 | --- | ---: | ---: |
 | Symfony config | 2 | 2 |
 | Bundle & DI | 6 | 6 |
-| Enums | 4 | 4 |
-| Controllers | 6 | 6 |
-| Forms | 8 | 8 |
+| Enums | 7 | 7 |
+| Controllers | 9 | 9 |
+| Forms | 9 | 9 |
 | Password reset | 12 | 12 |
-| Security | 3 | 3 |
-| Embed | 2 | 2 |
+| Magic login | 8 | 8 |
+| Profiles | 4 | 4 |
+| Security & registration | 3 | 3 |
+| Embed | 3 | 3 |
 | Routing | 3 | 3 |
-| Twig PHP | 2 | 2 |
-| CLI | 1 | 1 |
+| Twig extension & command | 3 | 3 |
+| Twig views | 11 | 11 |
 | Translations | 7 | 7 |
-| Twig views | 10 | 10 |
-| **Total production sources** | **66** | **66** |
+| **Total production sources** | **87** | **87** |

@@ -63,6 +63,16 @@ Drop-in Symfony **authentication UI**: login, registration (gated modes), option
 - **FR-RESET-002**: Notifier interface with logging/null implementations; `PasswordResetRequestedEvent`.
 - **FR-RESET-003**: Delivery modes and enums (`PasswordResetMode`, `PasswordResetDeliveryMode`).
 
+### Magic login subsystem
+
+- **FR-MAGIC-001**: Gate, request handler, user resolver, notifiers (null/logging), notification context, event, and controllers/forms for request/check.
+- Logging sample notifier must not log magic URLs or tokens (REQ-OBS-001).
+
+### Profiles & locale
+
+- **FR-PROFILE-001**: `ProfileSettings`, `ProfileRegistry`, `RequestProfileResolver`, `UnknownProfileException` for named configs.
+- **FR-LOCALE-001**: Locale-in-path / unlocalized redirect modes and `UnlocalizedLocaleRedirectController`.
+
 ### Security integration
 
 - **FR-SEC-001**: `RegistrationGate`, `UserRegistrar`, `AuthKitFormLoginParameters`.
@@ -76,6 +86,7 @@ Drop-in Symfony **authentication UI**: login, registration (gated modes), option
 ### Embed
 
 - **FR-EMBED-001**: `AuthEmbedContext`, factory, `AuthEmbedMode` enum.
+- **FR-EMBED-002**: `AuthEmbedOptions` typed DTO; factory/Twig accept `AuthEmbedOptions|array` (REQ-PHP-001).
 
 ### CLI
 
@@ -85,7 +96,7 @@ Drop-in Symfony **authentication UI**: login, registration (gated modes), option
 
 ## Success Criteria
 
-- **SC-001**: **66/66** files mapped.
+- **SC-001**: All production files in `code-inventory.md` mapped (**87** units as of 2026-07-28).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 

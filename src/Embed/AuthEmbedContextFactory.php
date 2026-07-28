@@ -18,8 +18,6 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 
-use function is_string;
-
 /**
  * Builds login/register form views for embedded auth UI (dropdown, etc.).
  */
@@ -41,15 +39,16 @@ final class AuthEmbedContextFactory
     }
 
     /**
-     * @param array<string, mixed> $options
+     * @param array<string, mixed>|AuthEmbedOptions $options
      */
-    public function create(array $options = []): ?AuthEmbedContext
+    public function create(AuthEmbedOptions|array $options = []): ?AuthEmbedContext
     {
         if (!$this->isEnabled()) {
             return null;
         }
 
-        $profile = $this->resolveProfile($options);
+        $opts    = $options instanceof AuthEmbedOptions ? $options : AuthEmbedOptions::fromArray($options);
+        $profile = $this->resolveProfile($opts);
         $embed   = $profile->embed;
 
         $user            = $this->tokenStorage->getToken()?->getUser();
@@ -82,7 +81,7 @@ final class AuthEmbedContextFactory
             ])->createView();
         }
 
-        $activePanel = $options['active_panel'] ?? 'login';
+        $activePanel = $opts->activePanel ?? 'login';
         if (!$showLogin && $showRegister) {
             $activePanel = 'register';
         }
@@ -106,23 +105,18 @@ final class AuthEmbedContextFactory
             resetPasswordRoute: $profile->routes['reset_request']['name'],
             passwordResetEnabled: $profile->passwordReset['mode'] === PasswordResetMode::Enabled->value,
             activePanel: $activePanel,
-            template: $options['template'] ?? $embed['template'],
+            template: $opts->template ?? $embed['template'],
             loginPanelTemplate: $embed['login_panel'],
             registerPanelTemplate: $embed['register_panel'],
             authenticatedTemplate: $embed['authenticated'],
-            options: $options,
+            options: $opts,
         );
     }
 
-    /**
-     * @param array<string, mixed> $options
-     */
-    private function resolveProfile(array $options): ProfileSettings
+    private function resolveProfile(AuthEmbedOptions $options): ProfileSettings
     {
-        $profileName = $options['profile'] ?? null;
-
-        return is_string($profileName) && $profileName !== ''
-            ? $this->profileRegistry->getByName($profileName)
+        return $options->profile !== null
+            ? $this->profileRegistry->getByName($options->profile)
             : $this->profileRegistry->getDefault();
     }
 }

@@ -12,9 +12,6 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
  */
 final readonly class AuthEmbedContext
 {
-    /**
-     * @param array<string, mixed> $options
-     */
     public function __construct(
         public bool $isAuthenticated,
         public ?string $userIdentifier,
@@ -34,7 +31,7 @@ final readonly class AuthEmbedContext
         public string $loginPanelTemplate,
         public string $registerPanelTemplate,
         public string $authenticatedTemplate,
-        public array $options = [],
+        public AuthEmbedOptions $options = new AuthEmbedOptions(),
     ) {
     }
 
@@ -61,7 +58,7 @@ final readonly class AuthEmbedContext
             'login_panel_template'    => $this->loginPanelTemplate,
             'register_panel_template' => $this->registerPanelTemplate,
             'authenticated_template'  => $this->authenticatedTemplate,
-            'form_theme'              => $this->options['form_theme'] ?? null,
+            'form_theme'              => $this->options->formTheme,
         ];
     }
 }

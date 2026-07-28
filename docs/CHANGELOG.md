@@ -5,7 +5,97 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Table of contents
+
+- [[Unreleased]](#unreleased)
+- [[1.8.0] - 2026-07-28](#180-2026-07-28)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.7.6] - 2026-07-27](#176-2026-07-27)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.7.5] - 2026-07-23](#175-2026-07-23)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.7.4] - 2026-07-22](#174-2026-07-22)
+  - [Fixed](#fixed)
+- [[1.7.3] - 2026-07-22](#173-2026-07-22)
+  - [Changed](#changed)
+- [[1.7.2] - 2026-07-22](#172-2026-07-22)
+  - [Changed](#changed)
+  - [Added](#added)
+- [[1.7.1] - 2026-07-21](#171-2026-07-21)
+  - [Changed](#changed)
+- [[1.7.0] - 2026-07-21](#170-2026-07-21)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.6.1] - 2026-07-21](#161-2026-07-21)
+  - [Fixed](#fixed)
+  - [Changed](#changed)
+- [[1.6.0] - 2026-07-21](#160-2026-07-21)
+  - [Added](#added)
+- [[1.5.1] - 2026-07-16](#151-2026-07-16)
+  - [Added](#added)
+  - [Removed](#removed)
+  - [Changed](#changed)
+- [[1.5.0] - 2026-07-14](#150-2026-07-14)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Fixed](#fixed)
+- [[1.4.4] - 2026-07-14](#144-2026-07-14)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.4.3] - 2026-07-06](#143-2026-07-06)
+  - [Fixed](#fixed)
+- [[1.4.2] - 2026-07-05](#142-2026-07-05)
+  - [Added](#added)
+  - [Fixed](#fixed)
+- [[1.4.1] - 2026-07-05](#141-2026-07-05)
+  - [Fixed](#fixed)
+  - [Changed](#changed)
+- [[1.4.0] - 2026-07-05](#140-2026-07-05)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.3.0] - 2026-07-03](#130-2026-07-03)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.2.0] - 2026-07-03](#120-2026-07-03)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Fixed](#fixed)
+- [[1.1.1] - 2026-06-18](#111-2026-06-18)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Fixed](#fixed)
+- [[1.1.0] - 2026-06-18](#110-2026-06-18)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Fixed](#fixed)
+- [[1.0.0] - 2026-06-18](#100-2026-06-18)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Fixed](#fixed)
+  - [Removed](#removed)
+
 ## [Unreleased]
+
+## [1.8.0] - 2026-07-28
+
+### Added
+
+- **`AuthEmbedOptions`** DTO for typed embed options; `create()` / `auth_kit_dropdown` accept `AuthEmbedOptions|array` (REQ-PHP-001).
+- **`Psr\Clock\ClockInterface`** on `PasswordResetTokenManager` (REQ-DI-001); runtime dep `psr/clock`.
+- **`make demo-smoke`** + `.github/workflows/demo-smoke.yml` (REQ-TEST-011).
+
+### Changed
+
+- Demo FrankenPHP image: `dunglas/frankenphp:1-php8.5-bookworm` (REQ-DEMO-010).
+- `LoggingPasswordResetNotifier` / `LoggingMagicLoginNotifier` no longer log URLs, tokens, or OTP codes (REQ-OBS-001).
+- README `## Documentation` base order restored; `GITHUB_CI` under Additional (REQ-DOCS-002).
+- TOC on CHANGELOG, UPGRADING, GITHUB_CI, MAGIC-LOGIN, PASSWORD-RESET (REQ-DOCS-005).
+- Spec Kit inventory: MagicLogin / Profile / locale units; last audited **2026-07-28** (REQ-SPECKIT-001 / REQ-SPECKIT-003).
+
+[1.8.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.8.0
 
 ## [1.7.6] - 2026-07-27
 

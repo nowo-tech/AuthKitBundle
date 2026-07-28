@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Embed\AuthEmbedContext;
 use Nowo\AuthKitBundle\Embed\AuthEmbedContextFactory;
+use Nowo\AuthKitBundle\Embed\AuthEmbedOptions;
 use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
@@ -275,7 +276,7 @@ final class AuthEmbedContextFactoryTest extends TestCase
             loginPanelTemplate: 'login_tpl',
             registerPanelTemplate: 'register_tpl',
             authenticatedTemplate: 'auth_tpl',
-            options: ['form_theme' => 'theme'],
+            options: new AuthEmbedOptions(formTheme: 'theme'),
         );
 
         self::assertSame([

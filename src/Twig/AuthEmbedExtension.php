@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Twig;
 
 use Nowo\AuthKitBundle\Embed\AuthEmbedContext;
 use Nowo\AuthKitBundle\Embed\AuthEmbedContextFactory;
+use Nowo\AuthKitBundle\Embed\AuthEmbedOptions;
 use Twig\Attribute\AsTwigFunction;
 use Twig\Environment;
 
@@ -21,17 +22,18 @@ final class AuthEmbedExtension
     }
 
     /**
-     * @param array<string, mixed> $options
+     * @param array<string, mixed>|AuthEmbedOptions $options
      */
     #[AsTwigFunction('auth_kit_dropdown', isSafe: ['html'])]
-    public function renderDropdown(array $options = []): string
+    public function renderDropdown(AuthEmbedOptions|array $options = []): string
     {
-        $context = $this->contextFactory->create($options);
+        $opts    = $options instanceof AuthEmbedOptions ? $options : AuthEmbedOptions::fromArray($options);
+        $context = $this->contextFactory->create($opts);
 
         if (!$context instanceof AuthEmbedContext) {
             return '';
         }
 
-        return $this->twig->render($context->template, array_merge($context->toArray(), $options));
+        return $this->twig->render($context->template, array_merge($context->toArray(), $opts->toArray()));
     }
 }

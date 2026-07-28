@@ -14,6 +14,8 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use stdClass;
 
+use function array_key_exists;
+
 final class PasswordResetNotifiersTest extends TestCase
 {
     public function testNullNotifierIsNoOp(): void
@@ -25,7 +27,19 @@ final class PasswordResetNotifiersTest extends TestCase
     public function testLoggingNotifierWritesContext(): void
     {
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects(self::once())->method('info')->with('Password reset requested', self::isType('array'));
+        $logger->expects(self::once())->method('info')->with(
+            'Password reset requested',
+            self::callback(static function (array $context): bool {
+                foreach (['reset_url', 'link_token', 'code'] as $secret) {
+                    if (array_key_exists($secret, $context)) {
+                        return false;
+                    }
+                }
+
+                return ($context['action'] ?? null) === 'password_reset_notify'
+                    && ($context['identifier'] ?? null) === 'u***@example.com';
+            }),
+        );
 
         (new LoggingPasswordResetNotifier($logger))->notify($this->tokenResult(), $this->context());
     }

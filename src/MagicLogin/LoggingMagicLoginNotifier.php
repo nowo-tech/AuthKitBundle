@@ -8,7 +8,9 @@ use DateTimeInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Sample notifier that logs the magic login URL (development/demo only).
+ * Sample notifier that logs request metadata (development/demo only).
+ *
+ * Never logs magic login URLs or tokens (REQ-OBS-001).
  */
 final class LoggingMagicLoginNotifier implements MagicLoginNotifierInterface
 {
@@ -20,8 +22,9 @@ final class LoggingMagicLoginNotifier implements MagicLoginNotifierInterface
     public function notify(MagicLoginNotificationContext $context): void
     {
         $this->logger->info('Magic login link requested', [
-            'identifier' => $context->maskedIdentifier ?? $context->identifier,
-            'login_url'  => $context->loginUrl,
+            'bundle'     => 'nowo-tech/auth-kit-bundle',
+            'action'     => 'magic_login_notify',
+            'identifier' => $context->maskedIdentifier ?? '[redacted]',
             'expires_at' => $context->expiresAt->format(DateTimeInterface::ATOM),
         ]);
     }

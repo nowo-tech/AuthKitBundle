@@ -11,6 +11,10 @@
 
 The Auth Kit demo runs on **FrankenPHP** (Caddy + embedded PHP). REQ-DEMO-002 / REQ-DEMO-010.
 
+Base image: `dunglas/frankenphp:1-php8.5-bookworm` (newest PHP allowed by Symfony 8 / demo constraints).
+
+**Smoke check (REQ-TEST-011):** from the bundle root, `make demo-smoke` boots `demo/symfony8` and asserts `HTTP 200` on `http://localhost:$PORT/en/login` (default port **8010**). Also available as `.github/workflows/demo-smoke.yml`.
+
 ## Layout
 
 | File | Purpose |

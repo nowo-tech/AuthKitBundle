@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\Tests\Stub\ParentTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 
 use function hash;
@@ -94,6 +95,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PropertyAccessor(),
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
+            new NativeClock(),
         );
 
         self::assertSame($user, $manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
@@ -169,6 +171,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PropertyAccessor(),
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
+            new NativeClock(),
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
@@ -191,6 +194,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PropertyAccessor(),
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
+            new NativeClock(),
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('missing@example.com', '123456'));
@@ -251,6 +255,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PropertyAccessor(),
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
+            new NativeClock(),
         );
 
         self::assertSame($user, $manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
@@ -278,6 +283,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PropertyAccessor(),
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
+            new NativeClock(),
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '000000'));
@@ -291,6 +297,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PropertyAccessor(),
             new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), $registry),
             $registry,
+            new NativeClock(),
         );
 
         $this->expectException(LogicException::class);
@@ -314,6 +321,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PropertyAccessor(),
             new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), $registry),
             $registry,
+            new NativeClock(),
         );
 
         self::assertSame($user, $manager->resolveUserByLinkToken($plain, 'default'));
@@ -331,6 +339,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PropertyAccessor(),
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
+            new NativeClock(),
         );
     }
 

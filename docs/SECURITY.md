@@ -4,6 +4,7 @@
 
 - [Threat model](#threat-model)
 - [Application responsibilities](#application-responsibilities)
+- [Logging](#logging)
 - [Bundle responsibilities](#bundle-responsibilities)
 - [AI security audit](#ai-security-audit)
 - [Release security checklist (12.4.1)](#release-security-checklist-1241)
@@ -29,9 +30,13 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 - Protect admin routes with appropriate roles
 - Pair login / reset / magic / OTP verification with rate limiting (`nowo-tech/login-throttle-bundle` and/or listeners on bundle events)
 - Prefer password-reset `delivery: link` (or stronger OTP charset) in production; lock out failed OTP attempts
-- Do not alias `LoggingPasswordResetNotifier` / `LoggingMagicLoginNotifier` in production
+- Do not alias `LoggingPasswordResetNotifier` / `LoggingMagicLoginNotifier` in production (even redacted, they are sample/dev helpers)
 - Run `composer audit` in the application
 - Do not commit `.env` or secrets
+
+## Logging
+
+Sample logging notifiers record **metadata only**: masked identifier, delivery mode, expiry. They **never** log reset/magic URLs, link tokens, or OTP codes (REQ-OBS-001). Prefer `Null*Notifier` (default) or your own mailer/SMS notifier in production.
 
 ## Bundle responsibilities
 

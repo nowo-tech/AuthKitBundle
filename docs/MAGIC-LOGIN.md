@@ -4,6 +4,15 @@ Auth Kit can expose a **passwordless** sign-in flow: the user enters their ident
 
 This is **not** the same as password-reset delivery links.
 
+## Table of contents
+
+- [Configuration](#configuration)
+- [Security (`login_link`)](#security-login_link)
+- [Delivery (`MagicLoginNotifierInterface`)](#delivery-magicloginnotifierinterface)
+- [Events](#events)
+- [Security notes](#security-notes)
+- [Templates](#templates)
+
 ## Configuration
 
 ```yaml
@@ -70,7 +79,7 @@ Nowo\AuthKitBundle\MagicLogin\MagicLoginNotifierInterface:
     alias: App\Security\AppMagicLoginNotifier
 ```
 
-Bundled samples: `NullMagicLoginNotifier` (default), `LoggingMagicLoginNotifier`.
+Bundled samples: `NullMagicLoginNotifier` (default), `LoggingMagicLoginNotifier` (metadata only — never logs the magic URL).
 
 ## Events
 

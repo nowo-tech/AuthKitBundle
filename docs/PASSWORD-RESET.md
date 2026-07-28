@@ -2,6 +2,16 @@
 
 Auth Kit exposes a **request → deliver credential → complete** flow aligned with login and registration.
 
+## Table of contents
+
+- [Configuration](#configuration)
+- [User entity](#user-entity)
+- [Implement delivery (`PasswordResetNotifierInterface`)](#implement-delivery-passwordresetnotifierinterface)
+  - [Bundled samples](#bundled-samples)
+- [Events](#events)
+- [Security](#security)
+- [Templates](#templates)
+
 ## Configuration
 
 ```yaml
@@ -60,7 +70,7 @@ Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface:
 ### Bundled samples
 
 - `NullPasswordResetNotifier` — default (no delivery)
-- `LoggingPasswordResetNotifier` — logs link/code (dev)
+- `LoggingPasswordResetNotifier` — logs metadata only (masked identifier, delivery, expiry); never URLs/tokens/codes (dev sample)
 - `demo/*/src/Security/DemoPasswordResetNotifier.php` — demo wiring
 
 ## Events

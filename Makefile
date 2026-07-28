@@ -4,7 +4,7 @@ SERVICE_PHP = php
 .PHONY: help ensure-up up down down-dev build shell install test test-coverage test-coverage-100 \
 	check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history \
 	coverage-check cs-check cs-fix rector rector-dry phpstan qa release-check \
-	release-check-demos composer-sync clean update validate validate-translations setup-hooks
+	release-check-demos composer-sync clean update validate validate-translations setup-hooks demo-smoke
 
 help:
 	@echo "Auth Kit Bundle - Development Commands"
@@ -13,6 +13,7 @@ help:
 	@echo "  test test-coverage test-coverage-100 coverage-check"
 	@echo "  cs-check cs-fix rector rector-dry phpstan qa"
 	@echo "  validate-translations release-check release-check-demos composer-sync"
+	@echo "  demo-smoke    Boot demo/symfony8 and assert HTTP 200 (REQ-TEST-011)"
 	@echo "  setup-hooks clean update validate"
 	@echo "  down-dev      Stop root container (non-destructive; --remove-orphans)"
 	@echo "  check-open-prs Fail if unresolved open GitHub PRs remain (REQ-REL-003)"
@@ -81,6 +82,17 @@ composer-sync: ensure-up
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer update --lock --no-interaction
 
 release-check: check-no-cursor-coauthor check-open-prs ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-100 validate-translations release-check-demos
+
+# REQ-TEST-011 — boot demo stack and assert one HTTP 200 (login page)
+demo-smoke:
+	@$(MAKE) -C demo/symfony8 up
+	@PORT=$$(grep "^PORT=" demo/symfony8/.env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
+	[ -z "$$PORT" ] && PORT=$$(grep "^PORT=" demo/symfony8/.env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
+	[ -z "$$PORT" ] && PORT=8010; \
+	echo "Smoke GET http://localhost:$$PORT/en/login"; \
+	code=$$(curl -fsS -o /dev/null -w "%{http_code}" "http://localhost:$$PORT/en/login" || true); \
+	if [ "$$code" != "200" ]; then echo "demo-smoke failed: HTTP $$code"; exit 1; fi; \
+	echo "demo-smoke OK (HTTP 200)"
 
 release-check-demos:
 	@$(MAKE) -C demo release-check

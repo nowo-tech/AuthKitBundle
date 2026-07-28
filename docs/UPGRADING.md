@@ -1,5 +1,56 @@
 # Upgrading
 
+## Table of contents
+
+- [Unreleased](#unreleased)
+- [To 1.8.0](#to-180)
+- [To 1.7.6](#to-176)
+- [To 1.7.5](#to-175)
+- [To 1.7.4](#to-174)
+- [To 1.7.3](#to-173)
+- [To 1.7.2](#to-172)
+- [To 1.7.1](#to-171)
+- [To 1.7.0](#to-170)
+- [To 1.6.1](#to-161)
+- [To 1.6.0](#to-160)
+- [To 1.5.1](#to-151)
+- [To 1.5.0](#to-150)
+- [To 1.4.4](#to-144)
+- [To 1.4.3](#to-143)
+- [To 1.4.2](#to-142)
+- [To 1.4.1](#to-141)
+- [To 1.4.0](#to-140)
+  - [Login template: register link](#login-template-register-link)
+  - [Optional: new translations](#optional-new-translations)
+- [To 1.3.0](#to-130)
+  - [Optional: password strength](#optional-password-strength)
+- [To 1.2.0](#to-120)
+  - [Optional: remember me](#optional-remember-me)
+- [To 1.1.1](#to-111)
+- [To 1.1.0](#to-110)
+  - [Optional: password reset](#optional-password-reset)
+  - [Optional: embedded auth dropdown](#optional-embedded-auth-dropdown)
+  - [Optional: locale in URL paths](#optional-locale-in-url-paths)
+  - [Demo users](#demo-users)
+- [To 1.0.0](#to-100)
+- [Future upgrades](#future-upgrades)
+
+## Unreleased
+
+## To 1.8.0
+
+From **1.7.6** — backward compatible for typical apps (DI / Flex).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+- New runtime dependency: `psr/clock` (^1.0).
+- If you **manually** instantiate `PasswordResetTokenManager`, pass a `Psr\Clock\ClockInterface` as the fifth constructor argument (Symfony Clock is auto-wired when using the container).
+- Embed API: prefer `AuthEmbedOptions`; `array` options still accepted for Twig/BC (`auth_kit_dropdown({…})`).
+- Logging sample notifiers no longer include secrets in log context (URLs/tokens/codes).
+
 ## To 1.7.6
 
 From **1.7.5** — backward compatible for apps; re-run security config if you use the CLI helper.

@@ -11,6 +11,7 @@ use LogicException;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
 use function bin2hex;
@@ -31,6 +32,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         private readonly PropertyAccessorInterface $propertyAccessor,
         private readonly PasswordResetUserResolver $userResolver,
         private readonly ProfileRegistry $profileRegistry,
+        private readonly ClockInterface $clock,
     ) {
     }
 
@@ -39,7 +41,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $profile  = $this->requireProfileForUser($user);
         $settings = $profile->passwordReset;
         $delivery = PasswordResetDeliveryMode::from($settings['delivery']);
-        $expires  = new DateTimeImmutable('+' . $settings['token_ttl'] . ' seconds');
+        $expires  = $this->clock->now()->modify('+' . $settings['token_ttl'] . ' seconds');
         $plain    = match ($delivery) {
             PasswordResetDeliveryMode::Link => bin2hex(random_bytes($settings['token_bytes'])),
             PasswordResetDeliveryMode::Code => $this->generateCode($profile),
@@ -138,7 +140,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             return null;
         }
 
-        if ($expires < new DateTimeImmutable()) {
+        if ($expires < $this->clock->now()) {
             return null;
         }
 

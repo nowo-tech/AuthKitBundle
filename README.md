@@ -92,7 +92,6 @@ MIT — see [LICENSE](LICENSE).
 
 ## Documentation
 
-- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
 - [Usage](docs/USAGE.md)
@@ -108,6 +107,7 @@ MIT — see [LICENSE](LICENSE).
 
 ### Additional documentation
 
+- [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Password reset](docs/PASSWORD-RESET.md)
 - [Magic login](docs/MAGIC-LOGIN.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
