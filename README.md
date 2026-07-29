@@ -5,7 +5,6 @@
 > ⭐ **Found this useful?** Install from [Packagist](https://packagist.org/packages/nowo-tech/auth-kit-bundle) and give the repo a star on GitHub.
 
 Symfony bundle for **configurable login, registration, and password reset**: overridable Twig templates, registration modes (`disabled`, `first_user_only`, `always`), optional embeddable auth dropdown, locale-prefixed routes, assignable registration role, configurable user entity and form fields, built-in routes, and translations (`de`, `en`, `es`, `fr`, `it`, `nl`, `pt`).
-
 Works alongside Symfony Security — `security.yaml` remains required and is documented in [INSTALLATION.md](docs/INSTALLATION.md) with optional CLI helper `nowo:auth-kit:configure-security`.
 
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
@@ -52,14 +51,6 @@ The legacy flat layout (`user_class` at root) remains supported. See [Configurat
 php bin/console nowo:auth-kit:configure-security
 ```
 
-## Development
-
-```bash
-make up
-make test
-make release-check
-```
-
 ## Demo
 
 ```bash
@@ -79,16 +70,13 @@ Register the first user, then try password login, **password reset**, **magic lo
 
 See [demo/README.md](demo/README.md) for template override paths and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup (including **worker mode** for production).
 
-## Tests and coverage
+## Development
 
-- Tests: PHPUnit (unit + integration)
-- PHP: 100%
-- TS/JS: N/A
-- Python: N/A
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+```bash
+make up
+make test
+make release-check
+```
 
 ## Documentation
 
@@ -111,3 +99,14 @@ MIT — see [LICENSE](LICENSE).
 - [Password reset](docs/PASSWORD-RESET.md)
 - [Magic login](docs/MAGIC-LOGIN.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
+## Tests and coverage
+
+- Tests: PHPUnit (unit + integration)
+- PHP: 100%
+- TS/JS: N/A
+- Python: N/A
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
