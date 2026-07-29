@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.8.2] - 2026-07-29](#182-2026-07-29)
+  - [Fixed](#fixed)
 - [[1.8.1] - 2026-07-29](#181-2026-07-29)
   - [Fixed](#fixed)
 - [[1.8.0] - 2026-07-28](#180-2026-07-28)
@@ -80,6 +82,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.8.2] - 2026-07-29
+
+### Fixed
+
+- Demo FrankenPHP entrypoint waits for `vendor/autoload_runtime.php` before starting workers so `make demo-smoke` works on a clean CI checkout (REQ-TEST-011).
+
+[1.8.2]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.8.2
 
 ## [1.8.1] - 2026-07-29
 

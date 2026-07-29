@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.8.2](#to-182)
 - [To 1.8.1](#to-181)
 - [To 1.8.0](#to-180)
 - [To 1.7.6](#to-176)
@@ -37,6 +38,16 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.8.2
+
+From **1.8.1** — maintainer / demo / CI only; no application config required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No runtime API changes. Demo `make up` / `demo-smoke` no longer fail when `vendor/` is missing at container start (FrankenPHP worker waits for Composer).
 
 ## To 1.8.1
 

@@ -71,7 +71,8 @@ docker compose exec -T php php bin/console doctrine:migrations:migrate --no-inte
 
 | Issue | Fix |
 |-------|-----|
-| `502` or blank page after start | Wait for MySQL healthcheck; run `docker compose logs php` |
+| `service "php" is not running` right after `up` | Clean checkout without `vendor/`: entrypoint waits up to ~120s for `vendor/autoload_runtime.php` while `make up` runs `composer install`. If it still fails, check `docker compose logs php` |
+| `502` or blank page after start | Wait for MySQL healthcheck + FrankenPHP worker boot after Composer; run `docker compose logs php` |
 | Routes 404 | Ensure `public/index.php` exists and `root * /app/public` is set in the active Caddyfile |
 | Composer cannot reach Packagist | Demo compose sets `dns: 8.8.8.8` / `8.8.4.4` for Docker/WSL DNS issues |
 | Template / PHP changes not visible | Prefer `FRANKENPHP_MODE=classic` for hot-reload; with `worker`, run `frankenphp reload` or recreate the container |

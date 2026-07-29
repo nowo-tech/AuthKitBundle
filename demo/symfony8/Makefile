@@ -42,7 +42,13 @@ up: ensure-env
 	@echo "Waiting for container to be ready..."
 	@sleep 5
 	@echo "Installing dependencies..."
-	@$(COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 $(SERVICE_PHP) composer install --no-interaction --no-scripts
+	@if ! $(COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 $(SERVICE_PHP) composer install --no-interaction --no-scripts; then \
+		echo "composer install failed; php logs:"; \
+		$(COMPOSE) logs --tail=80 $(SERVICE_PHP) || true; \
+		exit 1; \
+	fi
+	@# Entrypoint waits for vendor then starts FrankenPHP workers — allow boot after install.
+	@sleep 3
 	@rm -f .env.dev
 	@$(COMPOSE) exec -T $(SERVICE_PHP) test -f bin/console && $(COMPOSE) exec -T $(SERVICE_PHP) composer run-script post-install-cmd || true
 	@$(COMPOSE) exec -T $(SERVICE_PHP) test -f bin/console && $(COMPOSE) exec -T $(SERVICE_PHP) php bin/console ux:icons:lock --no-interaction 2>/dev/null || true

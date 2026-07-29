@@ -24,3 +24,8 @@ jobs:
 
       - name: Run demo smoke (REQ-TEST-011)
         run: make demo-smoke
+
+      - name: Dump demo logs on failure
+        if: failure()
+        working-directory: demo/symfony8
+        run: docker compose logs --tail=200 || true
