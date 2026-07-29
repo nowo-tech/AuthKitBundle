@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.8.1](#to-181)
 - [To 1.8.0](#to-180)
 - [To 1.7.6](#to-176)
 - [To 1.7.5](#to-175)
@@ -36,6 +37,16 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.8.1
+
+From **1.8.0** — maintainer / CI only; no application config required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No runtime API changes. Optional monorepo Makefile includes no longer break standalone CI checkouts; Compose V1 (`docker-compose`) is accepted as a fallback.
 
 ## To 1.8.0
 

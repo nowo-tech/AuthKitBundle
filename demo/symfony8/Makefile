@@ -1,7 +1,10 @@
-# Prefer absolute docker binary: a local `docker/` directory would otherwise
-# shadow `docker` on PATH when Make expands recipe commands.
-DOCKER  ?= $(shell command -v docker)
-COMPOSE  = $(DOCKER) compose
+# Prefer Compose V2; absolute docker path avoids shadowing by local docker/ when PATH has "." (REQ-MAKE-010).
+DOCKER_BIN := $(shell command -v docker 2>/dev/null)
+ifeq ($(DOCKER_BIN),)
+COMPOSE ?= docker-compose
+else
+COMPOSE ?= $(shell $(DOCKER_BIN) compose version >/dev/null 2>&1 && echo "$(DOCKER_BIN) compose" || echo "docker-compose")
+endif
 DOCKER_COMPOSE := $(COMPOSE)
 SERVICE_PHP = php
 
@@ -85,4 +88,5 @@ release-check: ensure-up update-bundle
 	[ -z "$$PORT" ] && PORT=$$(grep "^PORT=" .env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	curl -sf "http://localhost:$$PORT/en/login" >/dev/null && echo "Symfony 8 demo healthcheck OK" || (echo "Symfony 8 demo healthcheck failed" && exit 1)
 
-include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)
+# Optional: monorepo helper absent on standalone GitHub Actions checkout (REQ-MAKE-009).
+-include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)

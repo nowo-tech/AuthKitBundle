@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.8.1] - 2026-07-29](#181-2026-07-29)
+  - [Fixed](#fixed)
 - [[1.8.0] - 2026-07-28](#180-2026-07-28)
   - [Added](#added)
   - [Changed](#changed)
@@ -78,6 +80,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.8.1] - 2026-07-29
+
+### Fixed
+
+- Root / demo Makefiles use `-include` for optional monorepo `update-deps` helpers so standalone GitHub Actions checkouts do not fail (REQ-MAKE-009).
+- Compose binary detection falls back to `docker-compose` when the Compose V2 plugin is unavailable (REQ-MAKE-010).
+
+[1.8.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.8.1
 
 ## [1.8.0] - 2026-07-28
 
