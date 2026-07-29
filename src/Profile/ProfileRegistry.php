@@ -12,7 +12,7 @@ final class ProfileRegistry
     private array $byName = [];
 
     /** @var array<class-string, ProfileSettings> */
-    private array $byExactClass = [];
+    private array $byExactClass;
 
     /** @var array<class-string, ProfileSettings|null> */
     private array $resolveCache = [];
