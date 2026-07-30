@@ -10,10 +10,11 @@
 ## Steps
 
 1. Merge changes to `main`.
-2. Create an annotated tag: `git tag -a vX.Y.Z -m "Release X.Y.Z"`.
-3. Push the tag: `git push origin vX.Y.Z`.
+2. Create an annotated tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`.
+3. Push `main` and the tag: `git push origin main && git push origin vX.Y.Z`.
 4. GitHub Actions (`release.yml`) creates or updates the GitHub Release using the changelog entry.
 5. Publish to Packagist (automatic if the package is registered).
+6. Verify the new version on Packagist before closing the release task (for example `https://packagist.org/packages/nowo-tech/auth-kit-bundle.json`).
 
 ## Versioning
 

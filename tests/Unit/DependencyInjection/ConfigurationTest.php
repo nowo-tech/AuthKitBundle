@@ -35,6 +35,13 @@ final class ConfigurationTest extends TestCase
         self::assertSame('medium', $config['profiles']['default']['password_strength']['level']);
         self::assertTrue($config['profiles']['default']['embed']['show_login']);
         self::assertTrue($config['profiles']['default']['embed']['show_register']);
+        self::assertSame(
+            ['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
+            $config['profiles']['default']['templates']['form_theme'],
+        );
+        self::assertSame('nowo-auth-kit__button', $config['profiles']['default']['css']['button_class']);
+        self::assertSame('nowo-auth-kit__social-button', $config['profiles']['default']['css']['secondary_button_class']);
+        self::assertNull($config['outbound_mail_ready_checker']);
         self::assertFalse($config['locale_in_path']);
         self::assertSame('never', $config['locale']['in_path']);
         self::assertSame('en', $config['locale']['default']);
@@ -158,5 +165,25 @@ final class ConfigurationTest extends TestCase
         ]]);
 
         self::assertSame(TestUser::class, $config['profiles']['default']['user_class']);
+    }
+
+    public function testSingleFormThemeStringIsNormalizedToList(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                    'templates'  => [
+                        'form_theme' => 'form/auth_kit_theme.html.twig',
+                    ],
+                ],
+            ],
+        ]]);
+
+        self::assertSame(
+            ['form/auth_kit_theme.html.twig'],
+            $config['profiles']['default']['templates']['form_theme'],
+        );
     }
 }

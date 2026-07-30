@@ -41,6 +41,7 @@ final class Configuration implements ConfigurationInterface
         'password_strength',
         'registration_fields',
         'templates',
+        'css',
         'embed',
         'password_reset',
         'magic_login',
@@ -128,6 +129,10 @@ final class Configuration implements ConfigurationInterface
                     ->info('Profile name used when no profile is specified explicitly.')
                     ->defaultValue('default')
                 ->end()
+                ->scalarNode('outbound_mail_ready_checker')
+                    ->info('Optional service id implementing OutboundMailReadyCheckerInterface for password-reset and magic-login UI hints.')
+                    ->defaultNull()
+                ->end()
                 ->arrayNode('profiles')
                     ->requiresAtLeastOneElement()
                     ->useAttributeAsKey('name')
@@ -177,6 +182,7 @@ final class Configuration implements ConfigurationInterface
                                 ->prototype('variable')->end()
                             ->end()
                             ->append($this->createTemplatesNode())
+                            ->append($this->createCssNode())
                             ->append($this->createEmbedNode())
                             ->append($this->createPasswordResetNode())
                             ->append($this->createMagicLoginNode())
@@ -312,6 +318,33 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->scalarNode('magic_login_request')
                     ->defaultValue('@NowoAuthKitBundle/security/magic_login_request.html.twig')
+                ->end()
+                ->arrayNode('form_theme')
+                    ->beforeNormalization()
+                        ->ifTrue(static fn (mixed $value): bool => is_string($value))
+                        ->then(static fn (string $value): array => [$value])
+                    ->end()
+                    ->scalarPrototype()->end()
+                    ->defaultValue(['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'])
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createCssNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('css'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->scalarNode('button_class')
+                    ->defaultValue('nowo-auth-kit__button')
+                    ->cannotBeEmpty()
+                ->end()
+                ->scalarNode('secondary_button_class')
+                    ->defaultValue('nowo-auth-kit__social-button')
+                    ->cannotBeEmpty()
                 ->end()
             ->end();
 

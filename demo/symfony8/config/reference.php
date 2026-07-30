@@ -1252,6 +1252,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * }
  * @psalm-type NowoAuthKitConfig = array{
  *     default_profile?: scalar|Param|null, // Profile name used when no profile is specified explicitly. // Default: "default"
+ *     outbound_mail_ready_checker?: scalar|Param|null, // Optional service id implementing OutboundMailReadyCheckerInterface for password-reset and magic-login UI hints. // Default: null
  *     profiles?: array<string, array{ // Default: []
  *         user_class?: scalar|Param|null, // FQCN of the application user entity (must implement UserInterface). // Default: null
  *         user_identifier_field?: scalar|Param|null, // Entity property used as the security user identifier (form_login username). // Default: "email"
@@ -1279,6 +1280,11 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             reset_password?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password.html.twig"
  *             reset_password_code?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password_code.html.twig"
  *             magic_login_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/magic_login_request.html.twig"
+ *             form_theme?: list<scalar|Param|null>,
+ *         },
+ *         css?: array{
+ *             button_class?: scalar|Param|null, // Default: "nowo-auth-kit__button"
+ *             secondary_button_class?: scalar|Param|null, // Default: "nowo-auth-kit__social-button"
  *         },
  *         embed?: array{
  *             mode?: "disabled"|"dropdown"|Param, // disabled: full-page routes only. dropdown: embed login/register via auth_kit_dropdown(). // Default: "disabled"

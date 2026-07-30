@@ -2,20 +2,27 @@
 
 {% block title %}{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
 
-{% block body %}
+{% block auth_panel %}
+{% if nowo_auth_kit_form_themes is defined and nowo_auth_kit_form_themes is not empty %}
+{% form_theme registration_form nowo_auth_kit_form_themes %}
+{% else %}
 {% form_theme registration_form '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig' %}
+{% endif %}
 <section class="nowo-auth-kit__panel">
+    {% block auth_panel_heading %}
     <h1>{{ 'register.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+    {% endblock %}
 
     {{ form_start(registration_form) }}
         {% for field in registration_form %}
             {{ form_row(field) }}
         {% endfor %}
-        <button type="submit" class="nowo-auth-kit__button">{{ 'register.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+        <button type="submit" class="{{ nowo_auth_kit_button_class|default('nowo-auth-kit__button') }}">{{ 'register.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
     {{ form_end(registration_form) }}
 
     <p class="nowo-auth-kit__footer">
         <a href="{{ path(login_route, auth_kit_route_params()) }}">{{ 'register.login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
     </p>
+    {% block auth_footer_extra %}{% endblock %}
 </section>
 {% endblock %}

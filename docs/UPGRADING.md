@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.11.0](#to-1110)
 - [To 1.10.1](#to-1101)
 - [To 1.10.0](#to-1100)
 - [To 1.9.1](#to-191)
@@ -43,6 +44,67 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.11.0
+
+From **1.10.1** / **1.10.0** or earlier 1.x minors with default templates.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+### Template structure
+
+- Bundle layout now nests security content inside `auth_brand` and `auth_panel`.
+- Bundle security pages (`login`, `register`, `reset_*`, `magic_login_request`) now override `auth_panel` instead of `body`.
+- If your application override extends `@NowoAuthKitBundle/layout.html.twig` and customizes only the inner panel, rename:
+
+```twig
+{% block body %}
+    {# old custom panel #}
+{% endblock %}
+```
+
+to:
+
+```twig
+{% block auth_panel %}
+    {# custom panel #}
+{% endblock %}
+```
+
+Overriding the whole `body` block still works for full takeovers, but hosts that want to keep the shared shell should now prefer `auth_brand`, `auth_panel_heading`, and `auth_footer_extra`.
+
+### Optional: outbound mail readiness
+
+Password-reset and magic-login links on the default login page are now hidden unless `nowo_auth_kit_outbound_mail_ready()` returns `true`.
+
+If your app needs an environment-aware check, register a service that implements `Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface` and point the bundle to it:
+
+```yaml
+nowo_auth_kit:
+    outbound_mail_ready_checker: app.auth_kit.mail_ready_checker
+```
+
+### Optional: shared form themes and CSS classes
+
+You can now configure the default full-page form theme list and button classes per profile:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            templates:
+                form_theme:
+                    - 'bootstrap_5_layout.html.twig'
+                    - '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'
+            css:
+                button_class: 'btn btn-primary w-100'
+                secondary_button_class: 'btn btn-outline-secondary w-100'
+```
+
+The default layout also loads `{{ asset('css/nowo-auth-kit.css', 'nowo_auth_kit') }}` for minimal design tokens.
 
 ## To 1.10.1
 

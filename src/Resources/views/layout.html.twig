@@ -4,12 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ 'layout.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ asset('css/nowo-auth-kit.css', 'nowo_auth_kit') }}">
     <link rel="stylesheet" href="{{ asset('bundles/nowopasswordtoggle/css/toggle_password.css') }}">
     {% block stylesheets %}{% endblock %}
 </head>
 <body class="nowo-auth-kit">
     <main class="nowo-auth-kit__main">
-        {% block body %}{% endblock %}
+        {% block body %}
+            {% block auth_brand %}{% endblock %}
+            {% block auth_panel %}{% endblock %}
+        {% endblock %}
     </main>
     {% block javascripts %}{% endblock %}
 </body>

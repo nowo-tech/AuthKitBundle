@@ -7,17 +7,21 @@ namespace Nowo\AuthKitBundle\DependencyInjection;
 use InvalidArgumentException;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
+use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
+use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
+use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
+use function is_string;
 use function sprintf;
 
 /**
  * Loads bundle configuration and registers services.
  */
-final class NowoAuthKitExtension extends Extension
+final class NowoAuthKitExtension extends Extension implements PrependExtensionInterface
 {
     public function load(array $configs, ContainerBuilder $container): void
     {
@@ -47,6 +51,7 @@ final class NowoAuthKitExtension extends Extension
         $container->setParameter('nowo_auth_kit.password_strength', $defaultProfile['password_strength']);
         $container->setParameter('nowo_auth_kit.registration_fields', $defaultProfile['registration_fields']);
         $container->setParameter('nowo_auth_kit.templates', $defaultProfile['templates']);
+        $container->setParameter('nowo_auth_kit.css', $defaultProfile['css']);
         $container->setParameter('nowo_auth_kit.embed', $defaultProfile['embed']);
         $container->setParameter('nowo_auth_kit.routes', $defaultProfile['routes']);
         $container->setParameter('nowo_auth_kit.password_reset', $defaultProfile['password_reset']);
@@ -76,14 +81,41 @@ final class NowoAuthKitExtension extends Extension
         $container->setParameter('nowo_auth_kit.default_locale', $config['locale']['default']);
         $container->setParameter('nowo_auth_kit.enabled_locales', $config['locale']['enabled']);
         $container->setParameter('nowo_auth_kit.locale_in_path', $config['locale']['in_path']);
+        $container->setParameter('nowo_auth_kit.outbound_mail_ready_checker', $config['outbound_mail_ready_checker']);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
+
+        $checkerServiceId = $config['outbound_mail_ready_checker'];
+        if (is_string($checkerServiceId) && $checkerServiceId !== '') {
+            $container->setAlias(OutboundMailReadyCheckerInterface::class, $checkerServiceId);
+
+            return;
+        }
+
+        $container->setAlias(OutboundMailReadyCheckerInterface::class, AlwaysOutboundMailReadyChecker::class);
     }
 
     public function getAlias(): string
     {
         return Configuration::ALIAS;
+    }
+
+    public function prepend(ContainerBuilder $container): void
+    {
+        if (!$container->hasExtension('framework')) {
+            return;
+        }
+
+        $container->prependExtensionConfig('framework', [
+            'assets' => [
+                'packages' => [
+                    Configuration::ALIAS => [
+                        'base_path' => '/bundles/nowoauthkit',
+                    ],
+                ],
+            ],
+        ]);
     }
 
     /**

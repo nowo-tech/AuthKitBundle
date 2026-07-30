@@ -12,7 +12,8 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $rememberMe
      * @param array<string, mixed> $passwordStrength
      * @param list<array<string, mixed>> $registrationFields
-     * @param array<string, string> $templates
+     * @param array<string, mixed> $templates
+     * @param array{button_class: string, secondary_button_class: string} $css
      * @param array<string, mixed> $embed
      * @param array<string, mixed> $passwordReset
      * @param array<string, mixed> $magicLogin
@@ -30,6 +31,7 @@ final readonly class ProfileSettings
         public array $passwordStrength,
         public array $registrationFields,
         public array $templates,
+        public array $css,
         public array $embed,
         public array $passwordReset,
         public array $magicLogin,
@@ -61,6 +63,7 @@ final readonly class ProfileSettings
             passwordStrength: $config['password_strength'],
             registrationFields: $config['registration_fields'],
             templates: $config['templates'],
+            css: $config['css'],
             embed: $config['embed'],
             passwordReset: $config['password_reset'],
             magicLogin: $config['magic_login'],

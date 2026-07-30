@@ -58,6 +58,11 @@ final class ProfileRegistryFactory
                 'reset_password'      => '@NowoAuthKitBundle/security/reset_password.html.twig',
                 'reset_password_code' => '@NowoAuthKitBundle/security/reset_password_code.html.twig',
                 'magic_login_request' => '@NowoAuthKitBundle/security/magic_login_request.html.twig',
+                'form_theme'          => ['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
+            ],
+            'css' => [
+                'button_class'           => 'nowo-auth-kit__button',
+                'secondary_button_class' => 'nowo-auth-kit__social-button',
             ],
             'embed' => [
                 'mode'           => 'disabled',

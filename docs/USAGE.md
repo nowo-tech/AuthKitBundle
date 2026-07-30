@@ -48,6 +48,15 @@ Symfony resolves app overrides before bundle defaults.
 | `magic_login_enabled` | Whether magic login is enabled |
 | `layout_template` | Parent layout template |
 
+**Shared full-page globals**:
+
+| Variable / function | Description |
+|---------------------|-------------|
+| `nowo_auth_kit_form_themes` | Default form theme list from profile `templates.form_theme` |
+| `nowo_auth_kit_button_class` | Default submit button class from profile `css.button_class` |
+| `nowo_auth_kit_secondary_button_class` | Default social button class from profile `css.secondary_button_class` |
+| `nowo_auth_kit_outbound_mail_ready()` | Returns whether outbound email-dependent UI should be shown |
+
 **Register** (`security/register.html.twig`):
 
 | Variable | Description |
@@ -71,6 +80,31 @@ Extend your app layout in an override:
 
 Or set `nowo_auth_kit.templates.layout` to your layout and override only the inner templates.
 
+For shared branding without forking every page, the bundle layout now exposes:
+
+- `auth_brand` before the panel
+- `auth_panel` for the page-specific content
+- `auth_panel_heading` inside each security template heading
+- `auth_footer_extra` after the default footer/social links
+
+Example:
+
+```twig
+{# templates/bundles/NowoAuthKitBundle/layout.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <aside class="marketing-column">
+        {% block auth_brand %}
+            <h2>Acme Cloud</h2>
+            <p>Secure access for your workspace.</p>
+        {% endblock %}
+
+        {% block auth_panel %}{% endblock %}
+    </aside>
+{% endblock %}
+```
+
 ### Bootstrap 5 and password toggle (demo reference)
 
 The demo under `demo/symfony8` shows a full override with Bootstrap 5:
@@ -90,6 +124,18 @@ The demo under `demo/symfony8` shows a full override with Bootstrap 5:
    ```
 
 3. In login/register overrides: `{% form_theme login_form 'form/auth_kit_theme.html.twig' %}`.
+
+You can also configure the bundle-wide defaults instead of repeating the theme in every page override:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            templates:
+                form_theme:
+                    - 'bootstrap_5_layout.html.twig'
+                    - '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'
+```
 
 See `demo/README.md` for locale switching and template paths.
 
@@ -211,3 +257,5 @@ The login template receives `registration_allowed` from `RegistrationGate` (same
 ```
 
 With `registration_mode: first_user_only`, the link appears only while the user table is empty. With `disabled`, it stays hidden. Custom template overrides must include this check if they render their own footer links.
+
+If your application conditionally enables outbound email, also gate password-reset and magic-login links with `nowo_auth_kit_outbound_mail_ready()` to match the default template behavior.

@@ -1,0 +1,50 @@
+.nowo-auth-kit {
+  --nowo-auth-kit-primary: #2563eb;
+  --nowo-auth-kit-surface: #fff;
+  --nowo-auth-kit-text: #0f172a;
+  --nowo-auth-kit-muted: #64748b;
+  --nowo-auth-kit-border: #e2e8f0;
+  --nowo-auth-kit-danger: #b91c1c;
+  --nowo-auth-kit-radius: 0.5rem;
+}
+
+.nowo-auth-kit__panel {
+  background: var(--nowo-auth-kit-surface);
+  color: var(--nowo-auth-kit-text);
+  border: 1px solid var(--nowo-auth-kit-border);
+  border-radius: var(--nowo-auth-kit-radius);
+  padding: 1.25rem;
+}
+
+.nowo-auth-kit__button,
+.nowo-auth-kit__social-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--nowo-auth-kit-radius);
+  padding: 0.75rem 1rem;
+  border: 1px solid transparent;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nowo-auth-kit__button {
+  background: var(--nowo-auth-kit-primary);
+  color: #fff;
+}
+
+.nowo-auth-kit__social-button {
+  background: var(--nowo-auth-kit-surface);
+  color: var(--nowo-auth-kit-text);
+  border-color: var(--nowo-auth-kit-border);
+}
+
+.nowo-auth-kit__footer {
+  color: var(--nowo-auth-kit-muted);
+}
+
+.nowo-auth-kit__alert--error {
+  color: var(--nowo-auth-kit-danger);
+}

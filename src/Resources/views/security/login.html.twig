@@ -2,10 +2,16 @@
 
 {% block title %}{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
 
-{% block body %}
+{% block auth_panel %}
+{% if nowo_auth_kit_form_themes is defined and nowo_auth_kit_form_themes is not empty %}
+{% form_theme login_form nowo_auth_kit_form_themes %}
+{% else %}
 {% form_theme login_form '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig' %}
+{% endif %}
 <section class="nowo-auth-kit__panel">
+    {% block auth_panel_heading %}
     <h1>{{ 'login.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+    {% endblock %}
 
     {% if error %}
         <div class="nowo-auth-kit__alert nowo-auth-kit__alert--error" role="alert">
@@ -19,16 +25,19 @@
         {% if login_form._remember_me is defined %}
             {{ form_row(login_form._remember_me) }}
         {% endif %}
-        <button type="submit" class="nowo-auth-kit__button">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+        <button type="submit" class="{{ nowo_auth_kit_button_class|default('nowo-auth-kit__button') }}">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
     {{ form_end(login_form) }}
 
-    {% if password_reset_enabled|default(false) or registration_allowed|default(false) or magic_login_enabled|default(false) or social_login_enabled|default(false) %}
+    {% set outbound_mail_ready = nowo_auth_kit_outbound_mail_ready() %}
+    {% set magic_login_link_enabled = outbound_mail_ready and magic_login_enabled|default(false) %}
+    {% set password_reset_link_enabled = outbound_mail_ready and password_reset_enabled|default(false) %}
+    {% if password_reset_link_enabled or registration_allowed|default(false) or magic_login_link_enabled or social_login_enabled|default(false) %}
     <p class="nowo-auth-kit__footer">
-        {% if magic_login_enabled|default(false) %}
+        {% if magic_login_link_enabled %}
             <a href="{{ path(magic_login_route, auth_kit_route_params()) }}">{{ 'login.magic_login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
-            {% if password_reset_enabled|default(false) or registration_allowed|default(false) or social_login_enabled|default(false) %} · {% endif %}
+            {% if password_reset_link_enabled or registration_allowed|default(false) or social_login_enabled|default(false) %} · {% endif %}
         {% endif %}
-        {% if password_reset_enabled|default(false) %}
+        {% if password_reset_link_enabled %}
             <a href="{{ path(reset_password_route, auth_kit_route_params()) }}">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
             {% if registration_allowed|default(false) or social_login_enabled|default(false) %} · {% endif %}
         {% endif %}
@@ -45,7 +54,7 @@
         <ul class="nowo-auth-kit__social-list">
             {% for provider in social_login_providers %}
                 <li>
-                    <a class="nowo-auth-kit__social-button" href="{{ path(social_login_route, auth_kit_route_params({ provider: provider.provider })) }}">
+                    <a class="{{ nowo_auth_kit_secondary_button_class|default('nowo-auth-kit__social-button') }}" href="{{ path(social_login_route, auth_kit_route_params({ provider: provider.provider })) }}">
                         {{ 'social.continue_with'|trans({'%provider%': provider.label}, 'NowoAuthKitBundle') }}
                     </a>
                 </li>
@@ -53,5 +62,6 @@
         </ul>
     </div>
     {% endif %}
+    {% block auth_footer_extra %}{% endblock %}
 </section>
 {% endblock %}

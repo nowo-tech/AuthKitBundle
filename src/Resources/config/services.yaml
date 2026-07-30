@@ -51,6 +51,11 @@ services:
         tags:
             - { name: routing.loader }
 
+    Nowo\AuthKitBundle\Twig\AuthKitUiExtension:
+        arguments:
+            $templates: '%nowo_auth_kit.templates%'
+            $css: '%nowo_auth_kit.css%'
+
     Nowo\AuthKitBundle\Controller\LoginController:
         public: true
 

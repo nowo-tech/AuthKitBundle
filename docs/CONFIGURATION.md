@@ -27,6 +27,7 @@ Each **profile** maps a `user_class` to its own auth settings (registration, log
 | --- | --- | --- | --- |
 | `default_profile` | string | first profile key | Profile used when no route context or explicit name is available. |
 | `profiles` | map | `default` | Named profile definitions (at least one required). |
+| `outbound_mail_ready_checker` | string\|null | `null` | Optional service id implementing `OutboundMailReadyCheckerInterface` for UI gating. |
 | `locale` | map | see below | Preferred locale / path configuration. |
 | `default_locale` | string | `en` | **Deprecated** — use `locale.default`. |
 | `enabled_locales` | list | `[en, es]` | **Deprecated** — use `locale.enabled`. |
@@ -128,6 +129,12 @@ nowo_auth_kit:
         reset_password: '@NowoAuthKitBundle/security/reset_password.html.twig'
         reset_password_code: '@NowoAuthKitBundle/security/reset_password_code.html.twig'
         magic_login_request: '@NowoAuthKitBundle/security/magic_login_request.html.twig'
+        form_theme:
+            - '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'
+
+    css:
+        button_class: nowo-auth-kit__button
+        secondary_button_class: nowo-auth-kit__social-button
 
     embed:
         mode: disabled              # disabled | dropdown
@@ -198,6 +205,8 @@ nowo_auth_kit:
     # Documented for security.yaml (see INSTALLATION.md)
     firewall: main
     login_success_route: null   # route name after login/register; null uses firewall default
+
+    outbound_mail_ready_checker: null   # optional service id
 
     locale:
         in_path: never          # never | always | both
@@ -358,6 +367,31 @@ templates/bundles/NowoAuthKitBundle/embed/
 ```
 
 Or point `templates.*` and `embed.*` to your own Twig paths.
+
+The default full-page templates also expose shared UI globals:
+
+- `nowo_auth_kit_form_themes` → profile `templates.form_theme`
+- `nowo_auth_kit_button_class` → profile `css.button_class`
+- `nowo_auth_kit_secondary_button_class` → profile `css.secondary_button_class`
+- `nowo_auth_kit_outbound_mail_ready()` → outbound mail readiness checker
+
+Example:
+
+```yaml
+nowo_auth_kit:
+    outbound_mail_ready_checker: app.auth_kit.mail_ready_checker
+    profiles:
+        default:
+            templates:
+                form_theme:
+                    - 'bootstrap_5_layout.html.twig'
+                    - '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'
+            css:
+                button_class: 'btn btn-primary w-100'
+                secondary_button_class: 'btn btn-outline-secondary w-100'
+```
+
+The bundle prepends an asset package named `nowo_auth_kit` with base path `/bundles/nowoauthkit`, so the default layout can load `{{ asset('css/nowo-auth-kit.css', 'nowo_auth_kit') }}`.
 
 ## Routes
 

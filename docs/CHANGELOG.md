@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.11.0] - 2026-07-30](#1110-2026-07-30)
+  - [Added](#added)
+  - [Changed](#changed)
 - [[1.10.1] - 2026-07-30](#1101-2026-07-30)
   - [Fixed](#fixed)
 - [[1.10.0] - 2026-07-30](#1100-2026-07-30)
@@ -94,6 +97,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.11.0] - 2026-07-30
+
+### Added
+
+- `nowo_auth_kit_outbound_mail_ready()` Twig function plus `OutboundMailReadyCheckerInterface` and the default `AlwaysOutboundMailReadyChecker`.
+- Profile-level UI config for `templates.form_theme`, `css.button_class`, and `css.secondary_button_class`.
+- Minimal CSS tokens asset at `@NowoAuthKitBundle` package path `css/nowo-auth-kit.css`.
+
+### Changed
+
+- Default layout now exposes `auth_brand` and `auth_panel` blocks so hosts can brand the shared shell without overriding every security page.
+- Full-page security templates now render headings in `auth_panel_heading`, append `auth_footer_extra`, honor configurable button classes/form themes, and hide password-reset or magic-login links when outbound mail is not ready.
+- Bundle DI now prepends the `nowo_auth_kit` framework asset package (`/bundles/nowoauthkit`) for the default stylesheet.
+
+[1.11.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.11.0
 
 ## [1.10.1] - 2026-07-30
 
