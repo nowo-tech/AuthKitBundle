@@ -509,6 +509,10 @@ final class DisplayNameUser implements UserInterface, PasswordAuthenticatedUserI
     {
         return $this->password;
     }
+
+    public function eraseCredentials(): void
+    {
+    }
 }
 
 final class NameOnlyUser implements UserInterface, PasswordAuthenticatedUserInterface
@@ -536,6 +540,10 @@ final class NameOnlyUser implements UserInterface, PasswordAuthenticatedUserInte
     {
         return $this->password;
     }
+
+    public function eraseCredentials(): void
+    {
+    }
 }
 
 final class StringIdUser implements UserInterface, PasswordAuthenticatedUserInterface
@@ -562,5 +570,9 @@ final class StringIdUser implements UserInterface, PasswordAuthenticatedUserInte
     public function getPassword(): string
     {
         return $this->password;
+    }
+
+    public function eraseCredentials(): void
+    {
     }
 }
