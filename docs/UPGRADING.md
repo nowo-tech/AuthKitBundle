@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.10.1](#to-1101)
 - [To 1.10.0](#to-1100)
 - [To 1.9.1](#to-191)
 - [To 1.9.0](#to-190)
@@ -42,6 +43,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.10.1
+
+From **1.10.0** — test/CI fix only; no application config required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.10.0
 

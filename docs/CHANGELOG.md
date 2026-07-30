@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.10.1] - 2026-07-30](#1101-2026-07-30)
+  - [Fixed](#fixed)
 - [[1.10.0] - 2026-07-30](#1100-2026-07-30)
   - [Security](#security)
   - [Added](#added)
@@ -92,6 +94,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.10.1] - 2026-07-30
+
+### Fixed
+
+- Restore `eraseCredentials()` on social-login test user stubs (Symfony 7.4 `UserInterface`) and skip Rector `RemoveEmptyClassMethodRector` for those files so SF 7.4 CI does not fatal.
+
+[1.10.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.10.1
 
 ## [1.10.0] - 2026-07-30
 
