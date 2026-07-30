@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.9.1](#to-191)
 - [To 1.9.0](#to-190)
   - [Social login (optional)](#social-login-optional)
 - [To 1.8.2](#to-182)
@@ -40,6 +41,16 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.9.1
+
+From **1.9.0** — documentation only; no application config required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No runtime API changes. Adds the [QR-LOGIN.md](QR-LOGIN.md) design (explicitly **in development** / not shipped).
 
 ## To 1.9.0
 

@@ -177,3 +177,4 @@ Override bundle strings in `translations/NowoAuthKitBundle.es.yaml` (see [USAGE.
 - [PASSWORD-RESET.md](PASSWORD-RESET.md) — reset flow and notifier wiring
 - [MAGIC-LOGIN.md](MAGIC-LOGIN.md) — passwordless login link
 - [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md) — OAuth social login (optional)
+- [QR-LOGIN.md](QR-LOGIN.md) — QR phone login (**in development**; not shipped)

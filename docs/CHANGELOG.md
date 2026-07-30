@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.1] - 2026-07-30](#191-2026-07-30)
+  - [Added](#added)
 - [[1.9.0] - 2026-07-30](#190-2026-07-30)
   - [Added](#added)
   - [Changed](#changed)
@@ -86,6 +88,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.9.1] - 2026-07-30
+
+### Added
+
+- Design doc [QR-LOGIN.md](QR-LOGIN.md) for future **QR phone login** (status: **in development** — not shipped; no runtime API). Linked from README and INSTALLATION.
+
+[1.9.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.9.1
 
 ## [1.9.0] - 2026-07-30
 

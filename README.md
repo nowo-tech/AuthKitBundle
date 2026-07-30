@@ -17,6 +17,8 @@ This bundle is **FrankenPHP worker mode friendly**.
 - Registration with Doctrine persistence and password hashing
 - **Password reset** (link, code, or both) with pluggable notifier
 - **Magic login** (passwordless email link via Symfony `login_link`)
+- **Social login** (OAuth; see [SOCIAL-LOGIN.md](docs/SOCIAL-LOGIN.md))
+- **QR phone login** — *in development* (design only; see [QR-LOGIN.md](docs/QR-LOGIN.md))
 - **Embedded auth dropdown** (`auth_kit_dropdown()`) for navbars and layouts
 - **Locale in URL paths** (`/en/login`, `/es/register`, …)
 - **Remember me** (optional persistent login cookie)
@@ -99,6 +101,7 @@ make release-check
 - [Password reset](docs/PASSWORD-RESET.md)
 - [Magic login](docs/MAGIC-LOGIN.md)
 - [Social login](docs/SOCIAL-LOGIN.md)
+- [QR phone login](docs/QR-LOGIN.md) — **in development** (not shipped)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
 
 ## Tests and coverage
