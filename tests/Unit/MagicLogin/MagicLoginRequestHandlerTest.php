@@ -7,7 +7,6 @@ namespace Nowo\AuthKitBundle\Tests\Unit\MagicLogin;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
-use LogicException;
 use Nowo\AuthKitBundle\MagicLogin\LoggingMagicLoginNotifier;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginNotificationContext;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginNotifierInterface;
@@ -15,11 +14,13 @@ use Nowo\AuthKitBundle\MagicLogin\MagicLoginRequestedEvent;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginRequestHandler;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginUserResolver;
 use Nowo\AuthKitBundle\MagicLogin\NullMagicLoginNotifier;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use stdClass;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -98,13 +99,14 @@ final class MagicLoginRequestHandlerTest extends TestCase
             $dispatcher,
             $registry,
             $stack,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
             $loginLinkHandler,
         );
 
         $handler->handle('user@example.com');
     }
 
-    public function testThrowsWhenLoginLinkHandlerMissing(): void
+    public function testSkipsSilentlyWhenLoginLinkHandlerMissing(): void
     {
         $user = new TestUser();
         $user->setEmail('user@example.com');
@@ -121,10 +123,34 @@ final class MagicLoginRequestHandlerTest extends TestCase
             $this->createMock(EventDispatcherInterface::class),
             ProfileRegistryFactory::single(TestUser::class),
             new RequestStack(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+        );
+        $handler->handle('user@example.com');
+        $this->addToAssertionCount(1);
+    }
+
+    public function testHandleStopsWhenRateLimited(): void
+    {
+        $loginLinkHandler = $this->createMock(LoginLinkHandlerInterface::class);
+        $loginLinkHandler->expects(self::never())->method('createLoginLink');
+
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'magic_login' => ['mode' => 'enabled', 'request_rate_limit' => 1],
+        ]);
+
+        $handler = new MagicLoginRequestHandler(
+            new MagicLoginUserResolver($this->createMock(EntityManagerInterface::class), $registry),
+            new NullMagicLoginNotifier(),
+            $this->createMock(EventDispatcherInterface::class),
+            $registry,
+            new RequestStack(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            $loginLinkHandler,
         );
 
-        $this->expectException(LogicException::class);
-        $handler->handle('user@example.com');
+        $handler->handle('a@b.c');
+        $handler->handle('a@b.c');
+        $this->addToAssertionCount(1);
     }
 
     public function testIgnoresNonUserInterface(): void
@@ -336,6 +362,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
             $this->createMock(EventDispatcherInterface::class),
             $registry,
             new RequestStack(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
             $loginLinkHandler,
         );
 
@@ -355,6 +382,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
                 'magic_login' => ['mode' => 'enabled', 'lifetime' => 600, 'max_uses' => 1],
             ]),
             new RequestStack(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
             $loginLinkHandler,
         );
     }

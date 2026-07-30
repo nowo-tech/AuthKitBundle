@@ -94,3 +94,8 @@ services:
             $loginFields: '%nowo_auth_kit.login_fields%'
             $rememberMe: '%nowo_auth_kit.remember_me%'
             $magicLogin: '%nowo_auth_kit.magic_login%'
+            $socialLoginMode: '%nowo_auth_kit.social_login.mode%'
+
+    Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter:
+        arguments:
+            $cache: '@cache.app'

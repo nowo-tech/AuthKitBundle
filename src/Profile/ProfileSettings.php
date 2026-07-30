@@ -37,6 +37,8 @@ final readonly class ProfileSettings
         public array $routes,
         public string $firewall,
         public ?string $loginSuccessRoute,
+        public int $registrationRateLimit = 5,
+        public int $registrationRateWindow = 900,
     ) {
     }
 
@@ -65,10 +67,13 @@ final readonly class ProfileSettings
             socialLogin: $config['social_login'] ?? [
                 'mode'                   => 'disabled',
                 'create_user_if_missing' => true,
+                'require_verified_email' => true,
             ],
             routes: $config['routes'],
             firewall: $config['firewall'],
             loginSuccessRoute: $config['login_success_route'],
+            registrationRateLimit: (int) ($config['registration_rate_limit'] ?? 5),
+            registrationRateWindow: (int) ($config['registration_rate_window'] ?? 900),
         );
     }
 }

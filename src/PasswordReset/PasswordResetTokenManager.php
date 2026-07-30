@@ -11,6 +11,7 @@ use LogicException;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
@@ -21,6 +22,7 @@ use function random_bytes;
 use function random_int;
 use function sprintf;
 use function strlen;
+use function strtolower;
 
 /**
  * Stores hashed reset credentials on configurable user entity properties.
@@ -33,6 +35,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         private readonly PasswordResetUserResolver $userResolver,
         private readonly ProfileRegistry $profileRegistry,
         private readonly ClockInterface $clock,
+        private readonly AuthKitAttemptLimiter $attemptLimiter,
     ) {
     }
 
@@ -69,10 +72,26 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
 
     public function resolveUserByIdentifierAndCode(string $identifier, string $code, ?string $profileName = null): ?object
     {
-        $profile = $this->resolveProfile($profileName);
-        $user    = $this->userResolver->findByIdentifier($identifier, $profile->name);
+        $profile     = $this->resolveProfile($profileName);
+        $maxAttempts = (int) ($profile->passwordReset['max_code_attempts'] ?? 5);
+        $window      = max(60, (int) ($profile->passwordReset['token_ttl'] ?? 3600));
+        $attemptKey  = 'reset_code:' . $profile->name . ':' . hash('sha256', strtolower($identifier));
+
+        if (!$this->attemptLimiter->isAllowed($attemptKey, $maxAttempts)) {
+            $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
+            if ($user !== null) {
+                $this->clearForUser($user);
+            }
+            $this->attemptLimiter->reset($attemptKey);
+
+            return null;
+        }
+
+        $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
 
         if ($user === null) {
+            $this->attemptLimiter->hit($attemptKey, $window);
+
             return null;
         }
 
@@ -80,21 +99,41 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $stored     = $this->propertyAccessor->getValue($user, $tokenField);
 
         if (!is_string($stored)) {
+            $this->attemptLimiter->hit($attemptKey, $window);
+
             return null;
         }
 
         $codeHash = hash('sha256', $code);
+        $matches  = false;
 
         if (str_contains($stored, '|')) {
-            $parts = explode('|', $stored, 2);
-            if (!hash_equals($parts[1], $codeHash)) {
-                return null;
+            $parts   = explode('|', $stored, 2);
+            $matches = hash_equals($parts[1], $codeHash);
+        } else {
+            $matches = hash_equals($stored, $codeHash);
+        }
+
+        if (!$matches) {
+            $this->attemptLimiter->hit($attemptKey, $window);
+            if (!$this->attemptLimiter->isAllowed($attemptKey, $maxAttempts)) {
+                $this->clearForUser($user);
+                $this->attemptLimiter->reset($attemptKey);
             }
-        } elseif (!hash_equals($stored, $codeHash)) {
+
             return null;
         }
 
-        return $this->validateExpiry($profile, $user);
+        $valid = $this->validateExpiry($profile, $user);
+        if ($valid === null) {
+            $this->attemptLimiter->hit($attemptKey, $window);
+
+            return null;
+        }
+
+        $this->attemptLimiter->reset($attemptKey);
+
+        return $valid;
     }
 
     public function clearForUser(object $user): void

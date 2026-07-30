@@ -18,10 +18,12 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenResult;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -95,6 +97,8 @@ final class PasswordResetRequestHandlerTest extends TestCase
             ProfileRegistryFactory::single(TestUser::class, [
                 'password_reset' => ['delivery' => 'link'],
             ]),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
         );
 
         $handler->handle('user@example.com');
@@ -141,6 +145,8 @@ final class PasswordResetRequestHandlerTest extends TestCase
             ProfileRegistryFactory::single(TestUser::class, [
                 'password_reset' => ['delivery' => 'code'],
             ]),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
         );
 
         $handler->handle('user@example.com');
@@ -187,6 +193,8 @@ final class PasswordResetRequestHandlerTest extends TestCase
             ProfileRegistryFactory::single(TestUser::class, [
                 'password_reset' => ['delivery' => 'code'],
             ]),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
         );
 
         $handler->handle('ab');
@@ -233,11 +241,46 @@ final class PasswordResetRequestHandlerTest extends TestCase
             ProfileRegistryFactory::single(TestUser::class, [
                 'password_reset' => ['delivery' => 'code'],
             ]),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
         );
 
         $handler->handle('username');
 
         self::assertSame('u******e', $notifier->context?->maskedIdentifier);
+    }
+
+    public function testHandleStopsWhenRateLimited(): void
+    {
+        $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
+        $tokenManager->expects(self::never())->method('createForUser');
+
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => [
+                'delivery'           => 'link',
+                'request_rate_limit' => 1,
+            ],
+        ]);
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn(null);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $handler = new PasswordResetRequestHandler(
+            new PasswordResetUserResolver($entityManager, $profileRegistry),
+            $tokenManager,
+            new NullPasswordResetNotifier(),
+            $this->authKitUrlGenerator(),
+            $this->createMock(EventDispatcherInterface::class),
+            $profileRegistry,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
+        );
+
+        $handler->handle('a@b.c');
+        $handler->handle('a@b.c');
+        $this->addToAssertionCount(1);
     }
 
     private function handler(
@@ -256,6 +299,8 @@ final class PasswordResetRequestHandlerTest extends TestCase
             $this->authKitUrlGenerator(),
             $this->createMock(EventDispatcherInterface::class),
             $profileRegistry,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
         );
     }
 

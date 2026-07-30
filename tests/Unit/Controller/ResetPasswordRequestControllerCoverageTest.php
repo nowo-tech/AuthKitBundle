@@ -15,14 +15,17 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenResult;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
@@ -64,6 +67,8 @@ final class ResetPasswordRequestControllerCoverageTest extends TestCase
             AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
             $this->createMock(EventDispatcherInterface::class),
             $profileRegistry,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
         );
 
         $form = $this->createMock(FormInterface::class);
@@ -123,6 +128,8 @@ final class ResetPasswordRequestControllerCoverageTest extends TestCase
             AuthKitTestUrlGenerator::fromMock($inner),
             $this->createMock(EventDispatcherInterface::class),
             $profileRegistry,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
         );
 
         $controller = new ResetPasswordRequestController(

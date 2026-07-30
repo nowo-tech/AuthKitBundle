@@ -19,20 +19,24 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Login form | CSRF, credential stuffing | Symfony `form_login` with CSRF; document rate limiting via `nowo-tech/login-throttle-bundle` |
 | Registration | Mass signup, privilege escalation, session fixation | `registration_mode`; configurable `registration_role`; session ID migrated after auto-login |
 | Password storage | Weak hashing | Uses `UserPasswordHasherInterface` |
-| Password reset / magic login | Token leakage, enumeration, OTP brute-force | Tokens stored hashed; uniform UX messages; prefer `link` delivery; apps must rate-limit requests and OTP verification |
+| Password reset / magic login | Token leakage, enumeration, OTP brute-force | Tokens stored hashed; uniform UX messages; built-in request rate limits + OTP `max_code_attempts` lockout; prefer `link` delivery |
+| Social login | Account takeover via unverified email; SSRF via custom IdP URLs | `require_verified_email` (default true); HTTPS + public-host checks on custom endpoints |
+| Registration | Mass signup, privilege escalation, session fixation | `registration_mode`; `registration_rate_*`; race check for `first_user_only`; configurable `registration_role`; session ID migrated after auto-login |
 | Logout | CSRF | `logout.enable_csrf: true` from `configure-security`; embed link includes CSRF token |
 | Templates | XSS | Twig auto-escaping; apps must not disable escaping in overrides |
 | Configuration | Wrong entity/field mapping | Validation in `Configuration`; documented `security.yaml` setup |
 
 ## Application responsibilities
 
-- Configure `security.yaml` (firewall, provider, `access_control`)
+- Configure `security.yaml` (firewall, provider, `access_control`); re-run `configure-security` after enabling social login
 - Protect admin routes with appropriate roles
-- Pair login / reset / magic / OTP verification with rate limiting (`nowo-tech/login-throttle-bundle` and/or listeners on bundle events)
-- Prefer password-reset `delivery: link` (or stronger OTP charset) in production; lock out failed OTP attempts
+- Provide a working Symfony `cache.app` pool (used by Auth Kit attempt limiter)
+- Optionally pair login forms with `nowo-tech/login-throttle-bundle` for credential stuffing
+- Prefer password-reset `delivery: link` (or stronger OTP charset) in production
 - Do not alias `LoggingPasswordResetNotifier` / `LoggingMagicLoginNotifier` in production (even redacted, they are sample/dev helpers)
 - Run `composer audit` in the application
 - Do not commit `.env` or secrets
+- **Residual:** OAuth `client_secret` and linked account tokens are stored in cleartext in the DB — encrypt at rest (app/DB) if required by your threat model
 
 ## Logging
 
@@ -43,17 +47,21 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - Hash passwords on registration and password reset completion
 - Use Symfony form CSRF defaults on login forms; logout CSRF when configured via CLI / demo
 - Migrate the session after registration auto-login
-- Compare reset OTP hashes with `hash_equals`
+- Compare reset OTP hashes with `hash_equals`; clear reset credentials after too many failed OTP attempts
+- Rate-limit password-reset / magic-login / registration requests via `AuthKitAttemptLimiter` (`cache.app`)
+- Require verified IdP email before social auto-link/create (configurable)
+- Validate custom OAuth endpoint URLs (HTTPS, no private/loopback hosts)
 - No automatic modification of `security.yaml` without explicit CLI command
 
 ## AI security audit
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-07-27 |
-| Method | Cursor agent static review (`src/`, Twig, SECURITY docs, demo env, Flex recipe) |
+| Date | 2026-07-30 |
+| Method | Cursor agent static review + remediation pass (`src/`, Twig, SECURITY docs) |
 | Grade | **Pass (conditional)** — overall **Medium** |
-| Open residuals | App-owned rate limiting / LoginThrottle pairing; OTP entropy + lockout when `delivery: code`; timing side-channels on reset/magic request; do not use logging notifiers in prod |
+| Mitigated in 1.10.0 | Unverified-email social auto-link; missing reset/magic/register rate limits; OTP lockout; custom OAuth SSRF; social `PUBLIC_ACCESS`; `first_user_only` race; magic login 500 oracle |
+| Open residuals | Cleartext OAuth secrets/tokens at rest; optional LoginThrottle for form login; residual timing side-channels on reset/magic request; do not use logging notifiers in prod |
 
 See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.com/nowo-tech/bundles/blob/master/BUNDLES_SECURITY_ANALYSIS.md) (AuthKitBundle entry).
 

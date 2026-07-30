@@ -58,4 +58,31 @@ final class ProviderEndpointCatalogTest extends TestCase
             (new SocialLoginCredential())->setProvider('custom'),
         );
     }
+
+    public function testRejectsNonHttpsCustomEndpoints(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('HTTPS');
+
+        (new ProviderEndpointCatalog())->resolve(
+            (new SocialLoginCredential())
+                ->setProvider('custom')
+                ->setAuthorizeUrl('http://idp.example/auth')
+                ->setTokenUrl('https://idp.example/token')
+                ->setUserinfoUrl('https://idp.example/me'),
+        );
+    }
+
+    public function testRejectsLoopbackEndpoints(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        (new ProviderEndpointCatalog())->resolve(
+            (new SocialLoginCredential())
+                ->setProvider('custom')
+                ->setAuthorizeUrl('https://127.0.0.1/auth')
+                ->setTokenUrl('https://idp.example/token')
+                ->setUserinfoUrl('https://idp.example/me'),
+        );
+    }
 }

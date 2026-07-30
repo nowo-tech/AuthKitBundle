@@ -54,9 +54,17 @@ final class SocialAccountLinker
             return $user;
         }
 
+        $requireVerified = (bool) ($profile->socialLogin['require_verified_email'] ?? true);
+
         $user = null;
         if ($socialProfile->email !== null && $socialProfile->email !== '') {
-            $user = $this->findUserByIdentifier($profile, $socialProfile->email);
+            $candidate = $this->findUserByIdentifier($profile, $socialProfile->email);
+            if ($candidate instanceof UserInterface) {
+                if ($requireVerified && $socialProfile->emailVerified !== true) {
+                    throw new RuntimeException('Cannot link social identity to an existing account: the provider did not assert a verified email.');
+                }
+                $user = $candidate;
+            }
         }
 
         $createIfMissing = (bool) ($profile->socialLogin['create_user_if_missing'] ?? true);
@@ -66,6 +74,9 @@ final class SocialAccountLinker
             }
             if ($socialProfile->email === null || $socialProfile->email === '') {
                 throw new RuntimeException('Social provider did not return an email address; cannot create a local user.');
+            }
+            if ($requireVerified && $socialProfile->emailVerified !== true) {
+                throw new RuntimeException('Cannot create a local account from social login: the provider did not assert a verified email.');
             }
             $user = $this->createUser($profile, $socialProfile);
         }

@@ -23,6 +23,7 @@ register:
     heading: Create account
     submit: Register
     login_link: Already have an account? Sign in
+    flash_rate_limited: Too many registration attempts. Please try again later.
     field:
         email: Email
         password: Password

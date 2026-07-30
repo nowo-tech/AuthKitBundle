@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\MagicLogin;
 
 use DateTimeImmutable;
-use LogicException;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -29,7 +31,9 @@ final class MagicLoginRequestHandler
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ProfileRegistry $profileRegistry,
         private readonly RequestStack $requestStack,
+        private readonly AuthKitAttemptLimiter $attemptLimiter,
         private readonly ?LoginLinkHandlerInterface $loginLinkHandler = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -38,6 +42,15 @@ final class MagicLoginRequestHandler
         $profile = $profileName !== null
             ? $this->profileRegistry->getByName($profileName)
             : $this->profileRegistry->getDefault();
+
+        $limit  = (int) ($profile->magicLogin['request_rate_limit'] ?? 5);
+        $window = (int) ($profile->magicLogin['request_rate_window'] ?? 900);
+        $client = $this->requestStack->getCurrentRequest()?->getClientIp() ?? 'unknown';
+        $key    = 'magic_request:' . $profile->name . ':' . $client;
+
+        if (!$this->attemptLimiter->consume($key, $limit, $window)) {
+            return;
+        }
 
         $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
 
@@ -50,7 +63,10 @@ final class MagicLoginRequestHandler
         }
 
         if (!$this->loginLinkHandler instanceof LoginLinkHandlerInterface) {
-            throw new LogicException('Magic login requires Symfony firewall "login_link". Run: php bin/console nowo:auth-kit:configure-security');
+            // Avoid user-existence oracle (500 vs 302) when login_link is misconfigured.
+            $this->logger->warning('Magic login skipped: firewall login_link is not configured.');
+
+            return;
         }
 
         $lifetime = is_int($profile->magicLogin['lifetime'] ?? null)

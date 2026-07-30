@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.10.0] - 2026-07-30](#1100-2026-07-30)
+  - [Security](#security)
+  - [Added](#added)
+  - [Changed](#changed)
 - [[1.9.1] - 2026-07-30](#191-2026-07-30)
   - [Added](#added)
 - [[1.9.0] - 2026-07-30](#190-2026-07-30)
@@ -88,6 +92,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.10.0] - 2026-07-30
+
+### Security
+
+- Require IdP `email_verified` (or GitHub `verified`) before auto-linking or creating local users from social login (`social_login.require_verified_email`, default `true`).
+- Built-in rate limits (PSR-6 `cache.app`): password-reset request, magic-login request, registration POST; OTP reset lockout via `password_reset.max_code_attempts`.
+- Reject non-HTTPS / private / loopback custom OAuth endpoint URLs (SSRF hardening).
+- `configure-security` adds `PUBLIC_ACCESS` for social login routes when mode is enabled; access_control patterns expand `{provider}` / `{id}`.
+- `first_user_only` registration re-checks user count after flush and rolls back on race.
+- Magic login no longer 500s when firewall `login_link` is missing (silent skip + warning log; anti-enumeration).
+
+### Added
+
+- `AuthKitAttemptLimiter`, `OAuthEndpointUrlValidator`, profile knobs `registration_rate_*`, `password_reset` / `magic_login` `request_rate_*`, `max_code_attempts`, `require_verified_email`.
+- Translation key `register.flash_rate_limited` (all locales).
+
+### Changed
+
+- [QR-LOGIN.md](QR-LOGIN.md) design: hard gate on verified phone (`phone` + `phoneVerifiedAt`) clarified (still **in development** / not shipped).
+
+[1.10.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.10.0
 
 ## [1.9.1] - 2026-07-30
 

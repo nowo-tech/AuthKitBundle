@@ -58,7 +58,7 @@ final class SocialAccountLinkerTest extends TestCase
         $user = $linker->linkOrCreate(
             $profile,
             'google',
-            new SocialUserProfile('sub-1', 'new@example.com', 'New User', ['sub' => 'sub-1']),
+            new SocialUserProfile('sub-1', 'new@example.com', 'New User', ['sub' => 'sub-1'], true),
             ['access_token' => 'a', 'refresh_token' => 'r', 'expires_in' => 60],
         );
 
@@ -95,7 +95,7 @@ final class SocialAccountLinkerTest extends TestCase
         $user    = $linker->linkOrCreate(
             $profile,
             'google',
-            new SocialUserProfile('sub', 'known@example.com', 'Known', []),
+            new SocialUserProfile('sub', 'known@example.com', 'Known', [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => 10],
         );
 
@@ -134,7 +134,7 @@ final class SocialAccountLinkerTest extends TestCase
         $user    = $linker->linkOrCreate(
             $profile,
             'google',
-            new SocialUserProfile('sub-1', 'linked@example.com', 'Linked', []),
+            new SocialUserProfile('sub-1', 'linked@example.com', 'Linked', [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
 
@@ -168,7 +168,7 @@ final class SocialAccountLinkerTest extends TestCase
         $linker->linkOrCreate(
             ProfileRegistryFactory::single('App\\DoesNotExist\\User')->getDefault(),
             'google',
-            new SocialUserProfile('sub-missing-class', 'ghost@example.com', null, []),
+            new SocialUserProfile('sub-missing-class', 'ghost@example.com', null, [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
     }
@@ -200,7 +200,7 @@ final class SocialAccountLinkerTest extends TestCase
         $user = $linker->linkOrCreate(
             ProfileRegistryFactory::single(DisplayNameUser::class)->getDefault(),
             'google',
-            new SocialUserProfile('sub', 'dn@example.com', 'Display Me', []),
+            new SocialUserProfile('sub', 'dn@example.com', 'Display Me', [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
 
@@ -235,7 +235,7 @@ final class SocialAccountLinkerTest extends TestCase
         $user = $linker->linkOrCreate(
             ProfileRegistryFactory::single(NameOnlyUser::class)->getDefault(),
             'google',
-            new SocialUserProfile('sub', 'name@example.com', 'Name Me', []),
+            new SocialUserProfile('sub', 'name@example.com', 'Name Me', [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
 
@@ -272,7 +272,7 @@ final class SocialAccountLinkerTest extends TestCase
                 'registration_role' => 'ROLE_MEMBER',
             ])->getDefault(),
             'google',
-            new SocialUserProfile('sub', 'roles@example.com', null, []),
+            new SocialUserProfile('sub', 'roles@example.com', null, [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
 
@@ -308,7 +308,7 @@ final class SocialAccountLinkerTest extends TestCase
         $user = $linker->linkOrCreate(
             ProfileRegistryFactory::single(TestUser::class)->getDefault(),
             'google',
-            new SocialUserProfile('sub', 'noid@example.com', null, []),
+            new SocialUserProfile('sub', 'noid@example.com', null, [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => 0],
         );
 
@@ -348,7 +348,7 @@ final class SocialAccountLinkerTest extends TestCase
         $user = $linker->linkOrCreate(
             ProfileRegistryFactory::single(StringIdUser::class)->getDefault(),
             'google',
-            new SocialUserProfile('sub', 'prop@example.com', null, []),
+            new SocialUserProfile('sub', 'prop@example.com', null, [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
 
@@ -387,7 +387,7 @@ final class SocialAccountLinkerTest extends TestCase
         $user = $linker->linkOrCreate(
             ProfileRegistryFactory::single(StringIdUser::class)->getDefault(),
             'google',
-            new SocialUserProfile('sub-1', 'str@example.com', null, []),
+            new SocialUserProfile('sub-1', 'str@example.com', null, [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
 
@@ -419,7 +419,7 @@ final class SocialAccountLinkerTest extends TestCase
                 'social_login' => ['mode' => 'enabled', 'create_user_if_missing' => false],
             ])->getDefault(),
             'google',
-            new SocialUserProfile('sub', 'x@y.z', null, []),
+            new SocialUserProfile('sub', 'x@y.z', null, [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
     }
@@ -478,7 +478,73 @@ final class SocialAccountLinkerTest extends TestCase
         $linker->linkOrCreate(
             ProfileRegistryFactory::single(TestUser::class)->getDefault(),
             'google',
-            new SocialUserProfile('sub', 'a@b.c', null, []),
+            new SocialUserProfile('sub', 'a@b.c', null, [], true),
+            ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
+        );
+    }
+
+    public function testRejectsUnverifiedEmailWhenLinkingExistingUser(): void
+    {
+        $existing = new TestUser();
+        $existing->setId(3);
+        $existing->setEmail('known@example.com');
+
+        $accountRepo = $this->createMock(SocialLoginAccountRepository::class);
+        $accountRepo->method('findOneByProviderSubject')->willReturn(null);
+
+        $userRepo = $this->createMock(EntityRepository::class);
+        $userRepo->method('findOneBy')->willReturn($existing);
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($userRepo);
+
+        $linker = new SocialAccountLinker(
+            $em,
+            $accountRepo,
+            PropertyAccess::createPropertyAccessor(),
+            $this->createMock(UserPasswordHasherInterface::class),
+            new MockClock(),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('verified email');
+
+        $linker->linkOrCreate(
+            ProfileRegistryFactory::single(TestUser::class)->getDefault(),
+            'google',
+            new SocialUserProfile('sub', 'known@example.com', 'Known', [], false),
+            ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => 10],
+        );
+    }
+
+    public function testRejectsUnverifiedEmailWhenCreatingUser(): void
+    {
+        $accountRepo = $this->createMock(SocialLoginAccountRepository::class);
+        $accountRepo->method('findOneByProviderSubject')->willReturn(null);
+
+        $userRepo = $this->createMock(EntityRepository::class);
+        $userRepo->method('findOneBy')->willReturn(null);
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($userRepo);
+
+        $linker = new SocialAccountLinker(
+            $em,
+            $accountRepo,
+            PropertyAccess::createPropertyAccessor(),
+            $this->createMock(UserPasswordHasherInterface::class),
+            new MockClock(),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('verified email');
+
+        $linker->linkOrCreate(
+            ProfileRegistryFactory::single(TestUser::class, [
+                'social_login' => ['mode' => 'enabled', 'create_user_if_missing' => true],
+            ])->getDefault(),
+            'google',
+            new SocialUserProfile('sub', 'new@example.com', 'New', [], false),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
     }
@@ -509,10 +575,6 @@ final class DisplayNameUser implements UserInterface, PasswordAuthenticatedUserI
     {
         return $this->password;
     }
-
-    public function eraseCredentials(): void
-    {
-    }
 }
 
 final class NameOnlyUser implements UserInterface, PasswordAuthenticatedUserInterface
@@ -540,10 +602,6 @@ final class NameOnlyUser implements UserInterface, PasswordAuthenticatedUserInte
     {
         return $this->password;
     }
-
-    public function eraseCredentials(): void
-    {
-    }
 }
 
 final class StringIdUser implements UserInterface, PasswordAuthenticatedUserInterface
@@ -570,9 +628,5 @@ final class StringIdUser implements UserInterface, PasswordAuthenticatedUserInte
     public function getPassword(): string
     {
         return $this->password;
-    }
-
-    public function eraseCredentials(): void
-    {
     }
 }

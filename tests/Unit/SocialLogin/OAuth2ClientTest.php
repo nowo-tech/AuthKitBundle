@@ -39,9 +39,10 @@ final class OAuth2ClientTest extends TestCase
                 'expires_in'    => 3600,
             ], JSON_THROW_ON_ERROR), ['http_code' => 200]),
             new MockResponse(json_encode([
-                'sub'   => 'uid-1',
-                'email' => 'user@example.com',
-                'name'  => 'User',
+                'sub'            => 'uid-1',
+                'email'          => 'user@example.com',
+                'email_verified' => true,
+                'name'           => 'User',
             ], JSON_THROW_ON_ERROR), ['http_code' => 200]),
         ]);
 
@@ -58,6 +59,7 @@ final class OAuth2ClientTest extends TestCase
         $profile = $client->fetchUserProfile($credential, 'tok');
         self::assertSame('uid-1', $profile->id);
         self::assertSame('user@example.com', $profile->email);
+        self::assertTrue($profile->emailVerified);
     }
 
     public function testExchangeCodeRequiresAccessToken(): void
@@ -92,7 +94,7 @@ final class OAuth2ClientTest extends TestCase
                 'login'  => 'octocat',
                 'emails' => [
                     ['email' => 'other@ex.com', 'primary' => false],
-                    ['email' => 'primary@ex.com', 'primary' => true],
+                    ['email' => 'primary@ex.com', 'primary' => true, 'verified' => true],
                 ],
             ], JSON_THROW_ON_ERROR)),
         ]);
@@ -102,6 +104,7 @@ final class OAuth2ClientTest extends TestCase
         $profile = $client->fetchUserProfile($credential, 'tok');
         self::assertSame('99', $profile->id);
         self::assertSame('primary@ex.com', $profile->email);
+        self::assertTrue($profile->emailVerified);
     }
 
     public function testFetchGithubEmailsWithoutPrimaryUsesFirst(): void
@@ -190,5 +193,35 @@ final class OAuth2ClientTest extends TestCase
 
         $url = $client->buildAuthorizeUrl($credential, 'https://app.test/cb', 'st');
         self::assertStringContainsString('foo=1&', $url);
+    }
+
+    /**
+     * @dataProvider emailVerifiedProvider
+     */
+    public function testParsesEmailVerifiedVariants(mixed $raw, ?bool $expected): void
+    {
+        $payload = ['sub' => '1', 'email' => 'a@b.c', 'email_verified' => $raw];
+        $http    = new MockHttpClient([
+            new MockResponse(json_encode($payload, JSON_THROW_ON_ERROR)),
+        ]);
+        $client     = new OAuth2Client($http, new ProviderEndpointCatalog());
+        $credential = (new SocialLoginCredential())->setProvider('google')->setClientId('id')->setClientSecret('s');
+
+        $profile = $client->fetchUserProfile($credential, 'tok');
+        self::assertSame($expected, $profile->emailVerified);
+    }
+
+    /**
+     * @return iterable<string, array{0: mixed, 1: ?bool}>
+     */
+    public static function emailVerifiedProvider(): iterable
+    {
+        yield 'true string' => ['true', true];
+        yield 'one string' => ['1', true];
+        yield 'one int' => [1, true];
+        yield 'false string' => ['false', false];
+        yield 'zero string' => ['0', false];
+        yield 'zero int' => [0, false];
+        yield 'unknown' => ['maybe', null];
     }
 }

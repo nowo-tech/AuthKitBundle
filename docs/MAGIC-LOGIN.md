@@ -88,6 +88,8 @@ Subscribe to `MagicLoginRequestedEvent` for audit or rate limiting.
 ## Security notes
 
 - The request step **never reveals** whether the identifier exists (anti-enumeration).
+- Built-in request rate limit via `cache.app` (`request_rate_limit` / `request_rate_window`; `0` disables).
+- If firewall `login_link` is missing, the handler skips silently (warning log) instead of returning 500.
 - Tokens are signed by Symfony `login_link` (not stored on the user entity).
 - No extra entity fields are required.
 

@@ -49,7 +49,7 @@ Passwordless sign-in where the **desktop** shows a QR challenge and the **phone*
 |-------|------|
 | Desktop browser | Starts challenge, shows QR + short code, polls status, receives session |
 | Phone browser / app | Opens approve URL from QR (or deep link), confirms after phone auth |
-| User entity | Must expose a **verified** phone (app field; see below) |
+| User entity | **Must** expose a non-empty phone **and** a non-null verification date (`phone` + `phoneVerifiedAt` by default) |
 
 Prerequisites before buttons appear:
 
@@ -109,16 +109,25 @@ nowo_auth_kit:
 | `rate_limit.*` | Symfony RateLimiter policies (bundle ships defaults; apps may override) |
 | `phone_field` / `phone_verified_field` | App-owned; PropertyAccessor only |
 
-## User entity (app-owned phone)
+## User entity (app-owned phone) — mandatory
 
-The bundle does **not** ship a phone column. The app entity must expose something like:
+QR login only works for users that **already have both**:
+
+| Requirement | Typical field | Rule |
+|-------------|---------------|------|
+| Mobile number | `phone` (`phone_field`) | Non-empty; E.164 preferred (`+34600111222`) |
+| Verification timestamp | `phoneVerifiedAt` (`phone_verified_field`) | Non-null `DateTimeImmutable` — phone was verified at that instant |
+
+The bundle does **not** ship these columns. The app `user_class` must expose them (PropertyAccessor via config). Example:
 
 ```php
 private ?string $phone = null;                       // E.164 preferred
-private ?\DateTimeImmutable $phoneVerifiedAt = null;
+private ?\DateTimeImmutable $phoneVerifiedAt = null; // null = not verified → QR login forbidden for this user
 ```
 
-Verification of the phone number (signup / profile) is **out of scope** for this feature; QR login only consumes an already-verified phone.
+**Hard gate on approve:** `QrLoginUserResolver` must reject users with empty `phone` **or** `phoneVerifiedAt === null`. Unverified numbers never complete a challenge.
+
+Verification / change-phone flows (signup, profile, OTP to prove ownership) are **out of scope** for AuthKit QR login; the app owns them (e.g. `nowo-tech/phone-input-bundle` + SMS notifier). This feature only consumes an already-verified phone.
 
 ## Tables
 

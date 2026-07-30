@@ -34,6 +34,8 @@ final class Configuration implements ConfigurationInterface
         'user_identifier_field',
         'registration_role',
         'registration_mode',
+        'registration_rate_limit',
+        'registration_rate_window',
         'login_fields',
         'remember_me',
         'password_strength',
@@ -151,6 +153,16 @@ final class Configuration implements ConfigurationInterface
                                 ->values(array_map(static fn (RegistrationMode $mode): string => $mode->value, RegistrationMode::cases()))
                                 ->info('disabled: no registration. first_user_only: register only when no users exist. always: open registration.')
                                 ->defaultValue(RegistrationMode::FirstUserOnly->value)
+                            ->end()
+                            ->integerNode('registration_rate_limit')
+                                ->info('Max registration POSTs per client IP per window (0 = disabled).')
+                                ->defaultValue(5)
+                                ->min(0)
+                            ->end()
+                            ->integerNode('registration_rate_window')
+                                ->info('Seconds for registration_rate_limit window.')
+                                ->defaultValue(900)
+                                ->min(60)
                             ->end()
                             ->arrayNode('login_fields')
                                 ->info('Login form fields. Use identifier (maps to user_identifier_field), password, remember_me.')
@@ -377,6 +389,22 @@ final class Configuration implements ConfigurationInterface
                     ->values(['numeric', 'alphanumeric'])
                     ->defaultValue('numeric')
                 ->end()
+                ->integerNode('max_code_attempts')
+                    ->info('Failed OTP verifications before the reset credential is cleared (0 = disabled).')
+                    ->defaultValue(5)
+                    ->min(0)
+                    ->max(50)
+                ->end()
+                ->integerNode('request_rate_limit')
+                    ->info('Max password-reset requests per client IP per window (0 = disabled).')
+                    ->defaultValue(5)
+                    ->min(0)
+                ->end()
+                ->integerNode('request_rate_window')
+                    ->info('Seconds for request_rate_limit window.')
+                    ->defaultValue(900)
+                    ->min(60)
+                ->end()
                 ->scalarNode('token_field')
                     ->info('User entity property storing the hashed reset credential.')
                     ->defaultValue('passwordResetToken')
@@ -411,6 +439,16 @@ final class Configuration implements ConfigurationInterface
                     ->defaultValue(1)
                     ->min(1)
                 ->end()
+                ->integerNode('request_rate_limit')
+                    ->info('Max magic-login requests per client IP per window (0 = disabled).')
+                    ->defaultValue(5)
+                    ->min(0)
+                ->end()
+                ->integerNode('request_rate_window')
+                    ->info('Seconds for request_rate_limit window.')
+                    ->defaultValue(900)
+                    ->min(60)
+                ->end()
             ->end();
 
         return $node;
@@ -429,6 +467,10 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->booleanNode('create_user_if_missing')
                     ->info('When true, creates a local user from the social profile email if none exists.')
+                    ->defaultTrue()
+                ->end()
+                ->booleanNode('require_verified_email')
+                    ->info('When true, linking or creating a local user requires the IdP to assert email_verified (or GitHub verified).')
                     ->defaultTrue()
                 ->end()
             ->end();

@@ -16,6 +16,7 @@ register:
     heading: Konto erstellen
     submit: Registrieren
     login_link: Bereits ein Konto? Anmelden
+    flash_rate_limited: Zu viele Registrierungsversuche. Bitte versuchen Sie es später erneut.
     field:
         email: E-Mail
         password: Passwort

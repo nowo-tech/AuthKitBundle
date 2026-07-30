@@ -9,6 +9,7 @@ use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Controller\RegisterController;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
@@ -16,6 +17,7 @@ use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
@@ -23,6 +25,7 @@ use Symfony\Component\Form\Forms;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -66,6 +69,7 @@ final class RegisterControllerTest extends TestCase
             AuthKitTestUrlGenerator::fromMock($inner),
             $this->createMock(EventDispatcherInterface::class),
             ProfileRegistryFactory::requestResolver(TestUser::class, ['login_success_route' => 'demo_home']),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         $response = $controller->register(new Request());
@@ -110,7 +114,11 @@ final class RegisterControllerTest extends TestCase
     {
         $gate = $this->registrationGateAllowed();
 
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('count')->willReturn(0);
+
         $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
         $entityManager->expects(self::once())->method('persist');
         $entityManager->expects(self::once())->method('flush');
 
@@ -154,6 +162,7 @@ final class RegisterControllerTest extends TestCase
             AuthKitTestUrlGenerator::fromMock($inner),
             $dispatcher,
             ProfileRegistryFactory::requestResolver(TestUser::class, ['login_success_route' => 'demo_home']),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         $request = Request::create('/register', 'POST');
@@ -162,6 +171,113 @@ final class RegisterControllerTest extends TestCase
         $response = $controller->register($request);
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+    }
+
+    public function testRateLimitsRegistrationAndSetsFlash(): void
+    {
+        $gate = $this->registrationGateAllowed();
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->with('nowo_auth_kit_register')->willReturn('/register');
+
+        $form = $this->createMock(FormInterface::class);
+        $form->method('handleRequest');
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('getData')->willReturn(['email' => 'a@b.c', 'password' => 'secret12']);
+        $form->method('createView')->willReturn($this->createMock(FormView::class));
+
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $limiter = new AuthKitAttemptLimiter(new ArrayAdapter());
+        $limiter->consume('register:default:127.0.0.1', 5, 900);
+        $limiter->consume('register:default:127.0.0.1', 5, 900);
+        $limiter->consume('register:default:127.0.0.1', 5, 900);
+        $limiter->consume('register:default:127.0.0.1', 5, 900);
+        $limiter->consume('register:default:127.0.0.1', 5, 900);
+
+        $controller = new RegisterController(
+            $this->createMock(Environment::class),
+            $formFactory,
+            $gate,
+            new UserRegistrar(
+                ProfileRegistryFactory::single(TestUser::class),
+                $this->createMock(EntityManagerInterface::class),
+                $this->createMock(UserPasswordHasherInterface::class),
+                new PropertyAccessor(),
+            ),
+            new TokenStorage(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            $this->createMock(EventDispatcherInterface::class),
+            ProfileRegistryFactory::requestResolver(TestUser::class),
+            $limiter,
+        );
+
+        $request = Request::create('/register', 'POST', [], [], [], ['REMOTE_ADDR' => '127.0.0.1']);
+        $request->setSession(new Session(new MockArraySessionStorage()));
+
+        $response = $controller->register($request);
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/register', $response->headers->get('Location'));
+        $session = $request->getSession();
+        self::assertInstanceOf(FlashBagAwareSessionInterface::class, $session);
+        self::assertSame(['register.flash_rate_limited'], $session->getFlashBag()->peek('error'));
+    }
+
+    public function testRegistrationRaceRedirectsToLogin(): void
+    {
+        $gate = $this->registrationGateAllowed();
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->with('nowo_auth_kit_login')->willReturn('/login');
+
+        $form = $this->createMock(FormInterface::class);
+        $form->method('handleRequest');
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('getData')->willReturn(['email' => 'a@b.c', 'password' => 'secret12']);
+
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('count')->willReturnOnConsecutiveCalls(0, 2);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+        $entityManager->method('persist');
+        $entityManager->method('remove');
+        $entityManager->method('flush');
+
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->method('hashPassword')->willReturn('hashed');
+
+        $controller = new RegisterController(
+            $this->createMock(Environment::class),
+            $formFactory,
+            $gate,
+            new UserRegistrar(
+                ProfileRegistryFactory::single(TestUser::class),
+                $entityManager,
+                $hasher,
+                new PropertyAccessor(),
+            ),
+            new TokenStorage(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            $this->createMock(EventDispatcherInterface::class),
+            ProfileRegistryFactory::requestResolver(TestUser::class),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+        );
+
+        $request = Request::create('/register', 'POST');
+        $request->setSession(new Session(new MockArraySessionStorage()));
+
+        $response = $controller->register($request);
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/login', $response->headers->get('Location'));
     }
 
     private function registrationGateAllowed(): RegistrationGate
@@ -208,6 +324,7 @@ final class RegisterControllerTest extends TestCase
             $urlGenerator ?? AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
             $this->createMock(EventDispatcherInterface::class),
             ProfileRegistryFactory::requestResolver(TestUser::class),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
     }
 }

@@ -14,10 +14,12 @@ use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\ParentTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
 
@@ -96,6 +98,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
             new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         self::assertSame($user, $manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
@@ -172,6 +175,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
             new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
@@ -195,6 +199,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
             new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('missing@example.com', '123456'));
@@ -256,6 +261,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
             new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         self::assertSame($user, $manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
@@ -284,6 +290,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
             new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '000000'));
@@ -298,6 +305,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), $registry),
             $registry,
             new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         $this->expectException(LogicException::class);
@@ -322,9 +330,92 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PasswordResetUserResolver($this->createMock(EntityManagerInterface::class), $registry),
             $registry,
             new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
 
         self::assertSame($user, $manager->resolveUserByLinkToken($plain, 'default'));
+    }
+
+    public function testCodeAttemptsLockoutClearsToken(): void
+    {
+        $user = new TestUser();
+        $user->setEmail('user@example.com');
+        $user->setPasswordResetToken(hash('sha256', '123456'));
+        $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+        $entityManager->expects(self::atLeastOnce())->method('persist')->with($user);
+        $entityManager->expects(self::atLeastOnce())->method('flush');
+
+        $manager = $this->createManager('code', $entityManager, [
+            'password_reset' => ['max_code_attempts' => 2],
+        ]);
+
+        self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '000000'));
+        self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '000001'));
+        self::assertNull($user->getPasswordResetToken());
+        self::assertNull($user->getPasswordResetExpiresAt());
+    }
+
+    public function testCodeAlreadyLockedClearsTokenOnNextAttempt(): void
+    {
+        $user = new TestUser();
+        $user->setEmail('user@example.com');
+        $user->setPasswordResetToken(hash('sha256', '123456'));
+        $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+        $entityManager->method('persist');
+        $entityManager->method('flush');
+
+        $limiter = new AuthKitAttemptLimiter(new ArrayAdapter());
+        $limiter->hit('seed', 60);
+        // Pre-fill attempt key to max by consuming through a manager with max 1 after one wrong try first...
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => 'code', 'max_code_attempts' => 1],
+        ]);
+        $manager = new PasswordResetTokenManager(
+            $entityManager,
+            new PropertyAccessor(),
+            new PasswordResetUserResolver($entityManager, $registry),
+            $registry,
+            new NativeClock(),
+            $limiter,
+        );
+
+        self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', 'bad'));
+        // Token cleared by lockout on failed attempt; set a new one and hit the "already locked" branch
+        $user->setPasswordResetToken(hash('sha256', '999999'));
+        $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
+        // After lockout the limiter was reset; hit until max again without clearing via wrong code path:
+        $limiter->hit('reset_code:default:' . hash('sha256', 'user@example.com'), 3600);
+        self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '999999'));
+        self::assertNull($user->getPasswordResetToken());
+    }
+
+    public function testMatchingCodeThatIsExpiredHitsLimiter(): void
+    {
+        $user = new TestUser();
+        $user->setEmail('user@example.com');
+        $user->setPasswordResetToken(hash('sha256', '123456'));
+        $user->setPasswordResetExpiresAt(new DateTimeImmutable('-1 hour'));
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $manager = $this->createManager('code', $entityManager);
+        self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '123456'));
     }
 
     /**
@@ -340,6 +431,7 @@ final class PasswordResetTokenManagerTest extends TestCase
             new PasswordResetUserResolver($entityManager, $registry),
             $registry,
             new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
         );
     }
 

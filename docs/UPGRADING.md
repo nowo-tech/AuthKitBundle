@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.10.0](#to-1100)
 - [To 1.9.1](#to-191)
 - [To 1.9.0](#to-190)
   - [Social login (optional)](#social-login-optional)
@@ -41,6 +42,23 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.10.0
+
+From **1.9.1** — security hardening; defaults are safe. Clear cache after upgrade.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+### Behaviour changes (defaults)
+
+- **Social login:** linking/creating a local user requires a verified email from the IdP (`require_verified_email: true`). Set `social_login.require_verified_email: false` only if you accept account-takeover risk.
+- **Rate limits / OTP:** password-reset request, magic-login request, and registration use `cache.app` counters (defaults: 5 / 900s). OTP verification clears the reset credential after `max_code_attempts` (default 5). Set limits to `0` to disable.
+- **Custom OAuth endpoints:** must be HTTPS and must not target localhost/private IPs.
+- Re-run `php bin/console nowo:auth-kit:configure-security` if social login is enabled so `access_control` includes social routes.
+- Ensure the app has a working `cache.app` pool (Symfony default is fine).
 
 ## To 1.9.1
 

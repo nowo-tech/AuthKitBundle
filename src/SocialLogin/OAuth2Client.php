@@ -8,7 +8,10 @@ use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use RuntimeException;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
+use function array_key_exists;
+use function in_array;
 use function is_array;
+use function is_bool;
 use function is_scalar;
 use function is_string;
 
@@ -91,14 +94,38 @@ final class OAuth2Client
             throw new RuntimeException('OAuth userinfo response is missing a subject id.');
         }
 
-        $email = $this->firstString($data, ['email', 'mail']);
+        $emailVerified = $this->resolveEmailVerified($data);
+        $email         = $this->firstString($data, ['email', 'mail']);
         if ($email === null && isset($data['emails']) && is_array($data['emails'])) {
-            $email = $this->extractGithubPrimaryEmail(array_values($data['emails']));
+            [$email, $emailVerified] = $this->extractGithubPrimaryEmail(array_values($data['emails']));
         }
 
         $name = $this->firstString($data, ['name', 'displayName', 'login']);
 
-        return new SocialUserProfile($id, $email, $name, $data);
+        return new SocialUserProfile($id, $email, $name, $data, $emailVerified);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function resolveEmailVerified(array $data): ?bool
+    {
+        if (!array_key_exists('email_verified', $data)) {
+            return null;
+        }
+
+        $value = $data['email_verified'];
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (in_array($value, [1, '1', 'true'], true)) {
+            return true;
+        }
+        if (in_array($value, [0, '0', 'false'], true)) {
+            return false;
+        }
+
+        return null;
     }
 
     /**
@@ -123,8 +150,10 @@ final class OAuth2Client
 
     /**
      * @param list<mixed> $emails
+     *
+     * @return array{0: ?string, 1: ?bool}
      */
-    private function extractGithubPrimaryEmail(array $emails): ?string
+    private function extractGithubPrimaryEmail(array $emails): array
     {
         foreach ($emails as $row) {
             if (!is_array($row)) {
@@ -135,16 +164,20 @@ final class OAuth2Client
                 continue;
             }
             if (($row['primary'] ?? false) === true) {
-                return $address;
+                $verified = array_key_exists('verified', $row) ? (bool) $row['verified'] : null;
+
+                return [$address, $verified];
             }
         }
 
         foreach ($emails as $row) {
             if (is_array($row) && isset($row['email']) && is_string($row['email']) && $row['email'] !== '') {
-                return $row['email'];
+                $verified = array_key_exists('verified', $row) ? (bool) $row['verified'] : null;
+
+                return [$row['email'], $verified];
             }
         }
 
-        return null;
+        return [null, null];
     }
 }

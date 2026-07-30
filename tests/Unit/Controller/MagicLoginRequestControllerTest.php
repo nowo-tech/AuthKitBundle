@@ -17,10 +17,12 @@ use Nowo\AuthKitBundle\MagicLogin\MagicLoginUserResolver;
 use Nowo\AuthKitBundle\MagicLogin\NullMagicLoginNotifier;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Form\Extension\HttpFoundation\HttpFoundationExtension;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Forms;
@@ -130,6 +132,7 @@ final class MagicLoginRequestControllerTest extends TestCase
             $this->createMock(EventDispatcherInterface::class),
             $profileRegistry,
             $requestStack,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
             $loginLinkHandler,
         );
 
@@ -193,6 +196,7 @@ final class MagicLoginRequestControllerTest extends TestCase
             $this->createMock(EventDispatcherInterface::class),
             $profileRegistry,
             new RequestStack(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
             $this->createMock(LoginLinkHandlerInterface::class),
         );
 

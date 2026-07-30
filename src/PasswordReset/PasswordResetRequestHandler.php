@@ -7,6 +7,8 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -24,6 +26,8 @@ final class PasswordResetRequestHandler
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly ProfileRegistry $profileRegistry,
+        private readonly AuthKitAttemptLimiter $attemptLimiter,
+        private readonly RequestStack $requestStack,
     ) {
     }
 
@@ -32,6 +36,15 @@ final class PasswordResetRequestHandler
         $profile = $profileName !== null
             ? $this->profileRegistry->getByName($profileName)
             : $this->profileRegistry->getDefault();
+
+        $limit  = (int) ($profile->passwordReset['request_rate_limit'] ?? 5);
+        $window = (int) ($profile->passwordReset['request_rate_window'] ?? 900);
+        $client = $this->requestStack->getCurrentRequest()?->getClientIp() ?? 'unknown';
+        $key    = 'reset_request:' . $profile->name . ':' . $client;
+
+        if (!$this->attemptLimiter->consume($key, $limit, $window)) {
+            return;
+        }
 
         $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
 

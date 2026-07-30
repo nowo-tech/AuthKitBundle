@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\SocialLogin;
 
+use InvalidArgumentException;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use RuntimeException;
 
@@ -15,6 +16,11 @@ use function sprintf;
  */
 final class ProviderEndpointCatalog
 {
+    public function __construct(
+        private readonly OAuthEndpointUrlValidator $urlValidator = new OAuthEndpointUrlValidator(),
+    ) {
+    }
+
     /**
      * @return array{authorize_url: string, token_url: string, userinfo_url: string, scopes: list<string>}
      */
@@ -31,6 +37,14 @@ final class ProviderEndpointCatalog
 
         if (!is_string($authorize) || $authorize === '' || !is_string($token) || $token === '' || !is_string($userinfo) || $userinfo === '') {
             throw new RuntimeException(sprintf('Social provider "%s" is missing authorize/token/userinfo URLs. Set them on the credential or use a built-in provider key.', $credential->getProvider()));
+        }
+
+        try {
+            $this->urlValidator->assertSafeHttpsUrl($authorize, 'authorize');
+            $this->urlValidator->assertSafeHttpsUrl($token, 'token');
+            $this->urlValidator->assertSafeHttpsUrl($userinfo, 'userinfo');
+        } catch (InvalidArgumentException $e) {
+            throw new RuntimeException($e->getMessage(), 0, $e);
         }
 
         return [

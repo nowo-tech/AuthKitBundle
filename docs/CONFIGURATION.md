@@ -142,6 +142,9 @@ nowo_auth_kit:
         mode: disabled              # disabled | enabled
         delivery: link              # link | code | both
         token_ttl: 3600
+        max_code_attempts: 5        # 0 = disabled; clears reset credential when exceeded
+        request_rate_limit: 5       # 0 = disabled
+        request_rate_window: 900
         token_field: passwordResetToken
         token_expires_field: passwordResetExpiresAt
 
@@ -149,10 +152,16 @@ nowo_auth_kit:
         mode: disabled              # disabled | enabled
         lifetime: 600
         max_uses: 1
+        request_rate_limit: 5       # 0 = disabled
+        request_rate_window: 900
 
     social_login:
         mode: disabled              # disabled | enabled
         create_user_if_missing: true
+        require_verified_email: true
+
+    registration_rate_limit: 5      # 0 = disabled
+    registration_rate_window: 900
 
     routes:
         login:

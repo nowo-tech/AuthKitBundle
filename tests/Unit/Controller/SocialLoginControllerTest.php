@@ -190,9 +190,10 @@ final class SocialLoginControllerTest extends TestCase
                 'expires_in'   => 60,
             ], JSON_THROW_ON_ERROR)),
             new MockResponse(json_encode([
-                'sub'   => '1',
-                'email' => 'a@b.c',
-                'name'  => 'A',
+                'sub'            => '1',
+                'email'          => 'a@b.c',
+                'email_verified' => true,
+                'name'           => 'A',
             ], JSON_THROW_ON_ERROR)),
         ]);
 

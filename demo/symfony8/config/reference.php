@@ -1257,6 +1257,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         user_identifier_field?: scalar|Param|null, // Entity property used as the security user identifier (form_login username). // Default: "email"
  *         registration_role?: scalar|Param|null, // Role assigned to users created via registration (in addition to ROLE_USER from the entity). // Default: "ROLE_USER"
  *         registration_mode?: "disabled"|"first_user_only"|"always"|Param, // disabled: no registration. first_user_only: register only when no users exist. always: open registration. // Default: "first_user_only"
+ *         registration_rate_limit?: int|Param, // Max registration POSTs per client IP per window (0 = disabled). // Default: 5
+ *         registration_rate_window?: int|Param, // Seconds for registration_rate_limit window. // Default: 900
  *         login_fields?: list<mixed>,
  *         remember_me?: array{ // Persistent login cookie (Symfony firewall remember_me). Set enabled: true or add remember_me to login_fields.
  *             enabled?: bool|Param, // When true, configures firewall remember_me and ensures the login checkbox is shown. // Default: false
@@ -1294,6 +1296,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             token_bytes?: int|Param, // Entropy for link tokens (bytes before hex encoding). // Default: 32
  *             code_length?: int|Param, // Default: 6
  *             code_charset?: "numeric"|"alphanumeric"|Param, // Default: "numeric"
+ *             max_code_attempts?: int|Param, // Failed OTP verifications before the reset credential is cleared (0 = disabled). // Default: 5
+ *             request_rate_limit?: int|Param, // Max password-reset requests per client IP per window (0 = disabled). // Default: 5
+ *             request_rate_window?: int|Param, // Seconds for request_rate_limit window. // Default: 900
  *             token_field?: scalar|Param|null, // User entity property storing the hashed reset credential. // Default: "passwordResetToken"
  *             token_expires_field?: scalar|Param|null, // User entity property storing credential expiry. // Default: "passwordResetExpiresAt"
  *         },
@@ -1301,10 +1306,13 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             mode?: "disabled"|"enabled"|Param, // disabled: hide magic login. enabled: request form + Symfony login_link check route. // Default: "disabled"
  *             lifetime?: int|Param, // Seconds until the magic login link expires (Symfony login_link lifetime). // Default: 600
  *             max_uses?: int|Param, // How many times the signed login link can be used (Symfony login_link max_uses). // Default: 1
+ *             request_rate_limit?: int|Param, // Max magic-login requests per client IP per window (0 = disabled). // Default: 5
+ *             request_rate_window?: int|Param, // Seconds for request_rate_limit window. // Default: 900
  *         },
  *         social_login?: array{
  *             mode?: "disabled"|"enabled"|Param, // disabled: hide social login. enabled: OAuth buttons when provider credentials exist in the database. // Default: "disabled"
  *             create_user_if_missing?: bool|Param, // When true, creates a local user from the social profile email if none exists. // Default: true
+ *             require_verified_email?: bool|Param, // When true, linking or creating a local user requires the IdP to assert email_verified (or GitHub verified). // Default: true
  *         },
  *         routes?: array{
  *             login?: array{

@@ -322,6 +322,23 @@ final class ConfigureSecurityCommandTest extends TestCase
         }
     }
 
+    public function testAddsSocialLoginPublicAccessWhenEnabled(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', null, false, null, false, 'disabled', 'enabled'));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        $paths    = array_column($security['security']['access_control'], 'path');
+        self::assertContains('^\/login\/social\/[^/]+', $paths);
+        self::assertContains('^\/login\/social\/[^/]+\/check', $paths);
+    }
+
     public function testForceOverwritesFormLogin(): void
     {
         $this->filesystem->dumpFile(
@@ -353,6 +370,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         ?string $projectDir = null,
         bool $rememberMeEnabled = false,
         string $magicLoginMode = 'disabled',
+        string $socialLoginMode = 'disabled',
     ): ConfigureSecurityCommand {
         return new ConfigureSecurityCommand(
             $projectDir ?? $this->testDir,
@@ -378,6 +396,7 @@ final class ConfigureSecurityCommandTest extends TestCase
                 'lifetime' => 600,
                 'max_uses' => 1,
             ],
+            $socialLoginMode,
         );
     }
 
@@ -395,6 +414,8 @@ final class ConfigureSecurityCommandTest extends TestCase
             'reset_password_code' => ['path' => '/reset-password/complete', 'name' => 'nowo_auth_kit_reset_password_code'],
             'magic_login_request' => ['path' => '/magic-login', 'name' => 'nowo_auth_kit_magic_login_request'],
             'magic_login_check'   => ['path' => '/magic-login/check', 'name' => 'nowo_auth_kit_magic_login_check'],
+            'social_login_start'  => ['path' => '/login/social/{provider}', 'name' => 'nowo_auth_kit_social_login_start'],
+            'social_login_check'  => ['path' => '/login/social/{provider}/check', 'name' => 'nowo_auth_kit_social_login_check'],
         ];
     }
 }

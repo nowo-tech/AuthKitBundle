@@ -45,6 +45,7 @@ final class ConfigureSecurityCommand extends Command
         private readonly array $loginFields,
         private readonly array $rememberMe,
         private readonly array $magicLogin,
+        private readonly string $socialLoginMode = 'disabled',
     ) {
         parent::__construct();
     }
@@ -157,6 +158,17 @@ final class ConfigureSecurityCommand extends Command
             foreach ([
                 $this->routes['magic_login_request']['path'],
                 $this->routes['magic_login_check']['path'],
+            ] as $path) {
+                foreach ($this->routeLocaleParameters->accessControlPatterns($path) as $pattern) {
+                    $publicPaths[] = ['path' => $pattern, 'roles' => 'PUBLIC_ACCESS'];
+                }
+            }
+        }
+
+        if ($this->socialLoginMode === 'enabled') {
+            foreach ([
+                $this->routes['social_login_start']['path'] ?? '/login/social/{provider}',
+                $this->routes['social_login_check']['path'] ?? '/login/social/{provider}/check',
             ] as $path) {
                 foreach ($this->routeLocaleParameters->accessControlPatterns($path) as $pattern) {
                     $publicPaths[] = ['path' => $pattern, 'roles' => 'PUBLIC_ACCESS'];

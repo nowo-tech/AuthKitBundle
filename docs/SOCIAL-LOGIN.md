@@ -20,10 +20,12 @@ nowo_auth_kit:
             social_login:
                 mode: enabled
                 create_user_if_missing: true
+                require_verified_email: true
 ```
 
 - **`mode: enabled`** alone is not enough: the login UI only shows buttons when at least one **enabled** row exists in `auth_kit_social_credential` (start/check handlers redirect to login otherwise).
 - **`create_user_if_missing`**: create a local user from the social email when no account matches; otherwise require a pre-existing user (matched by `user_identifier_field`).
+- **`require_verified_email`**: when true (default), linking or creating a local user requires the IdP to assert a verified email (`email_verified` / GitHub `verified`). Prevents account takeover via unverified provider emails.
 
 ## Seed credentials (example)
 

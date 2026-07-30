@@ -83,6 +83,8 @@ Run `php bin/console nowo:auth-kit:configure-security` to add public `access_con
 
 The request step **never reveals** whether the identifier exists (anti-enumeration).
 
+Built-in (via `cache.app`): `request_rate_limit` / `request_rate_window` on reset requests, and `max_code_attempts` OTP lockout (clears the stored reset credential when exceeded). Set limits to `0` to disable.
+
 ## Templates
 
 Override under `templates/bundles/NowoAuthKitBundle/security/`:

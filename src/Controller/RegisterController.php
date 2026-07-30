@@ -7,11 +7,14 @@ namespace Nowo\AuthKitBundle\Controller;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
+use RuntimeException;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -34,6 +37,7 @@ final class RegisterController
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly RequestProfileResolver $profileResolver,
+        private readonly AuthKitAttemptLimiter $attemptLimiter,
     ) {
     }
 
@@ -64,9 +68,26 @@ final class RegisterController
         }
 
         if ($form->isSubmitted() && $form->isValid()) {
-            /** @var array<string, mixed> $data */
-            $data = $form->getData();
-            $user = $this->userRegistrar->register($data, $profile->name);
+            $rateKey = 'register:' . $profile->name . ':' . ($request->getClientIp() ?? 'unknown');
+            if (!$this->attemptLimiter->consume($rateKey, $profile->registrationRateLimit, $profile->registrationRateWindow)) {
+                if ($request->hasSession() && $request->getSession() instanceof FlashBagAwareSessionInterface) {
+                    $request->getSession()->getFlashBag()->add('error', 'register.flash_rate_limited');
+                }
+
+                return new Response('', Response::HTTP_FOUND, [
+                    'Location' => $this->urlGenerator->generate($profile->routes['register']['name']),
+                ]);
+            }
+
+            try {
+                /** @var array<string, mixed> $data */
+                $data = $form->getData();
+                $user = $this->userRegistrar->register($data, $profile->name);
+            } catch (RuntimeException) {
+                return new Response('', Response::HTTP_FOUND, [
+                    'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
+                ]);
+            }
 
             $session = $request->getSession();
             $session->migrate(true);

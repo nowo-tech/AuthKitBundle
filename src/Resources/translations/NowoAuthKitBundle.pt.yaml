@@ -16,6 +16,7 @@ register:
     heading: Criar conta
     submit: Registar
     login_link: Já tem conta? Inicie sessão
+    flash_rate_limited: Demasiadas tentativas de registo. Tente novamente mais tarde.
     field:
         email: E-mail
         password: Palavra-passe
