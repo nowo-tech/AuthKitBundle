@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.11.4] - 2026-07-30](#1114-2026-07-30)
 - [[1.11.3] - 2026-07-30](#1113-2026-07-30)
 - [[1.11.2] - 2026-07-30](#1112-2026-07-30)
 - [[1.11.1] - 2026-07-30](#1111-2026-07-30)
@@ -100,6 +101,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.11.4] - 2026-07-30
+
+### Fixed
+
+- `AuthKitUiExtension`: use `AbstractExtension::getFunctions()` instead of `#[AsTwigFunction]` (Symfony forbids combining both).
 
 ## [1.11.3] - 2026-07-30
 

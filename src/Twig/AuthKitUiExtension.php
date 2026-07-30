@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Twig;
 
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
-use Twig\Attribute\AsTwigFunction;
 use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
+use Twig\TwigFunction;
 
 use function is_array;
 
@@ -44,7 +44,13 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
         ];
     }
 
-    #[AsTwigFunction('nowo_auth_kit_outbound_mail_ready')]
+    public function getFunctions(): array
+    {
+        return [
+            new TwigFunction('nowo_auth_kit_outbound_mail_ready', $this->isOutboundMailReady(...)),
+        ];
+    }
+
     public function isOutboundMailReady(): bool
     {
         return $this->outboundMailReadyChecker->isReady();
