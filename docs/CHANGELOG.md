@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.11.3] - 2026-07-30](#1113-2026-07-30)
+- [[1.11.2] - 2026-07-30](#1112-2026-07-30)
 - [[1.11.1] - 2026-07-30](#1111-2026-07-30)
 - [[1.11.0] - 2026-07-30](#1110-2026-07-30)
   - [Added](#added)
@@ -98,6 +100,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.11.3] - 2026-07-30
+
+### Fixed
+
+- Register `AuthKitUiExtension` as a Twig extension (`AbstractExtension` + `twig.extension`) so `nowo_auth_kit_button_class` / form theme globals apply. (Corrects empty `v1.11.2` tag.)
+
+## [1.11.2] - 2026-07-30
+
+### Fixed
+
+- Register `AuthKitUiExtension` as a Twig extension (`AbstractExtension` + `twig.extension`) so `nowo_auth_kit_button_class` / form theme globals apply.
 
 ## [1.11.1] - 2026-07-30
 

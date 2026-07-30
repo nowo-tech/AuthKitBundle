@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Twig;
 
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Twig\Attribute\AsTwigFunction;
+use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
 
 use function is_array;
@@ -13,7 +14,7 @@ use function is_array;
 /**
  * Exposes Auth Kit UI defaults and feature checks to Twig templates.
  */
-final class AuthKitUiExtension implements GlobalsInterface
+final class AuthKitUiExtension extends AbstractExtension implements GlobalsInterface
 {
     /**
      * @param array<string, mixed> $templates

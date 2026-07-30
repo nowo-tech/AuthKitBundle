@@ -55,6 +55,8 @@ services:
         arguments:
             $templates: '%nowo_auth_kit.templates%'
             $css: '%nowo_auth_kit.css%'
+        tags:
+            - { name: twig.extension }
 
     Nowo\AuthKitBundle\Controller\LoginController:
         public: true
