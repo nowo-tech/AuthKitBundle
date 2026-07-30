@@ -98,7 +98,9 @@ make release-check
 - [GitHub Actions CI requirements](docs/GITHUB_CI.md)
 - [Password reset](docs/PASSWORD-RESET.md)
 - [Magic login](docs/MAGIC-LOGIN.md)
+- [Social login](docs/SOCIAL-LOGIN.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
+
 ## Tests and coverage
 
 - Tests: PHPUnit (unit + integration)

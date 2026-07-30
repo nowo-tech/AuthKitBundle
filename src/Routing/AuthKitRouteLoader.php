@@ -12,6 +12,8 @@ use Nowo\AuthKitBundle\Controller\RegisterController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordCodeController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordRequestController;
+use Nowo\AuthKitBundle\Controller\SocialLoginCheckController;
+use Nowo\AuthKitBundle\Controller\SocialLoginStartController;
 use Nowo\AuthKitBundle\Controller\UnlocalizedLocaleRedirectController;
 use Nowo\AuthKitBundle\Enum\LocaleInPathMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
@@ -152,11 +154,30 @@ final class AuthKitRouteLoader extends Loader
             ['_controller' => MagicLoginCheckController::class . '::check'] + $profileDefaults,
             ['GET'],
         );
+
+        $this->addAuthRoute(
+            $collection,
+            $routes['social_login_start']['name'],
+            $routes['social_login_start']['path'],
+            ['_controller' => SocialLoginStartController::class . '::start'] + $profileDefaults,
+            ['GET'],
+            ['provider' => '[a-z0-9_\\-]+'],
+        );
+
+        $this->addAuthRoute(
+            $collection,
+            $routes['social_login_check']['name'],
+            $routes['social_login_check']['path'],
+            ['_controller' => SocialLoginCheckController::class . '::check'] + $profileDefaults,
+            ['GET'],
+            ['provider' => '[a-z0-9_\\-]+'],
+        );
     }
 
     /**
      * @param list<string> $methods
      * @param array<string, mixed> $defaults
+     * @param array<string, string> $requirements
      */
     private function addAuthRoute(
         RouteCollection $collection,
@@ -164,13 +185,14 @@ final class AuthKitRouteLoader extends Loader
         string $path,
         array $defaults,
         array $methods,
+        array $requirements = [],
     ): void {
         if ($this->localeInPathMode->registersLocalizedRoutes()) {
-            $collection->add($name, $this->createLocalizedRoute($path, $defaults, $methods));
+            $collection->add($name, $this->createLocalizedRoute($path, $defaults, $methods, $requirements));
         }
 
         if ($this->localeInPathMode === LocaleInPathMode::Never) {
-            $collection->add($name, $this->createBareRoute($path, $defaults, $methods));
+            $collection->add($name, $this->createBareRoute($path, $defaults, $methods, $requirements));
 
             return;
         }
@@ -189,6 +211,7 @@ final class AuthKitRouteLoader extends Loader
                     '_auth_kit_canonical_route' => $name,
                 ] + $defaults,
                 $methods,
+                $requirements,
             ));
 
             return;
@@ -198,28 +221,31 @@ final class AuthKitRouteLoader extends Loader
             $path,
             ['_locale' => $this->defaultLocale] + $defaults,
             $methods,
+            $requirements,
         ));
     }
 
     /**
      * @param list<string> $methods
      * @param array<string, mixed> $defaults
+     * @param array<string, string> $requirements
      */
-    private function createBareRoute(string $path, array $defaults, array $methods): Route
+    private function createBareRoute(string $path, array $defaults, array $methods, array $requirements = []): Route
     {
-        return new Route($path, $defaults, [], [], '', [], $methods);
+        return new Route($path, $defaults, $requirements, [], '', [], $methods);
     }
 
     /**
      * @param list<string> $methods
      * @param array<string, mixed> $defaults
+     * @param array<string, string> $requirements
      */
-    private function createLocalizedRoute(string $path, array $defaults, array $methods): Route
+    private function createLocalizedRoute(string $path, array $defaults, array $methods, array $requirements = []): Route
     {
         return new Route(
             '/{_locale}' . $path,
             ['_locale' => $this->defaultLocale] + $defaults,
-            ['_locale' => implode('|', $this->enabledLocales)],
+            ['_locale' => implode('|', $this->enabledLocales)] + $requirements,
             [],
             '',
             [],

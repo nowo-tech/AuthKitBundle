@@ -39,6 +39,7 @@
         "symfony/dependency-injection": "^7.4 || ^8.0",
         "symfony/form": "^7.4 || ^8.0",
         "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/http-client": "^7.4 || ^8.0",
         "symfony/http-kernel": "^7.4 || ^8.0",
         "symfony/password-hasher": "^7.4 || ^8.0",
         "symfony/property-access": "^7.4 || ^8.0",

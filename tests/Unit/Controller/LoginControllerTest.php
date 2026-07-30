@@ -6,11 +6,14 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Controller\LoginController;
+use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
+use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
@@ -39,6 +42,9 @@ final class LoginControllerTest extends TestCase
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->with('demo_home')->willReturn('/home');
 
+        $credentials = $this->createMock(SocialLoginCredentialRepository::class);
+        $credentials->method('findEnabledOrdered')->willReturn([]);
+
         $controller = new LoginController(
             $this->createMock(Environment::class),
             $this->createMock(FormFactoryInterface::class),
@@ -51,6 +57,8 @@ final class LoginControllerTest extends TestCase
             ),
             new PasswordResetGate(ProfileRegistryFactory::single(TestUser::class)),
             new MagicLoginGate(ProfileRegistryFactory::single(TestUser::class)),
+            new SocialLoginGate(ProfileRegistryFactory::single(TestUser::class), $credentials),
+            $credentials,
             ProfileRegistryFactory::requestResolver(TestUser::class, ['login_success_route' => 'demo_home']),
         );
 
@@ -93,6 +101,9 @@ final class LoginControllerTest extends TestCase
         $inner = $this->createMock(UrlGeneratorInterface::class);
         $inner->method('generate')->willReturn('/login');
 
+        $credentials = $this->createMock(SocialLoginCredentialRepository::class);
+        $credentials->method('findEnabledOrdered')->willReturn([]);
+
         $controller = new LoginController(
             $twig,
             $formFactory,
@@ -102,11 +113,70 @@ final class LoginControllerTest extends TestCase
             $registrationGate,
             new PasswordResetGate($profileRegistry),
             new MagicLoginGate($profileRegistry),
+            new SocialLoginGate($profileRegistry, $credentials),
+            $credentials,
             ProfileRegistryFactory::requestResolver(TestUser::class, ['registration_mode' => 'disabled']),
         );
 
         $response = $controller->login(new Request());
 
         self::assertSame('<html>login</html>', $response->getContent());
+    }
+
+    public function testRendersSocialProvidersWhenEnabled(): void
+    {
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'social_login' => ['mode' => 'enabled'],
+        ]);
+
+        $formFactory = Forms::createFormFactoryBuilder()
+            ->addExtension(new ValidatorExtension(Validation::createValidator()))
+            ->addType(new LoginFormType($profileRegistry, new PasswordFieldTypeResolver()))
+            ->getFormFactory();
+
+        $authenticationUtils = $this->createMock(AuthenticationUtils::class);
+        $authenticationUtils->method('getLastUsername')->willReturn('');
+        $authenticationUtils->method('getLastAuthenticationError')->willReturn(null);
+
+        $provider = (new SocialLoginCredential())
+            ->setProvider('google')
+            ->setLabel('Google')
+            ->setEnabled(true);
+
+        $credentials = $this->createMock(SocialLoginCredentialRepository::class);
+        $credentials->method('findEnabledOrdered')->willReturn([$provider]);
+
+        $twig = $this->createMock(Environment::class);
+        $twig->expects(self::once())
+            ->method('render')
+            ->with(
+                self::anything(),
+                self::callback(static function (array $context) use ($provider): bool {
+                    return ($context['social_login_enabled'] ?? false) === true
+                        && ($context['social_login_providers'][0] ?? null) === $provider;
+                }),
+            )
+            ->willReturn('<html>login</html>');
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/login');
+
+        $controller = new LoginController(
+            $twig,
+            $formFactory,
+            $authenticationUtils,
+            $this->createMock(TokenStorageInterface::class),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            new RegistrationGate($this->createMock(EntityManagerInterface::class), $profileRegistry),
+            new PasswordResetGate($profileRegistry),
+            new MagicLoginGate($profileRegistry),
+            new SocialLoginGate($profileRegistry, $credentials),
+            $credentials,
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'social_login' => ['mode' => 'enabled'],
+            ]),
+        );
+
+        self::assertSame('<html>login</html>', $controller->login(new Request())->getContent());
     }
 }

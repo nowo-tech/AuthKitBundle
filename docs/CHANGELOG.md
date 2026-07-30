@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.9.0] - 2026-07-30](#190-2026-07-30)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Fixed](#fixed)
 - [[1.8.2] - 2026-07-29](#182-2026-07-29)
   - [Fixed](#fixed)
 - [[1.8.1] - 2026-07-29](#181-2026-07-29)
@@ -82,6 +86,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.9.0] - 2026-07-30
+
+### Added
+
+- **Social login (OAuth):** profile `social_login` (`mode`, `create_user_if_missing`), Doctrine entities `SocialLoginCredential` / `SocialLoginAccount` (DB-stored app credentials + linked user tokens), routes `/login/social/{provider}` + `/check`, login Twig buttons when mode is enabled **and** enabled credentials exist. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md).
+- Runtime dependency: `symfony/http-client` (^7.4 || ^8.0).
+
+### Changed
+
+- README documentation list: Social login under Additional; base Documentation order restored.
+
+### Fixed
+
+- `ProfileRegistry` initializes `byExactClass` before the constructor body (avoids uninitialized typed property access).
+
+[1.9.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.9.0
 
 ## [1.8.2] - 2026-07-29
 

@@ -8,6 +8,8 @@ services:
         resource: '../../'
         exclude:
             - '../../DependencyInjection/'
+            - '../../Entity/'
+            - '../../Enum/'
             - '../../Form/'
             - '../../NowoAuthKitBundle.php'
 
@@ -68,6 +70,12 @@ services:
         public: true
 
     Nowo\AuthKitBundle\Controller\MagicLoginCheckController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\SocialLoginStartController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\SocialLoginCheckController:
         public: true
 
     Nowo\AuthKitBundle\Controller\UnlocalizedLocaleRedirectController:

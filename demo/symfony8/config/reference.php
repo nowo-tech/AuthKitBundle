@@ -1302,6 +1302,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             lifetime?: int|Param, // Seconds until the magic login link expires (Symfony login_link lifetime). // Default: 600
  *             max_uses?: int|Param, // How many times the signed login link can be used (Symfony login_link max_uses). // Default: 1
  *         },
+ *         social_login?: array{
+ *             mode?: "disabled"|"enabled"|Param, // disabled: hide social login. enabled: OAuth buttons when provider credentials exist in the database. // Default: "disabled"
+ *             create_user_if_missing?: bool|Param, // When true, creates a local user from the social profile email if none exists. // Default: true
+ *         },
  *         routes?: array{
  *             login?: array{
  *                 path?: scalar|Param|null, // Default: "/login"
@@ -1334,6 +1338,14 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             magic_login_check?: array{
  *                 path?: scalar|Param|null, // Default: "/magic-login/check"
  *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_magic_login_check"
+ *             },
+ *             social_login_start?: array{
+ *                 path?: scalar|Param|null, // Default: "/login/social/{provider}"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_social_login_start"
+ *             },
+ *             social_login_check?: array{
+ *                 path?: scalar|Param|null, // Default: "/login/social/{provider}/check"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_social_login_check"
  *             },
  *         },
  *         firewall?: scalar|Param|null, // Symfony firewall name where form_login should point (documented for security.yaml). // Default: "main"

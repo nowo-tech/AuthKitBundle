@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.9.0](#to-190)
+  - [Social login (optional)](#social-login-optional)
 - [To 1.8.2](#to-182)
 - [To 1.8.1](#to-181)
 - [To 1.8.0](#to-180)
@@ -38,6 +40,38 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.9.0
+
+From **1.8.2** — backward compatible; social login is opt-in (default `mode: disabled`).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+New runtime dependency: `symfony/http-client` (^7.4 || ^8.0). No application config required if you leave social login disabled.
+
+### Social login (optional)
+
+1. Enable and migrate schema:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                mode: enabled
+                create_user_if_missing: true
+```
+
+```bash
+php bin/console doctrine:schema:update --force
+# or add a migration for auth_kit_social_credential + auth_kit_social_account
+```
+
+2. Insert at least one enabled `SocialLoginCredential` row (client id/secret). Buttons appear only then.
+3. Allow public access to `/login/social` (and locale-prefixed variants). See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md).
 
 ## To 1.8.2
 

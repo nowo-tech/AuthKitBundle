@@ -11,6 +11,13 @@ login:
         identifier: Email o usuario
         password: Contraseña
         remember_me: Recordarme
+social:
+    heading: O continuar con
+    continue_with: 'Continuar con %provider%'
+    error:
+        invalid_state: No se pudo completar el inicio de sesión social (estado inválido).
+        provider_denied: El inicio de sesión social se canceló o denegó.
+        failed: Falló el inicio de sesión social. Inténtalo de nuevo.
 register:
     title: Crear cuenta
     heading: Crear cuenta

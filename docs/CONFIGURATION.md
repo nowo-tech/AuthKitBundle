@@ -9,6 +9,8 @@
   - [Registration](#registration)
   - [Password strength (optional)](#password-strength-optional)
 - [Password reset](#password-reset)
+- [Magic login (passwordless)](#magic-login-passwordless)
+- [Social login (OAuth)](#social-login-oauth)
 - [Embedded auth UI](#embedded-auth-ui)
 - [Locale in paths](#locale-in-paths)
 - [Templates](#templates)
@@ -148,6 +150,10 @@ nowo_auth_kit:
         lifetime: 600
         max_uses: 1
 
+    social_login:
+        mode: disabled              # disabled | enabled
+        create_user_if_missing: true
+
     routes:
         login:
             path: /login
@@ -173,6 +179,12 @@ nowo_auth_kit:
         magic_login_check:
             path: /magic-login/check
             name: nowo_auth_kit_magic_login_check
+        social_login_start:
+            path: /login/social/{provider}
+            name: nowo_auth_kit_social_login_start
+        social_login_check:
+            path: /login/social/{provider}/check
+            name: nowo_auth_kit_social_login_check
 
     # Documented for security.yaml (see INSTALLATION.md)
     firewall: main
@@ -284,6 +296,12 @@ When `magic_login.mode` is `enabled`, users can request a one-time sign-in link.
 
 See [MAGIC-LOGIN.md](MAGIC-LOGIN.md).
 
+## Social login (OAuth)
+
+When `social_login.mode` is `enabled` **and** at least one enabled `SocialLoginCredential` exists in the database, the login page shows provider buttons. Client secrets and linked-user tokens live in Doctrine tables owned by the bundle (`auth_kit_social_credential`, `auth_kit_social_account`).
+
+See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md).
+
 ## Embedded auth UI
 
 When `embed.mode` is `dropdown`, render `{{ auth_kit_dropdown() }}` in Twig. Forms POST to the same routes as full-page login/register.
@@ -343,7 +361,7 @@ When `locale.in_path` is `always` or `both`, localized paths are `/{_locale}/log
 1. Entity provider with `user_class` and `user_identifier_field`
 2. `form_login.login_path` and `check_path` = login route name
 3. `logout.path` = logout route name
-4. `access_control` for login, register, and (if enabled) password-reset paths → `PUBLIC_ACCESS`
+4. `access_control` for login, register, and (if enabled) password-reset / magic-login / social-login paths → `PUBLIC_ACCESS`
 5. Protected areas require `ROLE_USER` (or your roles)
 
 Run `php bin/console nowo:auth-kit:configure-security` to apply steps 1–4 automatically.

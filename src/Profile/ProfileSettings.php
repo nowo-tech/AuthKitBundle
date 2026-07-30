@@ -16,6 +16,7 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $embed
      * @param array<string, mixed> $passwordReset
      * @param array<string, mixed> $magicLogin
+     * @param array<string, mixed> $socialLogin
      * @param array<string, array{path: string, name: string}> $routes
      */
     public function __construct(
@@ -32,6 +33,7 @@ final readonly class ProfileSettings
         public array $embed,
         public array $passwordReset,
         public array $magicLogin,
+        public array $socialLogin,
         public array $routes,
         public string $firewall,
         public ?string $loginSuccessRoute,
@@ -60,6 +62,10 @@ final readonly class ProfileSettings
             embed: $config['embed'],
             passwordReset: $config['password_reset'],
             magicLogin: $config['magic_login'],
+            socialLogin: $config['social_login'] ?? [
+                'mode'                   => 'disabled',
+                'create_user_if_missing' => true,
+            ],
             routes: $config['routes'],
             firewall: $config['firewall'],
             loginSuccessRoute: $config['login_success_route'],

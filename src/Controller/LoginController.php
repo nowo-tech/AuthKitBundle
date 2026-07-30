@@ -8,8 +8,10 @@ use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
+use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,6 +34,8 @@ final class LoginController
         private readonly RegistrationGate $registrationGate,
         private readonly PasswordResetGate $passwordResetGate,
         private readonly MagicLoginGate $magicLoginGate,
+        private readonly SocialLoginGate $socialLoginGate,
+        private readonly SocialLoginCredentialRepository $socialLoginCredentials,
         private readonly RequestProfileResolver $profileResolver,
     ) {
     }
@@ -58,14 +62,21 @@ final class LoginController
             $form->get('_username')->setData($lastUsername);
         }
 
+        $socialProviders = $this->socialLoginGate->isEnabled($profile->name)
+            ? $this->socialLoginCredentials->findEnabledOrdered()
+            : [];
+
         $content = $this->twig->render($profile->templates['login'], [
             'login_form'             => $form->createView(),
             'error'                  => $this->authenticationUtils->getLastAuthenticationError(),
             'register_route'         => $profile->routes['register']['name'],
             'reset_password_route'   => $profile->routes['reset_request']['name'],
             'magic_login_route'      => $profile->routes['magic_login_request']['name'],
+            'social_login_route'     => $profile->routes['social_login_start']['name'],
             'password_reset_enabled' => $this->passwordResetGate->isEnabled($profile->name),
             'magic_login_enabled'    => $this->magicLoginGate->isEnabled($profile->name),
+            'social_login_enabled'   => $socialProviders !== [],
+            'social_login_providers' => $socialProviders,
             'registration_allowed'   => $this->registrationGate->isRegistrationAllowed($profile->name),
             'layout_template'        => $profile->templates['layout'],
         ]);

@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Enum\MagicLoginMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -41,6 +42,7 @@ final class Configuration implements ConfigurationInterface
         'embed',
         'password_reset',
         'magic_login',
+        'social_login',
         'routes',
         'firewall',
         'login_success_route',
@@ -166,6 +168,7 @@ final class Configuration implements ConfigurationInterface
                             ->append($this->createEmbedNode())
                             ->append($this->createPasswordResetNode())
                             ->append($this->createMagicLoginNode())
+                            ->append($this->createSocialLoginNode())
                             ->append($this->createRoutesNode())
                             ->scalarNode('firewall')
                                 ->info('Symfony firewall name where form_login should point (documented for security.yaml).')
@@ -413,6 +416,26 @@ final class Configuration implements ConfigurationInterface
         return $node;
     }
 
+    private function createSocialLoginNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('social_login'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->enumNode('mode')
+                    ->values(array_map(static fn (SocialLoginMode $mode): string => $mode->value, SocialLoginMode::cases()))
+                    ->info('disabled: hide social login. enabled: OAuth buttons when provider credentials exist in the database.')
+                    ->defaultValue(SocialLoginMode::Disabled->value)
+                ->end()
+                ->booleanNode('create_user_if_missing')
+                    ->info('When true, creates a local user from the social profile email if none exists.')
+                    ->defaultTrue()
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
     private function createRoutesNode(): ArrayNodeDefinition
     {
         $node = (new TreeBuilder('routes'))->getRootNode();
@@ -473,6 +496,20 @@ final class Configuration implements ConfigurationInterface
                     ->children()
                         ->scalarNode('path')->defaultValue('/magic-login/check')->end()
                         ->scalarNode('name')->defaultValue('nowo_auth_kit_magic_login_check')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('social_login_start')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login/social/{provider}')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_social_login_start')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('social_login_check')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login/social/{provider}/check')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_social_login_check')->end()
                     ->end()
                 ->end()
             ->end();

@@ -16,6 +16,7 @@
         </include>
         <exclude>
             <directory>src/Resources</directory>
+            <directory>src/Repository</directory>
         </exclude>
     </source>
 

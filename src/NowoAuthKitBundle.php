@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle;
 
+use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\DoctrineOrmMappingsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -20,6 +21,14 @@ class NowoAuthKitBundle extends Bundle
     public function build(ContainerBuilder $container): void
     {
         $container->addCompilerPass(new TwigPathsPass());
+
+        $entityDir = __DIR__ . '/Entity';
+        if (is_dir($entityDir)) {
+            $container->addCompilerPass(DoctrineOrmMappingsPass::createAttributeMappingDriver(
+                ['Nowo\\AuthKitBundle\\Entity'],
+                [$entityDir],
+            ));
+        }
     }
 
     public function getContainerExtension(): ?ExtensionInterface

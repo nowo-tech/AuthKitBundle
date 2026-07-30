@@ -175,3 +175,5 @@ Override bundle strings in `translations/NowoAuthKitBundle.es.yaml` (see [USAGE.
 - [Configuration](CONFIGURATION.md) — registration modes, roles, fields, templates, password reset, embed
 - [USAGE.md](USAGE.md) — Twig and translation overrides, embed dropdown, locale paths
 - [PASSWORD-RESET.md](PASSWORD-RESET.md) — reset flow and notifier wiring
+- [MAGIC-LOGIN.md](MAGIC-LOGIN.md) — passwordless login link
+- [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md) — OAuth social login (optional)

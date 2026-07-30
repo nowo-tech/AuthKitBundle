@@ -22,20 +22,36 @@
         <button type="submit" class="nowo-auth-kit__button">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
     {{ form_end(login_form) }}
 
-    {% if password_reset_enabled|default(false) or registration_allowed|default(false) or magic_login_enabled|default(false) %}
+    {% if password_reset_enabled|default(false) or registration_allowed|default(false) or magic_login_enabled|default(false) or social_login_enabled|default(false) %}
     <p class="nowo-auth-kit__footer">
         {% if magic_login_enabled|default(false) %}
             <a href="{{ path(magic_login_route, auth_kit_route_params()) }}">{{ 'login.magic_login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
-            {% if password_reset_enabled|default(false) or registration_allowed|default(false) %} · {% endif %}
+            {% if password_reset_enabled|default(false) or registration_allowed|default(false) or social_login_enabled|default(false) %} · {% endif %}
         {% endif %}
         {% if password_reset_enabled|default(false) %}
             <a href="{{ path(reset_password_route, auth_kit_route_params()) }}">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
-            {% if registration_allowed|default(false) %} · {% endif %}
+            {% if registration_allowed|default(false) or social_login_enabled|default(false) %} · {% endif %}
         {% endif %}
         {% if registration_allowed|default(false) %}
             <a href="{{ path(register_route, auth_kit_route_params()) }}">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+            {% if social_login_enabled|default(false) %} · {% endif %}
         {% endif %}
     </p>
+    {% endif %}
+
+    {% if social_login_enabled|default(false) and social_login_providers|default([]) is not empty %}
+    <div class="nowo-auth-kit__social">
+        <p class="nowo-auth-kit__social-heading">{{ 'social.heading'|trans({}, 'NowoAuthKitBundle') }}</p>
+        <ul class="nowo-auth-kit__social-list">
+            {% for provider in social_login_providers %}
+                <li>
+                    <a class="nowo-auth-kit__social-button" href="{{ path(social_login_route, auth_kit_route_params({ provider: provider.provider })) }}">
+                        {{ 'social.continue_with'|trans({'%provider%': provider.label}, 'NowoAuthKitBundle') }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
     {% endif %}
 </section>
 {% endblock %}

@@ -7,6 +7,13 @@ login:
     register_link: Create an account
     forgot_password_link: Forgot your password?
     magic_login_link: Sign in with email link
+social:
+    heading: Or continue with
+    continue_with: 'Continue with %provider%'
+    error:
+        invalid_state: Social login could not be completed (invalid state).
+        provider_denied: Social login was cancelled or denied.
+        failed: Social login failed. Please try again.
     field:
         identifier: Email or username
         password: Password
