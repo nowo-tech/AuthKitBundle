@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.12.1](#to-1121)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.1](#to-1101)
@@ -45,6 +46,10 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.12.1
+
+Optional: `composer require endroid/qr-code:^6` so QR login show pages render an image (`EndroidQrCodeGenerator`). Without it, URL/`public_code` fallback remains. PNG needs `ext-gd`; otherwise SVG is used.
 
 ## To 1.12.0
 

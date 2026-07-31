@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.12.1] - 2026-07-31](#1121-2026-07-31)
 - [[1.12.0] - 2026-07-31](#1120-2026-07-31)
 - [[1.11.4] - 2026-07-30](#1114-2026-07-30)
 - [[1.11.3] - 2026-07-30](#1113-2026-07-30)
@@ -102,6 +103,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.12.1] - 2026-07-31
+
+### Added
+
+- Optional **Endroid** QR image generator (`EndroidQrCodeGenerator`) when `endroid/qr-code` is installed (PNG with `ext-gd`, otherwise SVG); compiler pass aliases `QrCodeGeneratorInterface` over Null.
 
 ## [1.12.0] - 2026-07-31
 

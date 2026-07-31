@@ -110,6 +110,8 @@ services:
     Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface:
         alias: Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp
 
+    Nowo\AuthKitBundle\QrLogin\NullQrCodeGenerator: ~
+    Nowo\AuthKitBundle\QrLogin\EndroidQrCodeGenerator: ~
     Nowo\AuthKitBundle\QrLogin\QrCodeGeneratorInterface:
         alias: Nowo\AuthKitBundle\QrLogin\NullQrCodeGenerator
 

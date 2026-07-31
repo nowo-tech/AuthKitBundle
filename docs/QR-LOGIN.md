@@ -1,6 +1,6 @@
 # QR phone login
 
-> **Status: implemented (P0)** — Config, entity, services, controllers, Twig templates, desktop cookie binding, rate limiting, and tests shipped. Default mode is `disabled` (opt-in). P1+ features (phone_otp, QR PNG library, audit table) remain unimplemented.
+> **Status: implemented (P0 + P2 PNG)** — Config, entity, services, controllers, Twig templates, desktop cookie binding, rate limiting, and tests shipped. Default mode is `disabled` (opt-in). Optional PNG via `endroid/qr-code`. P1 (`phone_otp`) and P3 (audit table) remain unimplemented.
 >
 > Aligns with AuthKit patterns (`magic_login` / `social_login`: profile gate, Doctrine tables owned by the bundle, public routes + Twig login affordance).
 
@@ -395,7 +395,7 @@ Apps subscribe for audit / throttle (same pattern as `MagicLoginRequestedEvent`)
 |-------|--------|
 | **P0** | Config + entity (incl. desktop cookie/IP/UA hashes) + rate limiter + start/show/status/complete + approve with `session_step_up` (`QrLoginStepUpInterface`) + Twig + privacy-safe QR URL + tests |
 | **P1** | `phone_otp` / `either` + `QrLoginNotifierInterface` + Logging/Null notifiers |
-| **P2** | QR PNG generator + demo (PIN step-up stub) + CHANGELOG/UPGRADING/SECURITY |
+| **P2** | QR PNG generator (`EndroidQrCodeGenerator` + `suggest endroid/qr-code`) — **Done** in 1.12.1; PIN step-up stub / demo polish optional |
 | **P3** | Audit table, coarse geo on approve UI, `public_code` entry without camera |
 
 ## Open decisions
