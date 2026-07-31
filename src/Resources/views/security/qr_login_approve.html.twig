@@ -1,0 +1,32 @@
+{% extends layout_template %}
+
+{% block title %}{{ 'qr_login.approve.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
+
+{% block auth_panel %}
+<section class="nowo-auth-kit__panel">
+    <h1>{{ 'qr_login.approve.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+
+    <dl class="nowo-auth-kit__qr-approve-details">
+        <dt>{{ 'qr_login.approve.device_label'|trans({}, 'NowoAuthKitBundle') }}</dt>
+        <dd>{{ desktop_label }}</dd>
+
+        {% if phone_hint %}
+        <dt>{{ 'qr_login.approve.phone_label'|trans({}, 'NowoAuthKitBundle') }}</dt>
+        <dd>{{ phone_hint }}</dd>
+        {% endif %}
+    </dl>
+
+    <p class="nowo-auth-kit__qr-approve-warning">
+        {{ 'qr_login.approve.warning'|trans({}, 'NowoAuthKitBundle') }}
+    </p>
+
+    <form method="post" class="nowo-auth-kit__qr-approve-form">
+        <input type="hidden" name="t" value="{{ approve_token }}">
+        <button type="submit" class="nowo-auth-kit__button">{{ 'qr_login.approve.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+    </form>
+
+    <form method="post" action="{{ path(deny_route, auth_kit_route_params({ id: challenge_id, t: approve_token })) }}">
+        <button type="submit" class="nowo-auth-kit__button nowo-auth-kit__button--secondary">{{ 'qr_login.approve.deny'|trans({}, 'NowoAuthKitBundle') }}</button>
+    </form>
+</section>
+{% endblock %}

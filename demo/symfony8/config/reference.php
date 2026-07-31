@@ -1320,6 +1320,18 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             create_user_if_missing?: bool|Param, // When true, creates a local user from the social profile email if none exists. // Default: true
  *             require_verified_email?: bool|Param, // When true, linking or creating a local user requires the IdP to assert email_verified (or GitHub verified). // Default: true
  *         },
+ *         qr_login?: array{
+ *             mode?: "disabled"|"enabled"|Param, // disabled: hide QR login. enabled: show QR challenge start link on login page. // Default: "disabled"
+ *             challenge_ttl?: int|Param, // Seconds until the QR challenge expires (clamped 30–180). // Default: 90
+ *             poll_interval_ms?: int|Param, // Hint for Twig/JS desktop status polling interval (milliseconds). // Default: 1500
+ *             approve_requires?: "session"|"session_step_up"|Param, // session: logged-in phone only. session_step_up: phone session + QrLoginStepUpInterface. // Default: "session"
+ *             desktop_binding?: "off"|"soft"|"strict"|Param, // strict: cookie + IP/UA match. soft: cookie + mismatch event. off: cookie only. // Default: "strict"
+ *             phone_field?: scalar|Param|null, // User entity property for the mobile phone number (PropertyAccessor). // Default: "phone"
+ *             phone_verified_field?: scalar|Param|null, // User entity property for phone verification timestamp (PropertyAccessor). // Default: "phoneVerifiedAt"
+ *             create_rate_limit?: int|Param, // Max challenge creations per client IP per window (0 = disabled). // Default: 5
+ *             create_rate_window?: int|Param, // Seconds for create_rate_limit window. // Default: 600
+ *             approve_rate_limit?: int|Param, // Max approve/deny attempts per challenge id (0 = disabled). // Default: 5
+ *         },
  *         routes?: array{
  *             login?: array{
  *                 path?: scalar|Param|null, // Default: "/login"
@@ -1360,6 +1372,30 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             social_login_check?: array{
  *                 path?: scalar|Param|null, // Default: "/login/social/{provider}/check"
  *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_social_login_check"
+ *             },
+ *             qr_login_start?: array{
+ *                 path?: scalar|Param|null, // Default: "/login/qr"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_qr_login_start"
+ *             },
+ *             qr_login_show?: array{
+ *                 path?: scalar|Param|null, // Default: "/login/qr/{id}"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_qr_login_show"
+ *             },
+ *             qr_login_status?: array{
+ *                 path?: scalar|Param|null, // Default: "/login/qr/{id}/status"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_qr_login_status"
+ *             },
+ *             qr_login_complete?: array{
+ *                 path?: scalar|Param|null, // Default: "/login/qr/{id}/complete"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_qr_login_complete"
+ *             },
+ *             qr_login_approve?: array{
+ *                 path?: scalar|Param|null, // Default: "/login/qr/{id}/approve"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_qr_login_approve"
+ *             },
+ *             qr_login_deny?: array{
+ *                 path?: scalar|Param|null, // Default: "/login/qr/{id}/deny"
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_qr_login_deny"
  *             },
  *         },
  *         firewall?: scalar|Param|null, // Symfony firewall name where form_login should point (documented for security.yaml). // Default: "main"

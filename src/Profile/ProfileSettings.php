@@ -18,6 +18,7 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $passwordReset
      * @param array<string, mixed> $magicLogin
      * @param array<string, mixed> $socialLogin
+     * @param array<string, mixed> $qrLogin
      * @param array<string, array{path: string, name: string}> $routes
      */
     public function __construct(
@@ -36,6 +37,7 @@ final readonly class ProfileSettings
         public array $passwordReset,
         public array $magicLogin,
         public array $socialLogin,
+        public array $qrLogin,
         public array $routes,
         public string $firewall,
         public ?string $loginSuccessRoute,
@@ -71,6 +73,9 @@ final readonly class ProfileSettings
                 'mode'                   => 'disabled',
                 'create_user_if_missing' => true,
                 'require_verified_email' => true,
+            ],
+            qrLogin: $config['qr_login'] ?? [
+                'mode' => 'disabled',
             ],
             routes: $config['routes'],
             firewall: $config['firewall'],

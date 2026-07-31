@@ -7,6 +7,29 @@ login:
     register_link: Create an account
     forgot_password_link: Forgot your password?
     magic_login_link: Sign in with email link
+    qr_login_link: Sign in with phone (QR)
+    field:
+        identifier: Email or username
+        password: Password
+        remember_me: Remember me
+qr_login:
+    show:
+        title: Sign in with phone
+        heading: Scan with your phone
+        qr_alt: QR code to approve sign-in
+        open_on_phone: Open approve link on your phone
+        code_label: Or enter this code on your phone
+        waiting: Waiting for approval…
+        expires_label: Expires in
+        back_to_login: Back to sign in
+    approve:
+        title: Approve sign-in
+        heading: Approve this sign-in?
+        device_label: Desktop device
+        phone_label: Phone on this account
+        warning: Only approve if you started this sign-in on a trusted computer.
+        submit: Approve
+        deny: Deny
 social:
     heading: Or continue with
     continue_with: 'Continue with %provider%'
@@ -14,10 +37,9 @@ social:
         invalid_state: Social login could not be completed (invalid state).
         provider_denied: Social login was cancelled or denied.
         failed: Social login failed. Please try again.
-    field:
-        identifier: Email or username
-        password: Password
-        remember_me: Remember me
+sso:
+    heading: Sign in with your organization
+    continue_with: 'Continue with %provider%'
 register:
     title: Create account
     heading: Create account

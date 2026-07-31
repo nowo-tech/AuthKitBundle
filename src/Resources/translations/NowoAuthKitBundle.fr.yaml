@@ -7,10 +7,29 @@ login:
     register_link: Créer un compte
     forgot_password_link: Mot de passe oublié ?
     magic_login_link: Se connecter avec un lien e-mail
+    qr_login_link: Se connecter avec le téléphone (QR)
     field:
         identifier: E-mail ou nom d'utilisateur
         password: Mot de passe
         remember_me: Se souvenir de moi
+qr_login:
+    show:
+        title: Connexion téléphone
+        heading: Scannez avec votre téléphone
+        qr_alt: QR code pour approuver la connexion
+        open_on_phone: Ouvrir le lien d’approbation sur le téléphone
+        code_label: Ou saisissez ce code sur votre téléphone
+        waiting: En attente d’approbation…
+        expires_label: Expire dans
+        back_to_login: Retour à la connexion
+    approve:
+        title: Approuver la connexion
+        heading: Approuver cette connexion ?
+        device_label: Appareil de bureau
+        phone_label: Téléphone de ce compte
+        warning: N’approuvez que si vous avez démarré cette connexion sur un ordinateur de confiance.
+        submit: Approuver
+        deny: Refuser
 register:
     title: Créer un compte
     heading: Créer un compte
@@ -72,6 +91,18 @@ reset:
         field:
             identifier: E-mail ou nom d'utilisateur
             code: Code de réinitialisation
+
+social:
+    heading: Ou continuer avec
+    continue_with: 'Continuer avec %provider%'
+    error:
+        invalid_state: La connexion sociale a échoué (état invalide).
+        provider_denied: La connexion sociale a été annulée ou refusée.
+        failed: Échec de la connexion sociale. Veuillez réessayer.
+
+sso:
+    heading: Connexion avec votre organisation
+    continue_with: 'Continuer avec %provider%'
 
 magic_login:
     request:

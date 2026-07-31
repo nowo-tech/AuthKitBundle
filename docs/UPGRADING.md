@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.1](#to-1101)
 - [To 1.10.0](#to-1100)
@@ -44,6 +45,31 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.12.0
+
+From **1.11.x**.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+php bin/console doctrine:schema:update --force
+# or add migrations for:
+# - table auth_kit_qr_login_challenge
+# - column auth_kit_social_credential.enterprise_sso
+```
+
+### Optional: QR phone login
+
+Enable per profile (`qr_login.mode: enabled`) and ensure the user entity exposes configured `phone` / `phone_verified_field` properties. See [QR-LOGIN.md](QR-LOGIN.md). Add `PUBLIC_ACCESS` for `/login/qr` routes (and locale-prefixed variants).
+
+### Optional: enterprise SSO buttons
+
+Set `enterpriseSso: true` on OIDC credentials that should appear under **Sign in with your organization**. See [SSO.md](SSO.md).
+
+### WebAuthn
+
+Not implemented yet; see [WEBAUTHN.md](WEBAUTHN.md).
 
 ## To 1.11.0
 

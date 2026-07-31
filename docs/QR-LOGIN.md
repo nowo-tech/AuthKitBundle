@@ -1,6 +1,6 @@
 # QR phone login
 
-> **Status: in development** — design published for review; **runtime feature not implemented**. Do not enable or depend on `qr_login` until a future release ships it and documents it in [CHANGELOG.md](CHANGELOG.md) / [UPGRADING.md](UPGRADING.md).
+> **Status: implemented (P0)** — Config, entity, services, controllers, Twig templates, desktop cookie binding, rate limiting, and tests shipped. Default mode is `disabled` (opt-in). P1+ features (phone_otp, QR PNG library, audit table) remain unimplemented.
 >
 > Aligns with AuthKit patterns (`magic_login` / `social_login`: profile gate, Doctrine tables owned by the bundle, public routes + Twig login affordance).
 

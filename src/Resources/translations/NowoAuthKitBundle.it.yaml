@@ -7,10 +7,29 @@ login:
     register_link: Crea un account
     forgot_password_link: Password dimenticata?
     magic_login_link: Accedi con link e-mail
+    qr_login_link: Accedi con il telefono (QR)
     field:
         identifier: Email o nome utente
         password: Password di accesso
         remember_me: Ricordami
+qr_login:
+    show:
+        title: Accedi con il telefono
+        heading: Scansiona con il telefono
+        qr_alt: Codice QR per approvare l’accesso
+        open_on_phone: Apri il link di approvazione sul telefono
+        code_label: Oppure inserisci questo codice sul telefono
+        waiting: In attesa di approvazione…
+        expires_label: Scade tra
+        back_to_login: Torna all’accesso
+    approve:
+        title: Approva accesso
+        heading: Approvare questo accesso?
+        device_label: Dispositivo desktop
+        phone_label: Telefono di questo account
+        warning: Approva solo se hai avviato questo accesso su un computer attendibile.
+        submit: Approva
+        deny: Nega
 register:
     title: Crea account
     heading: Crea account
@@ -72,6 +91,18 @@ reset:
         field:
             identifier: Email o nome utente
             code: Codice di reset
+
+social:
+    heading: Oppure continua con
+    continue_with: 'Continua con %provider%'
+    error:
+        invalid_state: Accesso social non completato (stato non valido).
+        provider_denied: Accesso social annullato o negato.
+        failed: Accesso social non riuscito. Riprova.
+
+sso:
+    heading: Accedi con la tua organizzazione
+    continue_with: 'Continua con %provider%'
 
 magic_login:
     request:

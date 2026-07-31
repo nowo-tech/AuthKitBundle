@@ -55,4 +55,16 @@ final class AuthKitUiExtensionTest extends TestCase
         );
         self::assertFalse($extension->isOutboundMailReady());
     }
+
+    public function testRegistersOutboundMailReadyTwigFunction(): void
+    {
+        $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker());
+        $functions = $extension->getFunctions();
+
+        self::assertCount(1, $functions);
+        self::assertSame('nowo_auth_kit_outbound_mail_ready', $functions[0]->getName());
+        $callable = $functions[0]->getCallable();
+        self::assertIsCallable($callable);
+        self::assertTrue($callable());
+    }
 }

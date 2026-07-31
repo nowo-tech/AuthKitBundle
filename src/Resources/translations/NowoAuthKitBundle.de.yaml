@@ -7,10 +7,29 @@ login:
     register_link: Konto erstellen
     forgot_password_link: Passwort vergessen?
     magic_login_link: Mit E-Mail-Link anmelden
+    qr_login_link: Mit dem Telefon anmelden (QR)
     field:
         identifier: E-Mail oder Benutzername
         password: Passwort
         remember_me: Angemeldet bleiben
+qr_login:
+    show:
+        title: Mit dem Telefon anmelden
+        heading: Mit dem Telefon scannen
+        qr_alt: QR-Code zur Anmeldebestätigung
+        open_on_phone: Freigabelink auf dem Telefon öffnen
+        code_label: Oder diesen Code auf dem Telefon eingeben
+        waiting: Warte auf Freigabe…
+        expires_label: Läuft ab in
+        back_to_login: Zurück zur Anmeldung
+    approve:
+        title: Anmeldung freigeben
+        heading: Diese Anmeldung freigeben?
+        device_label: Desktop-Gerät
+        phone_label: Telefon dieses Kontos
+        warning: Nur freigeben, wenn Sie diese Anmeldung auf einem vertrauenswürdigen Computer gestartet haben.
+        submit: Freigeben
+        deny: Ablehnen
 register:
     title: Konto erstellen
     heading: Konto erstellen
@@ -72,6 +91,18 @@ reset:
         field:
             identifier: E-Mail oder Benutzername
             code: Reset-Code
+
+social:
+    heading: Oder weiter mit
+    continue_with: 'Weiter mit %provider%'
+    error:
+        invalid_state: Social Login konnte nicht abgeschlossen werden (ungültiger Status).
+        provider_denied: Social Login wurde abgebrochen oder abgelehnt.
+        failed: Social Login fehlgeschlagen. Bitte erneut versuchen.
+
+sso:
+    heading: Mit Ihrer Organisation anmelden
+    continue_with: 'Weiter mit %provider%'
 
 magic_login:
     request:

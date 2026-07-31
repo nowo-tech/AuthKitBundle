@@ -8,6 +8,9 @@ use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Enum\MagicLoginMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
+use Nowo\AuthKitBundle\Enum\QrLoginApproveMode;
+use Nowo\AuthKitBundle\Enum\QrLoginDesktopBinding;
+use Nowo\AuthKitBundle\Enum\QrLoginMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
@@ -46,6 +49,7 @@ final class Configuration implements ConfigurationInterface
         'password_reset',
         'magic_login',
         'social_login',
+        'qr_login',
         'routes',
         'firewall',
         'login_success_route',
@@ -187,6 +191,7 @@ final class Configuration implements ConfigurationInterface
                             ->append($this->createPasswordResetNode())
                             ->append($this->createMagicLoginNode())
                             ->append($this->createSocialLoginNode())
+                            ->append($this->createQrLoginNode())
                             ->append($this->createRoutesNode())
                             ->scalarNode('firewall')
                                 ->info('Symfony firewall name where form_login should point (documented for security.yaml).')
@@ -511,6 +516,68 @@ final class Configuration implements ConfigurationInterface
         return $node;
     }
 
+    private function createQrLoginNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('qr_login'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->enumNode('mode')
+                    ->values(array_map(static fn (QrLoginMode $mode): string => $mode->value, QrLoginMode::cases()))
+                    ->info('disabled: hide QR login. enabled: show QR challenge start link on login page.')
+                    ->defaultValue(QrLoginMode::Disabled->value)
+                ->end()
+                ->integerNode('challenge_ttl')
+                    ->info('Seconds until the QR challenge expires (clamped 30–180).')
+                    ->defaultValue(90)
+                    ->min(30)
+                    ->max(180)
+                ->end()
+                ->integerNode('poll_interval_ms')
+                    ->info('Hint for Twig/JS desktop status polling interval (milliseconds).')
+                    ->defaultValue(1500)
+                    ->min(500)
+                ->end()
+                ->enumNode('approve_requires')
+                    ->values(array_map(static fn (QrLoginApproveMode $mode): string => $mode->value, QrLoginApproveMode::cases()))
+                    ->info('session: logged-in phone only. session_step_up: phone session + QrLoginStepUpInterface.')
+                    ->defaultValue(QrLoginApproveMode::Session->value)
+                ->end()
+                ->enumNode('desktop_binding')
+                    ->values(array_map(static fn (QrLoginDesktopBinding $mode): string => $mode->value, QrLoginDesktopBinding::cases()))
+                    ->info('strict: cookie + IP/UA match. soft: cookie + mismatch event. off: cookie only.')
+                    ->defaultValue(QrLoginDesktopBinding::Strict->value)
+                ->end()
+                ->scalarNode('phone_field')
+                    ->info('User entity property for the mobile phone number (PropertyAccessor).')
+                    ->defaultValue('phone')
+                    ->cannotBeEmpty()
+                ->end()
+                ->scalarNode('phone_verified_field')
+                    ->info('User entity property for phone verification timestamp (PropertyAccessor).')
+                    ->defaultValue('phoneVerifiedAt')
+                    ->cannotBeEmpty()
+                ->end()
+                ->integerNode('create_rate_limit')
+                    ->info('Max challenge creations per client IP per window (0 = disabled).')
+                    ->defaultValue(5)
+                    ->min(0)
+                ->end()
+                ->integerNode('create_rate_window')
+                    ->info('Seconds for create_rate_limit window.')
+                    ->defaultValue(600)
+                    ->min(60)
+                ->end()
+                ->integerNode('approve_rate_limit')
+                    ->info('Max approve/deny attempts per challenge id (0 = disabled).')
+                    ->defaultValue(5)
+                    ->min(0)
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
     private function createRoutesNode(): ArrayNodeDefinition
     {
         $node = (new TreeBuilder('routes'))->getRootNode();
@@ -585,6 +652,48 @@ final class Configuration implements ConfigurationInterface
                     ->children()
                         ->scalarNode('path')->defaultValue('/login/social/{provider}/check')->end()
                         ->scalarNode('name')->defaultValue('nowo_auth_kit_social_login_check')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('qr_login_start')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login/qr')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_qr_login_start')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('qr_login_show')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login/qr/{id}')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_qr_login_show')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('qr_login_status')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login/qr/{id}/status')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_qr_login_status')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('qr_login_complete')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login/qr/{id}/complete')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_qr_login_complete')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('qr_login_approve')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login/qr/{id}/approve')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_qr_login_approve')->end()
+                    ->end()
+                ->end()
+                ->arrayNode('qr_login_deny')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('path')->defaultValue('/login/qr/{id}/deny')->end()
+                        ->scalarNode('name')->defaultValue('nowo_auth_kit_qr_login_deny')->end()
                     ->end()
                 ->end()
             ->end();

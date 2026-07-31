@@ -8,6 +8,12 @@ use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\Controller\LogoutController;
 use Nowo\AuthKitBundle\Controller\MagicLoginCheckController;
 use Nowo\AuthKitBundle\Controller\MagicLoginRequestController;
+use Nowo\AuthKitBundle\Controller\QrLoginApproveController;
+use Nowo\AuthKitBundle\Controller\QrLoginCompleteController;
+use Nowo\AuthKitBundle\Controller\QrLoginDenyController;
+use Nowo\AuthKitBundle\Controller\QrLoginShowController;
+use Nowo\AuthKitBundle\Controller\QrLoginStartController;
+use Nowo\AuthKitBundle\Controller\QrLoginStatusController;
 use Nowo\AuthKitBundle\Controller\RegisterController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordCodeController;
 use Nowo\AuthKitBundle\Controller\ResetPasswordController;
@@ -171,6 +177,59 @@ final class AuthKitRouteLoader extends Loader
             ['_controller' => SocialLoginCheckController::class . '::check'] + $profileDefaults,
             ['GET'],
             ['provider' => '[a-z0-9_\\-]+'],
+        );
+
+        $this->addAuthRoute(
+            $collection,
+            $routes['qr_login_start']['name'],
+            $routes['qr_login_start']['path'],
+            ['_controller' => QrLoginStartController::class . '::start'] + $profileDefaults,
+            ['GET'],
+        );
+
+        $this->addAuthRoute(
+            $collection,
+            $routes['qr_login_show']['name'],
+            $routes['qr_login_show']['path'],
+            ['_controller' => QrLoginShowController::class . '::show'] + $profileDefaults,
+            ['GET'],
+            ['id' => '[0-9a-f\\-]{36}'],
+        );
+
+        $this->addAuthRoute(
+            $collection,
+            $routes['qr_login_status']['name'],
+            $routes['qr_login_status']['path'],
+            ['_controller' => QrLoginStatusController::class . '::status'] + $profileDefaults,
+            ['GET'],
+            ['id' => '[0-9a-f\\-]{36}'],
+        );
+
+        $this->addAuthRoute(
+            $collection,
+            $routes['qr_login_complete']['name'],
+            $routes['qr_login_complete']['path'],
+            ['_controller' => QrLoginCompleteController::class . '::complete'] + $profileDefaults,
+            ['GET'],
+            ['id' => '[0-9a-f\\-]{36}'],
+        );
+
+        $this->addAuthRoute(
+            $collection,
+            $routes['qr_login_approve']['name'],
+            $routes['qr_login_approve']['path'],
+            ['_controller' => QrLoginApproveController::class . '::approve'] + $profileDefaults,
+            ['GET', 'POST'],
+            ['id' => '[0-9a-f\\-]{36}'],
+        );
+
+        $this->addAuthRoute(
+            $collection,
+            $routes['qr_login_deny']['name'],
+            $routes['qr_login_deny']['path'],
+            ['_controller' => QrLoginDenyController::class . '::deny'] + $profileDefaults,
+            ['POST'],
+            ['id' => '[0-9a-f\\-]{36}'],
         );
     }
 

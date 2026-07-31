@@ -38,6 +38,12 @@ class SocialLoginCredential
     #[ORM\Column(type: Types::BOOLEAN)]
     private bool $enabled = true;
 
+    /**
+     * When true, this credential is shown as organization/SSO (OIDC) rather than consumer social login.
+     */
+    #[ORM\Column(name: 'enterprise_sso', type: Types::BOOLEAN, options: ['default' => false])]
+    private bool $enterpriseSso = false;
+
     /** @var list<string> */
     #[ORM\Column(type: Types::JSON)]
     private array $scopes = [];
@@ -129,6 +135,19 @@ class SocialLoginCredential
     public function setEnabled(bool $enabled): self
     {
         $this->enabled = $enabled;
+        $this->touch();
+
+        return $this;
+    }
+
+    public function isEnterpriseSso(): bool
+    {
+        return $this->enterpriseSso;
+    }
+
+    public function setEnterpriseSso(bool $enterpriseSso): self
+    {
+        $this->enterpriseSso = $enterpriseSso;
         $this->touch();
 
         return $this;

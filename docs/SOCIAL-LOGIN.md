@@ -43,6 +43,8 @@ $em->flush();
 
 Built-in endpoint defaults exist for `google`, `github`, and `microsoft`. Custom providers must set the three URLs on the credential.
 
+For **organization / enterprise OIDC** IdPs, set `enterpriseSso: true` so the login page lists them under the SSO heading instead of consumer social buttons. See [SSO.md](SSO.md).
+
 ## Security / routes
 
 Public routes (also locale-prefixed when `locale.in_path` is `always`/`both`):

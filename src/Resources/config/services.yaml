@@ -106,3 +106,31 @@ services:
     Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter:
         arguments:
             $cache: '@cache.app'
+
+    Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface:
+        alias: Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp
+
+    Nowo\AuthKitBundle\QrLogin\QrCodeGeneratorInterface:
+        alias: Nowo\AuthKitBundle\QrLogin\NullQrCodeGenerator
+
+    Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager:
+        arguments:
+            $kernelSecret: '%kernel.secret%'
+
+    Nowo\AuthKitBundle\Controller\QrLoginStartController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\QrLoginShowController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\QrLoginStatusController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\QrLoginCompleteController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\QrLoginApproveController:
+        public: true
+
+    Nowo\AuthKitBundle\Controller\QrLoginDenyController:
+        public: true

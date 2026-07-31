@@ -71,6 +71,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.social_login.mode', $defaultProfile['social_login']['mode']);
         $container->setParameter('nowo_auth_kit.social_login.create_user_if_missing', $defaultProfile['social_login']['create_user_if_missing']);
         $container->setParameter('nowo_auth_kit.social_login.require_verified_email', $defaultProfile['social_login']['require_verified_email']);
+        $container->setParameter('nowo_auth_kit.qr_login', $defaultProfile['qr_login']);
+        $container->setParameter('nowo_auth_kit.qr_login.mode', $defaultProfile['qr_login']['mode']);
         $container->setParameter('nowo_auth_kit.firewall', $defaultProfile['firewall']);
         $container->setParameter('nowo_auth_kit.login_success_route', $defaultProfile['login_success_route']);
         $container->setParameter('nowo_auth_kit.locale', $config['locale']);

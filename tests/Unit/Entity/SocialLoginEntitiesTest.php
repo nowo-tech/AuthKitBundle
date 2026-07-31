@@ -19,6 +19,7 @@ final class SocialLoginEntitiesTest extends TestCase
             ->setClientId('id')
             ->setClientSecret('secret')
             ->setEnabled(true)
+            ->setEnterpriseSso(false)
             ->setScopes(['email'])
             ->setAuthorizeUrl(null)
             ->setTokenUrl(null)
@@ -30,7 +31,9 @@ final class SocialLoginEntitiesTest extends TestCase
         self::assertSame('id', $credential->getClientId());
         self::assertSame('secret', $credential->getClientSecret());
         self::assertTrue($credential->isEnabled());
+        self::assertFalse($credential->isEnterpriseSso());
         self::assertSame(['email'], $credential->getScopes());
+        self::assertTrue($credential->setEnterpriseSso(true)->isEnterpriseSso());
         self::assertInstanceOf(DateTimeImmutable::class, $credential->getCreatedAt());
         self::assertInstanceOf(DateTimeImmutable::class, $credential->getUpdatedAt());
         self::assertGreaterThanOrEqual($credential->getCreatedAt()->getTimestamp(), $credential->getUpdatedAt()->getTimestamp());

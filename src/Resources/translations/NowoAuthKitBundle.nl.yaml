@@ -7,10 +7,29 @@ login:
     register_link: Account aanmaken
     forgot_password_link: Wachtwoord vergeten?
     magic_login_link: Inloggen via e-mailkoppeling
+    qr_login_link: Inloggen met telefoon (QR)
     field:
         identifier: E-mail of gebruikersnaam
         password: Wachtwoord
         remember_me: Onthoud mij
+qr_login:
+    show:
+        title: Inloggen met telefoon
+        heading: Scan met je telefoon
+        qr_alt: QR-code om inloggen goed te keuren
+        open_on_phone: Open goedkeuringslink op je telefoon
+        code_label: Of voer deze code in op je telefoon
+        waiting: Wachten op goedkeuring…
+        expires_label: Verloopt over
+        back_to_login: Terug naar inloggen
+    approve:
+        title: Inloggen goedkeuren
+        heading: Dit inloggen goedkeuren?
+        device_label: Desktopapparaat
+        phone_label: Telefoon van dit account
+        warning: Keur alleen goed als je dit inloggen op een vertrouwde computer bent gestart.
+        submit: Goedkeuren
+        deny: Weigeren
 register:
     title: Account aanmaken
     heading: Account aanmaken
@@ -72,6 +91,18 @@ reset:
         field:
             identifier: E-mail of gebruikersnaam
             code: Resetcode
+
+social:
+    heading: Of ga verder met
+    continue_with: 'Doorgaan met %provider%'
+    error:
+        invalid_state: Sociale login kon niet worden voltooid (ongeldige status).
+        provider_denied: Sociale login geannuleerd of geweigerd.
+        failed: Sociale login mislukt. Probeer het opnieuw.
+
+sso:
+    heading: Inloggen met je organisatie
+    continue_with: 'Doorgaan met %provider%'
 
 magic_login:
     request:

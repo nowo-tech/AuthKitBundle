@@ -31,10 +31,15 @@
     {% set outbound_mail_ready = nowo_auth_kit_outbound_mail_ready() %}
     {% set magic_login_link_enabled = outbound_mail_ready and magic_login_enabled|default(false) %}
     {% set password_reset_link_enabled = outbound_mail_ready and password_reset_enabled|default(false) %}
-    {% if password_reset_link_enabled or registration_allowed|default(false) or magic_login_link_enabled or social_login_enabled|default(false) %}
+    {% set qr_login_link_enabled = qr_login_enabled|default(false) %}
+    {% if password_reset_link_enabled or registration_allowed|default(false) or magic_login_link_enabled or social_login_enabled|default(false) or qr_login_link_enabled %}
     <p class="nowo-auth-kit__footer">
         {% if magic_login_link_enabled %}
             <a href="{{ path(magic_login_route, auth_kit_route_params()) }}">{{ 'login.magic_login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+            {% if password_reset_link_enabled or registration_allowed|default(false) or social_login_enabled|default(false) or qr_login_link_enabled %} · {% endif %}
+        {% endif %}
+        {% if qr_login_link_enabled %}
+            <a href="{{ path(qr_login_start_route, auth_kit_route_params()) }}">{{ 'login.qr_login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
             {% if password_reset_link_enabled or registration_allowed|default(false) or social_login_enabled|default(false) %} · {% endif %}
         {% endif %}
         {% if password_reset_link_enabled %}
@@ -56,6 +61,21 @@
                 <li>
                     <a class="{{ nowo_auth_kit_secondary_button_class|default('nowo-auth-kit__social-button') }}" href="{{ path(social_login_route, auth_kit_route_params({ provider: provider.provider })) }}">
                         {{ 'social.continue_with'|trans({'%provider%': provider.label}, 'NowoAuthKitBundle') }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if sso_login_enabled|default(false) and sso_login_providers|default([]) is not empty %}
+    <div class="nowo-auth-kit__sso">
+        <p class="nowo-auth-kit__sso-heading">{{ 'sso.heading'|trans({}, 'NowoAuthKitBundle') }}</p>
+        <ul class="nowo-auth-kit__sso-list">
+            {% for provider in sso_login_providers %}
+                <li>
+                    <a class="{{ nowo_auth_kit_secondary_button_class|default('nowo-auth-kit__social-button') }}" href="{{ path(social_login_route, auth_kit_route_params({ provider: provider.provider })) }}">
+                        {{ 'sso.continue_with'|trans({'%provider%': provider.label}, 'NowoAuthKitBundle') }}
                     </a>
                 </li>
             {% endfor %}

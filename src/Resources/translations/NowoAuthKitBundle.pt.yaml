@@ -7,10 +7,29 @@ login:
     register_link: Criar uma conta
     forgot_password_link: Esqueceu a palavra-passe?
     magic_login_link: Entrar com link de e-mail
+    qr_login_link: Entrar com o telefone (QR)
     field:
         identifier: E-mail ou nome de utilizador
         password: Palavra-passe
         remember_me: Lembrar-me
+qr_login:
+    show:
+        title: Entrar com o telefone
+        heading: Digitalize com o telemóvel
+        qr_alt: Código QR para aprovar o início de sessão
+        open_on_phone: Abrir ligação de aprovação no telemóvel
+        code_label: Ou introduza este código no telemóvel
+        waiting: A aguardar aprovação…
+        expires_label: Expira em
+        back_to_login: Voltar ao início de sessão
+    approve:
+        title: Aprovar início de sessão
+        heading: Aprovar este início de sessão?
+        device_label: Dispositivo de secretária
+        phone_label: Telefone desta conta
+        warning: Aprove apenas se iniciou este início de sessão num computador de confiança.
+        submit: Aprovar
+        deny: Negar
 register:
     title: Criar conta
     heading: Criar conta
@@ -72,6 +91,18 @@ reset:
         field:
             identifier: E-mail ou nome de utilizador
             code: Código de reposição
+
+social:
+    heading: Ou continuar com
+    continue_with: 'Continuar com %provider%'
+    error:
+        invalid_state: Não foi possível concluir o início de sessão social (estado inválido).
+        provider_denied: Início de sessão social cancelado ou negado.
+        failed: Falha no início de sessão social. Tente novamente.
+
+sso:
+    heading: Iniciar sessão com a sua organização
+    continue_with: 'Continuar com %provider%'
 
 magic_login:
     request:

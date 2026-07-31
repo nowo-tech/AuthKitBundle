@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.12.0] - 2026-07-31](#1120-2026-07-31)
 - [[1.11.4] - 2026-07-30](#1114-2026-07-30)
 - [[1.11.3] - 2026-07-30](#1113-2026-07-30)
 - [[1.11.2] - 2026-07-30](#1112-2026-07-30)
@@ -101,6 +102,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.12.0] - 2026-07-31
+
+### Added
+
+- **QR phone login (P0):** opt-in `qr_login` profile config, `auth_kit_qr_login_challenge` entity, start/show/status/approve/deny/complete flow, desktop binding cookie, rate limits, login-page link, events, and tests. See [QR-LOGIN.md](QR-LOGIN.md).
+- **Enterprise SSO (OIDC):** `SocialLoginCredential::enterpriseSso` flag splits organization IdP buttons from consumer social login on the login page. See [SSO.md](SSO.md).
+- **WebAuthn design:** [WEBAUTHN.md](WEBAUTHN.md) locks the planned passkey surface (runtime not shipped in 1.12.0).
+
+### Changed
+
+- Login template exposes `qr_login_*` and `sso_login_*` variables alongside existing social login affordances.
 
 ## [1.11.4] - 2026-07-30
 

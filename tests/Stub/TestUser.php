@@ -20,6 +20,10 @@ final class TestUser implements UserInterface, PasswordAuthenticatedUserInterfac
 
     private ?int $id = null;
 
+    private ?string $phone = null;
+
+    private ?DateTimeImmutable $phoneVerifiedAt = null;
+
     /** @var list<string> */
     private array $roles = [];
 
@@ -92,5 +96,25 @@ final class TestUser implements UserInterface, PasswordAuthenticatedUserInterfac
 
     public function eraseCredentials(): void
     {
+    }
+
+    public function getPhone(): ?string
+    {
+        return $this->phone;
+    }
+
+    public function setPhone(?string $phone): void
+    {
+        $this->phone = $phone;
+    }
+
+    public function getPhoneVerifiedAt(): ?DateTimeImmutable
+    {
+        return $this->phoneVerifiedAt;
+    }
+
+    public function setPhoneVerifiedAt(?DateTimeImmutable $phoneVerifiedAt): void
+    {
+        $this->phoneVerifiedAt = $phoneVerifiedAt;
     }
 }

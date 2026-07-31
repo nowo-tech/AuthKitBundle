@@ -1,0 +1,37 @@
+{% extends layout_template %}
+
+{% block title %}{{ 'qr_login.show.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
+
+{% block auth_panel %}
+<section class="nowo-auth-kit__panel">
+    <h1>{{ 'qr_login.show.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+
+    <div class="nowo-auth-kit__qr-challenge" data-status-url="{{ path(status_route, auth_kit_route_params({ id: challenge_id })) }}" data-complete-url="{{ path(complete_route, auth_kit_route_params({ id: challenge_id })) }}" data-poll-interval="{{ poll_interval_ms }}" data-expires-at="{{ expires_at }}">
+        {% if qr_data_uri %}
+            <img class="nowo-auth-kit__qr-image" src="{{ qr_data_uri }}" alt="{{ 'qr_login.show.qr_alt'|trans({}, 'NowoAuthKitBundle') }}" width="200" height="200">
+        {% else %}
+            <p class="nowo-auth-kit__qr-url">
+                <a href="{{ qr_payload }}" rel="noopener">{{ 'qr_login.show.open_on_phone'|trans({}, 'NowoAuthKitBundle') }}</a>
+            </p>
+        {% endif %}
+
+        <p class="nowo-auth-kit__qr-code">
+            {{ 'qr_login.show.code_label'|trans({}, 'NowoAuthKitBundle') }}
+            <strong>{{ public_code }}</strong>
+        </p>
+
+        <p class="nowo-auth-kit__qr-status" aria-live="polite">
+            {{ 'qr_login.show.waiting'|trans({}, 'NowoAuthKitBundle') }}
+        </p>
+
+        <p class="nowo-auth-kit__qr-expires">
+            {{ 'qr_login.show.expires_label'|trans({}, 'NowoAuthKitBundle') }}
+            <time datetime="{{ expires_at|date('c') }}"></time>
+        </p>
+    </div>
+
+    <p class="nowo-auth-kit__footer">
+        <a href="{{ path(login_route, auth_kit_route_params()) }}">{{ 'qr_login.show.back_to_login'|trans({}, 'NowoAuthKitBundle') }}</a>
+    </p>
+</section>
+{% endblock %}
