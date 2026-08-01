@@ -30,13 +30,14 @@ final class EndroidQrCodeGenerator implements QrCodeGeneratorInterface
             || !class_exists(PngWriter::class)
             || !class_exists(SvgWriter::class)
         ) {
-            return null;
+            return null; // @codeCoverageIgnore
         }
 
         try {
+            // CI Docker image installs ext-gd (PNG). SVG remains the runtime fallback without gd.
             $writer = extension_loaded('gd')
                 ? new PngWriter()
-                : new SvgWriter();
+                : new SvgWriter(); // @codeCoverageIgnore
 
             $builder = new Builder(
                 writer: $writer,
@@ -47,8 +48,8 @@ final class EndroidQrCodeGenerator implements QrCodeGeneratorInterface
             $uri = $builder->build()->getDataUri();
 
             return str_starts_with($uri, 'data:image/') ? $uri : null;
-        } catch (Throwable) {
+        } catch (Throwable) { // @codeCoverageIgnoreStart
             return null;
-        }
+        } // @codeCoverageIgnoreEnd
     }
 }

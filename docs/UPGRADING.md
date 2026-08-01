@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.12.2](#to-1122)
 - [To 1.12.1](#to-1121)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
@@ -46,6 +47,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.12.2
+
+From **1.12.1** — docs TOC fix + CI Docker `ext-gd` for Endroid PNG QR; no application config required.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.12.1
 

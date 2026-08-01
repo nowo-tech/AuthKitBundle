@@ -9,9 +9,13 @@ RUN apk add --no-cache \
     linux-headers \
     bash \
     libzip-dev \
-    zip
+    zip \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    libpng-dev
 
-RUN docker-php-ext-install -j$(nproc) zip
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) zip gd
 
 RUN pecl install pcov && docker-php-ext-enable pcov
 

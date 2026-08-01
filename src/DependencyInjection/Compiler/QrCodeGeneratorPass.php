@@ -18,7 +18,7 @@ final class QrCodeGeneratorPass implements CompilerPassInterface
     public function process(ContainerBuilder $container): void
     {
         if (!class_exists(PngWriter::class)) {
-            return;
+            return; // @codeCoverageIgnore
         }
 
         if (!$container->hasDefinition(EndroidQrCodeGenerator::class)

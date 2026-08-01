@@ -8,7 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.12.2] - 2026-08-01](#1122-2026-08-01)
+  - [Changed](#changed)
 - [[1.12.1] - 2026-07-31](#1121-2026-07-31)
+  - [Added](#added)
 - [[1.12.0] - 2026-07-31](#1120-2026-07-31)
 - [[1.11.4] - 2026-07-30](#1114-2026-07-30)
 - [[1.11.3] - 2026-07-30](#1113-2026-07-30)
@@ -103,6 +106,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.12.2] - 2026-08-01
+
+### Changed
+
+- Restore CHANGELOG TOC entry for 1.12.1; enable `ext-gd` in the PHP Docker image so Endroid QR PNG path is covered in CI; add `QrCodeGeneratorPass` unit test.
+
+[1.12.2]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.12.2
 
 ## [1.12.1] - 2026-07-31
 
