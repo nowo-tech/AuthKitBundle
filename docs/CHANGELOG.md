@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.13.1] - 2026-08-04](#1131-2026-08-04)
+  - [Fixed](#fixed)
 - [[1.13.0] - 2026-08-04](#1130-2026-08-04)
   - [Changed](#changed)
   - [Added](#added)
@@ -109,6 +111,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.13.1] - 2026-08-04
+
+### Fixed
+
+- Form service discovery: keep `PasswordFieldTypeResolver` / `PasswordRepeatedFieldBuilder` / `PasswordFieldConstraintResolver` as explicit services (not double-tagged via `Form\` resource) and exclude `Form/DataTransformer/` from the `form.type` resource pattern.
+
+[1.13.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.13.1
 
 ## [1.13.0] - 2026-08-04
 

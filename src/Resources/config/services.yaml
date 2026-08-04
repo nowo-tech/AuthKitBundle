@@ -22,8 +22,9 @@ services:
         resource: '../../Form/'
         exclude:
             - '../../Form/PasswordFieldConstraintResolver.php'
-            - '../../Form/PasswordFieldTypeResolver.php'
             - '../../Form/PasswordRepeatedFieldBuilder.php'
+            - '../../Form/PasswordFieldTypeResolver.php'
+            - '../../Form/DataTransformer/'
         tags: ['form.type']
 
     Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver: ~

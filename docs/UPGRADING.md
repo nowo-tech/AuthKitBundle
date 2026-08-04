@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.13.1](#to-1131)
 - [To 1.13.0](#to-1130)
 - [To 1.12.2](#to-1122)
 - [To 1.12.1](#to-1121)
@@ -48,6 +49,10 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.13.1
+
+From **1.13.0** — no host upgrade steps. Optional: `composer update nowo-tech/auth-kit-bundle` to pick up the Form service wiring fix.
 
 ## To 1.13.0
 
