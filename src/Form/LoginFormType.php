@@ -48,8 +48,10 @@ final class LoginFormType extends AbstractType
             };
 
             $this->addWithDefaults($builder, $field['name'], $type, [
-                'label'    => 'login.field.' . ($field['security_name'] === '_username' ? 'identifier' : ltrim($field['name'], '_')),
-                'required' => $field['required'],
+                'label'       => 'login.field.' . ($field['security_name'] === '_username' ? 'identifier' : ltrim($field['name'], '_')),
+                'required'    => $field['required'],
+                'help'        => false,
+                'placeholder' => false,
             ]);
         }
     }

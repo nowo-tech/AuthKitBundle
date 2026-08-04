@@ -173,6 +173,8 @@ final class NowoAuthKitExtensionTest extends TestCase
             ) {
                 $found = true;
                 self::assertSame('NowoAuthKitBundle', $cfg['profiles']['auth_kit']['translation_domain']);
+                self::assertFalse($cfg['profiles']['auth_kit']['auto_placeholder']);
+                self::assertFalse($cfg['profiles']['auth_kit']['auto_help']);
                 self::assertSame('nowo-ui-input form-control', $cfg['profiles']['auth_kit']['defaults']['attr']['class']);
                 break;
             }

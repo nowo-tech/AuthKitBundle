@@ -225,6 +225,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 'auth_kit' => [
                     'alias'              => 'auth_kit',
                     'translation_domain' => 'NowoAuthKitBundle',
+                    'auto_placeholder'   => false,
+                    'auto_help'          => false,
                     'defaults'           => [
                         'attr'     => ['class' => 'nowo-ui-input form-control'],
                         'row_attr' => ['class' => 'mb-2'],

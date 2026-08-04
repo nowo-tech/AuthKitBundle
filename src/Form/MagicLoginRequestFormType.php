@@ -39,6 +39,8 @@ final class MagicLoginRequestFormType extends AbstractType
         $this->addWithDefaults($builder, 'identifier', $type, [
             'label'       => 'magic_login.request.field.identifier',
             'required'    => true,
+            'help'        => false,
+            'placeholder' => false,
             'constraints' => [new NotBlank(message: 'magic_login.request.identifier_required')],
         ]);
     }

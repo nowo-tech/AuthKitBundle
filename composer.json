@@ -32,7 +32,7 @@
     "require": {
         "doctrine/doctrine-bundle": "^2.10 || ^3.0",
         "doctrine/orm": "^2.15 || ^3.0",
-        "nowo-tech/form-kit-bundle": "^2.0",
+        "nowo-tech/form-kit-bundle": "^2.2",
         "php": ">=8.2 <8.6",
         "psr/clock": "^1.0",
         "symfony/asset": "^7.4 || ^8.0",

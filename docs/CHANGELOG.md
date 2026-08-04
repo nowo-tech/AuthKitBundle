@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.0] - 2026-08-05](#1140-2026-08-05)
 - [[1.13.1] - 2026-08-04](#1131-2026-08-04)
   - [Fixed](#fixed)
 - [[1.13.0] - 2026-08-04](#1130-2026-08-04)
@@ -111,6 +112,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.14.0] - 2026-08-05
+
+### Changed
+
+- Login, registration, magic-login, and password-reset FormKit fields pass `help: false` and `placeholder: false` so missing convention keys are not rendered as raw help/placeholder text.
+- Default FormKit profile seed (`auth_kit`) sets `auto_help: false` and `auto_placeholder: false` when the host has not defined the profile. Hosts that already define `auth_kit` should set those flags (or keep the per-field `false` overrides).
+- Composer: require `nowo-tech/form-kit-bundle` **`^2.2`**.
+
+[1.14.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.14.0
 
 ## [1.13.1] - 2026-08-04
 

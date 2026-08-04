@@ -41,10 +41,14 @@ final class ResetPasswordCodeFormType extends AbstractType
 
         $this->addWithDefaults($builder, 'identifier', $identifierType, [
             'label'       => 'reset.code.field.identifier',
+            'help'        => false,
+            'placeholder' => false,
             'constraints' => [new NotBlank(message: 'reset.code.identifier_required')],
         ]);
         $this->addText($builder, 'code', [
             'label'       => 'reset.code.field.code',
+            'help'        => false,
+            'placeholder' => false,
             'attr'        => ['autocomplete' => 'one-time-code', 'inputmode' => 'numeric'],
             'constraints' => [
                 new NotBlank(message: 'reset.code.code_required'),

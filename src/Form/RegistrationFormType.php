@@ -57,8 +57,10 @@ final class RegistrationFormType extends AbstractType
             };
 
             $this->addWithDefaults($builder, $field['name'], $type, [
-                'label'    => 'register.field.' . $field['name'],
-                'required' => $field['required'],
+                'label'       => 'register.field.' . $field['name'],
+                'required'    => $field['required'],
+                'help'        => false,
+                'placeholder' => false,
             ]);
         }
     }

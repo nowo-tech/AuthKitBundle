@@ -39,6 +39,8 @@ final class ResetPasswordRequestFormType extends AbstractType
         $this->addWithDefaults($builder, 'identifier', $type, [
             'label'       => 'reset.request.field.identifier',
             'required'    => true,
+            'help'        => false,
+            'placeholder' => false,
             'constraints' => [new NotBlank(message: 'reset.request.identifier_required')],
         ]);
     }
