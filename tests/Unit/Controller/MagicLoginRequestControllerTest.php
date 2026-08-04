@@ -19,6 +19,7 @@ use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
@@ -139,7 +140,7 @@ final class MagicLoginRequestControllerTest extends TestCase
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new HttpFoundationExtension())
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new MagicLoginRequestFormType($profileRegistry))
+            ->addType(FormKitTestSupport::withMerger(new MagicLoginRequestFormType($profileRegistry)))
             ->getFormFactory();
 
         $controller = new MagicLoginRequestController(
@@ -205,7 +206,7 @@ final class MagicLoginRequestControllerTest extends TestCase
             Forms::createFormFactoryBuilder()
                 ->addExtension(new HttpFoundationExtension())
                 ->addExtension(new ValidatorExtension(Validation::createValidator()))
-                ->addType(new MagicLoginRequestFormType($profileRegistry))
+                ->addType(FormKitTestSupport::withMerger(new MagicLoginRequestFormType($profileRegistry)))
                 ->getFormFactory(),
             $gate,
             $handler,

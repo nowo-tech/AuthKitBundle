@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
@@ -105,7 +106,7 @@ final class ResetPasswordRequestControllerTest extends TestCase
             $twig ?? $this->createMock(Environment::class),
             Forms::createFormFactoryBuilder()
                 ->addExtension(new ValidatorExtension(Validation::createValidator()))
-                ->addType(new ResetPasswordRequestFormType($profileRegistry))
+                ->addType(FormKitTestSupport::withMerger(new ResetPasswordRequestFormType($profileRegistry)))
                 ->getFormFactory(),
             $gate,
             $handler,

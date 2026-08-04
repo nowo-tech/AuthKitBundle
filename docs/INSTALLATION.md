@@ -13,6 +13,7 @@
   - [Option B — Manual security.yaml](#option-b--manual-securityyaml)
 - [User entity](#user-entity)
 - [Locales](#locales)
+- [Twig Extra Bundle (REQ-TWIG-004)](#twig-extra-bundle-req-twig-004)
 - [Next steps](#next-steps)
 
 ## Requirements
@@ -21,6 +22,8 @@
 - Symfony **7.4** or **8.x**
 - Doctrine ORM (user entity persistence)
 - `symfony/security-bundle`, `symfony/form`, `symfony/twig-bundle`, `symfony/translation`
+- **FormKitBundle** (`nowo-tech/form-kit-bundle` ^2.0) — auth Symfony forms (`FormOptionsTrait`, profile `auth_kit`). Register `NowoFormKitBundle` in `config/bundles.php` (Flex / demo). Optional host YAML: `config/packages/nowo_form_kit.yaml`.
+- **Twig Extra** (`twig/extra-bundle` + `twig/string-extra` ^3.12) — required for shipped Twig templates (REQ-TWIG-004); see [Twig Extra Bundle](#twig-extra-bundle-req-twig-004)
 - **Recommended for password fields** (installed by the Flex recipe):
   - `nowo-tech/password-toggle-bundle` ^1.2.8
   - `symfony/ux-icons` ^2.0 || ^3.0
@@ -169,6 +172,16 @@ framework:
 ```
 
 Override bundle strings in `translations/NowoAuthKitBundle.es.yaml` (see [USAGE.md](USAGE.md)).
+
+## Twig Extra Bundle (REQ-TWIG-004)
+
+This package ships Twig templates. Host applications **must** install and enable Twig Extra:
+
+```bash
+composer require twig/extra-bundle twig/string-extra
+```
+
+Register `Twig\Extra\TwigExtraBundle\TwigExtraBundle` in `config/bundles.php` (Flex usually does this). Demos already include the same stack. The package `release-check` runs `make check-twig-extra` to guard this contract.
 
 ## Next steps
 

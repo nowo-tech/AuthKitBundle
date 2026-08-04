@@ -7,6 +7,8 @@ namespace Nowo\AuthKitBundle\Form;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\FormKitBundle\Attribute\FormKitConfig;
+use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -20,8 +22,11 @@ use function is_string;
 /**
  * Form to complete reset with identifier + OTP/code + new password.
  */
+#[FormKitConfig('auth_kit')]
 final class ResetPasswordCodeFormType extends AbstractType
 {
+    use FormOptionsTrait;
+
     public function __construct(
         private readonly ProfileRegistry $profileRegistry,
         private readonly PasswordRepeatedFieldBuilder $passwordRepeatedFieldBuilder,
@@ -34,20 +39,18 @@ final class ResetPasswordCodeFormType extends AbstractType
         $codeLength     = $profile->passwordReset['code_length'];
         $identifierType = $profile->userIdentifierField === 'email' ? EmailType::class : TextType::class;
 
-        $builder
-            ->add('identifier', $identifierType, [
-                'label'       => 'reset.code.field.identifier',
-                'constraints' => [new NotBlank(message: 'reset.code.identifier_required')],
-            ])
-            ->add('code', TextType::class, [
-                'label'       => 'reset.code.field.code',
-                'attr'        => ['autocomplete' => 'one-time-code', 'inputmode' => 'numeric'],
-                'constraints' => [
-                    new NotBlank(message: 'reset.code.code_required'),
-                    new Length(exactly: $codeLength, exactMessage: 'reset.code.code_length'),
-                ],
-            ])
-        ;
+        $this->addWithDefaults($builder, 'identifier', $identifierType, [
+            'label'       => 'reset.code.field.identifier',
+            'constraints' => [new NotBlank(message: 'reset.code.identifier_required')],
+        ]);
+        $this->addText($builder, 'code', [
+            'label'       => 'reset.code.field.code',
+            'attr'        => ['autocomplete' => 'one-time-code', 'inputmode' => 'numeric'],
+            'constraints' => [
+                new NotBlank(message: 'reset.code.code_required'),
+                new Length(exactly: $codeLength, exactMessage: 'reset.code.code_length'),
+            ],
+        ]);
 
         $this->passwordRepeatedFieldBuilder->add(
             $builder,

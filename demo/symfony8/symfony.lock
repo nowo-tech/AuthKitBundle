@@ -50,6 +50,9 @@
     "nowo-tech/auth-kit-bundle": {
         "version": "dev-main"
     },
+    "nowo-tech/form-kit-bundle": {
+        "version": "v2.0.20"
+    },
     "nowo-tech/password-toggle-bundle": {
         "version": "v1.2.3"
     },
@@ -241,5 +244,8 @@
             "config/packages/web_profiler.yaml",
             "config/routes/web_profiler.yaml"
         ]
+    },
+    "twig/extra-bundle": {
+        "version": "v3.24.0"
     }
 }

@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
@@ -76,7 +77,7 @@ final class LoginControllerTest extends TestCase
 
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType($profileRegistry, new PasswordFieldTypeResolver()))
+            ->addType(FormKitTestSupport::withMerger(new LoginFormType($profileRegistry, new PasswordFieldTypeResolver())))
             ->getFormFactory();
 
         $authenticationUtils = $this->createMock(AuthenticationUtils::class);
@@ -134,7 +135,7 @@ final class LoginControllerTest extends TestCase
 
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType($profileRegistry, new PasswordFieldTypeResolver()))
+            ->addType(FormKitTestSupport::withMerger(new LoginFormType($profileRegistry, new PasswordFieldTypeResolver())))
             ->getFormFactory();
 
         $authenticationUtils = $this->createMock(AuthenticationUtils::class);
@@ -193,7 +194,7 @@ final class LoginControllerTest extends TestCase
 
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType($profileRegistry, new PasswordFieldTypeResolver()))
+            ->addType(FormKitTestSupport::withMerger(new LoginFormType($profileRegistry, new PasswordFieldTypeResolver())))
             ->getFormFactory();
 
         $authenticationUtils = $this->createMock(AuthenticationUtils::class);

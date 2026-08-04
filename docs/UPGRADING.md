@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.13.0](#to-1130)
 - [To 1.12.2](#to-1122)
 - [To 1.12.1](#to-1121)
 - [To 1.12.0](#to-1120)
@@ -47,6 +48,28 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.13.0
+
+From **1.12.2** — adds required **FormKitBundle** and **Twig Extra** (REQ-TWIG-004).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+Composer pulls `nowo-tech/form-kit-bundle` `^2.0`, `twig/extra-bundle` `^3.12`, and `twig/string-extra` `^3.12`. Register if Flex did not:
+
+```php
+Nowo\FormKitBundle\NowoFormKitBundle::class => ['all' => true],
+Twig\Extra\TwigExtraBundle\TwigExtraBundle::class => ['all' => true],
+```
+
+Auth form types use profile `auth_kit` via `#[FormKitConfig]`. The bundle prepends that profile (and `css_framework: bootstrap` when unset) under `nowo_form_kit` when the host has not defined them. Host values are not overwritten.
+
+**Maintainers:** `composer twig:lint` / `composer twig:fix` use `.twig-cs-fixer.php`.
+
+No schema changes.
 
 ## To 1.12.2
 

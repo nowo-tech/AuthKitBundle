@@ -30,9 +30,10 @@
         }
     ],
     "require": {
-        "php": ">=8.2 <8.6",
         "doctrine/doctrine-bundle": "^2.10 || ^3.0",
         "doctrine/orm": "^2.15 || ^3.0",
+        "nowo-tech/form-kit-bundle": "^2.0",
+        "php": ">=8.2 <8.6",
         "psr/clock": "^1.0",
         "symfony/asset": "^7.4 || ^8.0",
         "symfony/config": "^7.4 || ^8.0",
@@ -48,7 +49,9 @@
         "symfony/translation": "^7.4 || ^8.0",
         "symfony/twig-bundle": "^7.4 || ^8.0",
         "symfony/validator": "^7.4 || ^8.0",
-        "symfony/yaml": "^7.4 || ^8.0"
+        "symfony/yaml": "^7.4 || ^8.0",
+        "twig/extra-bundle": "^3.12",
+        "twig/string-extra": "^3.12"
     },
     "suggest": {
         "nowo-tech/password-strength-bundle": "Strength policies, live feedback, and validator for registration and password reset fields (^2.0)",
@@ -58,6 +61,7 @@
         "endroid/qr-code": "PNG/SVG data-URI QR codes for QR phone login (^6.0; PNG needs ext-gd)"
     },
     "require-dev": {
+        "endroid/qr-code": "^6.0",
         "friendsofphp/php-cs-fixer": "^3.0",
         "nowo-tech/password-strength-bundle": "^2.0",
         "nowo-tech/password-toggle-bundle": "^2.0.0",
@@ -68,7 +72,7 @@
         "phpunit/phpunit": "^10.0",
         "rector/rector": "^2.0",
         "symfony/clock": "^7.4 || ^8.0",
-        "endroid/qr-code": "^6.0"
+        "vincentlanglet/twig-cs-fixer": "^3.0"
     },
     "autoload": {
         "psr-4": {
@@ -107,7 +111,10 @@
         "qa": [
             "@cs-check",
             "@test"
-        ]
+        ],
+        "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
+        "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
+        "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix"
     },
     "scripts-descriptions": {
         "test": "Run PHPUnit tests",

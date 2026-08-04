@@ -8,6 +8,8 @@ use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitFormLoginParameters;
+use Nowo\FormKitBundle\Attribute\FormKitConfig;
+use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -21,8 +23,11 @@ use function is_string;
 /**
  * Dynamic login form aligned with Symfony form_login field names.
  */
+#[FormKitConfig('auth_kit')]
 final class LoginFormType extends AbstractType
 {
+    use FormOptionsTrait;
+
     public function __construct(
         private readonly ProfileRegistry $profileRegistry,
         private readonly PasswordFieldTypeResolver $passwordFieldTypeResolver,
@@ -42,7 +47,7 @@ final class LoginFormType extends AbstractType
                 default    => TextType::class,
             };
 
-            $builder->add($field['name'], $type, [
+            $this->addWithDefaults($builder, $field['name'], $type, [
                 'label'    => 'login.field.' . ($field['security_name'] === '_username' ? 'identifier' : ltrim($field['name'], '_')),
                 'required' => $field['required'],
             ]);

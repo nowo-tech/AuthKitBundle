@@ -3,7 +3,7 @@ COMPOSE_BIN := $(shell docker compose version >/dev/null 2>&1 && echo "docker co
 COMPOSE     := $(COMPOSE_BIN)
 SERVICE_PHP = php
 
-.PHONY: help ensure-up up down down-dev build shell install test test-coverage test-coverage-100 \
+.PHONY: help ensure-up up down down-dev build shell install test test-coverage test-coverage-100 \ check-twig-extra
 	check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history \
 	coverage-check cs-check cs-fix rector rector-dry phpstan qa release-check \
 	release-check-demos composer-sync clean update validate validate-translations setup-hooks demo-smoke
@@ -83,7 +83,11 @@ composer-sync: ensure-up
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer validate --strict
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer update --lock --no-interaction
 
-release-check: check-no-cursor-coauthor check-open-prs ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-100 validate-translations release-check-demos
+
+check-twig-extra:
+	@chmod +x .scripts/check-twig-extra.sh
+	@./.scripts/check-twig-extra.sh
+release-check: check-no-cursor-coauthor check-open-prs check-twig-extra ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage-100 validate-translations release-check-demos
 
 # REQ-TEST-011 — boot demo stack and assert one HTTP 200 (login page)
 demo-smoke:
@@ -130,3 +134,6 @@ BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 strip-cursor-coauthor-from-history:
 	@chmod +x .scripts/strip-cursor-coauthor-from-history.sh
 	@./.scripts/strip-cursor-coauthor-from-history.sh main
+
+twig-lint: ensure-up
+	@$(COMPOSE) exec -T $(SERVICE_PHP) composer twig:lint || $(COMPOSE) exec -T $(SERVICE_PHP) ./vendor/bin/twig-cs-fixer lint --config=.twig-cs-fixer.php

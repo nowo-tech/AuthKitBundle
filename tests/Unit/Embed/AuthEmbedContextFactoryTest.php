@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Controller\AuthKitRoutesTrait;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
@@ -45,11 +46,11 @@ final class AuthEmbedContextFactoryTest extends TestCase
 
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType($profileRegistry, PasswordFieldResolvers::typeResolver()))
-            ->addType(new RegistrationFormType(
+            ->addType(FormKitTestSupport::withMerger(new LoginFormType($profileRegistry, PasswordFieldResolvers::typeResolver())))
+            ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
                 $profileRegistry,
                 PasswordFieldResolvers::repeatedFieldBuilder(),
-            ))
+            )))
             ->getFormFactory();
 
         $inner = $this->createMock(UrlGeneratorInterface::class);
@@ -236,11 +237,11 @@ final class AuthEmbedContextFactoryTest extends TestCase
         $factory = new AuthEmbedContextFactory(
             Forms::createFormFactoryBuilder()
                 ->addExtension(new ValidatorExtension(Validation::createValidator()))
-                ->addType(new LoginFormType($registry, PasswordFieldResolvers::typeResolver()))
-                ->addType(new RegistrationFormType(
+                ->addType(FormKitTestSupport::withMerger(new LoginFormType($registry, PasswordFieldResolvers::typeResolver())))
+                ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
                     $registry,
                     PasswordFieldResolvers::repeatedFieldBuilder(),
-                ))
+                )))
                 ->getFormFactory(),
             $this->createMock(AuthenticationUtils::class),
             $this->createMock(TokenStorageInterface::class),

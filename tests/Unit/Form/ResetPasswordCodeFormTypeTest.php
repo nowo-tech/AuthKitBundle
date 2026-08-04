@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Form;
 
 use Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
@@ -19,10 +20,10 @@ final class ResetPasswordCodeFormTypeTest extends TestCase
     {
         $factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new ResetPasswordCodeFormType(
+            ->addType(FormKitTestSupport::withMerger(new ResetPasswordCodeFormType(
                 ProfileRegistryFactory::single(TestUser::class),
                 PasswordFieldResolvers::repeatedFieldBuilder(),
-            ))
+            )))
             ->getFormFactory();
 
         $form = $factory->create(ResetPasswordCodeFormType::class);

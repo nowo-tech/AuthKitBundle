@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
@@ -74,9 +75,9 @@ final class ResetPasswordControllerTest extends TestCase
 
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new ResetPasswordFormType(
+            ->addType(FormKitTestSupport::withMerger(new ResetPasswordFormType(
                 PasswordFieldResolvers::repeatedFieldBuilder(),
-            ))
+            )))
             ->getFormFactory();
 
         $completer = new PasswordResetCompleter(

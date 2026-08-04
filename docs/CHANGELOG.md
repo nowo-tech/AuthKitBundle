@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.13.0] - 2026-08-04](#1130-2026-08-04)
+  - [Changed](#changed)
+  - [Added](#added)
 - [[1.12.2] - 2026-08-01](#1122-2026-08-01)
   - [Changed](#changed)
 - [[1.12.1] - 2026-07-31](#1121-2026-07-31)
@@ -106,6 +109,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.13.0] - 2026-08-04
+
+### Changed
+
+- **FormKitBundle:** depend on [`nowo-tech/form-kit-bundle`](https://github.com/nowo-tech/FormKitBundle) ^2.0. Auth form types use `FormOptionsTrait` + profile `auth_kit` (`#[FormKitConfig]`). Extension prepends that profile (and default `css_framework: bootstrap`) when the host has not defined them; form types are tagged `form.type` so `FormOptionsMerger` is injected.
+
+### Added
+
+- Unit coverage for `NowoAuthKitExtension::prependFormKitDefaults` (auth_kit profile seed + host override guards).
+- **REQ-TWIG-004:** require `twig/extra-bundle` + `twig/string-extra`; `make check-twig-extra` in `release-check`; demos register `TwigExtraBundle`.
+- **Twig-CS-Fixer:** `vincentlanglet/twig-cs-fixer`, `.twig-cs-fixer.php`, `composer twig:lint` / `twig:fix`.
+
+[1.13.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.13.0
 
 ## [1.12.2] - 2026-08-01
 

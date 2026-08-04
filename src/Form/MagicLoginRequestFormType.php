@@ -7,6 +7,8 @@ namespace Nowo\AuthKitBundle\Form;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\FormKitBundle\Attribute\FormKitConfig;
+use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -19,8 +21,11 @@ use function is_string;
 /**
  * Form to request a passwordless magic login link.
  */
+#[FormKitConfig('auth_kit')]
 final class MagicLoginRequestFormType extends AbstractType
 {
+    use FormOptionsTrait;
+
     public function __construct(
         private readonly ProfileRegistry $profileRegistry,
     ) {
@@ -31,7 +36,7 @@ final class MagicLoginRequestFormType extends AbstractType
         $profile = $this->resolveProfile($options);
         $type    = $profile->userIdentifierField === 'email' ? EmailType::class : TextType::class;
 
-        $builder->add('identifier', $type, [
+        $this->addWithDefaults($builder, 'identifier', $type, [
             'label'       => 'magic_login.request.field.identifier',
             'required'    => true,
             'constraints' => [new NotBlank(message: 'magic_login.request.identifier_required')],

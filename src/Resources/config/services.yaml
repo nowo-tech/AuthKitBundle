@@ -17,8 +17,18 @@ services:
         resource: '../../Controller/'
         public: true
 
+    # Form Kit injects FormOptionsMerger into tagged form types (FormOptionsMergerInjectorCompilerPass).
     Nowo\AuthKitBundle\Form\:
         resource: '../../Form/'
+        exclude:
+            - '../../Form/PasswordFieldConstraintResolver.php'
+            - '../../Form/PasswordFieldTypeResolver.php'
+            - '../../Form/PasswordRepeatedFieldBuilder.php'
+        tags: ['form.type']
+
+    Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver: ~
+
+    Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder: ~
 
     Nowo\AuthKitBundle\Profile\ProfileRegistry:
         arguments:

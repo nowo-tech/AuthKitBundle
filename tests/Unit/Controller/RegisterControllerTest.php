@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
@@ -302,10 +303,10 @@ final class RegisterControllerTest extends TestCase
 
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new RegistrationFormType(
+            ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
                 $profileRegistry,
                 PasswordFieldResolvers::repeatedFieldBuilder(),
-            ))
+            )))
             ->getFormFactory();
 
         $entityManager = $this->createMock(EntityManagerInterface::class);

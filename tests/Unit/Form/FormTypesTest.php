@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\PasswordToggleBundle\Form\Type\PasswordType;
 use PHPUnit\Framework\TestCase;
@@ -49,11 +50,11 @@ final class FormTypesTest extends TestCase
         $this->factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new PasswordType())
-            ->addType(new LoginFormType($profileRegistry, $this->passwordFieldTypeResolver))
-            ->addType(new RegistrationFormType(
+            ->addType(FormKitTestSupport::withMerger(new LoginFormType($profileRegistry, $this->passwordFieldTypeResolver)))
+            ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
                 $profileRegistry,
                 $this->passwordRepeatedFieldBuilder,
-            ))
+            )))
             ->getFormFactory();
     }
 
@@ -84,7 +85,7 @@ final class FormTypesTest extends TestCase
         $resolver = new PasswordFieldTypeResolver(SymfonyPasswordType::class);
         $factory  = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new LoginFormType(ProfileRegistryFactory::single(TestUser::class), $resolver))
+            ->addType(FormKitTestSupport::withMerger(new LoginFormType(ProfileRegistryFactory::single(TestUser::class), $resolver)))
             ->getFormFactory();
 
         $field = $factory->create(LoginFormType::class)->get('_password');
@@ -97,13 +98,13 @@ final class FormTypesTest extends TestCase
         $resolver = new PasswordFieldTypeResolver(SymfonyPasswordType::class);
         $factory  = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new RegistrationFormType(
+            ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
                 ProfileRegistryFactory::single(TestUser::class),
                 new PasswordRepeatedFieldBuilder(
                     $resolver,
                     new PasswordFieldConstraintResolver($resolver),
                 ),
-            ))
+            )))
             ->getFormFactory();
 
         $field = $factory->create(RegistrationFormType::class)->get('password');
@@ -116,7 +117,7 @@ final class FormTypesTest extends TestCase
         $factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new PasswordType())
-            ->addType(new LoginFormType(
+            ->addType(FormKitTestSupport::withMerger(new LoginFormType(
                 ProfileRegistryFactory::single(TestUser::class, [
                     'login_fields' => FieldConfigNormalizer::normalizeLoginFields(
                         ['identifier' => ['type' => 'email']],
@@ -124,7 +125,7 @@ final class FormTypesTest extends TestCase
                     ),
                 ]),
                 $this->passwordFieldTypeResolver,
-            ))
+            )))
             ->getFormFactory();
 
         $field = $factory->create(LoginFormType::class)->get('_username');
@@ -137,7 +138,7 @@ final class FormTypesTest extends TestCase
         $factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
             ->addType(new PasswordType())
-            ->addType(new LoginFormType(
+            ->addType(FormKitTestSupport::withMerger(new LoginFormType(
                 ProfileRegistryFactory::single(TestUser::class, [
                     'login_fields' => FieldConfigNormalizer::normalizeLoginFields(
                         ['identifier', 'password', 'remember_me'],
@@ -145,7 +146,7 @@ final class FormTypesTest extends TestCase
                     ),
                 ]),
                 $this->passwordFieldTypeResolver,
-            ))
+            )))
             ->getFormFactory();
 
         $field = $factory->create(LoginFormType::class)->get('_remember_me');
@@ -174,14 +175,14 @@ final class FormTypesTest extends TestCase
     {
         $factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new RegistrationFormType(
+            ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
                 ProfileRegistryFactory::single(TestUser::class, [
                     'registration_fields' => FieldConfigNormalizer::normalizeRegistrationFields([
                         'terms' => ['type' => 'checkbox'],
                     ]),
                 ]),
                 $this->passwordRepeatedFieldBuilder,
-            ))
+            )))
             ->getFormFactory();
 
         $field = $factory->create(RegistrationFormType::class)->get('terms');
@@ -193,14 +194,14 @@ final class FormTypesTest extends TestCase
     {
         $factory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
-            ->addType(new RegistrationFormType(
+            ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
                 ProfileRegistryFactory::single(TestUser::class, [
                     'registration_fields' => FieldConfigNormalizer::normalizeRegistrationFields([
                         'fullName',
                     ]),
                 ]),
                 $this->passwordRepeatedFieldBuilder,
-            ))
+            )))
             ->getFormFactory();
 
         $field = $factory->create(RegistrationFormType::class)->get('fullName');
