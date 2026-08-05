@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
+use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
 
 /**
  * OAuth application credentials for a social provider (stored in the database).
@@ -32,7 +33,9 @@ class SocialLoginCredential
     #[ORM\Column(name: 'client_id', type: Types::STRING, length: 255)]
     private string $clientId = '';
 
+    /** OAuth client secret (encrypted at rest when nowo-tech/doctrine-encrypt-bundle is configured). */
     #[ORM\Column(name: 'client_secret', type: Types::TEXT)]
+    #[Encrypted]
     private string $clientSecret = '';
 
     #[ORM\Column(type: Types::BOOLEAN)]

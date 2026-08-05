@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
+use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
 
 /**
  * Linked social identity for an application user (tokens + provider subject).
@@ -41,9 +42,11 @@ class SocialLoginAccount
     private string $userIdentifier = '';
 
     #[ORM\Column(name: 'access_token', type: Types::TEXT, nullable: true)]
+    #[Encrypted]
     private ?string $accessToken = null;
 
     #[ORM\Column(name: 'refresh_token', type: Types::TEXT, nullable: true)]
+    #[Encrypted]
     private ?string $refreshToken = null;
 
     #[ORM\Column(name: 'token_expires_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]

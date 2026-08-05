@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.0] - 2026-08-05](#1150-2026-08-05)
 - [[1.14.0] - 2026-08-05](#1140-2026-08-05)
 - [[1.13.1] - 2026-08-04](#1131-2026-08-04)
   - [Fixed](#fixed)
@@ -112,6 +113,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.15.0] - 2026-08-05
+
+### Security
+
+- Encrypt OAuth secrets at rest with [`nowo-tech/doctrine-encrypt-bundle`](https://github.com/nowo-tech/DoctrineEncryptBundle): `SocialLoginCredential::$clientSecret` and `SocialLoginAccount::$accessToken` / `$refreshToken` use `#[Encrypted]`. Hosts must configure Halite (same as other encrypted fields). Existing plaintext rows decrypt as-is until the next flush or `doctrine:encrypt:database`.
+
+### Changed
+
+- Composer: require `nowo-tech/doctrine-encrypt-bundle` **`^2.3`**.
+
+[1.15.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.15.0
 
 ## [1.14.0] - 2026-08-05
 
