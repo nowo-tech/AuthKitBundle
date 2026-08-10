@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Routing;
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\Controller\LogoutController;
 use Nowo\AuthKitBundle\Controller\MagicLoginCheckController;
+use Nowo\AuthKitBundle\Controller\MagicLoginConfirmController;
 use Nowo\AuthKitBundle\Controller\MagicLoginRequestController;
 use Nowo\AuthKitBundle\Controller\QrLoginApproveController;
 use Nowo\AuthKitBundle\Controller\QrLoginCompleteController;
@@ -153,12 +154,17 @@ final class AuthKitRouteLoader extends Loader
             ['GET', 'POST'],
         );
 
+        $confirmInterstitial = (bool) ($profile['magic_login']['confirm_interstitial'] ?? false);
         $this->addAuthRoute(
             $collection,
             $routes['magic_login_check']['name'],
             $routes['magic_login_check']['path'],
-            ['_controller' => MagicLoginCheckController::class . '::check'] + $profileDefaults,
-            ['GET'],
+            [
+                '_controller' => $confirmInterstitial
+                    ? MagicLoginConfirmController::class . '::check'
+                    : MagicLoginCheckController::class . '::check',
+            ] + $profileDefaults,
+            $confirmInterstitial ? ['GET', 'POST'] : ['GET'],
         );
 
         $this->addAuthRoute(

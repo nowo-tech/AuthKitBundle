@@ -21,6 +21,8 @@ nowo_auth_kit:
         mode: enabled          # disabled | enabled
         lifetime: 600          # seconds (Symfony login_link lifetime)
         max_uses: 1
+        # Recommended with login_link.check_post_only: GET shows a confirm form; POST authenticates.
+        confirm_interstitial: false
 ```
 
 Routes (defaults):
@@ -29,6 +31,8 @@ Routes (defaults):
 |-----|------|------|
 | `magic_login_request` | `/magic-login` | `nowo_auth_kit_magic_login_request` |
 | `magic_login_check` | `/magic-login/check` | `nowo_auth_kit_magic_login_check` |
+
+When `confirm_interstitial` is `true`, `magic_login_check` accepts **GET + POST**: GET renders `templates.magic_login_confirm`; POST is consumed by Symfony `login_link` (never reaches the confirm controller).
 
 ## Security (`login_link`)
 
@@ -49,12 +53,13 @@ security:
                 signature_properties: [email]  # required; properties that invalidate links when changed
                 lifetime: 600
                 max_uses: 1
+                check_post_only: true          # pair with magic_login.confirm_interstitial: true
                 default_target_path: homepage   # optional
 ```
 
 Keep `magic_login_check` as a **public** `access_control` path.
 
-`signature_properties` is **required** by Symfony (typically your user identifier field, e.g. `email`). `nowo:auth-kit:configure-security` writes it from `user_identifier_field`.
+`signature_properties` is **required** by Symfony (typically your user identifier field, e.g. `email`). `nowo:auth-kit:configure-security` writes it from `user_identifier_field`. When `magic_login.confirm_interstitial` is `true`, the command also sets `check_post_only: true`.
 
 ## Delivery (`MagicLoginNotifierInterface`)
 
@@ -95,6 +100,11 @@ Subscribe to `MagicLoginRequestedEvent` for audit or rate limiting.
 
 ## Templates
 
-Override `templates/bundles/NowoAuthKitBundle/security/magic_login_request.html.twig`.
+Override:
+
+- `templates/bundles/NowoAuthKitBundle/security/magic_login_request.html.twig`
+- `templates/bundles/NowoAuthKitBundle/security/magic_login_confirm.html.twig` (when `confirm_interstitial` is enabled)
+
+Or set `templates.magic_login_confirm` in the profile. The confirm page receives `action`, `params` (`user` / `expires` / `hash`), `login_route`, and `layout_template`.
 
 The login page shows a magic-login link when `magic_login.mode: enabled`.

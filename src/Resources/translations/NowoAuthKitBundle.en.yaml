@@ -113,3 +113,9 @@ magic_login:
         identifier_required: Please enter your identifier.
         field:
             identifier: Email or username
+    confirm:
+        title: Continue sign-in
+        heading: Finish magic login
+        help: Confirm to complete passwordless sign-in. Click Continue to submit the one-time link (the token is not sent as a GET navigational request).
+        submit: Continue
+        back_to_login: Back to sign in

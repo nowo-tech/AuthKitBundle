@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.16.0] - 2026-08-10](#1160-2026-08-10)
 - [[1.15.0] - 2026-08-05](#1150-2026-08-05)
 - [[1.14.0] - 2026-08-05](#1140-2026-08-05)
 - [[1.13.1] - 2026-08-04](#1131-2026-08-04)
@@ -114,6 +115,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-08-10
+
+### Added
+- **`magic_login.confirm_interstitial`**: when `true`, `magic_login_check` accepts GET+POST; GET renders a confirm interstitial (`MagicLoginConfirmController` + `templates.magic_login_confirm`) for firewalls with `login_link.check_post_only`. POST remains handled by Symfony `login_link`.
+- Template `@NowoAuthKitBundle/security/magic_login_confirm.html.twig` and translation keys `magic_login.confirm.*`.
+- `nowo:auth-kit:configure-security` sets `check_post_only: true` when `confirm_interstitial` is enabled.
+
+### Documentation
+- MAGIC-LOGIN / CONFIGURATION / UPGRADING: confirm interstitial + `check_post_only` pairing.
+
 ## [1.15.0] - 2026-08-05
 
 ### Security
@@ -124,6 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Composer: require `nowo-tech/doctrine-encrypt-bundle` **`^2.3`**.
 
+[1.16.0]: https://github.com/nowo-tech/AuthKitBundle/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.15.0
 
 ## [1.14.0] - 2026-08-05

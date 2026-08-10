@@ -324,6 +324,9 @@ final class Configuration implements ConfigurationInterface
                 ->scalarNode('magic_login_request')
                     ->defaultValue('@NowoAuthKitBundle/security/magic_login_request.html.twig')
                 ->end()
+                ->scalarNode('magic_login_confirm')
+                    ->defaultValue('@NowoAuthKitBundle/security/magic_login_confirm.html.twig')
+                ->end()
                 ->arrayNode('form_theme')
                     ->beforeNormalization()
                         ->ifTrue(static fn (mixed $value): bool => is_string($value))
@@ -486,6 +489,10 @@ final class Configuration implements ConfigurationInterface
                     ->info('Seconds for request_rate_limit window.')
                     ->defaultValue(900)
                     ->min(60)
+                ->end()
+                ->booleanNode('confirm_interstitial')
+                    ->info('When true, magic_login_check accepts GET+POST: GET renders a confirm form (for login_link.check_post_only); POST is handled by Symfony login_link.')
+                    ->defaultFalse()
                 ->end()
             ->end();
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Routing;
 
+use Nowo\AuthKitBundle\Controller\MagicLoginCheckController;
+use Nowo\AuthKitBundle\Controller\MagicLoginConfirmController;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLoader;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
@@ -82,6 +84,31 @@ final class AuthKitRouteLoaderTest extends TestCase
         $loader->load('.', 'nowo_auth_kit');
         $this->expectException(RuntimeException::class);
         $loader->load('.', 'nowo_auth_kit');
+    }
+
+    public function testMagicLoginCheckIsGetOnlyByDefault(): void
+    {
+        $loader     = new AuthKitRouteLoader($this->profiles('link'), false, 'en', ['en']);
+        $collection = $loader->load('.', 'nowo_auth_kit');
+        $route      = $collection->get('nowo_auth_kit_magic_login_check');
+
+        self::assertNotNull($route);
+        self::assertSame(['GET'], $route->getMethods());
+        self::assertSame(MagicLoginCheckController::class . '::check', $route->getDefault('_controller'));
+    }
+
+    public function testMagicLoginConfirmInterstitialRegistersGetAndPost(): void
+    {
+        $profiles                                                   = $this->profiles('link');
+        $profiles['default']['magic_login']['confirm_interstitial'] = true;
+
+        $loader     = new AuthKitRouteLoader($profiles, false, 'en', ['en']);
+        $collection = $loader->load('.', 'nowo_auth_kit');
+        $route      = $collection->get('nowo_auth_kit_magic_login_check');
+
+        self::assertNotNull($route);
+        self::assertSame(['GET', 'POST'], $route->getMethods());
+        self::assertSame(MagicLoginConfirmController::class . '::check', $route->getDefault('_controller'));
     }
 
     /**

@@ -31,7 +31,7 @@ final class ConfigureSecurityCommand extends Command
      * @param array<string, array{path: string, name: string}> $routes
      * @param list<array{name: string, type: string, property: ?string, hash: bool, required: bool, security_name: ?string}> $loginFields
      * @param array{enabled: bool, lifetime: int, path: string} $rememberMe
-     * @param array{mode: string, lifetime: int, max_uses: int} $magicLogin
+     * @param array{mode: string, lifetime: int, max_uses: int, confirm_interstitial?: bool} $magicLogin
      */
     public function __construct(
         private readonly ?string $projectDir,
@@ -232,6 +232,10 @@ final class ConfigureSecurityCommand extends Command
             'lifetime'             => (int) $this->magicLogin['lifetime'],
             'max_uses'             => (int) $this->magicLogin['max_uses'],
         ];
+
+        if (($this->magicLogin['confirm_interstitial'] ?? false) === true) {
+            $loginLink['check_post_only'] = true;
+        }
 
         if ($this->loginSuccessRoute !== null) {
             $loginLink['default_target_path'] = $this->loginSuccessRoute;

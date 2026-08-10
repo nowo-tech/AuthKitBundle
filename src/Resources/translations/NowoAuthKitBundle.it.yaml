@@ -115,3 +115,9 @@ magic_login:
         identifier_required: Inserisci il tuo identificatore.
         field:
             identifier: E-mail o nome utente
+    confirm:
+        title: Continua l'accesso
+        heading: Completa il magic login
+        help: Conferma per completare l'accesso senza password. Fai clic su Continua per inviare il link monouso (il token non viene inviato come GET di navigazione).
+        submit: Continua
+        back_to_login: Torna all'accesso

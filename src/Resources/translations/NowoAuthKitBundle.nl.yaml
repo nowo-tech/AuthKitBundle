@@ -115,3 +115,9 @@ magic_login:
         identifier_required: Voer je identifier in.
         field:
             identifier: E-mail of gebruikersnaam
+    confirm:
+        title: Doorgaan met inloggen
+        heading: Magic login afronden
+        help: Bevestig om wachtwoordloos inloggen te voltooien. Klik op Doorgaan om de eenmalige link te versturen (het token wordt niet als GET-navigatie verzonden).
+        submit: Doorgaan
+        back_to_login: Terug naar inloggen

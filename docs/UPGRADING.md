@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.16.0](#to-1160)
 - [To 1.13.1](#to-1131)
 - [To 1.13.0](#to-1130)
 - [To 1.12.2](#to-1122)
@@ -49,6 +50,28 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.16.0
+
+From **1.15.x** — no breaking changes. Optional: enable a confirm interstitial for `login_link.check_post_only` hosts:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            magic_login:
+                mode: enabled
+                confirm_interstitial: true
+            templates:
+                magic_login_confirm: '@NowoAuthKitBundle/security/magic_login_confirm.html.twig'
+```
+
+Then set `security.firewalls.<name>.login_link.check_post_only: true` (or re-run `php bin/console nowo:auth-kit:configure-security`). Hosts that previously decorated `AuthKitRouteLoader` for GET+POST magic-login check can remove that decorator.
+
+```bash
+composer require nowo-tech/auth-kit-bundle:^1.16
+php bin/console cache:clear
+```
 
 ## To 1.13.1
 

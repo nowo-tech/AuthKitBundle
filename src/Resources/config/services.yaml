@@ -90,6 +90,9 @@ services:
     Nowo\AuthKitBundle\Controller\MagicLoginCheckController:
         public: true
 
+    Nowo\AuthKitBundle\Controller\MagicLoginConfirmController:
+        public: true
+
     Nowo\AuthKitBundle\Controller\SocialLoginStartController:
         public: true
 

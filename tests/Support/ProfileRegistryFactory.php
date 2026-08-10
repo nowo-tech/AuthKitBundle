@@ -58,6 +58,7 @@ final class ProfileRegistryFactory
                 'reset_password'      => '@NowoAuthKitBundle/security/reset_password.html.twig',
                 'reset_password_code' => '@NowoAuthKitBundle/security/reset_password_code.html.twig',
                 'magic_login_request' => '@NowoAuthKitBundle/security/magic_login_request.html.twig',
+                'magic_login_confirm' => '@NowoAuthKitBundle/security/magic_login_confirm.html.twig',
                 'form_theme'          => ['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
             ],
             'css' => [
@@ -87,11 +88,12 @@ final class ProfileRegistryFactory
                 'token_expires_field' => 'passwordResetExpiresAt',
             ],
             'magic_login' => [
-                'mode'                => 'disabled',
-                'lifetime'            => 600,
-                'max_uses'            => 1,
-                'request_rate_limit'  => 5,
-                'request_rate_window' => 900,
+                'mode'                 => 'disabled',
+                'lifetime'             => 600,
+                'max_uses'             => 1,
+                'request_rate_limit'   => 5,
+                'request_rate_window'  => 900,
+                'confirm_interstitial' => false,
             ],
             'social_login' => [
                 'mode'                   => 'disabled',

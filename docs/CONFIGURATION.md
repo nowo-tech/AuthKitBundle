@@ -129,6 +129,7 @@ nowo_auth_kit:
         reset_password: '@NowoAuthKitBundle/security/reset_password.html.twig'
         reset_password_code: '@NowoAuthKitBundle/security/reset_password_code.html.twig'
         magic_login_request: '@NowoAuthKitBundle/security/magic_login_request.html.twig'
+        magic_login_confirm: '@NowoAuthKitBundle/security/magic_login_confirm.html.twig'
         form_theme:
             - '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'
 
@@ -161,6 +162,7 @@ nowo_auth_kit:
         max_uses: 1
         request_rate_limit: 5       # 0 = disabled
         request_rate_window: 900
+        confirm_interstitial: false # true + login_link.check_post_only → GET confirm form
 
     social_login:
         mode: disabled              # disabled | enabled
@@ -311,6 +313,8 @@ See [PASSWORD-RESET.md](PASSWORD-RESET.md) for entity fields, notifier wiring, a
 ## Magic login (passwordless)
 
 When `magic_login.mode` is `enabled`, users can request a one-time sign-in link. Requires Symfony firewall `login_link` with **`signature_properties`** (synced by `nowo:auth-kit:configure-security` from `user_identifier_field`). Implement `MagicLoginNotifierInterface` to email the URL.
+
+Set `magic_login.confirm_interstitial: true` when the firewall uses `login_link.check_post_only`: the check route then accepts GET+POST and GET renders `templates.magic_login_confirm`. `nowo:auth-kit:configure-security` writes `check_post_only: true` in that case.
 
 See [MAGIC-LOGIN.md](MAGIC-LOGIN.md).
 

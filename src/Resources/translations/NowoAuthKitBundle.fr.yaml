@@ -115,3 +115,9 @@ magic_login:
         identifier_required: Veuillez saisir votre identifiant.
         field:
             identifier: E-mail ou nom d'utilisateur
+    confirm:
+        title: Continuer la connexion
+        heading: Terminer la connexion magique
+        help: Confirmez pour terminer la connexion sans mot de passe. Cliquez sur Continuer pour envoyer le lien à usage unique (le jeton n'est pas envoyé en GET de navigation).
+        submit: Continuer
+        back_to_login: Retour à la connexion

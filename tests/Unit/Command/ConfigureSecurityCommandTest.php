@@ -195,9 +195,29 @@ final class ConfigureSecurityCommandTest extends TestCase
         self::assertSame('nowo_auth_kit_magic_login_check', $security['security']['firewalls']['main']['login_link']['check_route']);
         self::assertSame(['email'], $security['security']['firewalls']['main']['login_link']['signature_properties']);
         self::assertSame(600, $security['security']['firewalls']['main']['login_link']['lifetime']);
+        self::assertArrayNotHasKey('check_post_only', $security['security']['firewalls']['main']['login_link']);
         $paths = array_column($security['security']['access_control'], 'path');
         self::assertContains('^\/magic\-login', $paths);
         self::assertContains('^\/magic\-login\/check', $paths);
+    }
+
+    public function testMagicLoginConfirmInterstitialSetsCheckPostOnly(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand(
+            'disabled',
+            magicLoginMode: 'enabled',
+            magicLoginConfirmInterstitial: true,
+        ));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertTrue($security['security']['firewalls']['main']['login_link']['check_post_only']);
     }
 
     public function testMagicLoginLinkIncludesDefaultTargetPath(): void
@@ -371,6 +391,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         bool $rememberMeEnabled = false,
         string $magicLoginMode = 'disabled',
         string $socialLoginMode = 'disabled',
+        bool $magicLoginConfirmInterstitial = false,
     ): ConfigureSecurityCommand {
         return new ConfigureSecurityCommand(
             $projectDir ?? $this->testDir,
@@ -392,9 +413,10 @@ final class ConfigureSecurityCommandTest extends TestCase
                 'path'     => '/',
             ],
             [
-                'mode'     => $magicLoginMode,
-                'lifetime' => 600,
-                'max_uses' => 1,
+                'mode'                 => $magicLoginMode,
+                'lifetime'             => 600,
+                'max_uses'             => 1,
+                'confirm_interstitial' => $magicLoginConfirmInterstitial,
             ],
             $socialLoginMode,
         );
