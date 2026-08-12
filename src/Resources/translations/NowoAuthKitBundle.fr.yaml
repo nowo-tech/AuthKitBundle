@@ -121,3 +121,4 @@ magic_login:
         help: Confirmez pour terminer la connexion sans mot de passe. Cliquez sur Continuer pour envoyer le lien à usage unique (le jeton n'est pas envoyé en GET de navigation).
         submit: Continuer
         back_to_login: Retour à la connexion
+        flash_invalid: Ce lien de connexion est invalide ou a expiré. Demandez-en un nouveau.

@@ -119,3 +119,4 @@ magic_login:
         help: Confirma para completar el acceso sin contraseña. Pulsa Continuar para enviar el enlace de un solo uso (el token no se envía como petición GET de navegación).
         submit: Continuar
         back_to_login: Volver al inicio de sesión
+        flash_invalid: Este enlace de acceso no es válido o ha caducado. Solicita uno nuevo.

@@ -155,10 +155,15 @@ final class ConfigureSecurityCommand extends Command
         }
 
         if ($this->magicLogin['mode'] === 'enabled') {
-            foreach ([
+            $magicPaths = [
                 $this->routes['magic_login_request']['path'],
                 $this->routes['magic_login_check']['path'],
-            ] as $path) {
+            ];
+            if (($this->magicLogin['confirm_interstitial'] ?? false) === true) {
+                $magicPaths[] = $this->routes['magic_login_confirm']['path'];
+            }
+
+            foreach ($magicPaths as $path) {
                 foreach ($this->routeLocaleParameters->accessControlPatterns($path) as $pattern) {
                     $publicPaths[] = ['path' => $pattern, 'roles' => 'PUBLIC_ACCESS'];
                 }

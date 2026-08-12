@@ -121,3 +121,4 @@ magic_login:
         help: Bevestig om wachtwoordloos inloggen te voltooien. Klik op Doorgaan om de eenmalige link te versturen (het token wordt niet als GET-navigatie verzonden).
         submit: Doorgaan
         back_to_login: Terug naar inloggen
+        flash_invalid: Deze inloglink is ongeldig of verlopen. Vraag een nieuwe aan.

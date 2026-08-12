@@ -119,3 +119,4 @@ magic_login:
         help: Confirm to complete passwordless sign-in. Click Continue to submit the one-time link (the token is not sent as a GET navigational request).
         submit: Continue
         back_to_login: Back to sign in
+        flash_invalid: This sign-in link is invalid or has expired. Request a new one.

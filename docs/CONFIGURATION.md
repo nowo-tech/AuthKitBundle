@@ -197,6 +197,9 @@ nowo_auth_kit:
         magic_login_check:
             path: /magic-login/check
             name: nowo_auth_kit_magic_login_check
+        magic_login_confirm:
+            path: /magic-login/confirm
+            name: nowo_auth_kit_magic_login_confirm
         social_login_start:
             path: /login/social/{provider}
             name: nowo_auth_kit_social_login_start
@@ -314,7 +317,7 @@ See [PASSWORD-RESET.md](PASSWORD-RESET.md) for entity fields, notifier wiring, a
 
 When `magic_login.mode` is `enabled`, users can request a one-time sign-in link. Requires Symfony firewall `login_link` with **`signature_properties`** (synced by `nowo:auth-kit:configure-security` from `user_identifier_field`). Implement `MagicLoginNotifierInterface` to email the URL.
 
-Set `magic_login.confirm_interstitial: true` when the firewall uses `login_link.check_post_only`: the check route then accepts GET+POST and GET renders `templates.magic_login_confirm`. `nowo:auth-kit:configure-security` writes `check_post_only: true` in that case.
+Set `magic_login.confirm_interstitial: true` when the firewall uses `login_link.check_post_only`: GET `magic_login_check` renders `templates.magic_login_confirm` (Form CSRF); POST authenticates via `magic_login_confirm`. `nowo:auth-kit:configure-security` writes `check_post_only: true` and public access for both routes in that case.
 
 See [MAGIC-LOGIN.md](MAGIC-LOGIN.md).
 
