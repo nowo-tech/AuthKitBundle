@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.17.0] - 2026-08-12](#1170-2026-08-12)
 - [[1.16.0] - 2026-08-10](#1160-2026-08-10)
 - [[1.15.0] - 2026-08-05](#1150-2026-08-05)
 - [[1.14.0] - 2026-08-05](#1140-2026-08-05)
@@ -115,12 +116,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-08-12
+
 ### Changed
 - **Magic login confirm interstitial** (closes [#9](https://github.com/nowo-tech/AuthKitBundle/issues/9)): `MagicLoginConfirmType` with Form CSRF; GET `magic_login_check` only; POST `magic_login_confirm` validates CSRF, consumes the login link, then `Security::login(..., 'login_link')`. Stock confirm Twig uses `form_start` / `form_end` (REQ-TWIG-005; no plain `<form`).
 - `nowo:auth-kit:configure-security` adds public `access_control` for `magic_login_confirm` when `confirm_interstitial` is enabled.
 
 ### Documentation
 - MAGIC-LOGIN / CONFIGURATION / UPGRADING: confirm Form CSRF flow.
+
+[1.17.0]: https://github.com/nowo-tech/AuthKitBundle/compare/v1.16.0...v1.17.0
 
 ## [1.16.0] - 2026-08-10
 

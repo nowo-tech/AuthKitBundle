@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.17.0](#to-1170)
 - [To 1.16.0](#to-1160)
 - [To 1.13.1](#to-1131)
 - [To 1.13.0](#to-1130)
@@ -50,6 +51,8 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.17.0
 
 ### Magic login confirm Form CSRF (from 1.16.x)
 
