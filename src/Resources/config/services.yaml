@@ -92,6 +92,8 @@ services:
 
     Nowo\AuthKitBundle\Controller\MagicLoginConfirmController:
         public: true
+        arguments:
+            $loginLinkHandler: '@?security.authenticator.login_link_handler.main'
 
     Nowo\AuthKitBundle\Controller\SocialLoginStartController:
         public: true

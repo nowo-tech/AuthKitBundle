@@ -164,8 +164,18 @@ final class AuthKitRouteLoader extends Loader
                     ? MagicLoginConfirmController::class . '::check'
                     : MagicLoginCheckController::class . '::check',
             ] + $profileDefaults,
-            $confirmInterstitial ? ['GET', 'POST'] : ['GET'],
+            ['GET'],
         );
+
+        if ($confirmInterstitial) {
+            $this->addAuthRoute(
+                $collection,
+                $routes['magic_login_confirm']['name'],
+                $routes['magic_login_confirm']['path'],
+                ['_controller' => MagicLoginConfirmController::class . '::confirm'] + $profileDefaults,
+                ['POST'],
+            );
+        }
 
         $this->addAuthRoute(
             $collection,

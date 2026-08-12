@@ -436,6 +436,7 @@ final class ConfigureSecurityCommandTest extends TestCase
             'reset_password_code' => ['path' => '/reset-password/complete', 'name' => 'nowo_auth_kit_reset_password_code'],
             'magic_login_request' => ['path' => '/magic-login', 'name' => 'nowo_auth_kit_magic_login_request'],
             'magic_login_check'   => ['path' => '/magic-login/check', 'name' => 'nowo_auth_kit_magic_login_check'],
+            'magic_login_confirm' => ['path' => '/magic-login/confirm', 'name' => 'nowo_auth_kit_magic_login_confirm'],
             'social_login_start'  => ['path' => '/login/social/{provider}', 'name' => 'nowo_auth_kit_social_login_start'],
             'social_login_check'  => ['path' => '/login/social/{provider}/check', 'name' => 'nowo_auth_kit_social_login_check'],
         ];

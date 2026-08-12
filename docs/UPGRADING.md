@@ -51,6 +51,24 @@
 
 ## Unreleased
 
+### Magic login confirm Form CSRF (from 1.16.x)
+
+Breaking for hosts that override `magic_login_confirm` with a raw POST to `magic_login_check`:
+
+- Confirm POST is now **`magic_login_confirm`** (`/magic-login/confirm` by default), not `magic_login_check`.
+- Template must render `magic_login_confirm_form` via `form_start` / `form_end` (CSRF enabled). BC vars `action` / `params` remain available.
+- Re-run `php bin/console nowo:auth-kit:configure-security` so `access_control` includes the confirm path.
+- Wire `LoginLinkHandler` if your firewall is not `main` (same as `MagicLoginRequestHandler`):
+
+```yaml
+# config/services.yaml
+Nowo\AuthKitBundle\Controller\MagicLoginConfirmController:
+    arguments:
+        $loginLinkHandler: '@security.authenticator.login_link_handler.<firewall>'
+```
+
+`login_link.check_post_only: true` remains required so the email GET does not authenticate.
+
 ## To 1.16.0
 
 From **1.15.x** — no breaking changes. Optional: enable a confirm interstitial for `login_link.check_post_only` hosts:

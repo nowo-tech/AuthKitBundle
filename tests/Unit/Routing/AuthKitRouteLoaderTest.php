@@ -97,18 +97,23 @@ final class AuthKitRouteLoaderTest extends TestCase
         self::assertSame(MagicLoginCheckController::class . '::check', $route->getDefault('_controller'));
     }
 
-    public function testMagicLoginConfirmInterstitialRegistersGetAndPost(): void
+    public function testMagicLoginConfirmInterstitialRegistersGetCheckAndPostConfirm(): void
     {
         $profiles                                                   = $this->profiles('link');
         $profiles['default']['magic_login']['confirm_interstitial'] = true;
 
         $loader     = new AuthKitRouteLoader($profiles, false, 'en', ['en']);
         $collection = $loader->load('.', 'nowo_auth_kit');
-        $route      = $collection->get('nowo_auth_kit_magic_login_check');
+        $check      = $collection->get('nowo_auth_kit_magic_login_check');
+        $confirm    = $collection->get('nowo_auth_kit_magic_login_confirm');
 
-        self::assertNotNull($route);
-        self::assertSame(['GET', 'POST'], $route->getMethods());
-        self::assertSame(MagicLoginConfirmController::class . '::check', $route->getDefault('_controller'));
+        self::assertNotNull($check);
+        self::assertSame(['GET'], $check->getMethods());
+        self::assertSame(MagicLoginConfirmController::class . '::check', $check->getDefault('_controller'));
+
+        self::assertNotNull($confirm);
+        self::assertSame(['POST'], $confirm->getMethods());
+        self::assertSame(MagicLoginConfirmController::class . '::confirm', $confirm->getDefault('_controller'));
     }
 
     /**

@@ -121,3 +121,4 @@ magic_login:
         help: Bestätigen Sie die passwortlose Anmeldung. Klicken Sie auf Weiter, um den einmaligen Link per POST zu senden (das Token wird nicht als GET-Navigation gesendet).
         submit: Weiter
         back_to_login: Zurück zur Anmeldung
+        flash_invalid: Dieser Anmeldelink ist ungültig oder abgelaufen. Fordern Sie einen neuen an.

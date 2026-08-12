@@ -31,8 +31,13 @@ Routes (defaults):
 |-----|------|------|
 | `magic_login_request` | `/magic-login` | `nowo_auth_kit_magic_login_request` |
 | `magic_login_check` | `/magic-login/check` | `nowo_auth_kit_magic_login_check` |
+| `magic_login_confirm` | `/magic-login/confirm` | `nowo_auth_kit_magic_login_confirm` |
 
-When `confirm_interstitial` is `true`, `magic_login_check` accepts **GET + POST**: GET renders `templates.magic_login_confirm`; POST is consumed by Symfony `login_link` (never reaches the confirm controller).
+When `confirm_interstitial` is `true`:
+
+1. Email link lands on **GET** `magic_login_check` (with `login_link.check_post_only` so GET does not authenticate).
+2. The interstitial renders `MagicLoginConfirmType` (signed hiddens + **Form CSRF**).
+3. **POST** goes to `magic_login_confirm`, which validates CSRF, calls `LoginLinkHandlerInterface::consumeLoginLink()`, then `Security::login(..., 'login_link')`.
 
 ## Security (`login_link`)
 
@@ -57,7 +62,7 @@ security:
                 default_target_path: homepage   # optional
 ```
 
-Keep `magic_login_check` as a **public** `access_control` path.
+Keep `magic_login_check` (and `magic_login_confirm` when using the interstitial) as **public** `access_control` paths.
 
 `signature_properties` is **required** by Symfony (typically your user identifier field, e.g. `email`). `nowo:auth-kit:configure-security` writes it from `user_identifier_field`. When `magic_login.confirm_interstitial` is `true`, the command also sets `check_post_only: true`.
 
@@ -105,6 +110,6 @@ Override:
 - `templates/bundles/NowoAuthKitBundle/security/magic_login_request.html.twig`
 - `templates/bundles/NowoAuthKitBundle/security/magic_login_confirm.html.twig` (when `confirm_interstitial` is enabled)
 
-Or set `templates.magic_login_confirm` in the profile. The confirm page receives `action`, `params` (`user` / `expires` / `hash`), `login_route`, and `layout_template`.
+Or set `templates.magic_login_confirm` in the profile. The confirm page receives `magic_login_confirm_form`, plus BC keys `action` / `params` (`user` / `expires` / `hash`), `login_route`, and `layout_template`.
 
 The login page shows a magic-login link when `magic_login.mode: enabled`.
