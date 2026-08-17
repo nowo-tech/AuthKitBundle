@@ -14,6 +14,8 @@ use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\Extension\Csrf\CsrfExtension;
 use Symfony\Component\Form\Extension\HttpFoundation\HttpFoundationExtension;
@@ -22,6 +24,8 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
@@ -109,6 +113,29 @@ final class MagicLoginConfirmControllerTest extends TestCase
         self::assertSame('no-referrer', $response->headers->get('Referrer-Policy'));
     }
 
+    public function testConfirmRedirectsWhenInterstitialDisabled(): void
+    {
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->with('nowo_auth_kit_magic_login_request')->willReturn('/magic-login');
+
+        $controller = $this->controller(
+            urlGenerator: AuthKitTestUrlGenerator::fromMock($inner),
+            profileRegistry: ProfileRegistryFactory::single(TestUser::class, [
+                'magic_login' => ['mode' => 'enabled', 'confirm_interstitial' => false],
+            ]),
+        );
+
+        $response = $controller->confirm(Request::create('/magic-login/confirm', 'POST', [
+            'user'        => 'a@b.c',
+            'expires'     => '99',
+            'hash'        => 'abc',
+            '_csrf_token' => 'ok',
+        ]));
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/magic-login', $response->headers->get('Location'));
+    }
+
     public function testConfirmRejectsInvalidCsrf(): void
     {
         $twig = $this->createMock(Environment::class);
@@ -140,6 +167,42 @@ final class MagicLoginConfirmControllerTest extends TestCase
         $response = $controller->confirm($request);
 
         self::assertSame('<html>invalid-csrf</html>', $response->getContent());
+    }
+
+    public function testConfirmRedirectsWhenLoginLinkHandlerMissing(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('warning')->with(
+            'Magic login confirm skipped: firewall login_link handler is not configured.',
+        );
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturnCallback(static function (string $name): string {
+            return match ($name) {
+                'nowo_auth_kit_magic_login_request' => '/magic-login',
+                default                             => '/magic-login/confirm',
+            };
+        });
+
+        $controller = $this->controller(
+            urlGenerator: AuthKitTestUrlGenerator::fromMock($inner),
+            profileRegistry: ProfileRegistryFactory::single(TestUser::class, [
+                'magic_login' => ['mode' => 'enabled', 'confirm_interstitial' => true],
+            ]),
+            loginLinkHandler: null,
+            csrfValid: true,
+            logger: $logger,
+        );
+
+        $response = $controller->confirm(Request::create('/magic-login/confirm', 'POST', [
+            'user'        => 'a@b.c',
+            'expires'     => '99',
+            'hash'        => 'abc',
+            '_csrf_token' => 'ok',
+        ]));
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/magic-login', $response->headers->get('Location'));
     }
 
     public function testConfirmConsumesLoginLinkAndLogsIn(): void
@@ -218,6 +281,88 @@ final class MagicLoginConfirmControllerTest extends TestCase
         self::assertSame('/magic-login', $response->headers->get('Location'));
     }
 
+    public function testConfirmAddsFlashWhenLoginLinkInvalidAndSessionPresent(): void
+    {
+        $loginLinkHandler = $this->createMock(LoginLinkHandlerInterface::class);
+        $loginLinkHandler->method('consumeLoginLink')->willThrowException(new InvalidLoginLinkException('bad'));
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturnCallback(static function (string $name): string {
+            return match ($name) {
+                'nowo_auth_kit_magic_login_request' => '/magic-login',
+                default                             => '/magic-login/confirm',
+            };
+        });
+
+        $controller = $this->controller(
+            urlGenerator: AuthKitTestUrlGenerator::fromMock($inner),
+            profileRegistry: ProfileRegistryFactory::single(TestUser::class, [
+                'magic_login' => ['mode' => 'enabled', 'confirm_interstitial' => true],
+            ]),
+            loginLinkHandler: $loginLinkHandler,
+            csrfValid: true,
+        );
+
+        $request = Request::create('/magic-login/confirm', 'POST', [
+            'user'        => 'a@b.c',
+            'expires'     => '99',
+            'hash'        => 'abc',
+            '_csrf_token' => 'ok',
+        ]);
+        $session = new Session(new MockArraySessionStorage());
+        $request->setSession($session);
+
+        $response = $controller->confirm($request);
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame(['magic_login.confirm.flash_invalid'], $session->getFlashBag()->peek('error'));
+    }
+
+    public function testConfirmRedirectsToLoginSuccessRouteWhenSecurityLoginReturnsNull(): void
+    {
+        $user = new TestUser('a@b.c');
+
+        $loginLinkHandler = $this->createMock(LoginLinkHandlerInterface::class);
+        $loginLinkHandler->expects(self::once())
+            ->method('consumeLoginLink')
+            ->willReturn($user);
+
+        $security = $this->createMock(Security::class);
+        $security->expects(self::once())
+            ->method('login')
+            ->with($user, 'login_link', 'main')
+            ->willReturn(null);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturnCallback(static function (string $name): string {
+            return match ($name) {
+                'app_home' => '/home',
+                default    => '/magic-login/confirm',
+            };
+        });
+
+        $controller = $this->controller(
+            urlGenerator: AuthKitTestUrlGenerator::fromMock($inner),
+            profileRegistry: ProfileRegistryFactory::single(TestUser::class, [
+                'magic_login'         => ['mode' => 'enabled', 'confirm_interstitial' => true],
+                'login_success_route' => 'app_home',
+            ]),
+            security: $security,
+            loginLinkHandler: $loginLinkHandler,
+            csrfValid: true,
+        );
+
+        $response = $controller->confirm(Request::create('/magic-login/confirm', 'POST', [
+            'user'        => 'a@b.c',
+            'expires'     => '99',
+            'hash'        => 'abc',
+            '_csrf_token' => 'ok',
+        ]));
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/home', $response->headers->get('Location'));
+    }
+
     private function controller(
         ?Environment $twig = null,
         ?AuthKitUrlGenerator $urlGenerator = null,
@@ -225,6 +370,7 @@ final class MagicLoginConfirmControllerTest extends TestCase
         ?Security $security = null,
         ?LoginLinkHandlerInterface $loginLinkHandler = null,
         bool $csrfValid = true,
+        ?LoggerInterface $logger = null,
     ): MagicLoginConfirmController {
         $registry = $profileRegistry ?? ProfileRegistryFactory::single(TestUser::class, [
             'magic_login' => ['mode' => 'enabled', 'confirm_interstitial' => true],
@@ -237,6 +383,7 @@ final class MagicLoginConfirmControllerTest extends TestCase
             new RequestProfileResolver($registry),
             $security ?? $this->createMock(Security::class),
             $loginLinkHandler,
+            $logger ?? new NullLogger(),
         );
     }
 
