@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.17.1](#to-1171)
 - [To 1.17.0](#to-1170)
 - [To 1.16.0](#to-1160)
 - [To 1.13.1](#to-1131)
@@ -51,6 +52,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.17.1
+
+From **1.17.0** — No application upgrade steps. **Demos only:** Hot Reload Bundle `^1.4` (FrankenPHP Mercure/`hot_reload`, `dev`/`test`).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.17.0
 

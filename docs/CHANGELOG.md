@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.17.1] - 2026-08-18](#1171-2026-08-18)
 - [[1.17.0] - 2026-08-12](#1170-2026-08-12)
 - [[1.16.0] - 2026-08-10](#1160-2026-08-10)
 - [[1.15.0] - 2026-08-05](#1150-2026-08-05)
@@ -116,6 +117,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.1] - 2026-08-18
+
+### Changed
+
+- **Demos:** pin `nowo-tech/hot-reload-bundle` to `^1.4` with FrankenPHP Mercure/`hot_reload` (`dev`/`test` only).
+
+[1.17.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.17.1
 ## [1.17.0] - 2026-08-12
 
 ### Changed
