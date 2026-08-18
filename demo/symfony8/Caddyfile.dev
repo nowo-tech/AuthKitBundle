@@ -1,4 +1,5 @@
 {
+	order mercure after encode
 	frankenphp
 }
 
@@ -11,5 +12,11 @@
 	}
 	rewrite @phpRoute /index.php
 
-	php_server
+	mercure {
+		anonymous
+	}
+
+	php_server {
+		hot_reload
+	}
 }
