@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.17.2](#to-1172)
 - [To 1.17.1](#to-1171)
 - [To 1.17.0](#to-1170)
 - [To 1.16.0](#to-1160)
@@ -52,6 +53,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.17.2
+
+From **1.17.1** — no application upgrade steps. Spec Kit baseline inventory and user stories catch up with features already shipped in 1.17.x (QR login, social/enterprise SSO, magic login, outbound-mail gate).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.17.1
 
