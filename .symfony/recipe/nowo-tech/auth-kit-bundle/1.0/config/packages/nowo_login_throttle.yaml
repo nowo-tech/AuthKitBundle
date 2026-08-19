@@ -1,0 +1,6 @@
+nowo_login_throttle:
+    enabled: true
+    max_count_attempts: 3
+    timeout: 600
+    firewall: main
+    storage: cache

@@ -55,6 +55,7 @@
         "twig/string-extra": "^3.12"
     },
     "suggest": {
+        "nowo-tech/login-throttle-bundle": "Required for production login forms — credential stuffing protection (^3.1; installed by Flex recipe)",
         "nowo-tech/password-strength-bundle": "Strength policies, live feedback, and validator for registration and password reset fields (^2.0)",
         "nowo-tech/password-toggle-bundle": "Password fields with visibility toggle (^1.2.8)",
         "symfony/ux-icons": "Required for password visibility toggle icons (^2.0 || ^3.0)",

@@ -16,7 +16,7 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 
 | Area | Risk | Mitigation |
 | --- | --- | --- |
-| Login form | CSRF, credential stuffing | Symfony `form_login` with CSRF; document rate limiting via `nowo-tech/login-throttle-bundle` |
+| Login form | CSRF, credential stuffing | Symfony `form_login` with CSRF; **require** `nowo-tech/login-throttle-bundle` + `nowo:login-throttle:configure-security` in production |
 | Registration | Mass signup, privilege escalation, session fixation | `registration_mode`; configurable `registration_role`; session ID migrated after auto-login |
 | Password storage | Weak hashing | Uses `UserPasswordHasherInterface` |
 | Password reset / magic login | Token leakage, enumeration, OTP brute-force | Tokens stored hashed; uniform UX messages; built-in request rate limits + OTP `max_code_attempts` lockout; prefer `link` delivery |
@@ -29,9 +29,9 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 ## Application responsibilities
 
 - Configure `security.yaml` (firewall, provider, `access_control`); re-run `configure-security` after enabling social login
+- **Require** `nowo-tech/login-throttle-bundle` and run `nowo:login-throttle:configure-security` so login forms are throttled in production
 - Protect admin routes with appropriate roles
-- Provide a working Symfony `cache.app` pool (used by Auth Kit attempt limiter)
-- Optionally pair login forms with `nowo-tech/login-throttle-bundle` for credential stuffing
+- Provide a working Symfony `cache.app` pool (used by Auth Kit attempt limiter and Login Throttle when storage is `cache`)
 - Prefer password-reset `delivery: link` (or stronger OTP charset) in production
 - Do not alias `LoggingPasswordResetNotifier` / `LoggingMagicLoginNotifier` in production (even redacted, they are sample/dev helpers)
 - Run `composer audit` in the application
@@ -61,7 +61,7 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 | Method | Cursor agent static review + remediation pass (`src/`, Twig, SECURITY docs) |
 | Grade | **Pass (conditional)** — overall **Medium** |
 | Mitigated in 1.10.0 | Unverified-email social auto-link; missing reset/magic/register rate limits; OTP lockout; custom OAuth SSRF; social `PUBLIC_ACCESS`; `first_user_only` race; magic login 500 oracle |
-| Open residuals | Cleartext OAuth secrets/tokens at rest; optional LoginThrottle for form login; residual timing side-channels on reset/magic request; do not use logging notifiers in prod |
+| Open residuals | Cleartext OAuth secrets/tokens at rest; residual timing side-channels on reset/magic request; do not use logging notifiers in prod |
 
 See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.com/nowo-tech/bundles/blob/master/BUNDLES_SECURITY_ANALYSIS.md) (AuthKitBundle entry).
 
@@ -80,7 +80,7 @@ Before each release, confirm:
 | Logs do not dump credentials | ☐ |
 | Password hashing via Symfony hasher (no custom crypto) | ☐ |
 | Registration gate prevents unwanted signups per config | ☐ |
-| Document DoS/rate-limit pairing with login throttle bundle | ☐ |
+| Require Login Throttle bundle + `configure-security` in INSTALLATION/recipe | ☐ |
 | AI security audit Pass (good/conditional) recorded (REQ-SEC-004) | ☐ |
 
 ## Reporting
