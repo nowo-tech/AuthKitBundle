@@ -2,6 +2,8 @@
   * Install icons for password fields: composer require symfony/ux-icons symfony/http-client
   * Lock password toggle icons: php bin/console ux:icons:lock
   * Run: php bin/console nowo:auth-kit:configure-security
+  * Required for production login forms — apply login throttling:
+    php bin/console nowo:login-throttle:configure-security
   * Or copy the security.yaml snippet from docs/INSTALLATION.md.
   * Override templates: templates/bundles/NowoAuthKitBundle/security/
   * Override translations: translations/NowoAuthKitBundle.<locale>.yaml

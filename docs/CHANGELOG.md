@@ -118,6 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Flex recipe:** requires `nowo-tech/login-throttle-bundle` ^3.1, enables `NowoLoginThrottleBundle`, copies `nowo_login_throttle.yaml`.
+- **INSTALLATION.md / SECURITY.md:** login throttling is **required in production** (was optional); post-install runs `nowo:login-throttle:configure-security`.
+
 ## [1.17.2] - 2026-08-18
 
 ### Documentation

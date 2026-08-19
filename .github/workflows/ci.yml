@@ -63,6 +63,9 @@ jobs:
             symfony/validator:^${{ matrix.symfony }} \
             --no-interaction --no-update
           composer update --with-all-dependencies --no-interaction --prefer-dist
+      - name: Composer audit (Critical/High)
+        run: composer audit --locked
+
 
       - run: composer test
 

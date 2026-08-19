@@ -11,6 +11,7 @@
 - [Security configuration (required)](#security-configuration-required)
   - [Option A — CLI helper](#option-a--cli-helper)
   - [Option B — Manual security.yaml](#option-b--manual-securityyaml)
+- [Login throttling (required in production)](#login-throttling-required-in-production)
 - [User entity](#user-entity)
 - [Locales](#locales)
 - [Twig Extra Bundle (REQ-TWIG-004)](#twig-extra-bundle-req-twig-004)
@@ -28,6 +29,8 @@
   - `nowo-tech/password-toggle-bundle` ^1.2.8
   - `symfony/ux-icons` ^2.0 || ^3.0
   - `symfony/http-client` (same major as your Symfony version)
+- **Required for production login forms** (installed by the Flex recipe):
+  - `nowo-tech/login-throttle-bundle` ^3.1 — credential stuffing protection on `form_login`
 
 Without the password-toggle stack, login/register still work using Symfony’s default `PasswordType`.
 
@@ -46,7 +49,10 @@ After install:
 ```bash
 php bin/console ux:icons:lock
 php bin/console nowo:auth-kit:configure-security
+php bin/console nowo:login-throttle:configure-security
 ```
+
+The Flex recipe also requires `nowo-tech/login-throttle-bundle`, copies `config/packages/nowo_login_throttle.yaml`, and enables `NowoLoginThrottleBundle`.
 
 ## Enable the bundle
 
@@ -131,6 +137,31 @@ security:
 ```
 
 **Important:** `login_path` and `check_path` must use the **route name** (not the URL path) and must match `nowo_auth_kit.routes.login.name`.
+
+## Login throttling (required in production)
+
+Auth Kit login forms are public HTTP endpoints. **You must** pair them with `nowo-tech/login-throttle-bundle` so Symfony `login_throttling` is applied to the same firewall as `form_login` (typically `main`).
+
+The Flex recipe installs the bundle and copies `config/packages/nowo_login_throttle.yaml` (3 attempts / 10 minutes, cache storage). After `nowo:auth-kit:configure-security`, run:
+
+```bash
+php bin/console nowo:login-throttle:configure-security
+```
+
+This merges `login_throttling` into `config/packages/security.yaml` for the configured firewall. Use `--force` to refresh limits after changing `nowo_login_throttle.yaml`.
+
+Manual equivalent:
+
+```yaml
+security:
+    firewalls:
+        main:
+            login_throttling:
+                max_attempts: 3
+                interval: '10 minutes'
+```
+
+See [Login Throttle Bundle](https://github.com/nowo-tech/LoginThrottleBundle) docs for database storage and multi-firewall setups.
 
 ## User entity
 
