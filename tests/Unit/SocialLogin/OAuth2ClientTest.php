@@ -131,8 +131,8 @@ final class OAuth2ClientTest extends TestCase
                 'id'     => 2,
                 'emails' => [
                     'not-an-array',
-                    ['email'    => ''],
-                    ['email'    => 123],
+                    ['email' => ''],
+                    ['email' => 123],
                     ['no_email' => true],
                 ],
             ], JSON_THROW_ON_ERROR)),
