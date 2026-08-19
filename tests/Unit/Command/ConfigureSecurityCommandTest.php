@@ -326,6 +326,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         $originalDir = getcwd();
         self::assertNotFalse($originalDir);
 
+        /* @phpstan-ignore frankenphp.worker.noChdir */
         chdir($this->testDir);
         $this->filesystem->dumpFile(
             $this->testDir . '/config/packages/security.yaml',
@@ -333,11 +334,12 @@ final class ConfigureSecurityCommandTest extends TestCase
         );
 
         try {
-            $tester   = new CommandTester($this->createCommand('disabled', null, false));
+            $tester   = new CommandTester($this->createCommand('disabled', useCwdAsProjectDir: true));
             $exitCode = $tester->execute([]);
 
             self::assertSame(0, $exitCode);
         } finally {
+            /* @phpstan-ignore frankenphp.worker.noChdir */
             chdir($originalDir);
         }
     }
@@ -392,9 +394,10 @@ final class ConfigureSecurityCommandTest extends TestCase
         string $magicLoginMode = 'disabled',
         string $socialLoginMode = 'disabled',
         bool $magicLoginConfirmInterstitial = false,
+        bool $useCwdAsProjectDir = false,
     ): ConfigureSecurityCommand {
         return new ConfigureSecurityCommand(
-            $projectDir ?? $this->testDir,
+            $useCwdAsProjectDir ? null : ($projectDir ?? $this->testDir),
             $this->routes(),
             'main',
             'App\\Entity\\User',
