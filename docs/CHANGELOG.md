@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.17.4] - 2026-08-20](#1174-2026-08-20)
+- [[1.17.3] - 2026-08-19](#1173-2026-08-19)
 - [[1.17.2] - 2026-08-18](#1172-2026-08-18)
 - [[1.17.1] - 2026-08-18](#1171-2026-08-18)
 - [[1.17.0] - 2026-08-12](#1170-2026-08-12)
@@ -118,10 +120,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.17.4] - 2026-08-20
+
+### Security
+
+- **`login_throttle_required`:** when `true`, container compilation fails if `nowo-tech/login-throttle-bundle` is not registered. Flex recipe `when@prod` enables the flag. Default remains `false` so existing apps that skip the recipe do not break.
+
+[1.17.4]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.17.4
+
+## [1.17.3] - 2026-08-19
+
 ### Changed
 
 - **Flex recipe:** requires `nowo-tech/login-throttle-bundle` ^3.1, enables `NowoLoginThrottleBundle`, copies `nowo_login_throttle.yaml`.
 - **INSTALLATION.md / SECURITY.md:** login throttling is **required in production** (was optional); post-install runs `nowo:login-throttle:configure-security`.
+
+[1.17.3]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.17.3
 
 ## [1.17.2] - 2026-08-18
 

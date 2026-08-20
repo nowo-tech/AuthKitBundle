@@ -23,6 +23,7 @@ final class ConfigurationTest extends TestCase
         ]]);
 
         self::assertSame('default', $config['default_profile']);
+        self::assertFalse($config['login_throttle_required']);
         self::assertSame(TestUser::class, $config['profiles']['default']['user_class']);
         self::assertSame('email', $config['profiles']['default']['user_identifier_field']);
         self::assertSame('first_user_only', $config['profiles']['default']['registration_mode']);
@@ -165,6 +166,21 @@ final class ConfigurationTest extends TestCase
         ]]);
 
         self::assertSame(TestUser::class, $config['profiles']['default']['user_class']);
+    }
+
+    public function testLoginThrottleRequiredCanBeEnabled(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'login_throttle_required' => true,
+            'profiles'                => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                ],
+            ],
+        ]]);
+
+        self::assertTrue($config['login_throttle_required']);
     }
 
     public function testSingleFormThemeStringIsNormalizedToList(): void

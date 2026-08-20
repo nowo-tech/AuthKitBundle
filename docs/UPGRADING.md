@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.17.4](#to-1174)
+- [To 1.17.3](#to-1173)
 - [To 1.17.2](#to-1172)
 - [To 1.17.1](#to-1171)
 - [To 1.17.0](#to-1170)
@@ -53,6 +55,40 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.17.4
+
+From **1.17.3** — Flex `when@prod` sets `nowo_auth_kit.login_throttle_required: true`. Container compilation **fails** if `NowoLoginThrottleBundle` is not registered.
+
+1. New Flex installs already require `nowo-tech/login-throttle-bundle` ^3.1 (since **1.17.3**). Run:
+
+```bash
+composer require nowo-tech/login-throttle-bundle:^3.1
+php bin/console nowo:login-throttle:configure-security
+php bin/console cache:clear --env=prod
+```
+
+2. Existing apps that **do not** merge the updated recipe keep `login_throttle_required: false` (default) and still boot — install the throttle bundle anyway for production login forms.
+3. Local demos without the throttle bundle may set `login_throttle_required: false` (not for production).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+## To 1.17.3
+
+From **1.17.2** — Flex recipe now requires Login Throttle Bundle for new installs. Apps installed before 1.17.3 are **not** broken, but production login forms should add:
+
+```bash
+composer require nowo-tech/login-throttle-bundle:^3.1
+php bin/console nowo:login-throttle:configure-security
+```
+
+See [INSTALLATION.md](INSTALLATION.md) and [SECURITY.md](SECURITY.md).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.17.2
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle;
 
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\DoctrineOrmMappingsPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginThrottleRequiredPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\QrCodeGeneratorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
@@ -23,6 +24,7 @@ class NowoAuthKitBundle extends Bundle
     {
         $container->addCompilerPass(new TwigPathsPass());
         $container->addCompilerPass(new QrCodeGeneratorPass());
+        $container->addCompilerPass(new LoginThrottleRequiredPass());
 
         $entityDir = __DIR__ . '/Entity';
         if (is_dir($entityDir)) {

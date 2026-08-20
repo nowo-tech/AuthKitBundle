@@ -86,6 +86,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.enabled_locales', $config['locale']['enabled']);
         $container->setParameter('nowo_auth_kit.locale_in_path', $config['locale']['in_path']);
         $container->setParameter('nowo_auth_kit.outbound_mail_ready_checker', $config['outbound_mail_ready_checker']);
+        $container->setParameter('nowo_auth_kit.login_throttle_required', $config['login_throttle_required']);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');

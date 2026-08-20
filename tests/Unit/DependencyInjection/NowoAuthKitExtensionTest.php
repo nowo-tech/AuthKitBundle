@@ -40,6 +40,7 @@ final class NowoAuthKitExtensionTest extends TestCase
             'registration_role' => 'ROLE_ADMIN',
         ]], $this->container);
 
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.login_throttle_required'));
         self::assertSame('App\\Entity\\User', $this->container->getParameter('nowo_auth_kit.user_class'));
         self::assertSame('always', $this->container->getParameter('nowo_auth_kit.registration_mode'));
         self::assertSame('ROLE_ADMIN', $this->container->getParameter('nowo_auth_kit.registration_role'));
@@ -62,6 +63,16 @@ final class NowoAuthKitExtensionTest extends TestCase
             AlwaysOutboundMailReadyChecker::class,
             (string) $this->container->getAlias(OutboundMailReadyCheckerInterface::class),
         );
+    }
+
+    public function testLoadSetsLoginThrottleRequiredTrue(): void
+    {
+        $this->extension->load([[
+            'user_class'              => 'App\\Entity\\User',
+            'login_throttle_required' => true,
+        ]], $this->container);
+
+        self::assertTrue($this->container->getParameter('nowo_auth_kit.login_throttle_required'));
     }
 
     public function testLoadRejectsUnknownDefaultProfile(): void

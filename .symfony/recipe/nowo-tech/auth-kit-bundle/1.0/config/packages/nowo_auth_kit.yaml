@@ -20,3 +20,8 @@ nowo_auth_kit:
             #     max_uses: 1
     default_locale: en
     enabled_locales: [en, es]
+
+when@prod:
+    nowo_auth_kit:
+        # Fail compile if Login Throttle Bundle is missing (Flex also requires the package).
+        login_throttle_required: true

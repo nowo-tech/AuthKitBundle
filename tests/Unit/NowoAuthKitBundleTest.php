@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit;
 
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginThrottleRequiredPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
@@ -25,6 +26,7 @@ final class NowoAuthKitBundleTest extends TestCase
 
         $passes = $container->getCompilerPassConfig()->getPasses();
         self::assertNotEmpty(array_filter($passes, static fn (CompilerPassInterface $pass): bool => $pass instanceof TwigPathsPass));
+        self::assertNotEmpty(array_filter($passes, static fn (CompilerPassInterface $pass): bool => $pass instanceof LoginThrottleRequiredPass));
     }
 
     public function testGetContainerExtension(): void
