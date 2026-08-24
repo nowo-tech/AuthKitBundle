@@ -2,6 +2,8 @@
 
 ## Table of contents
 
+
+- [From 1.17.4 to 1.17.5](#from-1174-to-1175)
 - [Unreleased](#unreleased)
 - [To 1.17.4](#to-1174)
 - [To 1.17.3](#to-1173)
