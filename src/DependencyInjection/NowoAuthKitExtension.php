@@ -51,6 +51,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.login_fields', $defaultProfile['login_fields']);
         $container->setParameter('nowo_auth_kit.remember_me', $defaultProfile['remember_me']);
         $container->setParameter('nowo_auth_kit.password_strength', $defaultProfile['password_strength']);
+        $container->setParameter('nowo_auth_kit.slide_to_confirm', $defaultProfile['slide_to_confirm']);
+        $container->setParameter('nowo_auth_kit.slide_to_confirm_assets', $this->anySlideToConfirmEnabled($profiles));
         $container->setParameter('nowo_auth_kit.registration_fields', $defaultProfile['registration_fields']);
         $container->setParameter('nowo_auth_kit.templates', $defaultProfile['templates']);
         $container->setParameter('nowo_auth_kit.css', $defaultProfile['css']);
@@ -257,5 +259,19 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         if ($seed !== []) {
             $container->prependExtensionConfig('nowo_form_kit', $seed);
         }
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function anySlideToConfirmEnabled(array $profiles): bool
+    {
+        foreach ($profiles as $profile) {
+            if (($profile['slide_to_confirm']['enabled'] ?? false) === true) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

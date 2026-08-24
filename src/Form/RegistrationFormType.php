@@ -29,6 +29,7 @@ final class RegistrationFormType extends AbstractType
     public function __construct(
         private readonly ProfileRegistry $profileRegistry,
         private readonly PasswordRepeatedFieldBuilder $passwordRepeatedFieldBuilder,
+        private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
     ) {
     }
 
@@ -50,6 +51,27 @@ final class RegistrationFormType extends AbstractType
                 continue;
             }
 
+            $slideProfile = $this->slideToConfirmTypeResolver->resolveRegistrationProfile(
+                $field,
+                $profile->slideToConfirm,
+            );
+            $slideType = $this->slideToConfirmTypeResolver->resolveSlideType();
+            if ($slideProfile !== null && $slideType !== null) {
+                $this->addWithDefaults($builder, $field['name'], $slideType, [
+                    'label'              => false,
+                    'mapped'             => (bool) ($field['mapped'] ?? false),
+                    'required'           => $field['required'],
+                    'help'               => false,
+                    'placeholder'        => false,
+                    'profile'            => $slideProfile,
+                    'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
+                    'text'               => 'register.slide.unlock',
+                    'confirmed_text'     => 'register.slide.unlocked',
+                    'hint'               => 'register.slide.hint',
+                ]);
+                continue;
+            }
+
             $type = match ($field['type']) {
                 'email'    => EmailType::class,
                 'checkbox' => CheckboxType::class,
@@ -59,6 +81,7 @@ final class RegistrationFormType extends AbstractType
             $this->addWithDefaults($builder, $field['name'], $type, [
                 'label'       => 'register.field.' . $field['name'],
                 'required'    => $field['required'],
+                'mapped'      => (bool) ($field['mapped'] ?? true),
                 'help'        => false,
                 'placeholder' => false,
             ]);

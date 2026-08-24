@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-08-15  
-**Units**: **137** (`113` PHP under `src/` + `24` Resources)
+**Last audited**: 2026-08-24  
+**Units**: **142** (`116` PHP under `src/` + `26` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -19,6 +19,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | --- | --- | --- | --- |
 | `Config/FieldConfigNormalizer.php` | production | FR-CFG-002 | Mapped |
 | `Config/RememberMeConfigResolver.php` | production | FR-CFG-002 | Mapped |
+| `DependencyInjection/Compiler/LoginThrottleRequiredPass.php` | production | FR-SEC-004 | Mapped |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | production | FR-CFG-001 | Mapped |
 | `DependencyInjection/Configuration.php` | production | FR-CFG-001 | Mapped |
 | `DependencyInjection/NowoAuthKitExtension.php` | production | FR-CFG-002 | Mapped |
@@ -158,10 +159,12 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Form/PasswordFieldConstraintResolver.php` | production | FR-FORM-002 | Mapped |
 | `Form/PasswordFieldTypeResolver.php` | production | FR-FORM-002 | Mapped |
 | `Form/PasswordRepeatedFieldBuilder.php` | production | FR-FORM-002 | Mapped |
+| `Form/QrLoginApproveType.php` | production | FR-QR-001 | Mapped |
 | `Form/RegistrationFormType.php` | production | FR-FORM-001 | Mapped |
 | `Form/ResetPasswordCodeFormType.php` | production | FR-FORM-001 | Mapped |
 | `Form/ResetPasswordFormType.php` | production | FR-FORM-001 | Mapped |
 | `Form/ResetPasswordRequestFormType.php` | production | FR-FORM-001 | Mapped |
+| `Form/SlideToConfirmTypeResolver.php` | production | FR-SLIDE-001 | Mapped |
 
 ## Outbound mail gate
 
@@ -219,6 +222,8 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
+| `Resources/views/_registration_submit.html.twig` | production | FR-SLIDE-001 | Mapped |
+| `Resources/views/_slide_to_confirm_assets.html.twig` | production | FR-SLIDE-001 | Mapped |
 | `Resources/views/embed/_authenticated.html.twig` | production | FR-TWIG-001 | Mapped |
 | `Resources/views/embed/_login_panel.html.twig` | production | FR-TWIG-001 | Mapped |
 | `Resources/views/embed/_register_panel.html.twig` | production | FR-TWIG-001 | Mapped |
@@ -238,9 +243,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 113 |
-| Resources (config/translations/views/public) | 24 |
-| **Total production sources** | **137** |
+| PHP under `src/` | 116 |
+| Resources (config/translations/views/public) | 26 |
+| **Total production sources** | **142** |
 
 ## Coverage gate
 

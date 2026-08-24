@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.18.0] - 2026-08-24](#1180-2026-08-24)
+- [[1.17.5] - 2026-08-24](#1175-2026-08-24)
 - [[1.17.4] - 2026-08-20](#1174-2026-08-20)
 - [[1.17.3] - 2026-08-19](#1173-2026-08-19)
 - [[1.17.2] - 2026-08-18](#1172-2026-08-18)
@@ -120,6 +122,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-08-24
+
+### Added
+
+- Optional **slide-to-confirm** integration with `nowo-tech/slide-to-confirm-bundle` (`suggest` + `require-dev` only — no hard Composer dependency):
+  - Profile keys `slide_to_confirm.enabled` (default `false`), `registration_consent` (default `gate`), `qr_login_approve` (default `false`).
+  - Registration fields: `slide_to_confirm` (`true` or a profile name) and `mapped` (defaults to `false` when a slide is requested). `UserRegistrar` does not persist unmapped fields.
+  - QR approve: `QrLoginApproveType` with Form CSRF + `SwipeToSubmitType` when enabled and the package is installed.
+  - Twig partials `_slide_to_confirm_assets.html.twig` and `_registration_submit.html.twig`; global/function `nowo_auth_kit_slide_to_confirm_assets`.
+  - Translations: `register.field.terms`, `register.slide.*`, `qr_login.approve.slide` / `confirmed` / `slide_hint`.
+
+### Changed
+
+- Spec Kit baseline inventory **142/142** (`116` PHP + `26` Resources), including `LoginThrottleRequiredPass` (shipped in 1.17.4) and slide-to-confirm units.
+
+### Security
+
+- REQ-SEC-004 re-audit of the 1.18.0 HTTP surface: overall **Pass (conditional)** / **Medium**; this delta **Low** (no new Critical/High). QR approve with slide uses Form CSRF. The swipe is confirmation UX, not authorization. Login forms are unchanged.
+
+### Notes
+
+- No application change unless you install the optional package and set `slide_to_confirm.enabled: true`.
+
+[1.18.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.18.0
 
 ## [1.17.5] - 2026-08-24
 

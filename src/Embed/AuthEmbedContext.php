@@ -32,6 +32,7 @@ final readonly class AuthEmbedContext
         public string $registerPanelTemplate,
         public string $authenticatedTemplate,
         public AuthEmbedOptions $options = new AuthEmbedOptions(),
+        public ?string $slideToConfirmMode = null,
     ) {
     }
 
@@ -59,6 +60,7 @@ final readonly class AuthEmbedContext
             'register_panel_template' => $this->registerPanelTemplate,
             'authenticated_template'  => $this->authenticatedTemplate,
             'form_theme'              => $this->options->formTheme,
+            'slide_to_confirm_mode'   => $this->slideToConfirmMode,
         ];
     }
 }

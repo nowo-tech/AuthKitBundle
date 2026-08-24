@@ -1,0 +1,4 @@
+{% if nowo_auth_kit_slide_to_confirm_assets|default(false) %}
+<link rel="stylesheet" href="{{ asset(nowo_slide_to_confirm_asset_path('slide-to-confirm.css'), nowo_slide_to_confirm_asset_package()) }}">
+<script src="{{ asset(nowo_slide_to_confirm_asset_path('slide-to-confirm.js'), nowo_slide_to_confirm_asset_package()) }}" defer></script>
+{% endif %}

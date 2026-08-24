@@ -3,8 +3,9 @@
 ## Table of contents
 
 
-- [From 1.17.4 to 1.17.5](#from-1174-to-1175)
 - [Unreleased](#unreleased)
+- [To 1.18.0](#to-1180)
+- [From 1.17.4 to 1.17.5](#from-1174-to-1175)
 - [To 1.17.4](#to-1174)
 - [To 1.17.3](#to-1173)
 - [To 1.17.2](#to-1172)
@@ -57,6 +58,45 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+No pending upgrade notes.
+
+## To 1.18.0
+
+From **1.17.5** — optional **slide-to-confirm** (`nowo-tech/slide-to-confirm-bundle`, not installed by default). Skip this section unless you want the gesture.
+
+```bash
+composer require nowo-tech/slide-to-confirm-bundle
+php bin/console assets:install
+```
+
+```yaml
+nowo_auth_kit:
+    slide_to_confirm:
+        enabled: true
+        registration_consent: gate
+        qr_login_approve: danger
+    registration_fields:
+        - email
+        - password
+        - terms:
+            type: checkbox
+            slide_to_confirm: true
+```
+
+No change unless you enable it. Login forms are unchanged. The swipe is confirmation UX, not authorization. Existing checkbox / QR submit behaviour is the default.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+## From 1.17.4 to 1.17.5
+
+No application upgrade steps. **Demos:** MySQL env policy (REQ-DEMO-011). **Docs:** PHP-FIG PSR evaluation (REQ-CS-007).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.17.4
 

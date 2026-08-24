@@ -54,6 +54,28 @@ final class FieldConfigNormalizerTest extends TestCase
         self::assertSame('email', $fields[0]['property']);
         self::assertTrue($fields[1]['hash']);
         self::assertSame('fullName', $fields[2]['property']);
+        self::assertTrue($fields[0]['mapped']);
+        self::assertFalse($fields[0]['slide_to_confirm']);
+    }
+
+    public function testNormalizeRegistrationFieldsSlideDefaultsMappedFalse(): void
+    {
+        $fields = FieldConfigNormalizer::normalizeRegistrationFields([
+            'terms' => ['type' => 'checkbox', 'slide_to_confirm' => true],
+        ]);
+
+        self::assertFalse($fields[0]['mapped']);
+        self::assertTrue($fields[0]['slide_to_confirm']);
+    }
+
+    public function testNormalizeRegistrationFieldsSlideProfileAndMappedOverride(): void
+    {
+        $fields = FieldConfigNormalizer::normalizeRegistrationFields([
+            'terms' => ['type' => 'checkbox', 'slide_to_confirm' => 'legal', 'mapped' => true],
+        ]);
+
+        self::assertTrue($fields[0]['mapped']);
+        self::assertSame('legal', $fields[0]['slide_to_confirm']);
     }
 
     public function testNormalizeRegistrationFieldsDefaultTypes(): void

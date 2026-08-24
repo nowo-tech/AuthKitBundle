@@ -30,6 +30,9 @@ qr_login:
         warning: Aprueba solo si iniciaste este acceso en un ordenador de confianza.
         submit: Aprobar
         deny: Denegar
+        slide: Desliza para aprobar este acceso
+        confirmed: Aprobado
+        slide_hint: Completa el deslizamiento solo si iniciaste este acceso en un ordenador de confianza.
 social:
     heading: O continuar con
     continue_with: 'Continuar con %provider%'
@@ -51,6 +54,11 @@ register:
         password: Contraseña
         password_confirm: Confirmar contraseña
         name: Nombre
+        terms: Términos y condiciones
+    slide:
+        unlock: Desliza para aceptar los términos
+        unlocked: Aceptado
+        hint: Desbloquea el botón Registrarse después de leer los términos.
     password:
         mismatch: Las contraseñas deben coincidir.
         required: Introduce una contraseña.

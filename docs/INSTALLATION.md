@@ -36,6 +36,8 @@ Without the password-toggle stack, login/register still work using Symfony’s d
 
 Optional: install `nowo-tech/password-strength-bundle` and set `nowo_auth_kit.password_strength.enabled: true` for strength policies on registration and password-reset fields — see [CONFIGURATION.md](CONFIGURATION.md#password-strength-optional).
 
+Optional: install `nowo-tech/slide-to-confirm-bundle` and set `nowo_auth_kit.slide_to_confirm.enabled: true` for a slide-to-confirm gesture on registration consent and QR login approve — see [CONFIGURATION.md](CONFIGURATION.md#slide-to-confirm-optional). The swipe is confirmation UX, not authorization.
+
 ## Composer
 
 ```bash

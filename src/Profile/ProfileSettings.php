@@ -11,6 +11,7 @@ final readonly class ProfileSettings
      * @param list<array<string, mixed>> $loginFields
      * @param array<string, mixed> $rememberMe
      * @param array<string, mixed> $passwordStrength
+     * @param array{enabled: bool, registration_consent: false|string, qr_login_approve: false|string} $slideToConfirm
      * @param list<array<string, mixed>> $registrationFields
      * @param array<string, mixed> $templates
      * @param array{button_class: string, secondary_button_class: string} $css
@@ -30,6 +31,7 @@ final readonly class ProfileSettings
         public array $loginFields,
         public array $rememberMe,
         public array $passwordStrength,
+        public array $slideToConfirm,
         public array $registrationFields,
         public array $templates,
         public array $css,
@@ -63,6 +65,11 @@ final readonly class ProfileSettings
             loginFields: $config['login_fields'],
             rememberMe: $config['remember_me'],
             passwordStrength: $config['password_strength'],
+            slideToConfirm: $config['slide_to_confirm'] ?? [
+                'enabled'              => false,
+                'registration_consent' => 'gate',
+                'qr_login_approve'     => false,
+            ],
             registrationFields: $config['registration_fields'],
             templates: $config['templates'],
             css: $config['css'],

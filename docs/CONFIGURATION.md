@@ -8,6 +8,7 @@
   - [Login](#login)
   - [Registration](#registration)
   - [Password strength (optional)](#password-strength-optional)
+  - [Slide to confirm (optional)](#slide-to-confirm-optional)
 - [Password reset](#password-reset)
 - [Magic login (passwordless)](#magic-login-passwordless)
 - [Social login (OAuth)](#social-login-oauth)
@@ -112,6 +113,12 @@ nowo_auth_kit:
         enabled: false
         level: medium
         policy_mode: level
+
+    # Optional: nowo-tech/slide-to-confirm-bundle (registration consent + QR approve)
+    slide_to_confirm:
+        enabled: false
+        registration_consent: gate    # profile when a field sets slide_to_confirm: true
+        qr_login_approve: false       # danger | gate | … or false
 
     # Registration form fields (string shorthand or expanded config)
     registration_fields:
@@ -278,7 +285,7 @@ remember_me:
 Each field can be:
 
 - a string (property name equals field name), or
-- an array with `name`, `type` (`text`, `email`, `password`, `checkbox`), `property`, `hash` (default `true` for password), `required`.
+- an array with `name`, `type` (`text`, `email`, `password`, `checkbox`), `property`, `hash` (default `true` for password), `required`, `mapped` (default `true`; `false` when `slide_to_confirm` is set), `slide_to_confirm` (`true` uses `slide_to_confirm.registration_consent`, or a profile name such as `gate` / `legal`).
 
 Password fields use `RepeatedType` with minimum length validation. When `nowo-tech/password-toggle-bundle` is present, the toggle `PasswordType` is used; otherwise Symfony’s default `PasswordType` is used (no hard dependency in the bundle library).
 
@@ -306,6 +313,37 @@ php bin/console assets:install
 ```
 
 Policy details (`levels`, `form_theme`, live feedback) are configured in `nowo_password_strength.yaml` — see [PasswordStrengthBundle](https://github.com/nowo-tech/PasswordStrengthBundle). When both PasswordStrength and PasswordToggle bundles are installed, strength fields automatically use the toggle parent.
+
+### Slide to confirm (optional)
+
+```yaml
+nowo_auth_kit:
+    slide_to_confirm:
+        enabled: true
+        registration_consent: gate   # unlocks the Register button
+        qr_login_approve: danger     # the slide is the QR approve submit
+
+    registration_fields:
+        - email
+        - password
+        - terms:
+            type: checkbox
+            required: true
+            slide_to_confirm: true   # or legal / gate
+```
+
+```bash
+composer require nowo-tech/slide-to-confirm-bundle
+php bin/console assets:install
+```
+
+The bundle is **optional**. If it is not installed, AuthKit keeps a normal checkbox / QR submit button. The default layout loads CSS/JS only when `slide_to_confirm.enabled` is true **and** the package is present.
+
+- **Registration:** `gate` keeps the Register button (disabled until the slide completes). `legal` (and other auto-submit profiles) hide the extra submit — finishing the slide posts the form. Unmapped consent fields are not written to the user entity.
+- **QR approve:** `qr_login_approve: danger` replaces the Approve button with `SwipeToSubmitType`. CSRF is enforced on that form. Step-up (`QrLoginStepUpInterface`) still runs after a valid slide.
+- The gesture is **confirmation UX**, not authorization. Keep CSRF, authentication, and server checks.
+
+See [SlideToConfirmBundle](https://github.com/nowo-tech/SlideToConfirmBundle).
 
 ## Password reset
 

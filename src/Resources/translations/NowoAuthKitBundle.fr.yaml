@@ -30,6 +30,9 @@ qr_login:
         warning: N’approuvez que si vous avez démarré cette connexion sur un ordinateur de confiance.
         submit: Approuver
         deny: Refuser
+        slide: Faites glisser pour approuver cette connexion
+        confirmed: Approuvé
+        slide_hint: Terminez le geste uniquement si vous avez démarré cette connexion sur un ordinateur de confiance.
 register:
     title: Créer un compte
     heading: Créer un compte
@@ -41,6 +44,11 @@ register:
         password: Mot de passe
         password_confirm: Confirmer le mot de passe
         name: Nom
+        terms: Conditions générales
+    slide:
+        unlock: Faites glisser pour accepter les conditions
+        unlocked: Accepté
+        hint: Déverrouillez le bouton S’inscrire après avoir lu les conditions.
     password:
         mismatch: Les mots de passe doivent correspondre.
         required: Veuillez saisir un mot de passe.

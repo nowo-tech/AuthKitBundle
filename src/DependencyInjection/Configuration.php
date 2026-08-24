@@ -42,6 +42,7 @@ final class Configuration implements ConfigurationInterface
         'login_fields',
         'remember_me',
         'password_strength',
+        'slide_to_confirm',
         'registration_fields',
         'templates',
         'css',
@@ -184,8 +185,9 @@ final class Configuration implements ConfigurationInterface
                             ->end()
                             ->append($this->createRememberMeNode())
                             ->append($this->createPasswordStrengthNode())
+                            ->append($this->createSlideToConfirmNode())
                             ->arrayNode('registration_fields')
-                                ->info('Registration form fields. String names or arrays with name, type, property, hash, required.')
+                                ->info('Registration form fields. String names or arrays with name, type, property, hash, required, mapped, slide_to_confirm.')
                                 ->defaultValue(['email', 'password'])
                                 ->prototype('variable')->end()
                             ->end()
@@ -295,6 +297,35 @@ final class Configuration implements ConfigurationInterface
                 ->enumNode('policy_mode')
                     ->values(['level', 'conditions'])
                     ->defaultValue('level')
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createSlideToConfirmNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('slide_to_confirm'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->info('Optional integration with nowo-tech/slide-to-confirm-bundle for registration consent and QR approve.')
+            ->children()
+                ->booleanNode('enabled')
+                    ->info('When true, uses SlideToConfirmType when that bundle is installed and a field/QR option requests it.')
+                    ->defaultFalse()
+                ->end()
+                ->scalarNode('registration_consent')
+                    ->info('SlideToConfirm profile used when a registration field sets slide_to_confirm: true (typically gate).')
+                    ->defaultValue('gate')
+                    ->cannotBeEmpty()
+                ->end()
+                ->variableNode('qr_login_approve')
+                    ->info('SlideToConfirm profile for QR approve (e.g. danger), or false to keep the submit button.')
+                    ->defaultFalse()
+                    ->validate()
+                        ->ifTrue(static fn (mixed $value): bool => $value !== false && (!is_string($value) || $value === ''))
+                        ->thenInvalid('qr_login_approve must be false or a non-empty SlideToConfirm profile name.')
+                    ->end()
                 ->end()
             ->end();
 

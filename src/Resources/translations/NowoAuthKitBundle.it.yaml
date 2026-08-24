@@ -30,6 +30,9 @@ qr_login:
         warning: Approva solo se hai avviato questo accesso su un computer attendibile.
         submit: Approva
         deny: Nega
+        slide: Scorri per approvare questo accesso
+        confirmed: Approvato
+        slide_hint: Completa lo scorrimento solo se hai avviato questo accesso su un computer attendibile.
 register:
     title: Crea account
     heading: Crea account
@@ -41,6 +44,11 @@ register:
         password: Password di accesso
         password_confirm: Conferma password
         name: Nome
+        terms: Termini e condizioni
+    slide:
+        unlock: Scorri per accettare i termini
+        unlocked: Accettato
+        hint: Sblocca il pulsante Registrati dopo aver letto i termini.
     password:
         mismatch: Le password devono coincidere.
         required: Inserisci una password.

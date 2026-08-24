@@ -161,4 +161,53 @@ final class UserRegistrarTest extends TestCase
 
         $registrar->register(['email' => 'late@example.com']);
     }
+
+    public function testRegisterSkipsUnmappedFields(): void
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('count')->willReturn(0);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+        $entityManager->expects(self::once())->method('persist')->with(self::callback(
+            static function (TestUser $user): bool {
+                return $user->getUserIdentifier() === 'user@example.com';
+            },
+        ));
+        $entityManager->expects(self::once())->method('flush');
+
+        $registrar = new UserRegistrar(
+            ProfileRegistryFactory::single(TestUser::class, [
+                'registration_fields' => [[
+                    'name'             => 'email',
+                    'type'             => 'email',
+                    'property'         => 'email',
+                    'hash'             => false,
+                    'required'         => true,
+                    'mapped'           => true,
+                    'slide_to_confirm' => false,
+                    'security_name'    => null,
+                ], [
+                    'name'             => 'terms',
+                    'type'             => 'checkbox',
+                    'property'         => 'terms',
+                    'hash'             => false,
+                    'required'         => true,
+                    'mapped'           => false,
+                    'slide_to_confirm' => true,
+                    'security_name'    => null,
+                ]],
+            ]),
+            $entityManager,
+            $this->createMock(UserPasswordHasherInterface::class),
+            new PropertyAccessor(),
+        );
+
+        $user = $registrar->register([
+            'email' => 'user@example.com',
+            'terms' => true,
+        ]);
+
+        self::assertSame('user@example.com', $user->getUserIdentifier());
+    }
 }

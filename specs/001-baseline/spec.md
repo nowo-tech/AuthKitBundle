@@ -2,15 +2,15 @@
 
 **Feature Branch**: `001-baseline`  
 **Status**: Active  
-**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.17.0+**)  
+**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.18.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **137** units (113 PHP + 24 Resources), audited **2026-08-15**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **142** units (116 PHP + 26 Resources), audited **2026-08-24**
 
 ---
 
 ## Summary
 
-Drop-in Symfony **authentication kit**: login/logout, gated registration, remember-me, password reset (email/code), magic login (request/confirm/check), **QR login** (desktop↔mobile challenge), **OAuth2/OIDC social login** (including enterprise SSO via `enterpriseSso` credentials), embeddable auth chrome, locale-aware routes, outbound-mail readiness gate, attempt limiting hooks, and `ConfigureSecurityCommand` to scaffold firewall YAML.
+Drop-in Symfony **authentication kit**: login/logout, gated registration, remember-me, password reset (email/code), magic login (request/confirm/check), **QR login** (desktop↔mobile challenge), **OAuth2/OIDC social login** (including enterprise SSO via `enterpriseSso` credentials), optional **slide-to-confirm** on registration consent and QR approve, embeddable auth chrome, locale-aware routes, outbound-mail readiness gate, attempt limiting hooks, and `ConfigureSecurityCommand` to scaffold firewall YAML.
 
 ---
 
@@ -52,6 +52,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 **Given** flows that send email (reset / magic), **When** mail is not ready, **Then** `OutboundMailReadyCheckerInterface` (default `AlwaysOutboundMailReadyChecker`) gates sending so hosts can block until Mailer DSN is configured.
 
+### US-10 — Optional slide-to-confirm (P2)
+
+**Given** `nowo-tech/slide-to-confirm-bundle` is optional (`suggest` / `require-dev` only), **When** `slide_to_confirm.enabled` is true and a registration field or QR approve requests a profile, **Then** AuthKit uses `SlideToConfirmType` / `SwipeToSubmitType` with Form CSRF. **When** the package is missing or `enabled` is false, **Then** checkbox / plain QR submit remain. Login forms MUST stay unchanged. The gesture is confirmation UX, not authorization.
+
 ---
 
 ## Requirements
@@ -59,7 +63,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Bundle & config
 
 - **FR-BUNDLE-001**: `NowoAuthKitBundle` alias `nowo_auth_kit`.
-- **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles.
+- **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles, optional `slide_to_confirm`.
 - **FR-CFG-002**: `NowoAuthKitExtension` + `FieldConfigNormalizer`, `RememberMeConfigResolver`; `TwigPathsPass` registers bundle Twig paths.
 
 ### HTTP controllers
@@ -71,6 +75,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 - **FR-FORM-001**: Login, registration, reset form types.
 - **FR-FORM-002**: `PasswordFieldConstraintResolver`, `PasswordFieldTypeResolver`, `PasswordRepeatedFieldBuilder`.
+- **FR-FORM-003**: Registration field `mapped` / `slide_to_confirm`; `UserRegistrar` MUST skip `mapped: false`.
 
 ### Password reset subsystem
 
@@ -84,7 +89,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ### QR login subsystem
 
-- **FR-QR-001**: Gate, challenge manager, user resolver, rate limiter, QR code generators (Endroid + null), step-up interface/null, entities/repos, compiler pass, enums, and controllers (start/show/status/approve/deny/complete) + approve Twig.
+- **FR-QR-001**: Gate, challenge manager, user resolver, rate limiter, QR code generators (Endroid + null), step-up interface/null, entities/repos, compiler pass, enums, and controllers (start/show/status/approve/deny/complete) + approve Twig + optional `QrLoginApproveType`.
 - **FR-QR-002**: Domain events — challenge created, approved, denied, completed.
 
 ### Social / enterprise SSO
@@ -101,6 +106,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-SEC-001**: `RegistrationGate`, `UserRegistrar`, `AuthKitFormLoginParameters`.
 - **FR-SEC-002**: No ApiStudio-style access checker — registration gating only via `RegistrationGate`.
 - **FR-SEC-003**: `AuthKitAttemptLimiter` for pre-auth HTTP throttling hooks (pairs with host LoginThrottle / REQ-THROTTLE patterns).
+- **FR-SEC-004**: `LoginThrottleRequiredPass` fails container compilation when `login_throttle_required` is true and LoginThrottleBundle is not registered.
 
 ### Outbound mail gate
 
@@ -127,6 +133,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-I18N-001**: `NowoAuthKitBundle.{de,en,es,fr,it,nl,pt}.yaml`.
 - **FR-ASSET-001**: Public CSS under `Resources/public/`.
 
+### Optional slide-to-confirm
+
+- **FR-SLIDE-001**: `SlideToConfirmTypeResolver` (`class_exists` fallback); profile `slide_to_confirm.*`; Twig partials `_slide_to_confirm_assets.html.twig` and `_registration_submit.html.twig`; assets loaded only when enabled **and** the package is present. Default `enabled: false`. Swipe is UX, not authorization.
+
 ### CLI
 
 - **FR-CLI-001**: `ConfigureSecurityCommand` outputs firewall recipe.
@@ -135,7 +145,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**137** units as of 2026-08-15).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**142** units as of 2026-08-24).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.

@@ -30,6 +30,9 @@ qr_login:
         warning: Only approve if you started this sign-in on a trusted computer.
         submit: Approve
         deny: Deny
+        slide: Slide to approve this sign-in
+        confirmed: Approved
+        slide_hint: Only finish the slide if you started this sign-in on a trusted computer.
 social:
     heading: Or continue with
     continue_with: 'Continue with %provider%'
@@ -51,6 +54,11 @@ register:
         password: Password
         password_confirm: Confirm password
         name: Name
+        terms: Terms and conditions
+    slide:
+        unlock: Slide to accept the terms
+        unlocked: Accepted
+        hint: Unlock the Register button after you have read the terms.
     password:
         mismatch: The password fields must match.
         required: Please enter a password.

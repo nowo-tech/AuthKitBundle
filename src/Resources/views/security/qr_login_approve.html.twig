@@ -20,10 +20,19 @@
         {{ 'qr_login.approve.warning'|trans({}, 'NowoAuthKitBundle') }}
     </p>
 
+    {% if approve_form is defined and approve_form %}
+        {% if nowo_auth_kit_form_themes is defined and nowo_auth_kit_form_themes is not empty %}
+            {% form_theme approve_form with nowo_auth_kit_form_themes %}
+        {% endif %}
+        {{ form_start(approve_form, {attr: {class: 'nowo-auth-kit__qr-approve-form'}}) }}
+            {{ form_widget(approve_form) }}
+        {{ form_end(approve_form) }}
+    {% else %}
     <form method="post" class="nowo-auth-kit__qr-approve-form">
         <input type="hidden" name="t" value="{{ approve_token }}">
         <button type="submit" class="nowo-auth-kit__button">{{ 'qr_login.approve.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
     </form>
+    {% endif %}
 
     <form method="post" action="{{ path(deny_route, auth_kit_route_params({ id: challenge_id, t: approve_token })) }}">
         <button type="submit" class="nowo-auth-kit__button nowo-auth-kit__button--secondary">{{ 'qr_login.approve.deny'|trans({}, 'NowoAuthKitBundle') }}</button>

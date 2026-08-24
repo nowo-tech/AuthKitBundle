@@ -8,5 +8,5 @@
     {% for field in registration_form %}
         {{ form_row(field, {row_attr: {class: 'mb-0'}}) }}
     {% endfor %}
-    <button type="submit" class="btn btn-primary w-100 mt-1">{{ 'register.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+    {{ include('@NowoAuthKitBundle/_registration_submit.html.twig', {button_class: 'btn btn-primary w-100 mt-1'}) }}
 {{ form_end(registration_form) }}

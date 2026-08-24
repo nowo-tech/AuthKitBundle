@@ -1,0 +1,19 @@
+{% set slide_mode = slide_to_confirm_mode|default(null) %}
+{% if slide_mode is empty or slide_mode == 'gate' %}
+<button type="submit" class="{{ button_class|default(nowo_auth_kit_button_class|default('nowo-auth-kit__button')) }}"{% if slide_mode == 'gate' %} disabled data-gated-submit="1"{% endif %}>{{ 'register.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+{% endif %}
+{% if slide_mode == 'gate' %}
+<script>
+document.addEventListener('nowo-slide-to-confirm:confirmed', function (event) {
+    var host = event.target;
+    if (!(host instanceof HTMLElement)) {
+        return;
+    }
+    var form = host.closest('form');
+    var submit = form ? form.querySelector('[data-gated-submit]') : null;
+    if (submit instanceof HTMLButtonElement) {
+        submit.disabled = false;
+    }
+});
+</script>
+{% endif %}

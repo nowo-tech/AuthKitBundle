@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Nowo\AuthKitBundle\Controller\QrLoginApproveController;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
+use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
@@ -19,6 +20,9 @@ use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PropertyAccess\PropertyAccess;
@@ -26,6 +30,8 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Twig\Environment;
+
+use function array_replace_recursive;
 
 final class QrLoginApproveControllerTest extends TestCase
 {
@@ -76,6 +82,8 @@ final class QrLoginApproveControllerTest extends TestCase
         ?Environment $twig = null,
         ?QrLoginStepUpInterface $stepUp = null,
         ?QrLoginRateLimiter $rateLimiter = null,
+        ?FormFactoryInterface $formFactory = null,
+        ?SlideToConfirmTypeResolver $slideResolver = null,
     ): QrLoginApproveController {
         $overrides = $overrides !== [] ? $overrides : $this->overrides();
 
@@ -91,6 +99,8 @@ final class QrLoginApproveControllerTest extends TestCase
             $stepUp ?? new NullQrLoginStepUp(),
             $tokenStorage ?? new TokenStorage(),
             ProfileRegistryFactory::requestResolver(TestUser::class, $overrides),
+            $formFactory ?? $this->createMock(FormFactoryInterface::class),
+            $slideResolver ?? new SlideToConfirmTypeResolver(static fn (string $class): bool => false),
         );
     }
 
@@ -155,6 +165,16 @@ final class QrLoginApproveControllerTest extends TestCase
             Request::create('/approve', 'GET', ['t' => 'bad']),
             'approve-id',
         );
+        self::assertSame(Response::HTTP_FORBIDDEN, $response->getStatusCode());
+    }
+
+    public function testForbiddenWhenApproveTokenMissing(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->challenge());
+        $manager->method('isExpiredOrInvalid')->willReturn(false);
+
+        $response = $this->controller($manager)->approve(Request::create('/approve'), 'approve-id');
         self::assertSame(Response::HTTP_FORBIDDEN, $response->getStatusCode());
     }
 
@@ -266,5 +286,127 @@ final class QrLoginApproveControllerTest extends TestCase
         )->approve(Request::create('/approve', 'POST', ['t' => 'good-token']), 'approve-id');
 
         self::assertSame(Response::HTTP_FORBIDDEN, $response->getStatusCode());
+    }
+
+    public function testGetRendersSlideFormWhenEnabled(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->challenge());
+        $manager->method('isExpiredOrInvalid')->willReturn(false);
+        $manager->method('verifyApproveToken')->willReturn(true);
+
+        $formView = $this->createMock(FormView::class);
+        $form     = $this->createMock(FormInterface::class);
+        $form->method('createView')->willReturn($formView);
+
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->expects(self::once())->method('create')->willReturn($form);
+
+        $twig = $this->createMock(Environment::class);
+        $twig->expects(self::once())->method('render')->with(
+            '@NowoAuthKitBundle/security/qr_login_approve.html.twig',
+            self::callback(static function (array $vars) use ($formView): bool {
+                return $vars['approve_form'] === $formView && $vars['slide_to_confirm_mode'] === 'danger';
+            }),
+        )->willReturn('<form>slide</form>');
+
+        $response = $this->controller(
+            $manager,
+            $this->slideOverrides(),
+            $this->authenticatedStorage(),
+            $twig,
+            null,
+            null,
+            $formFactory,
+            $this->availableSlideResolver(),
+        )->approve(Request::create('/approve', 'GET', ['t' => 'good-token']), 'approve-id');
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+    }
+
+    public function testPostWithInvalidSlideFormRerenders(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->challenge());
+        $manager->method('isExpiredOrInvalid')->willReturn(false);
+        $manager->method('verifyApproveToken')->willReturn(true);
+        $manager->expects(self::never())->method('approve');
+
+        $formView = $this->createMock(FormView::class);
+        $form     = $this->createMock(FormInterface::class);
+        $form->method('handleRequest');
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(false);
+        $form->method('createView')->willReturn($formView);
+
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $twig = $this->createMock(Environment::class);
+        $twig->method('render')->willReturn('<form>invalid</form>');
+
+        $response = $this->controller(
+            $manager,
+            $this->slideOverrides(),
+            $this->authenticatedStorage(),
+            $twig,
+            null,
+            null,
+            $formFactory,
+            $this->availableSlideResolver(),
+        )->approve(Request::create('/approve', 'POST', ['qr_login_approve' => ['t' => 'good-token']]), 'approve-id');
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertSame('<form>invalid</form>', $response->getContent());
+    }
+
+    public function testPostWithValidSlideFormApproves(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->challenge());
+        $manager->method('isExpiredOrInvalid')->willReturn(false);
+        $manager->method('verifyApproveToken')->willReturn(true);
+        $manager->expects(self::once())->method('approve');
+
+        $form = $this->createMock(FormInterface::class);
+        $form->method('handleRequest');
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $response = $this->controller(
+            $manager,
+            $this->slideOverrides(),
+            $this->authenticatedStorage(),
+            null,
+            null,
+            null,
+            $formFactory,
+            $this->availableSlideResolver(),
+        )->approve(Request::create('/approve', 'POST', ['t' => 'good-token']), 'approve-id');
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertStringContainsString('Approved', (string) $response->getContent());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function slideOverrides(): array
+    {
+        return array_replace_recursive($this->overrides(), [
+            'slide_to_confirm' => [
+                'enabled'              => true,
+                'registration_consent' => 'gate',
+                'qr_login_approve'     => 'danger',
+            ],
+        ]);
+    }
+
+    private function availableSlideResolver(): SlideToConfirmTypeResolver
+    {
+        return new SlideToConfirmTypeResolver(static fn (string $class): bool => true);
     }
 }

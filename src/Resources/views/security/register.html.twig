@@ -17,7 +17,7 @@
         {% for field in registration_form %}
             {{ form_row(field) }}
         {% endfor %}
-        <button type="submit" class="{{ nowo_auth_kit_button_class|default('nowo-auth-kit__button') }}">{{ 'register.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+        {{ include('@NowoAuthKitBundle/_registration_submit.html.twig') }}
     {{ form_end(registration_form) }}
 
     <p class="nowo-auth-kit__footer">

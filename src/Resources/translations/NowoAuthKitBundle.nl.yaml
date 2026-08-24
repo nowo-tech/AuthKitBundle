@@ -30,6 +30,9 @@ qr_login:
         warning: Keur alleen goed als je dit inloggen op een vertrouwde computer bent gestart.
         submit: Goedkeuren
         deny: Weigeren
+        slide: Schuif om dit inloggen goed te keuren
+        confirmed: Goedgekeurd
+        slide_hint: Voltooi de schuif alleen als je dit inloggen op een vertrouwde computer bent gestart.
 register:
     title: Account aanmaken
     heading: Account aanmaken
@@ -41,6 +44,11 @@ register:
         password: Wachtwoord
         password_confirm: Wachtwoord bevestigen
         name: Naam
+        terms: Algemene voorwaarden
+    slide:
+        unlock: Schuif om de voorwaarden te accepteren
+        unlocked: Geaccepteerd
+        hint: Ontgrendel de knop Registreren nadat je de voorwaarden hebt gelezen.
     password:
         mismatch: De wachtwoorden moeten overeenkomen.
         required: Voer een wachtwoord in.

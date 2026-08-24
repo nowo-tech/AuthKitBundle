@@ -14,6 +14,7 @@ Passwordless sign-in where the **desktop** shows a QR challenge and the **phone*
 - [User entity (app-owned phone)](#user-entity-app-owned-phone)
 - [Tables](#tables)
 - [Routes](#routes)
+- [Slide to confirm (optional)](#slide-to-confirm-optional)
 - [Sequence](#sequence)
 - [Services](#services)
 - [Security controls (mandatory)](#security-controls-mandatory)
@@ -187,6 +188,10 @@ Allowed query/path params: opaque `uuid` + high-entropy `t`. **Forbidden in QR:*
 
 QR image via `QrCodeGeneratorInterface` (optional package / Null → show URL + `public_code` only).
 
+## Slide to confirm (optional)
+
+When `slide_to_confirm.enabled` is true, `slide_to_confirm.qr_login_approve` is a profile name (typically `danger`), and `nowo-tech/slide-to-confirm-bundle` is installed, the approve POST uses a Symfony form (`QrLoginApproveType`) with `SwipeToSubmitType` (CSRF + required slide) instead of a plain submit button. Step-up still runs after a valid form. The swipe is confirmation UX, not a replacement for `approve_requires`. Without the package, or with `qr_login_approve: false`, the Approve button is unchanged.
+
 ## Sequence
 
 ```text
@@ -355,11 +360,13 @@ No cards-in-hero marketing; one job: approve this device.
 │  [ Unlock with biometrics / PIN ]   │  ← session_step_up (default)
 │  [ Enter SMS code ______ ]          │  ← only if phone_otp / either
 │                                     │
-│  [ Approve ]     [ Deny ]           │
+│  [ Approve ]     [ Deny ]           │  ← optional swipe replaces Approve
 └─────────────────────────────────────┘
 ```
 
 After approve: “You can close this window. Continue on your computer.”
+
+Optional: with `slide_to_confirm.qr_login_approve` set to a SlideToConfirm profile (typically `danger`), the Approve button is a swipe-to-submit control. Deny stays a separate POST.
 
 Copy must stress: **only approve if you started this login on the device shown**.
 

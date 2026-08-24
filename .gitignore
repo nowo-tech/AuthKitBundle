@@ -13,6 +13,7 @@
 
 # Caches / analysis
 /.php-cs-fixer.cache
+/.twig-cs-fixer.cache
 /.phpstan.cache
 /.phpunit.cache/
 coverage-php.txt

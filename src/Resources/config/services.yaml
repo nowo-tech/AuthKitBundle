@@ -24,6 +24,7 @@ services:
             - '../../Form/PasswordFieldConstraintResolver.php'
             - '../../Form/PasswordRepeatedFieldBuilder.php'
             - '../../Form/PasswordFieldTypeResolver.php'
+            - '../../Form/SlideToConfirmTypeResolver.php'
             - '../../Form/DataTransformer/'
         tags: ['form.type']
 
@@ -39,6 +40,8 @@ services:
     Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver:
         arguments:
             $passwordStrength: '%nowo_auth_kit.password_strength%'
+
+    Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver: ~
 
     Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface:
         alias: Nowo\AuthKitBundle\PasswordReset\NullPasswordResetNotifier
@@ -66,6 +69,7 @@ services:
         arguments:
             $templates: '%nowo_auth_kit.templates%'
             $css: '%nowo_auth_kit.css%'
+            $slideToConfirmAssets: '%nowo_auth_kit.slide_to_confirm_assets%'
         tags:
             - { name: twig.extension }
 

@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
+use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -30,6 +31,7 @@ final class AuthEmbedContextFactory
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RegistrationGate $registrationGate,
         private readonly ProfileRegistry $profileRegistry,
+        private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
     ) {
     }
 
@@ -110,6 +112,10 @@ final class AuthEmbedContextFactory
             registerPanelTemplate: $embed['register_panel'],
             authenticatedTemplate: $embed['authenticated'],
             options: $opts,
+            slideToConfirmMode: $this->slideToConfirmTypeResolver->resolveRegistrationSlideMode(
+                $profile->registrationFields,
+                $profile->slideToConfirm,
+            ),
         );
     }
 

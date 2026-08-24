@@ -30,6 +30,9 @@ qr_login:
         warning: Nur freigeben, wenn Sie diese Anmeldung auf einem vertrauenswürdigen Computer gestartet haben.
         submit: Freigeben
         deny: Ablehnen
+        slide: Schieben Sie, um diese Anmeldung freizugeben
+        confirmed: Freigegeben
+        slide_hint: Schieben Sie nur, wenn Sie diese Anmeldung auf einem vertrauenswürdigen Computer gestartet haben.
 register:
     title: Konto erstellen
     heading: Konto erstellen
@@ -41,6 +44,11 @@ register:
         password: Passwort
         password_confirm: Passwort bestätigen
         name: Name
+        terms: Allgemeine Geschäftsbedingungen
+    slide:
+        unlock: Schieben Sie, um die Bedingungen zu akzeptieren
+        unlocked: Akzeptiert
+        hint: Entsperren Sie die Schaltfläche Registrieren, nachdem Sie die Bedingungen gelesen haben.
     password:
         mismatch: Die Passwörter müssen übereinstimmen.
         required: Bitte geben Sie ein Passwort ein.

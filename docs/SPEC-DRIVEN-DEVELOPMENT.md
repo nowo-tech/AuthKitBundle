@@ -25,10 +25,11 @@ PHPUnit and PHPStan enforce contracts in CI. There is no separate executable spe
 | US-03 | **As an** integrator, **I want** overridable Twig templates and translations **so that** I match my application UI. |
 | US-04 | **As an** integrator, **I want** documented `security.yaml` setup **so that** `form_login` works with bundle routes. |
 | US-05 | **As a** maintainer, **I want** tests and static analysis **so that** regressions are caught in CI. |
+| US-10 | **As an** integrator, **I want** optional slide-to-confirm on registration consent and QR approve **so that** irreversible actions get a gesture without a hard Composer dependency. |
 
 ## Functional scope
 
-**In scope:** configurable user entity/fields, registration modes, login/logout/register routes, password reset (request/code/complete), remember-me, auth embed, locale-aware routing, Twig templates, i18n, `ConfigureSecurityCommand`.
+**In scope:** configurable user entity/fields, registration modes, login/logout/register routes, password reset (request/code/complete), remember-me, auth embed, locale-aware routing, Twig templates, i18n, `ConfigureSecurityCommand`, optional slide-to-confirm (registration consent + QR approve). The full product surface is [`specs/001-baseline/spec.md`](../specs/001-baseline/spec.md).
 
 **Out of scope:** OAuth/OIDC social login, email verification beyond password reset, authorization rules beyond registration role assignment.
 

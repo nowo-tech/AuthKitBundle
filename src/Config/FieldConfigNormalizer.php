@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Config;
 
 use InvalidArgumentException;
 
+use function array_key_exists;
 use function in_array;
 use function is_array;
 use function is_int;
@@ -86,7 +87,7 @@ final class FieldConfigNormalizer
     /**
      * @param array<int|string, array<string, mixed>|string> $fields
      *
-     * @return list<array{name: string, type: string, property: string, hash: bool, required: bool, security_name: null}>
+     * @return list<array{name: string, type: string, property: string, hash: bool, required: bool, mapped: bool, slide_to_confirm: bool|string, security_name: null}>
      */
     public static function normalizeRegistrationFields(array $fields): array
     {
@@ -111,19 +112,38 @@ final class FieldConfigNormalizer
                 throw new InvalidArgumentException(sprintf('Unsupported registration field type "%s".', $type));
             }
 
-            $hash = (bool) ($config['hash'] ?? $type === 'password');
+            $hash   = (bool) ($config['hash'] ?? $type === 'password');
+            $slide  = self::normalizeSlideToConfirm($config['slide_to_confirm'] ?? false);
+            $mapped = array_key_exists('mapped', $config)
+                ? (bool) $config['mapped']
+                : $slide === false;
 
             $normalized[] = [
-                'name'          => $name,
-                'type'          => $type,
-                'property'      => $property,
-                'hash'          => $hash,
-                'required'      => (bool) ($config['required'] ?? true),
-                'security_name' => null,
+                'name'             => $name,
+                'type'             => $type,
+                'property'         => $property,
+                'hash'             => $hash,
+                'required'         => (bool) ($config['required'] ?? true),
+                'mapped'           => $mapped,
+                'slide_to_confirm' => $slide,
+                'security_name'    => null,
             ];
         }
 
         return $normalized;
+    }
+
+    private static function normalizeSlideToConfirm(mixed $value): bool|string
+    {
+        if ($value === true) {
+            return true;
+        }
+
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        return false;
     }
 
     private static function defaultTypeForName(string $name): string

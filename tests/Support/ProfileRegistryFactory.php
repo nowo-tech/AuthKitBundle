@@ -49,6 +49,7 @@ final class ProfileRegistryFactory
             'login_fields'          => FieldConfigNormalizer::normalizeLoginFields(['identifier', 'password'], 'email'),
             'remember_me'           => ['enabled' => false, 'lifetime' => 604800, 'path' => '/'],
             'password_strength'     => ['enabled' => false, 'level' => 'medium', 'policy_mode' => 'level'],
+            'slide_to_confirm'      => ['enabled' => false, 'registration_consent' => 'gate', 'qr_login_approve' => false],
             'registration_fields'   => FieldConfigNormalizer::normalizeRegistrationFields(['email', 'password']),
             'templates'             => [
                 'layout'              => '@NowoAuthKitBundle/layout.html.twig',

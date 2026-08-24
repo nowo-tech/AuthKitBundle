@@ -10,11 +10,15 @@ use Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
+use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\PasswordToggleBundle\Form\Type\PasswordType;
+use Nowo\SlideToConfirmBundle\DependencyInjection\Configuration;
+use Nowo\SlideToConfirmBundle\Form\Type\SlideToConfirmType;
+use Nowo\SlideToConfirmBundle\Profile\SlideToConfirmProfileRegistry;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -25,6 +29,7 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
 use Symfony\Component\Validator\Validation;
 
+use function class_exists;
 use function get_class;
 
 final class FormTypesTest extends TestCase
@@ -214,5 +219,66 @@ final class FormTypesTest extends TestCase
         $form = $this->factory->create(RegistrationFormType::class);
 
         self::assertSame(NowoAuthKitBundle::TRANSLATION_DOMAIN, $form->getConfig()->getOption('translation_domain'));
+    }
+
+    public function testRegistrationFormKeepsCheckboxWhenSlideBundleUnavailable(): void
+    {
+        $resolver = new SlideToConfirmTypeResolver(static fn (string $class): bool => false);
+        $factory  = Forms::createFormFactoryBuilder()
+            ->addExtension(new ValidatorExtension(Validation::createValidator()))
+            ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
+                ProfileRegistryFactory::single(TestUser::class, [
+                    'slide_to_confirm'    => ['enabled' => true, 'registration_consent' => 'gate', 'qr_login_approve' => false],
+                    'registration_fields' => FieldConfigNormalizer::normalizeRegistrationFields([
+                        'terms' => ['type' => 'checkbox', 'slide_to_confirm' => true],
+                    ]),
+                ]),
+                $this->passwordRepeatedFieldBuilder,
+                $resolver,
+            )))
+            ->getFormFactory();
+
+        $field = $factory->create(RegistrationFormType::class)->get('terms');
+
+        self::assertSame(CheckboxType::class, get_class($field->getConfig()->getType()->getInnerType()));
+        self::assertFalse($field->getConfig()->getMapped());
+    }
+
+    public function testRegistrationFormUsesSlideTypeWhenAvailable(): void
+    {
+        if (!class_exists(SlideToConfirmType::class)) {
+            self::markTestSkipped('nowo-tech/slide-to-confirm-bundle is not installed.');
+        }
+
+        $slideType = new SlideToConfirmType(
+            new SlideToConfirmProfileRegistry(
+                'gate',
+                Configuration::builtinProfiles(),
+            ),
+            'NowoSlideToConfirmBundle',
+        );
+
+        $resolver = new SlideToConfirmTypeResolver(static fn (string $class): bool => true);
+        $factory  = Forms::createFormFactoryBuilder()
+            ->addExtension(new ValidatorExtension(Validation::createValidator()))
+            ->addType($slideType)
+            ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
+                ProfileRegistryFactory::single(TestUser::class, [
+                    'slide_to_confirm'    => ['enabled' => true, 'registration_consent' => 'gate', 'qr_login_approve' => false],
+                    'registration_fields' => FieldConfigNormalizer::normalizeRegistrationFields([
+                        'terms' => ['type' => 'checkbox', 'slide_to_confirm' => true],
+                    ]),
+                ]),
+                $this->passwordRepeatedFieldBuilder,
+                $resolver,
+            )))
+            ->getFormFactory();
+
+        $field = $factory->create(RegistrationFormType::class)->get('terms');
+
+        self::assertSame(
+            SlideToConfirmType::class,
+            get_class($field->getConfig()->getType()->getInnerType()),
+        );
     }
 }

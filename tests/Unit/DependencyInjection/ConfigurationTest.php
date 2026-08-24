@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 
 final class ConfigurationTest extends TestCase
@@ -34,6 +35,9 @@ final class ConfigurationTest extends TestCase
         self::assertSame(604800, $config['profiles']['default']['remember_me']['lifetime']);
         self::assertFalse($config['profiles']['default']['password_strength']['enabled']);
         self::assertSame('medium', $config['profiles']['default']['password_strength']['level']);
+        self::assertFalse($config['profiles']['default']['slide_to_confirm']['enabled']);
+        self::assertSame('gate', $config['profiles']['default']['slide_to_confirm']['registration_consent']);
+        self::assertFalse($config['profiles']['default']['slide_to_confirm']['qr_login_approve']);
         self::assertTrue($config['profiles']['default']['embed']['show_login']);
         self::assertTrue($config['profiles']['default']['embed']['show_register']);
         self::assertSame(
@@ -181,6 +185,43 @@ final class ConfigurationTest extends TestCase
         ]]);
 
         self::assertTrue($config['login_throttle_required']);
+    }
+
+    public function testSlideToConfirmCanBeEnabled(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class'       => TestUser::class,
+                    'slide_to_confirm' => [
+                        'enabled'              => true,
+                        'registration_consent' => 'legal',
+                        'qr_login_approve'     => 'danger',
+                    ],
+                ],
+            ],
+        ]]);
+
+        self::assertTrue($config['profiles']['default']['slide_to_confirm']['enabled']);
+        self::assertSame('legal', $config['profiles']['default']['slide_to_confirm']['registration_consent']);
+        self::assertSame('danger', $config['profiles']['default']['slide_to_confirm']['qr_login_approve']);
+    }
+
+    public function testSlideToConfirmQrLoginApproveRejectsInvalidValue(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class'       => TestUser::class,
+                    'slide_to_confirm' => [
+                        'qr_login_approve' => 1,
+                    ],
+                ],
+            ],
+        ]]);
     }
 
     public function testSingleFormThemeStringIsNormalizedToList(): void

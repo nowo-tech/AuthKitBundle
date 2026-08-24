@@ -24,6 +24,7 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Registration | Mass signup, privilege escalation, session fixation | `registration_mode`; `registration_rate_*`; race check for `first_user_only`; configurable `registration_role`; session ID migrated after auto-login |
 | Logout | CSRF | `logout.enable_csrf: true` from `configure-security`; embed link includes CSRF token |
 | Templates | XSS | Twig auto-escaping; apps must not disable escaping in overrides |
+| Slide to confirm (optional) | Crafted POST can still send `confirm=1` | UX only — CSRF, authn, QR step-up, and business rules remain mandatory |
 | Configuration | Wrong entity/field mapping | Validation in `Configuration`; documented `security.yaml` setup |
 
 ## Application responsibilities
@@ -52,20 +53,24 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - Require verified IdP email before social auto-link/create (configurable)
 - Validate custom OAuth endpoint URLs (HTTPS, no private/loopback hosts)
 - No automatic modification of `security.yaml` without explicit CLI command
+- Optional slide-to-confirm is confirmation UX only; QR approve with slide uses Form CSRF (`qr_login_approve`); unmapped registration consent fields are not persisted
 
 ## AI security audit
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-07-30 |
-| Method | Cursor agent static review + remediation pass (`src/`, Twig, SECURITY docs) |
-| Grade | **Pass (conditional)** — overall **Medium** |
+| Date | 2026-08-24 (refresh of 2026-07-30) |
+| Method | Cursor security-review of the 1.18.0 slide-to-confirm delta (`src/`, Twig, Flex recipe, SECURITY docs) plus prior residual model |
+| Grade | **Pass (conditional)** — overall **Medium**; 1.18.0 delta **Low** (no new Critical/High) |
 | Mitigated in 1.10.0 | Unverified-email social auto-link; missing reset/magic/register rate limits; OTP lockout; custom OAuth SSRF; social `PUBLIC_ACCESS`; `first_user_only` race; magic login 500 oracle |
-| Open residuals | Cleartext OAuth secrets/tokens at rest; residual timing side-channels on reset/magic request; do not use logging notifiers in prod |
+| Mitigated in 1.18.0 | QR approve Form CSRF when slide-to-confirm is enabled (`QrLoginApproveType`) |
+| Open residuals | Cleartext OAuth secrets/tokens at rest (encrypt via DoctrineEncrypt); residual timing side-channels on reset/magic request; do not use logging notifiers in prod; CSRF on **plain** QR approve/deny when slide is off (pre-existing) |
 
 See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.com/nowo-tech/bundles/blob/master/BUNDLES_SECURITY_ANALYSIS.md) (AuthKitBundle entry).
 
 ## Release security checklist (12.4.1)
+
+Last completed for **v1.18.0** (2026-08-24). Re-run before the next tag.
 
 Before each release, confirm:
 

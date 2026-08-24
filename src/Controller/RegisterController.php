@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Controller;
 
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
+use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
@@ -38,6 +39,7 @@ final class RegisterController
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly RequestProfileResolver $profileResolver,
         private readonly AuthKitAttemptLimiter $attemptLimiter,
+        private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
     ) {
     }
 
@@ -107,9 +109,13 @@ final class RegisterController
         }
 
         $content = $this->twig->render($profile->templates['register'], [
-            'registration_form' => $form->createView(),
-            'login_route'       => $profile->routes['login']['name'],
-            'layout_template'   => $profile->templates['layout'],
+            'registration_form'     => $form->createView(),
+            'login_route'           => $profile->routes['login']['name'],
+            'layout_template'       => $profile->templates['layout'],
+            'slide_to_confirm_mode' => $this->slideToConfirmTypeResolver->resolveRegistrationSlideMode(
+                $profile->registrationFields,
+                $profile->slideToConfirm,
+            ),
         ]);
 
         return new Response($content);

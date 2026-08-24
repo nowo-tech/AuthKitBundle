@@ -25,6 +25,8 @@ Create files under:
 ```
 templates/bundles/NowoAuthKitBundle/
 ├── layout.html.twig
+├── _slide_to_confirm_assets.html.twig
+├── _registration_submit.html.twig
 └── security/
     ├── login.html.twig
     └── register.html.twig
@@ -56,6 +58,7 @@ Symfony resolves app overrides before bundle defaults.
 | `nowo_auth_kit_button_class` | Default submit button class from profile `css.button_class` |
 | `nowo_auth_kit_secondary_button_class` | Default social button class from profile `css.secondary_button_class` |
 | `nowo_auth_kit_outbound_mail_ready()` | Returns whether outbound email-dependent UI should be shown |
+| `nowo_auth_kit_slide_to_confirm_assets` / `nowo_auth_kit_slide_to_confirm_assets()` | True when slide-to-confirm assets should be loaded |
 
 **Register** (`security/register.html.twig`):
 
@@ -64,6 +67,7 @@ Symfony resolves app overrides before bundle defaults.
 | `registration_form` | Registration form view |
 | `login_route` | Route name for login link |
 | `layout_template` | Parent layout |
+| `slide_to_confirm_mode` | SlideToConfirm profile name when registration consent uses a slider (`gate`, `legal`, …), otherwise unset/null |
 
 ### Custom layout
 
@@ -165,8 +169,9 @@ Symfony uses app translations first; missing keys fall back to the bundle.
 
 1. Guest opens `/register` (or configured path).
 2. `RegistrationGate` checks `registration_mode`.
-3. On valid submit, `UserRegistrar` creates the entity, hashes password fields, assigns `registration_role`, persists.
-4. User is logged in on the configured firewall and redirected to `login_success_route` or login.
+3. On valid submit, `UserRegistrar` creates the entity, hashes password fields, assigns `registration_role`, persists. Fields with `mapped: false` (default for `slide_to_confirm`) are not written to the user entity.
+4. Optional slide-to-confirm on a consent checkbox is UX only — see [CONFIGURATION.md](CONFIGURATION.md#slide-to-confirm-optional).
+5. User is logged in on the configured firewall and redirected to `login_success_route` or login.
 
 ## Login flow
 

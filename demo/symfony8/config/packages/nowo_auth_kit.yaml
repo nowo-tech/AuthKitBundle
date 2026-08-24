@@ -23,3 +23,8 @@ nowo_auth_kit:
         mode: enabled
         lifetime: 600
         max_uses: 1
+    # Optional: composer require nowo-tech/slide-to-confirm-bundle
+    # slide_to_confirm:
+    #     enabled: true
+    #     registration_consent: gate
+    #     qr_login_approve: danger

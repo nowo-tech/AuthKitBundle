@@ -299,6 +299,7 @@ final class AuthEmbedContextFactoryTest extends TestCase
             'register_panel_template' => 'register_tpl',
             'authenticated_template'  => 'auth_tpl',
             'form_theme'              => 'theme',
+            'slide_to_confirm_mode'   => null,
         ], $context->toArray());
     }
 }

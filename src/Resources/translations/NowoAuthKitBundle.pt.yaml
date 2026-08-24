@@ -30,6 +30,9 @@ qr_login:
         warning: Aprove apenas se iniciou este início de sessão num computador de confiança.
         submit: Aprovar
         deny: Negar
+        slide: Deslize para aprovar este início de sessão
+        confirmed: Aprovado
+        slide_hint: Conclua o deslize apenas se iniciou este início de sessão num computador de confiança.
 register:
     title: Criar conta
     heading: Criar conta
@@ -41,6 +44,11 @@ register:
         password: Palavra-passe
         password_confirm: Confirmar palavra-passe
         name: Nome
+        terms: Termos e condições
+    slide:
+        unlock: Deslize para aceitar os termos
+        unlocked: Aceite
+        hint: Desbloqueie o botão Registar depois de ler os termos.
     password:
         mismatch: As palavras-passe devem coincidir.
         required: Introduza uma palavra-passe.

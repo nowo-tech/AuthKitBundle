@@ -50,6 +50,10 @@ final class UserRegistrar
         $user = new ($profile->userClass)();
 
         foreach ($profile->registrationFields as $field) {
+            if (($field['mapped'] ?? true) === false) {
+                continue;
+            }
+
             $value = $formData[$field['name']] ?? null;
 
             if ($field['hash'] && is_string($value)) {

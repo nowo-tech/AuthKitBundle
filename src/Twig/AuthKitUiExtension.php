@@ -9,6 +9,7 @@ use Twig\Extension\AbstractExtension;
 use Twig\Extension\GlobalsInterface;
 use Twig\TwigFunction;
 
+use function class_exists;
 use function is_array;
 
 /**
@@ -24,6 +25,7 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
         private readonly array $templates,
         private readonly array $css,
         private readonly OutboundMailReadyCheckerInterface $outboundMailReadyChecker,
+        private readonly bool $slideToConfirmAssets = false,
     ) {
     }
 
@@ -38,9 +40,10 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
             : ['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'];
 
         return [
-            'nowo_auth_kit_form_themes'            => $formThemes,
-            'nowo_auth_kit_button_class'           => $this->css['button_class'] ?? 'nowo-auth-kit__button',
-            'nowo_auth_kit_secondary_button_class' => $this->css['secondary_button_class'] ?? 'nowo-auth-kit__social-button',
+            'nowo_auth_kit_form_themes'             => $formThemes,
+            'nowo_auth_kit_button_class'            => $this->css['button_class'] ?? 'nowo-auth-kit__button',
+            'nowo_auth_kit_secondary_button_class'  => $this->css['secondary_button_class'] ?? 'nowo-auth-kit__social-button',
+            'nowo_auth_kit_slide_to_confirm_assets' => $this->shouldLoadSlideToConfirmAssets(),
         ];
     }
 
@@ -48,11 +51,18 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
     {
         return [
             new TwigFunction('nowo_auth_kit_outbound_mail_ready', $this->isOutboundMailReady(...)),
+            new TwigFunction('nowo_auth_kit_slide_to_confirm_assets', $this->shouldLoadSlideToConfirmAssets(...)),
         ];
     }
 
     public function isOutboundMailReady(): bool
     {
         return $this->outboundMailReadyChecker->isReady();
+    }
+
+    public function shouldLoadSlideToConfirmAssets(): bool
+    {
+        return $this->slideToConfirmAssets
+            && class_exists('Nowo\\SlideToConfirmBundle\\Twig\\NowoSlideToConfirmTwigExtension');
     }
 }

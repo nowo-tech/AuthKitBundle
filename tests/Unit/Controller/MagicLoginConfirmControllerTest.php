@@ -189,7 +189,6 @@ final class MagicLoginConfirmControllerTest extends TestCase
             profileRegistry: ProfileRegistryFactory::single(TestUser::class, [
                 'magic_login' => ['mode' => 'enabled', 'confirm_interstitial' => true],
             ]),
-            loginLinkHandler: null,
             csrfValid: true,
             logger: $logger,
         );

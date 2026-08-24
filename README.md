@@ -25,6 +25,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - **Locale in URL paths** (`/en/login`, `/es/register`, …)
 - **Remember me** (optional persistent login cookie)
 - **Password strength** (optional integration with `nowo-tech/password-strength-bundle`)
+- **Slide to confirm** (optional integration with `nowo-tech/slide-to-confirm-bundle` for registration consent and QR approve)
 - Registration modes: disabled, first user only, always open
 - **Named profiles** — separate auth config per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates

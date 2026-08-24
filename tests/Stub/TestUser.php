@@ -10,7 +10,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 final class TestUser implements UserInterface, PasswordAuthenticatedUserInterface
 {
-    private string $email = '';
+    private string $email;
 
     private string $password = '';
 

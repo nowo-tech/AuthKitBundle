@@ -75,6 +75,27 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertTrue($this->container->getParameter('nowo_auth_kit.login_throttle_required'));
     }
 
+    public function testLoadSetsSlideToConfirmAssetsWhenEnabled(): void
+    {
+        $this->extension->load([[
+            'user_class'       => 'App\\Entity\\User',
+            'slide_to_confirm' => ['enabled' => true, 'qr_login_approve' => 'danger'],
+        ]], $this->container);
+
+        self::assertTrue($this->container->getParameter('nowo_auth_kit.slide_to_confirm_assets'));
+        $slide = $this->container->getParameter('nowo_auth_kit.slide_to_confirm');
+        self::assertIsArray($slide);
+        self::assertTrue($slide['enabled']);
+        self::assertSame('danger', $slide['qr_login_approve']);
+    }
+
+    public function testLoadSetsSlideToConfirmAssetsFalseByDefault(): void
+    {
+        $this->extension->load([['user_class' => 'App\\Entity\\User']], $this->container);
+
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.slide_to_confirm_assets'));
+    }
+
     public function testLoadRejectsUnknownDefaultProfile(): void
     {
         $this->expectException(InvalidArgumentException::class);
