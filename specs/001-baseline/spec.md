@@ -2,15 +2,15 @@
 
 **Feature Branch**: `001-baseline`  
 **Status**: Active  
-**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.18.0+**)  
+**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.19.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **142** units (116 PHP + 26 Resources), audited **2026-08-24**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **149** units (122 PHP + 27 Resources), audited **2026-08-24**
 
 ---
 
 ## Summary
 
-Drop-in Symfony **authentication kit**: login/logout, gated registration, remember-me, password reset (email/code), magic login (request/confirm/check), **QR login** (desktop↔mobile challenge), **OAuth2/OIDC social login** (including enterprise SSO via `enterpriseSso` credentials), optional **slide-to-confirm** on registration consent and QR approve, embeddable auth chrome, locale-aware routes, outbound-mail readiness gate, attempt limiting hooks, and `ConfigureSecurityCommand` to scaffold firewall YAML.
+Drop-in Symfony **authentication kit**: login/logout, gated registration, remember-me, password reset (email/code), magic login (request/confirm/check), **QR login** (desktop↔mobile challenge), **OAuth2/OIDC social login** (including enterprise SSO via `enterpriseSso` credentials), optional **slide-to-confirm** on registration consent and QR approve, optional **device intelligence** (collect on auth pages, new-device notify, device-keyed rate limits, QR trusted-device step-up), embeddable auth chrome, locale-aware routes, outbound-mail readiness gate, attempt limiting hooks, and `ConfigureSecurityCommand` to scaffold firewall YAML.
 
 ---
 
@@ -56,6 +56,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 **Given** `nowo-tech/slide-to-confirm-bundle` is optional (`suggest` / `require-dev` only), **When** `slide_to_confirm.enabled` is true and a registration field or QR approve requests a profile, **Then** AuthKit uses `SlideToConfirmType` / `SwipeToSubmitType` with Form CSRF. **When** the package is missing or `enabled` is false, **Then** checkbox / plain QR submit remain. Login forms MUST stay unchanged. The gesture is confirmation UX, not authorization.
 
+### US-11 — Optional device intelligence (P2)
+
+**Given** `nowo-tech/device-intelligence-bundle` is optional (`suggest` only; **not** `require-dev` because that package requires PHP 8.3+), **When** `device_intelligence.enabled` is true and the package is installed, **Then** AuthKit may load collect JS on auth layouts, notify on new-device `LoginSuccess`, extra-limit by device ULID, and require a trusted device on QR approve. **When** the package is missing or `enabled` is false, **Then** AuthKit behaviour is unchanged. Device ID MUST NOT be a credential. Login forms, LoginThrottle, CSRF, and remember-me MUST stay unchanged. AuthKit MUST NOT auto-`trust()` a device after login. Missing observation on `device_rate_limit` MUST be a no-op.
+
 ---
 
 ## Requirements
@@ -63,7 +67,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Bundle & config
 
 - **FR-BUNDLE-001**: `NowoAuthKitBundle` alias `nowo_auth_kit`.
-- **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles, optional `slide_to_confirm`.
+- **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles, optional `slide_to_confirm`, optional `device_intelligence`.
 - **FR-CFG-002**: `NowoAuthKitExtension` + `FieldConfigNormalizer`, `RememberMeConfigResolver`; `TwigPathsPass` registers bundle Twig paths.
 
 ### HTTP controllers
@@ -137,6 +141,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 - **FR-SLIDE-001**: `SlideToConfirmTypeResolver` (`class_exists` fallback); profile `slide_to_confirm.*`; Twig partials `_slide_to_confirm_assets.html.twig` and `_registration_submit.html.twig`; assets loaded only when enabled **and** the package is present. Default `enabled: false`. Swipe is UX, not authorization.
 
+### Optional device intelligence
+
+- **FR-DIINTEL-001**: Duck-typed bridge (`DeviceIntelligenceContext`, `class_exists` / injectable `Closure`); never imports DeviceIntelligence classes so AuthKit stays PHP 8.2. Profile `device_intelligence.*` default `enabled: false`. Assets `_device_intelligence_assets.html.twig` only when enabled **and** the package is present. `NewDeviceLoginSubscriber` + `NewDeviceLoginNotifierInterface` (default null) on `isNew()` after `LoginSuccess` — session flag only, no auto-trust. Extra limiter consume by device ULID is a no-op without observation. `DeviceIntelligenceQrLoginStepUp` decorates `QrLoginStepUpInterface` for opt-in trusted-device QR approve; `NullQrLoginStepUp` is skipped when that check passes, a custom inner still runs. Device ID is not a credential.
+
 ### CLI
 
 - **FR-CLI-001**: `ConfigureSecurityCommand` outputs firewall recipe.
@@ -145,7 +153,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**142** units as of 2026-08-24).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**149** units as of 2026-08-24).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.

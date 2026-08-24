@@ -26,6 +26,8 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
         private readonly array $css,
         private readonly OutboundMailReadyCheckerInterface $outboundMailReadyChecker,
         private readonly bool $slideToConfirmAssets = false,
+        private readonly bool $deviceIntelligenceAssets = false,
+        private readonly string $deviceIntelligenceCollectEndpoint = '/_device/collect',
     ) {
     }
 
@@ -40,10 +42,12 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
             : ['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'];
 
         return [
-            'nowo_auth_kit_form_themes'             => $formThemes,
-            'nowo_auth_kit_button_class'            => $this->css['button_class'] ?? 'nowo-auth-kit__button',
-            'nowo_auth_kit_secondary_button_class'  => $this->css['secondary_button_class'] ?? 'nowo-auth-kit__social-button',
-            'nowo_auth_kit_slide_to_confirm_assets' => $this->shouldLoadSlideToConfirmAssets(),
+            'nowo_auth_kit_form_themes'                          => $formThemes,
+            'nowo_auth_kit_button_class'                         => $this->css['button_class'] ?? 'nowo-auth-kit__button',
+            'nowo_auth_kit_secondary_button_class'               => $this->css['secondary_button_class'] ?? 'nowo-auth-kit__social-button',
+            'nowo_auth_kit_slide_to_confirm_assets'              => $this->shouldLoadSlideToConfirmAssets(),
+            'nowo_auth_kit_device_intelligence_assets'           => $this->shouldLoadDeviceIntelligenceAssets(),
+            'nowo_auth_kit_device_intelligence_collect_endpoint' => $this->deviceIntelligenceCollectEndpoint,
         ];
     }
 
@@ -52,6 +56,7 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
         return [
             new TwigFunction('nowo_auth_kit_outbound_mail_ready', $this->isOutboundMailReady(...)),
             new TwigFunction('nowo_auth_kit_slide_to_confirm_assets', $this->shouldLoadSlideToConfirmAssets(...)),
+            new TwigFunction('nowo_auth_kit_device_intelligence_assets', $this->shouldLoadDeviceIntelligenceAssets(...)),
         ];
     }
 
@@ -64,5 +69,11 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
     {
         return $this->slideToConfirmAssets
             && class_exists('Nowo\\SlideToConfirmBundle\\Twig\\NowoSlideToConfirmTwigExtension');
+    }
+
+    public function shouldLoadDeviceIntelligenceAssets(): bool
+    {
+        return $this->deviceIntelligenceAssets
+            && class_exists('Nowo\\DeviceIntelligenceBundle\\Request\\DeviceContext');
     }
 }

@@ -53,6 +53,12 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.password_strength', $defaultProfile['password_strength']);
         $container->setParameter('nowo_auth_kit.slide_to_confirm', $defaultProfile['slide_to_confirm']);
         $container->setParameter('nowo_auth_kit.slide_to_confirm_assets', $this->anySlideToConfirmEnabled($profiles));
+        $container->setParameter('nowo_auth_kit.device_intelligence', $defaultProfile['device_intelligence']);
+        $container->setParameter('nowo_auth_kit.device_intelligence_assets', $this->anyDeviceIntelligenceAssets($profiles));
+        $container->setParameter(
+            'nowo_auth_kit.device_intelligence_collect_endpoint',
+            $defaultProfile['device_intelligence']['collect_endpoint'],
+        );
         $container->setParameter('nowo_auth_kit.registration_fields', $defaultProfile['registration_fields']);
         $container->setParameter('nowo_auth_kit.templates', $defaultProfile['templates']);
         $container->setParameter('nowo_auth_kit.css', $defaultProfile['css']);
@@ -268,6 +274,21 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     {
         foreach ($profiles as $profile) {
             if (($profile['slide_to_confirm']['enabled'] ?? false) === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function anyDeviceIntelligenceAssets(array $profiles): bool
+    {
+        foreach ($profiles as $profile) {
+            $config = $profile['device_intelligence'] ?? [];
+            if (($config['enabled'] ?? false) === true && ($config['collect_on_auth_pages'] ?? true) === true) {
                 return true;
             }
         }

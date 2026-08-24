@@ -26,6 +26,7 @@ Create files under:
 templates/bundles/NowoAuthKitBundle/
 ├── layout.html.twig
 ├── _slide_to_confirm_assets.html.twig
+├── _device_intelligence_assets.html.twig
 ├── _registration_submit.html.twig
 └── security/
     ├── login.html.twig
@@ -59,6 +60,8 @@ Symfony resolves app overrides before bundle defaults.
 | `nowo_auth_kit_secondary_button_class` | Default social button class from profile `css.secondary_button_class` |
 | `nowo_auth_kit_outbound_mail_ready()` | Returns whether outbound email-dependent UI should be shown |
 | `nowo_auth_kit_slide_to_confirm_assets` / `nowo_auth_kit_slide_to_confirm_assets()` | True when slide-to-confirm assets should be loaded |
+| `nowo_auth_kit_device_intelligence_assets` / `nowo_auth_kit_device_intelligence_assets()` | True when Device Intelligence collect JS should be loaded |
+| `nowo_auth_kit_device_intelligence_collect_endpoint` | POST path for `collect()` (default `/_device/collect`) |
 
 **Register** (`security/register.html.twig`):
 
@@ -171,13 +174,15 @@ Symfony uses app translations first; missing keys fall back to the bundle.
 2. `RegistrationGate` checks `registration_mode`.
 3. On valid submit, `UserRegistrar` creates the entity, hashes password fields, assigns `registration_role`, persists. Fields with `mapped: false` (default for `slide_to_confirm`) are not written to the user entity.
 4. Optional slide-to-confirm on a consent checkbox is UX only — see [CONFIGURATION.md](CONFIGURATION.md#slide-to-confirm-optional).
-5. User is logged in on the configured firewall and redirected to `login_success_route` or login.
+5. Optional device intelligence (`device_rate_limit`) adds an extra limiter key by device ULID after a successful `collect()` — see [CONFIGURATION.md](CONFIGURATION.md#device-intelligence-optional).
+6. User is logged in on the configured firewall and redirected to `login_success_route` or login.
 
 ## Login flow
 
 1. Guest opens `/login`.
 2. Controller renders the form; POST is handled by Symfony `form_login` on the firewall.
 3. CSRF token id: `authenticate` (Symfony default).
+4. Optional device intelligence: layout `collect()` does not change the login form. After `LoginSuccess`, `new_device_notify` may set session `nowo_auth_kit.new_device` and call `NewDeviceLoginNotifierInterface`. Device ID is not a credential.
 
 ## Embedded login/register (dropdown)
 

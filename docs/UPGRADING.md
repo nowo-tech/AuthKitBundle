@@ -4,6 +4,7 @@
 
 
 - [Unreleased](#unreleased)
+- [To 1.19.0](#to-1190)
 - [To 1.18.0](#to-1180)
 - [From 1.17.4 to 1.17.5](#from-1174-to-1175)
 - [To 1.17.4](#to-1174)
@@ -60,6 +61,33 @@
 ## Unreleased
 
 No pending upgrade notes.
+
+## To 1.19.0
+
+From **1.18.0** — optional **device intelligence** (`nowo-tech/device-intelligence-bundle`). Skip this section unless you want device observation on AuthKit pages. Requires **PHP 8.3+**. The package is **not** a Composer `require` / `require-dev` of AuthKit.
+
+```bash
+composer require nowo-tech/device-intelligence-bundle
+php bin/console assets:install
+```
+
+```yaml
+nowo_auth_kit:
+    device_intelligence:
+        enabled: true
+        collect_on_auth_pages: true
+        collect_endpoint: /_device/collect
+        new_device_notify: true
+        device_rate_limit: true
+        qr_login:
+            approve_require_trusted: true
+```
+
+Implement `NewDeviceLoginNotifierInterface` (mail/SMS) if `new_device_notify` is true; the default is a no-op. Device ID is **not** a credential: login, CSRF, LoginThrottle, and remember-me stay unchanged. AuthKit never auto-`trust()`s a device after login. QR `approve_require_trusted` skips default `NullQrLoginStepUp`; a custom `QrLoginStepUpInterface` still runs after the trusted-device check.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.18.0
 

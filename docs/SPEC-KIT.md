@@ -201,7 +201,7 @@ find src -type f ! -path '*/assets/dist/*' ! -name '*.test.ts' | wc -l
 
 The **Total production sources** row in `code-inventory.md` must match this count.
 
-In **AuthKitBundle**, the baseline inventory covers **142/142** production units (**116** PHP + **26** Resources under `src/`) as of **2026-08-24** — see [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md).
+In **AuthKitBundle**, the baseline inventory covers **149/149** production units (**122** PHP + **27** Resources under `src/`) as of **2026-08-24** — see [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md).
 
 ---
 

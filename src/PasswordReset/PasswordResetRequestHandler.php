@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\PasswordReset;
 
+use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -28,6 +29,7 @@ final class PasswordResetRequestHandler
         private readonly ProfileRegistry $profileRegistry,
         private readonly AuthKitAttemptLimiter $attemptLimiter,
         private readonly RequestStack $requestStack,
+        private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
     ) {
     }
 
@@ -37,12 +39,23 @@ final class PasswordResetRequestHandler
             ? $this->profileRegistry->getByName($profileName)
             : $this->profileRegistry->getDefault();
 
-        $limit  = (int) ($profile->passwordReset['request_rate_limit'] ?? 5);
-        $window = (int) ($profile->passwordReset['request_rate_window'] ?? 900);
-        $client = $this->requestStack->getCurrentRequest()?->getClientIp() ?? 'unknown';
-        $key    = 'reset_request:' . $profile->name . ':' . $client;
+        $limit   = (int) ($profile->passwordReset['request_rate_limit'] ?? 5);
+        $window  = (int) ($profile->passwordReset['request_rate_window'] ?? 900);
+        $request = $this->requestStack->getCurrentRequest();
+        $client  = $request?->getClientIp() ?? 'unknown';
+        $key     = 'reset_request:' . $profile->name . ':' . $client;
 
-        if (!$this->attemptLimiter->consume($key, $limit, $window)) {
+        if (!$this->attemptLimiter->consume($key, $limit, $window)
+            || !$this->deviceIntelligence->consumeDeviceRateLimit(
+                $request,
+                $this->attemptLimiter,
+                $profile->deviceIntelligence,
+                'reset_request',
+                $profile->name,
+                $limit,
+                $window,
+            )
+        ) {
             return;
         }
 

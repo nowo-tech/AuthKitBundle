@@ -1,0 +1,14 @@
+{% if nowo_auth_kit_device_intelligence_assets|default(false) %}
+<script src="{{ asset('js/device-intelligence.min.js', 'nowo_device_intelligence') }}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof DeviceIntelligence !== 'function') {
+        return;
+    }
+    new DeviceIntelligence({
+        endpoint: '{{ nowo_auth_kit_device_intelligence_collect_endpoint|default('/_device/collect')|e('js') }}',
+        timeout: 8000
+    }).collect();
+});
+</script>
+{% endif %}

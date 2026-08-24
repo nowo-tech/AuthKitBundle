@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\MagicLogin;
 
 use DateTimeImmutable;
+use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Psr\Log\LoggerInterface;
@@ -34,6 +35,7 @@ final class MagicLoginRequestHandler
         private readonly AuthKitAttemptLimiter $attemptLimiter,
         private readonly ?LoginLinkHandlerInterface $loginLinkHandler = null,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
     ) {
     }
 
@@ -43,12 +45,23 @@ final class MagicLoginRequestHandler
             ? $this->profileRegistry->getByName($profileName)
             : $this->profileRegistry->getDefault();
 
-        $limit  = (int) ($profile->magicLogin['request_rate_limit'] ?? 5);
-        $window = (int) ($profile->magicLogin['request_rate_window'] ?? 900);
-        $client = $this->requestStack->getCurrentRequest()?->getClientIp() ?? 'unknown';
-        $key    = 'magic_request:' . $profile->name . ':' . $client;
+        $limit   = (int) ($profile->magicLogin['request_rate_limit'] ?? 5);
+        $window  = (int) ($profile->magicLogin['request_rate_window'] ?? 900);
+        $request = $this->requestStack->getCurrentRequest();
+        $client  = $request?->getClientIp() ?? 'unknown';
+        $key     = 'magic_request:' . $profile->name . ':' . $client;
 
-        if (!$this->attemptLimiter->consume($key, $limit, $window)) {
+        if (!$this->attemptLimiter->consume($key, $limit, $window)
+            || !$this->deviceIntelligence->consumeDeviceRateLimit(
+                $request,
+                $this->attemptLimiter,
+                $profile->deviceIntelligence,
+                'magic_request',
+                $profile->name,
+                $limit,
+                $window,
+            )
+        ) {
             return;
         }
 
@@ -73,7 +86,6 @@ final class MagicLoginRequestHandler
             ? $profile->magicLogin['lifetime']
             : null;
 
-        $request = $this->requestStack->getCurrentRequest();
         $details = $this->loginLinkHandler->createLoginLink($user, $request instanceof Request ? $request : null, $lifetime);
         $expires = DateTimeImmutable::createFromInterface($details->getExpiresAt());
 

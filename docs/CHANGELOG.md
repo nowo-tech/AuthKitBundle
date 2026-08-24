@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.19.0] - 2026-08-24](#1190-2026-08-24)
 - [[1.18.0] - 2026-08-24](#1180-2026-08-24)
 - [[1.17.5] - 2026-08-24](#1175-2026-08-24)
 - [[1.17.4] - 2026-08-20](#1174-2026-08-20)
@@ -121,6 +122,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.19.0] - 2026-08-24
+
+### Added
+
+- Optional **device intelligence** integration with `nowo-tech/device-intelligence-bundle` (`suggest` only — **not** `require` / `require-dev`; that package needs PHP 8.3+ while AuthKit CI stays on 8.2):
+  - Profile keys `device_intelligence.enabled` (default `false`), `collect_on_auth_pages` (default `true`), `collect_endpoint` (default `/_device/collect`), `new_device_notify` (default `false`), `device_rate_limit` (default `false`), `qr_login.approve_require_trusted` (default `false`).
+  - Layout partial `_device_intelligence_assets.html.twig` calls `collect()` when enabled **and** Device Intelligence is installed.
+  - After `LoginSuccess`, optional session flag `nowo_auth_kit.new_device` + `NewDeviceLoginNotifierInterface` (default no-op) when the observed cluster is new. Does **not** auto-`trust()`.
+  - Extra `AuthKitAttemptLimiter` consume keyed by device ULID on register / password-reset request / magic-login request when `device_rate_limit` is true. Missing observation is a no-op.
+  - QR approve: `DeviceIntelligenceQrLoginStepUp` decorates `QrLoginStepUpInterface`; when `approve_require_trusted` is true and the bundle is present, requires `_device` + `isTrusted()`. Default `NullQrLoginStepUp` is skipped so it does not throw; a custom inner still runs. Device ID is **not** a credential.
+
+### Changed
+
+- Spec Kit baseline inventory **149/149** (`122` PHP + `27` Resources), including device-intelligence units.
+
+### Security
+
+- REQ-SEC-004 re-audit of the 1.19.0 HTTP surface: overall **Pass (conditional)** / **Medium**; this delta **Low** (no new Critical/High). Device ID is not a credential. Login forms, CSRF, LoginThrottle, and remember-me are unchanged. AuthKit never auto-`trust()`s after login.
+
+### Notes
+
+- No application change unless you install the optional package (PHP 8.3+) and set `device_intelligence.enabled: true`. Login forms and remember-me are unchanged.
+
+[1.19.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.19.0
 
 ## [1.18.0] - 2026-08-24
 

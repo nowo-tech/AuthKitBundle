@@ -23,8 +23,15 @@ nowo_auth_kit:
         mode: enabled
         lifetime: 600
         max_uses: 1
-    # Optional: composer require nowo-tech/slide-to-confirm-bundle
+    # Optional: composer require nowo-tech/slide-to-confirm-bundle (PHP 8.2+)
     # slide_to_confirm:
     #     enabled: true
     #     registration_consent: gate
     #     qr_login_approve: danger
+    # Optional: composer require nowo-tech/device-intelligence-bundle (PHP 8.3+)
+    # device_intelligence:
+    #     enabled: true
+    #     new_device_notify: true
+    #     device_rate_limit: true
+    #     qr_login:
+    #         approve_require_trusted: true

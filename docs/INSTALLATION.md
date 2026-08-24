@@ -38,6 +38,8 @@ Optional: install `nowo-tech/password-strength-bundle` and set `nowo_auth_kit.pa
 
 Optional: install `nowo-tech/slide-to-confirm-bundle` and set `nowo_auth_kit.slide_to_confirm.enabled: true` for a slide-to-confirm gesture on registration consent and QR login approve — see [CONFIGURATION.md](CONFIGURATION.md#slide-to-confirm-optional). The swipe is confirmation UX, not authorization.
 
+Optional: install `nowo-tech/device-intelligence-bundle` (**PHP 8.3+**) and set `nowo_auth_kit.device_intelligence.enabled: true` for device observation on auth pages, optional new-device notify, extra device-keyed rate limits, and QR trusted-device step-up — see [CONFIGURATION.md](CONFIGURATION.md#device-intelligence-optional). Device ID is not a credential. AuthKit does **not** `require` that package (PHP 8.2 hosts stay compatible).
+
 ## Composer
 
 ```bash

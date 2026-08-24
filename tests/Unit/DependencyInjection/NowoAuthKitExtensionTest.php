@@ -94,6 +94,35 @@ final class NowoAuthKitExtensionTest extends TestCase
         $this->extension->load([['user_class' => 'App\\Entity\\User']], $this->container);
 
         self::assertFalse($this->container->getParameter('nowo_auth_kit.slide_to_confirm_assets'));
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.device_intelligence_assets'));
+    }
+
+    public function testLoadSetsDeviceIntelligenceAssetsWhenEnabled(): void
+    {
+        $this->extension->load([[
+            'user_class'          => 'App\\Entity\\User',
+            'device_intelligence' => ['enabled' => true, 'new_device_notify' => true],
+        ]], $this->container);
+
+        self::assertTrue($this->container->getParameter('nowo_auth_kit.device_intelligence_assets'));
+        $config = $this->container->getParameter('nowo_auth_kit.device_intelligence');
+        self::assertIsArray($config);
+        self::assertTrue($config['enabled']);
+        self::assertTrue($config['new_device_notify']);
+        self::assertSame('/_device/collect', $this->container->getParameter('nowo_auth_kit.device_intelligence_collect_endpoint'));
+    }
+
+    public function testLoadSkipsDeviceIntelligenceAssetsWhenCollectDisabled(): void
+    {
+        $this->extension->load([[
+            'user_class'          => 'App\\Entity\\User',
+            'device_intelligence' => [
+                'enabled'               => true,
+                'collect_on_auth_pages' => false,
+            ],
+        ]], $this->container);
+
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.device_intelligence_assets'));
     }
 
     public function testLoadRejectsUnknownDefaultProfile(): void

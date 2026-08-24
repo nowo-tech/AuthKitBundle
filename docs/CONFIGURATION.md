@@ -9,6 +9,7 @@
   - [Registration](#registration)
   - [Password strength (optional)](#password-strength-optional)
   - [Slide to confirm (optional)](#slide-to-confirm-optional)
+  - [Device intelligence (optional)](#device-intelligence-optional)
 - [Password reset](#password-reset)
 - [Magic login (passwordless)](#magic-login-passwordless)
 - [Social login (OAuth)](#social-login-oauth)
@@ -119,6 +120,16 @@ nowo_auth_kit:
         enabled: false
         registration_consent: gate    # profile when a field sets slide_to_confirm: true
         qr_login_approve: false       # danger | gate | … or false
+
+    # Optional: nowo-tech/device-intelligence-bundle (PHP 8.3+; Device ID is not a credential)
+    device_intelligence:
+        enabled: false
+        collect_on_auth_pages: true
+        collect_endpoint: /_device/collect
+        new_device_notify: false
+        device_rate_limit: false
+        qr_login:
+            approve_require_trusted: false
 
     # Registration form fields (string shorthand or expanded config)
     registration_fields:
@@ -344,6 +355,39 @@ The bundle is **optional**. If it is not installed, AuthKit keeps a normal check
 - The gesture is **confirmation UX**, not authorization. Keep CSRF, authentication, and server checks.
 
 See [SlideToConfirmBundle](https://github.com/nowo-tech/SlideToConfirmBundle).
+
+### Device intelligence (optional)
+
+```yaml
+nowo_auth_kit:
+    device_intelligence:
+        enabled: true
+        collect_on_auth_pages: true
+        collect_endpoint: /_device/collect
+        new_device_notify: true
+        device_rate_limit: true
+        qr_login:
+            approve_require_trusted: true
+```
+
+```bash
+composer require nowo-tech/device-intelligence-bundle
+php bin/console assets:install
+```
+
+The bundle is **optional** (`composer suggest` only). It needs **PHP 8.3+**; AuthKit itself stays on PHP 8.2. If it is not installed, or `enabled` is false, AuthKit behaviour is unchanged. Device ID is **not** a credential: it never authenticates a user, never replaces LoginThrottle / CSRF / remember-me, and AuthKit never auto-`trust()`s a device after login.
+
+| Key | Default | Effect when `enabled` is true **and** Device Intelligence is installed |
+| --- | --- | --- |
+| `collect_on_auth_pages` | `true` | Layout loads `device-intelligence.min.js` and calls `collect()` so `_device` is present on the next POST |
+| `collect_endpoint` | `/_device/collect` | POST path expected by that bundle (Flex recipe registers the route) |
+| `new_device_notify` | `false` | After `LoginSuccess`, sets session `nowo_auth_kit.new_device` and calls `NewDeviceLoginNotifierInterface` when `isNew()` |
+| `device_rate_limit` | `false` | Extra `AuthKitAttemptLimiter` consume keyed by device ULID on register / reset request / magic-login request. Missing observation is a no-op (first HTML hit is not locked out) |
+| `qr_login.approve_require_trusted` | `false` | QR `session_step_up` requires an observed **trusted** device. Default `NullQrLoginStepUp` is skipped so it does not throw; a custom `QrLoginStepUpInterface` still runs after the trusted-device check |
+
+Alias `NewDeviceLoginNotifierInterface` to your mailer/SMS service if you enable `new_device_notify` (default: `NullNewDeviceLoginNotifier`).
+
+See [DeviceIntelligenceBundle](https://github.com/nowo-tech/DeviceIntelligenceBundle) and [QR-LOGIN.md](QR-LOGIN.md#device-intelligence-optional).
 
 ## Password reset
 

@@ -11,6 +11,7 @@ services:
             - '../../Entity/'
             - '../../Enum/'
             - '../../Form/'
+            - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
             - '../../NowoAuthKitBundle.php'
 
     Nowo\AuthKitBundle\Controller\:
@@ -70,6 +71,8 @@ services:
             $templates: '%nowo_auth_kit.templates%'
             $css: '%nowo_auth_kit.css%'
             $slideToConfirmAssets: '%nowo_auth_kit.slide_to_confirm_assets%'
+            $deviceIntelligenceAssets: '%nowo_auth_kit.device_intelligence_assets%'
+            $deviceIntelligenceCollectEndpoint: '%nowo_auth_kit.device_intelligence_collect_endpoint%'
         tags:
             - { name: twig.extension }
 
@@ -129,6 +132,14 @@ services:
 
     Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface:
         alias: Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp
+
+    Nowo\AuthKitBundle\QrLogin\DeviceIntelligenceQrLoginStepUp:
+        decorates: Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface
+        arguments:
+            $inner: '@.inner'
+
+    Nowo\AuthKitBundle\DeviceIntelligence\NewDeviceLoginNotifierInterface:
+        alias: Nowo\AuthKitBundle\DeviceIntelligence\NullNewDeviceLoginNotifier
 
     Nowo\AuthKitBundle\QrLogin\NullQrCodeGenerator: ~
     Nowo\AuthKitBundle\QrLogin\EndroidQrCodeGenerator: ~

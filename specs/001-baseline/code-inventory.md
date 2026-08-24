@@ -3,7 +3,7 @@
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
 **Last audited**: 2026-08-24  
-**Units**: **142** (`116` PHP under `src/` + `26` Resources)
+**Units**: **149** (`122` PHP under `src/` + `27` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -24,6 +24,16 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `DependencyInjection/Configuration.php` | production | FR-CFG-001 | Mapped |
 | `DependencyInjection/NowoAuthKitExtension.php` | production | FR-CFG-002 | Mapped |
 | `NowoAuthKitBundle.php` | production | FR-BUNDLE-001 | Mapped |
+
+## Device intelligence (optional)
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `DeviceIntelligence/DeviceIntelligenceContext.php` | production | FR-DIINTEL-001 | Mapped |
+| `DeviceIntelligence/NewDeviceLoginNotificationContext.php` | production | FR-DIINTEL-001 | Mapped |
+| `DeviceIntelligence/NewDeviceLoginNotifierInterface.php` | production | FR-DIINTEL-001 | Mapped |
+| `DeviceIntelligence/NullNewDeviceLoginNotifier.php` | production | FR-DIINTEL-001 | Mapped |
+| `EventSubscriber/NewDeviceLoginSubscriber.php` | production | FR-DIINTEL-001 | Mapped |
 
 ## HTTP controllers
 
@@ -71,6 +81,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Enum/QrLoginChallengeStatus.php` | production | FR-QR-001 | Mapped |
 | `Enum/QrLoginDesktopBinding.php` | production | FR-QR-001 | Mapped |
 | `Enum/QrLoginMode.php` | production | FR-QR-001 | Mapped |
+| `QrLogin/DeviceIntelligenceQrLoginStepUp.php` | production | FR-DIINTEL-001 | Mapped |
 | `QrLogin/EndroidQrCodeGenerator.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/Event/QrLoginApprovedEvent.php` | production | FR-QR-002 | Mapped |
 | `QrLogin/Event/QrLoginChallengeCreatedEvent.php` | production | FR-QR-002 | Mapped |
@@ -222,6 +233,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
+| `Resources/views/_device_intelligence_assets.html.twig` | production | FR-DIINTEL-001 | Mapped |
 | `Resources/views/_registration_submit.html.twig` | production | FR-SLIDE-001 | Mapped |
 | `Resources/views/_slide_to_confirm_assets.html.twig` | production | FR-SLIDE-001 | Mapped |
 | `Resources/views/embed/_authenticated.html.twig` | production | FR-TWIG-001 | Mapped |
@@ -243,9 +255,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 116 |
-| Resources (config/translations/views/public) | 26 |
-| **Total production sources** | **142** |
+| PHP under `src/` | 122 |
+| Resources (config/translations/views/public) | 27 |
+| **Total production sources** | **149** |
 
 ## Coverage gate
 

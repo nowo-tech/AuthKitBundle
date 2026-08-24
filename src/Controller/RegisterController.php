@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -40,6 +41,7 @@ final class RegisterController
         private readonly RequestProfileResolver $profileResolver,
         private readonly AuthKitAttemptLimiter $attemptLimiter,
         private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
+        private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
     ) {
     }
 
@@ -71,7 +73,17 @@ final class RegisterController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $rateKey = 'register:' . $profile->name . ':' . ($request->getClientIp() ?? 'unknown');
-            if (!$this->attemptLimiter->consume($rateKey, $profile->registrationRateLimit, $profile->registrationRateWindow)) {
+            if (!$this->attemptLimiter->consume($rateKey, $profile->registrationRateLimit, $profile->registrationRateWindow)
+                || !$this->deviceIntelligence->consumeDeviceRateLimit(
+                    $request,
+                    $this->attemptLimiter,
+                    $profile->deviceIntelligence,
+                    'register',
+                    $profile->name,
+                    $profile->registrationRateLimit,
+                    $profile->registrationRateWindow,
+                )
+            ) {
                 if ($request->hasSession() && $request->getSession() instanceof FlashBagAwareSessionInterface) {
                     $request->getSession()->getFlashBag()->add('error', 'register.flash_rate_limited');
                 }

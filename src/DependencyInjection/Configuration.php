@@ -43,6 +43,7 @@ final class Configuration implements ConfigurationInterface
         'remember_me',
         'password_strength',
         'slide_to_confirm',
+        'device_intelligence',
         'registration_fields',
         'templates',
         'css',
@@ -186,6 +187,7 @@ final class Configuration implements ConfigurationInterface
                             ->append($this->createRememberMeNode())
                             ->append($this->createPasswordStrengthNode())
                             ->append($this->createSlideToConfirmNode())
+                            ->append($this->createDeviceIntelligenceNode())
                             ->arrayNode('registration_fields')
                                 ->info('Registration form fields. String names or arrays with name, type, property, hash, required, mapped, slide_to_confirm.')
                                 ->defaultValue(['email', 'password'])
@@ -325,6 +327,48 @@ final class Configuration implements ConfigurationInterface
                     ->validate()
                         ->ifTrue(static fn (mixed $value): bool => $value !== false && (!is_string($value) || $value === ''))
                         ->thenInvalid('qr_login_approve must be false or a non-empty SlideToConfirm profile name.')
+                    ->end()
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createDeviceIntelligenceNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('device_intelligence'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->info('Optional integration with nowo-tech/device-intelligence-bundle (PHP 8.3+). Device ID is not a credential.')
+            ->children()
+                ->booleanNode('enabled')
+                    ->info('When true, AuthKit loads collect JS and honours the flags below if the bundle is installed.')
+                    ->defaultFalse()
+                ->end()
+                ->booleanNode('collect_on_auth_pages')
+                    ->info('Load device-intelligence.min.js on AuthKit layouts so collect() runs before login/register/QR.')
+                    ->defaultTrue()
+                ->end()
+                ->scalarNode('collect_endpoint')
+                    ->info('POST path for Device Intelligence collect (default /_device/collect).')
+                    ->defaultValue('/_device/collect')
+                    ->cannotBeEmpty()
+                ->end()
+                ->booleanNode('new_device_notify')
+                    ->info('After LoginSuccess, set session flag and call NewDeviceLoginNotifierInterface when the cluster is new.')
+                    ->defaultFalse()
+                ->end()
+                ->booleanNode('device_rate_limit')
+                    ->info('Extra AuthKitAttemptLimiter consume keyed by device ULID on register / reset / magic request.')
+                    ->defaultFalse()
+                ->end()
+                ->arrayNode('qr_login')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('approve_require_trusted')
+                            ->info('When true, QR session_step_up requires an explicit trusted device (not auto-trust on login).')
+                            ->defaultFalse()
+                        ->end()
                     ->end()
                 ->end()
             ->end();

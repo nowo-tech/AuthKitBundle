@@ -38,6 +38,12 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['profiles']['default']['slide_to_confirm']['enabled']);
         self::assertSame('gate', $config['profiles']['default']['slide_to_confirm']['registration_consent']);
         self::assertFalse($config['profiles']['default']['slide_to_confirm']['qr_login_approve']);
+        self::assertFalse($config['profiles']['default']['device_intelligence']['enabled']);
+        self::assertTrue($config['profiles']['default']['device_intelligence']['collect_on_auth_pages']);
+        self::assertSame('/_device/collect', $config['profiles']['default']['device_intelligence']['collect_endpoint']);
+        self::assertFalse($config['profiles']['default']['device_intelligence']['new_device_notify']);
+        self::assertFalse($config['profiles']['default']['device_intelligence']['device_rate_limit']);
+        self::assertFalse($config['profiles']['default']['device_intelligence']['qr_login']['approve_require_trusted']);
         self::assertTrue($config['profiles']['default']['embed']['show_login']);
         self::assertTrue($config['profiles']['default']['embed']['show_register']);
         self::assertSame(
@@ -206,6 +212,44 @@ final class ConfigurationTest extends TestCase
         self::assertTrue($config['profiles']['default']['slide_to_confirm']['enabled']);
         self::assertSame('legal', $config['profiles']['default']['slide_to_confirm']['registration_consent']);
         self::assertSame('danger', $config['profiles']['default']['slide_to_confirm']['qr_login_approve']);
+    }
+
+    public function testDeviceIntelligenceCanBeEnabled(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class'          => TestUser::class,
+                    'device_intelligence' => [
+                        'enabled'           => true,
+                        'new_device_notify' => true,
+                        'device_rate_limit' => true,
+                        'qr_login'          => ['approve_require_trusted' => true],
+                    ],
+                ],
+            ],
+        ]]);
+
+        $di = $config['profiles']['default']['device_intelligence'];
+        self::assertTrue($di['enabled']);
+        self::assertTrue($di['new_device_notify']);
+        self::assertTrue($di['device_rate_limit']);
+        self::assertTrue($di['qr_login']['approve_require_trusted']);
+    }
+
+    public function testDeviceIntelligenceRejectsEmptyCollectEndpoint(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class'          => TestUser::class,
+                    'device_intelligence' => ['collect_endpoint' => ''],
+                ],
+            ],
+        ]]);
     }
 
     public function testSlideToConfirmQrLoginApproveRejectsInvalidValue(): void

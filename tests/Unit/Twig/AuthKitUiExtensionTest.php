@@ -27,10 +27,12 @@ final class AuthKitUiExtensionTest extends TestCase
 
         self::assertSame(
             [
-                'nowo_auth_kit_form_themes'             => ['form/auth_kit_theme.html.twig'],
-                'nowo_auth_kit_button_class'            => 'btn btn-primary',
-                'nowo_auth_kit_secondary_button_class'  => 'nowo-auth-kit__social-button',
-                'nowo_auth_kit_slide_to_confirm_assets' => false,
+                'nowo_auth_kit_form_themes'                          => ['form/auth_kit_theme.html.twig'],
+                'nowo_auth_kit_button_class'                         => 'btn btn-primary',
+                'nowo_auth_kit_secondary_button_class'               => 'nowo-auth-kit__social-button',
+                'nowo_auth_kit_slide_to_confirm_assets'              => false,
+                'nowo_auth_kit_device_intelligence_assets'           => false,
+                'nowo_auth_kit_device_intelligence_collect_endpoint' => '/_device/collect',
             ],
             $extension->getGlobals(),
         );
@@ -64,15 +66,19 @@ final class AuthKitUiExtensionTest extends TestCase
         $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker());
         $functions = $extension->getFunctions();
 
-        self::assertCount(2, $functions);
+        self::assertCount(3, $functions);
         self::assertSame('nowo_auth_kit_outbound_mail_ready', $functions[0]->getName());
         self::assertSame('nowo_auth_kit_slide_to_confirm_assets', $functions[1]->getName());
+        self::assertSame('nowo_auth_kit_device_intelligence_assets', $functions[2]->getName());
         $callable = $functions[0]->getCallable();
         self::assertIsCallable($callable);
         self::assertTrue($callable());
         $assetsCallable = $functions[1]->getCallable();
         self::assertIsCallable($assetsCallable);
         self::assertFalse($assetsCallable());
+        $deviceCallable = $functions[2]->getCallable();
+        self::assertIsCallable($deviceCallable);
+        self::assertFalse($deviceCallable());
     }
 
     public function testSlideToConfirmAssetsRequiresConfigAndBundle(): void
@@ -82,5 +88,15 @@ final class AuthKitUiExtensionTest extends TestCase
 
         self::assertSame($expected, $extension->shouldLoadSlideToConfirmAssets());
         self::assertSame($expected, $extension->getGlobals()['nowo_auth_kit_slide_to_confirm_assets']);
+    }
+
+    public function testDeviceIntelligenceAssetsRequiresConfigAndBundle(): void
+    {
+        $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker(), false, true);
+        $expected  = class_exists('Nowo\\DeviceIntelligenceBundle\\Request\\DeviceContext');
+
+        self::assertSame($expected, $extension->shouldLoadDeviceIntelligenceAssets());
+        self::assertSame($expected, $extension->getGlobals()['nowo_auth_kit_device_intelligence_assets']);
+        self::assertSame('/_device/collect', $extension->getGlobals()['nowo_auth_kit_device_intelligence_collect_endpoint']);
     }
 }
