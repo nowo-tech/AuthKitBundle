@@ -103,4 +103,18 @@ final class ProfileRegistryTest extends TestCase
         self::assertSame(TestUser::class, $config['profiles']['default']['user_class']);
         self::assertSame('always', $config['profiles']['default']['registration_mode']);
     }
+
+    public function testFromConfigAppliesOptionalIntegrationDefaults(): void
+    {
+        $config = ProfileRegistryFactory::defaultProfileConfig(TestUser::class);
+        unset($config['otp_input'], $config['device_intelligence'], $config['slide_to_confirm']);
+
+        $registry = ProfileRegistryFactory::fromProfiles(['default' => $config]);
+        $profile  = $registry->getDefault();
+
+        self::assertFalse($profile->otpInput['enabled']);
+        self::assertTrue($profile->otpInput['password_reset_code']);
+        self::assertFalse($profile->deviceIntelligence['enabled']);
+        self::assertFalse($profile->slideToConfirm['enabled']);
+    }
 }

@@ -44,6 +44,8 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['profiles']['default']['device_intelligence']['new_device_notify']);
         self::assertFalse($config['profiles']['default']['device_intelligence']['device_rate_limit']);
         self::assertFalse($config['profiles']['default']['device_intelligence']['qr_login']['approve_require_trusted']);
+        self::assertFalse($config['profiles']['default']['otp_input']['enabled']);
+        self::assertTrue($config['profiles']['default']['otp_input']['password_reset_code']);
         self::assertTrue($config['profiles']['default']['embed']['show_login']);
         self::assertTrue($config['profiles']['default']['embed']['show_register']);
         self::assertSame(
@@ -236,6 +238,26 @@ final class ConfigurationTest extends TestCase
         self::assertTrue($di['new_device_notify']);
         self::assertTrue($di['device_rate_limit']);
         self::assertTrue($di['qr_login']['approve_require_trusted']);
+    }
+
+    public function testOtpInputCanBeEnabled(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                    'otp_input'  => [
+                        'enabled'             => true,
+                        'password_reset_code' => false,
+                    ],
+                ],
+            ],
+        ]]);
+
+        $otp = $config['profiles']['default']['otp_input'];
+        self::assertTrue($otp['enabled']);
+        self::assertFalse($otp['password_reset_code']);
     }
 
     public function testDeviceIntelligenceRejectsEmptyCollectEndpoint(): void

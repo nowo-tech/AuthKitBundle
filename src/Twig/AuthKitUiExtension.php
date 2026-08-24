@@ -28,6 +28,7 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
         private readonly bool $slideToConfirmAssets = false,
         private readonly bool $deviceIntelligenceAssets = false,
         private readonly string $deviceIntelligenceCollectEndpoint = '/_device/collect',
+        private readonly bool $otpInputAssets = false,
     ) {
     }
 
@@ -48,6 +49,7 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
             'nowo_auth_kit_slide_to_confirm_assets'              => $this->shouldLoadSlideToConfirmAssets(),
             'nowo_auth_kit_device_intelligence_assets'           => $this->shouldLoadDeviceIntelligenceAssets(),
             'nowo_auth_kit_device_intelligence_collect_endpoint' => $this->deviceIntelligenceCollectEndpoint,
+            'nowo_auth_kit_otp_input_assets'                     => $this->shouldLoadOtpInputAssets(),
         ];
     }
 
@@ -57,6 +59,7 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
             new TwigFunction('nowo_auth_kit_outbound_mail_ready', $this->isOutboundMailReady(...)),
             new TwigFunction('nowo_auth_kit_slide_to_confirm_assets', $this->shouldLoadSlideToConfirmAssets(...)),
             new TwigFunction('nowo_auth_kit_device_intelligence_assets', $this->shouldLoadDeviceIntelligenceAssets(...)),
+            new TwigFunction('nowo_auth_kit_otp_input_assets', $this->shouldLoadOtpInputAssets(...)),
         ];
     }
 
@@ -75,5 +78,11 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
     {
         return $this->deviceIntelligenceAssets
             && class_exists('Nowo\\DeviceIntelligenceBundle\\Request\\DeviceContext');
+    }
+
+    public function shouldLoadOtpInputAssets(): bool
+    {
+        return $this->otpInputAssets
+            && class_exists('Nowo\\OtpInputBundle\\Form\\OtpType');
     }
 }

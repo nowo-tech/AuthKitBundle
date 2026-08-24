@@ -3,7 +3,7 @@
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
 **Last audited**: 2026-08-24  
-**Units**: **149** (`122` PHP under `src/` + `27` Resources)
+**Units**: **151** (`123` PHP under `src/` + `28` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -172,9 +172,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Form/PasswordRepeatedFieldBuilder.php` | production | FR-FORM-002 | Mapped |
 | `Form/QrLoginApproveType.php` | production | FR-QR-001 | Mapped |
 | `Form/RegistrationFormType.php` | production | FR-FORM-001 | Mapped |
-| `Form/ResetPasswordCodeFormType.php` | production | FR-FORM-001 | Mapped |
+| `Form/ResetPasswordCodeFormType.php` | production | FR-FORM-001, FR-OTP-001 | Mapped |
 | `Form/ResetPasswordFormType.php` | production | FR-FORM-001 | Mapped |
 | `Form/ResetPasswordRequestFormType.php` | production | FR-FORM-001 | Mapped |
+| `Form/OtpInputTypeResolver.php` | production | FR-OTP-001 | Mapped |
 | `Form/SlideToConfirmTypeResolver.php` | production | FR-SLIDE-001 | Mapped |
 
 ## Outbound mail gate
@@ -193,7 +194,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Routing/AuthKitUrlGenerator.php` | production | FR-ROUT-001 | Mapped |
 | `Twig/AuthEmbedExtension.php` | production | FR-TWIG-001 | Mapped |
 | `Twig/AuthKitRoutingExtension.php` | production | FR-TWIG-001 | Mapped |
-| `Twig/AuthKitUiExtension.php` | production | FR-TWIG-002 | Mapped |
+| `Twig/AuthKitUiExtension.php` | production | FR-TWIG-002, FR-OTP-001 | Mapped |
 
 ## Security integration
 
@@ -234,6 +235,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
 | `Resources/views/_device_intelligence_assets.html.twig` | production | FR-DIINTEL-001 | Mapped |
+| `Resources/views/_otp_input_assets.html.twig` | production | FR-OTP-001 | Mapped |
 | `Resources/views/_registration_submit.html.twig` | production | FR-SLIDE-001 | Mapped |
 | `Resources/views/_slide_to_confirm_assets.html.twig` | production | FR-SLIDE-001 | Mapped |
 | `Resources/views/embed/_authenticated.html.twig` | production | FR-TWIG-001 | Mapped |
@@ -255,9 +257,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 122 |
-| Resources (config/translations/views/public) | 27 |
-| **Total production sources** | **149** |
+| PHP under `src/` | 123 |
+| Resources (config/translations/views/public) | 28 |
+| **Total production sources** | **151** |
 
 ## Coverage gate
 

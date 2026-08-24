@@ -27,6 +27,7 @@ This bundle is **FrankenPHP worker mode friendly**.
 - **Password strength** (optional integration with `nowo-tech/password-strength-bundle`)
 - **Slide to confirm** (optional integration with `nowo-tech/slide-to-confirm-bundle` for registration consent and QR approve)
 - **Device intelligence** (optional integration with `nowo-tech/device-intelligence-bundle`, PHP 8.3+: collect on auth pages, new-device notify, device-keyed rate limits, QR trusted-device step-up; Device ID is not a credential)
+- **OTP input** (optional integration with `nowo-tech/otp-input-bundle` for a multi-box password-reset code field; UX only)
 - Registration modes: disabled, first user only, always open
 - **Named profiles** — separate auth config per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates

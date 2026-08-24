@@ -24,6 +24,9 @@ nowo_auth_kit:
             #     device_rate_limit: true
             #     qr_login:
             #         approve_require_trusted: true
+            # otp_input:
+            #     enabled: true
+            #     password_reset_code: true
             # magic_login:
             #     mode: enabled
             #     lifetime: 600

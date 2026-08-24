@@ -17,6 +17,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
+use function is_int;
 use function is_string;
 
 /**
@@ -30,13 +31,18 @@ final class ResetPasswordCodeFormType extends AbstractType
     public function __construct(
         private readonly ProfileRegistry $profileRegistry,
         private readonly PasswordRepeatedFieldBuilder $passwordRepeatedFieldBuilder,
+        private readonly OtpInputTypeResolver $otpInputTypeResolver = new OtpInputTypeResolver(),
     ) {
     }
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $profile        = $this->resolveProfile($options);
-        $codeLength     = $profile->passwordReset['code_length'];
+        $profile       = $this->resolveProfile($options);
+        $codeLengthRaw = $profile->passwordReset['code_length'];
+        $codeLength    = is_int($codeLengthRaw) && $codeLengthRaw >= 1 ? $codeLengthRaw : 6;
+        $charset       = is_string($profile->passwordReset['code_charset'] ?? null)
+            ? $profile->passwordReset['code_charset']
+            : 'numeric';
         $identifierType = $profile->userIdentifierField === 'email' ? EmailType::class : TextType::class;
 
         $this->addWithDefaults($builder, 'identifier', $identifierType, [
@@ -45,16 +51,34 @@ final class ResetPasswordCodeFormType extends AbstractType
             'placeholder' => false,
             'constraints' => [new NotBlank(message: 'reset.code.identifier_required')],
         ]);
-        $this->addText($builder, 'code', [
-            'label'       => 'reset.code.field.code',
-            'help'        => false,
-            'placeholder' => false,
-            'attr'        => ['autocomplete' => 'one-time-code', 'inputmode' => 'numeric'],
-            'constraints' => [
-                new NotBlank(message: 'reset.code.code_required'),
-                new Length(exactly: $codeLength, exactMessage: 'reset.code.code_length'),
-            ],
-        ]);
+
+        $otpType         = $this->otpInputTypeResolver->resolvePasswordResetCodeType($profile->otpInput);
+        $codeConstraints = [
+            new NotBlank(message: 'reset.code.code_required'),
+            new Length(exactly: $codeLength, exactMessage: 'reset.code.code_length'),
+        ];
+        if ($otpType !== null) {
+            $this->addWithDefaults($builder, 'code', $otpType, [
+                'label'              => 'reset.code.field.code',
+                'help'               => false,
+                'placeholder'        => false,
+                'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
+                'attr'               => ['autocomplete' => 'one-time-code'],
+                'constraints'        => $codeConstraints,
+                ...$this->otpInputTypeResolver->fieldOptions($codeLength, $charset),
+            ]);
+        } else {
+            $this->addText($builder, 'code', [
+                'label'       => 'reset.code.field.code',
+                'help'        => false,
+                'placeholder' => false,
+                'attr'        => [
+                    'autocomplete' => 'one-time-code',
+                    'inputmode'    => $charset === 'numeric' ? 'numeric' : 'text',
+                ],
+                'constraints' => $codeConstraints,
+            ]);
+        }
 
         $this->passwordRepeatedFieldBuilder->add(
             $builder,

@@ -10,6 +10,7 @@
   - [Password strength (optional)](#password-strength-optional)
   - [Slide to confirm (optional)](#slide-to-confirm-optional)
   - [Device intelligence (optional)](#device-intelligence-optional)
+  - [OTP input (optional)](#otp-input-optional)
 - [Password reset](#password-reset)
 - [Magic login (passwordless)](#magic-login-passwordless)
 - [Social login (OAuth)](#social-login-oauth)
@@ -130,6 +131,11 @@ nowo_auth_kit:
         device_rate_limit: false
         qr_login:
             approve_require_trusted: false
+
+    # Optional: nowo-tech/otp-input-bundle (password-reset code field; UX only)
+    otp_input:
+        enabled: false
+        password_reset_code: true
 
     # Registration form fields (string shorthand or expanded config)
     registration_fields:
@@ -388,6 +394,30 @@ The bundle is **optional** (`composer suggest` only). It needs **PHP 8.3+**; Aut
 Alias `NewDeviceLoginNotifierInterface` to your mailer/SMS service if you enable `new_device_notify` (default: `NullNewDeviceLoginNotifier`).
 
 See [DeviceIntelligenceBundle](https://github.com/nowo-tech/DeviceIntelligenceBundle) and [QR-LOGIN.md](QR-LOGIN.md#device-intelligence-optional).
+
+### OTP input (optional)
+
+```yaml
+nowo_auth_kit:
+    otp_input:
+        enabled: true
+        password_reset_code: true
+```
+
+```bash
+composer require nowo-tech/otp-input-bundle
+php bin/console assets:install
+```
+
+The bundle is **optional**. If it is not installed, or `enabled` is false, AuthKit keeps a single `TextType` on the password-reset code field. The default layout loads `otp-input.js` only when `otp_input.enabled` is true, `password_reset_code` is true, **and** the package is present.
+
+| Key | Default | Effect when `enabled` is true **and** OTP Input is installed |
+| --- | --- | --- |
+| `password_reset_code` | `true` | Replaces the reset OTP `TextType` with `OtpType`. `length` comes from `password_reset.code_length`; `numeric_only` / `uppercase` follow `password_reset.code_charset` |
+
+The widget is **UX only**. Server verification (`hash_equals`, `max_code_attempts`) stays mandatory. Login, register, magic-login confirm, and QR `phone_otp` are unchanged.
+
+See [OTPInputBundle](https://github.com/nowo-tech/OTPInputBundle) and [PASSWORD-RESET.md](PASSWORD-RESET.md#otp-input-optional).
 
 ## Password reset
 

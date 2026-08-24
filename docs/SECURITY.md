@@ -26,6 +26,7 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Templates | XSS | Twig auto-escaping; apps must not disable escaping in overrides |
 | Slide to confirm (optional) | Crafted POST can still send `confirm=1` | UX only — CSRF, authn, QR step-up, and business rules remain mandatory |
 | Device intelligence (optional) | Treating Device ID as a login secret; blocking login on `isNew()`; auto-trust | Device ID is **not** a credential. LoginThrottle/CSRF/remember-me unchanged. AuthKit never auto-`trust()`. QR trusted-device step-up is opt-in |
+| OTP input (optional) | Treating the multi-box widget as verification | UX only — `hash_equals` and `max_code_attempts` remain mandatory |
 | Configuration | Wrong entity/field mapping | Validation in `Configuration`; documented `security.yaml` setup |
 
 ## Application responsibilities
@@ -56,24 +57,26 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - No automatic modification of `security.yaml` without explicit CLI command
 - Optional slide-to-confirm is confirmation UX only; QR approve with slide uses Form CSRF (`qr_login_approve`); unmapped registration consent fields are not persisted
 - Optional device intelligence never authenticates by Device ID; `new_device_notify` is a notice only; QR `approve_require_trusted` requires explicit trust, not auto-trust on login
+- Optional OTP input is entry UX only; reset codes are still hashed and compared with `hash_equals`, and `max_code_attempts` still clears the credential
 
 ## AI security audit
 
 | Field | Value |
 | --- | --- |
 | Date | 2026-08-24 (refresh of 2026-07-30) |
-| Method | Cursor security-review of the 1.19.0 device-intelligence delta (`src/`, Twig, Flex recipe, SECURITY docs) plus prior residual model |
-| Grade | **Pass (conditional)** — overall **Medium**; 1.19.0 delta **Low** (no new Critical/High) |
+| Method | Cursor security-review of the 1.20.0 OTP-input delta (`OtpInputTypeResolver`, `ResetPasswordCodeFormType`, Twig assets, Flex recipe, SECURITY docs) plus prior residual model |
+| Grade | **Pass (conditional)** — overall **Medium**; 1.20.0 delta **Low** (no new Critical/High/Medium) |
 | Mitigated in 1.10.0 | Unverified-email social auto-link; missing reset/magic/register rate limits; OTP lockout; custom OAuth SSRF; social `PUBLIC_ACCESS`; `first_user_only` race; magic login 500 oracle |
 | Mitigated in 1.18.0 | QR approve Form CSRF when slide-to-confirm is enabled (`QrLoginApproveType`) |
 | Mitigated in 1.19.0 | Device ID not used as a credential; no auto-trust; QR trusted-device step-up is opt-in and still runs a custom `QrLoginStepUpInterface` |
+| Mitigated in 1.20.0 | OTP input widget is UX only; `hash_equals` and `max_code_attempts` unchanged |
 | Open residuals | Cleartext OAuth secrets/tokens at rest (encrypt via DoctrineEncrypt); residual timing side-channels on reset/magic request; do not use logging notifiers in prod; CSRF on **plain** QR approve/deny when slide is off (pre-existing); extra device-keyed rate limit can be skipped if `collect()` never runs (IP limiter still applies) |
 
 See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.com/nowo-tech/bundles/blob/master/BUNDLES_SECURITY_ANALYSIS.md) (AuthKitBundle entry).
 
 ## Release security checklist (12.4.1)
 
-Last completed for **v1.19.0** (2026-08-24). Re-run before the next tag.
+Last completed for **v1.20.0** (2026-08-24). Re-run before the next tag.
 
 Before each release, confirm:
 

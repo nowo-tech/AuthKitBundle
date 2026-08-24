@@ -27,6 +27,7 @@ templates/bundles/NowoAuthKitBundle/
 ├── layout.html.twig
 ├── _slide_to_confirm_assets.html.twig
 ├── _device_intelligence_assets.html.twig
+├── _otp_input_assets.html.twig
 ├── _registration_submit.html.twig
 └── security/
     ├── login.html.twig
@@ -62,6 +63,7 @@ Symfony resolves app overrides before bundle defaults.
 | `nowo_auth_kit_slide_to_confirm_assets` / `nowo_auth_kit_slide_to_confirm_assets()` | True when slide-to-confirm assets should be loaded |
 | `nowo_auth_kit_device_intelligence_assets` / `nowo_auth_kit_device_intelligence_assets()` | True when Device Intelligence collect JS should be loaded |
 | `nowo_auth_kit_device_intelligence_collect_endpoint` | POST path for `collect()` (default `/_device/collect`) |
+| `nowo_auth_kit_otp_input_assets` / `nowo_auth_kit_otp_input_assets()` | True when OTP Input JS should be loaded |
 
 **Register** (`security/register.html.twig`):
 

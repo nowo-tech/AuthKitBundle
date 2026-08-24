@@ -33,6 +33,7 @@ final class AuthKitUiExtensionTest extends TestCase
                 'nowo_auth_kit_slide_to_confirm_assets'              => false,
                 'nowo_auth_kit_device_intelligence_assets'           => false,
                 'nowo_auth_kit_device_intelligence_collect_endpoint' => '/_device/collect',
+                'nowo_auth_kit_otp_input_assets'                     => false,
             ],
             $extension->getGlobals(),
         );
@@ -66,10 +67,11 @@ final class AuthKitUiExtensionTest extends TestCase
         $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker());
         $functions = $extension->getFunctions();
 
-        self::assertCount(3, $functions);
+        self::assertCount(4, $functions);
         self::assertSame('nowo_auth_kit_outbound_mail_ready', $functions[0]->getName());
         self::assertSame('nowo_auth_kit_slide_to_confirm_assets', $functions[1]->getName());
         self::assertSame('nowo_auth_kit_device_intelligence_assets', $functions[2]->getName());
+        self::assertSame('nowo_auth_kit_otp_input_assets', $functions[3]->getName());
         $callable = $functions[0]->getCallable();
         self::assertIsCallable($callable);
         self::assertTrue($callable());
@@ -79,6 +81,9 @@ final class AuthKitUiExtensionTest extends TestCase
         $deviceCallable = $functions[2]->getCallable();
         self::assertIsCallable($deviceCallable);
         self::assertFalse($deviceCallable());
+        $otpCallable = $functions[3]->getCallable();
+        self::assertIsCallable($otpCallable);
+        self::assertFalse($otpCallable());
     }
 
     public function testSlideToConfirmAssetsRequiresConfigAndBundle(): void
@@ -98,5 +103,22 @@ final class AuthKitUiExtensionTest extends TestCase
         self::assertSame($expected, $extension->shouldLoadDeviceIntelligenceAssets());
         self::assertSame($expected, $extension->getGlobals()['nowo_auth_kit_device_intelligence_assets']);
         self::assertSame('/_device/collect', $extension->getGlobals()['nowo_auth_kit_device_intelligence_collect_endpoint']);
+    }
+
+    public function testOtpInputAssetsRequiresConfigAndBundle(): void
+    {
+        $extension = new AuthKitUiExtension(
+            [],
+            [],
+            new AlwaysOutboundMailReadyChecker(),
+            false,
+            false,
+            '/_device/collect',
+            true,
+        );
+        $expected = class_exists('Nowo\\OtpInputBundle\\Form\\OtpType');
+
+        self::assertSame($expected, $extension->shouldLoadOtpInputAssets());
+        self::assertSame($expected, $extension->getGlobals()['nowo_auth_kit_otp_input_assets']);
     }
 }

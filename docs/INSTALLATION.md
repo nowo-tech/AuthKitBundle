@@ -40,6 +40,8 @@ Optional: install `nowo-tech/slide-to-confirm-bundle` and set `nowo_auth_kit.sli
 
 Optional: install `nowo-tech/device-intelligence-bundle` (**PHP 8.3+**) and set `nowo_auth_kit.device_intelligence.enabled: true` for device observation on auth pages, optional new-device notify, extra device-keyed rate limits, and QR trusted-device step-up — see [CONFIGURATION.md](CONFIGURATION.md#device-intelligence-optional). Device ID is not a credential. AuthKit does **not** `require` that package (PHP 8.2 hosts stay compatible).
 
+Optional: install `nowo-tech/otp-input-bundle` and set `nowo_auth_kit.otp_input.enabled: true` for a multi-box OTP field on password-reset code entry — see [CONFIGURATION.md](CONFIGURATION.md#otp-input-optional). The widget is UX only; server OTP checks stay mandatory.
+
 ## Composer
 
 ```bash

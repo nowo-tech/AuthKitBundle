@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.20.0] - 2026-08-24](#1200-2026-08-24)
 - [[1.19.0] - 2026-08-24](#1190-2026-08-24)
 - [[1.18.0] - 2026-08-24](#1180-2026-08-24)
 - [[1.17.5] - 2026-08-24](#1175-2026-08-24)
@@ -122,6 +123,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.20.0] - 2026-08-24
+
+### Added
+
+- Optional **OTP input** integration with `nowo-tech/otp-input-bundle` (`suggest` + `require-dev` only — no hard Composer dependency):
+  - Profile keys `otp_input.enabled` (default `false`) and `otp_input.password_reset_code` (default `true`).
+  - Password-reset code field uses `OtpType` (length/charset from `password_reset`) when enabled **and** the package is installed; otherwise the existing `TextType` remains.
+  - Layout partial `_otp_input_assets.html.twig` loads `otp-input.js` (`nowo_otp_input` asset package) only when enabled **and** the package is present.
+  - Global/function `nowo_auth_kit_otp_input_assets`. The widget is UX only; server OTP checks (`hash_equals`, `max_code_attempts`) stay mandatory.
+
+### Changed
+
+- Spec Kit baseline inventory **151/151** (`123` PHP + `28` Resources), including OTP-input units.
+
+### Security
+
+- REQ-SEC-004 re-audit of the 1.20.0 OTP-input delta: overall **Pass (conditional)** / **Medium**; this delta **Low** (no new Critical/High/Medium). The widget is UX only. `hash_equals` and `max_code_attempts` are unchanged. Login forms are unchanged.
+
+### Notes
+
+- No application change unless you install the optional package and set `otp_input.enabled: true`. Login forms are unchanged.
+
+[1.20.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.20.0
 
 ## [1.19.0] - 2026-08-24
 

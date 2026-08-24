@@ -5,6 +5,7 @@ Auth Kit exposes a **request → deliver credential → complete** flow aligned 
 ## Table of contents
 
 - [Configuration](#configuration)
+- [OTP input (optional)](#otp-input-optional)
 - [User entity](#user-entity)
 - [Implement delivery (`PasswordResetNotifierInterface`)](#implement-delivery-passwordresetnotifierinterface)
   - [Bundled samples](#bundled-samples)
@@ -29,6 +30,10 @@ nowo_auth_kit:
 | `link` | Email magic link, deep link, QR with URL |
 | `code` | SMS OTP, email numeric code, authenticator |
 | `both` | Email with link **and** backup code |
+
+### OTP input (optional)
+
+When `otp_input.enabled` is true, `otp_input.password_reset_code` is true, and `nowo-tech/otp-input-bundle` is installed, the code-completion form (`ResetPasswordCodeFormType`) uses `OtpType` instead of a single text field. Length and charset still come from `password_reset.code_length` / `code_charset`. The widget is UX only — hashed comparison and `max_code_attempts` are unchanged. See [CONFIGURATION.md](CONFIGURATION.md#otp-input-optional).
 
 ## User entity
 

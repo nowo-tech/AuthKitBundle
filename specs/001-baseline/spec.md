@@ -2,15 +2,15 @@
 
 **Feature Branch**: `001-baseline`  
 **Status**: Active  
-**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.19.0+**)  
+**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.20.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **149** units (122 PHP + 27 Resources), audited **2026-08-24**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **151** units (123 PHP + 28 Resources), audited **2026-08-24**
 
 ---
 
 ## Summary
 
-Drop-in Symfony **authentication kit**: login/logout, gated registration, remember-me, password reset (email/code), magic login (request/confirm/check), **QR login** (desktop↔mobile challenge), **OAuth2/OIDC social login** (including enterprise SSO via `enterpriseSso` credentials), optional **slide-to-confirm** on registration consent and QR approve, optional **device intelligence** (collect on auth pages, new-device notify, device-keyed rate limits, QR trusted-device step-up), embeddable auth chrome, locale-aware routes, outbound-mail readiness gate, attempt limiting hooks, and `ConfigureSecurityCommand` to scaffold firewall YAML.
+Drop-in Symfony **authentication kit**: login/logout, gated registration, remember-me, password reset (email/code), magic login (request/confirm/check), **QR login** (desktop↔mobile challenge), **OAuth2/OIDC social login** (including enterprise SSO via `enterpriseSso` credentials), optional **slide-to-confirm** on registration consent and QR approve, optional **device intelligence** (collect on auth pages, new-device notify, device-keyed rate limits, QR trusted-device step-up), optional **OTP input** on password-reset code entry, embeddable auth chrome, locale-aware routes, outbound-mail readiness gate, attempt limiting hooks, and `ConfigureSecurityCommand` to scaffold firewall YAML.
 
 ---
 
@@ -60,6 +60,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 **Given** `nowo-tech/device-intelligence-bundle` is optional (`suggest` only; **not** `require-dev` because that package requires PHP 8.3+), **When** `device_intelligence.enabled` is true and the package is installed, **Then** AuthKit may load collect JS on auth layouts, notify on new-device `LoginSuccess`, extra-limit by device ULID, and require a trusted device on QR approve. **When** the package is missing or `enabled` is false, **Then** AuthKit behaviour is unchanged. Device ID MUST NOT be a credential. Login forms, LoginThrottle, CSRF, and remember-me MUST stay unchanged. AuthKit MUST NOT auto-`trust()` a device after login. Missing observation on `device_rate_limit` MUST be a no-op.
 
+### US-12 — Optional OTP input (P2)
+
+**Given** `nowo-tech/otp-input-bundle` is optional (`suggest` / `require-dev` only), **When** `otp_input.enabled` is true, `otp_input.password_reset_code` is true, and the package is installed, **Then** AuthKit uses `OtpType` on the password-reset code field (`length` / charset from `password_reset`) and loads OTP Input JS on auth layouts. **When** the package is missing or `enabled` is false, **Then** the existing `TextType` remains. Login forms MUST stay unchanged. The widget is UX only; server OTP checks MUST stay mandatory.
+
 ---
 
 ## Requirements
@@ -67,7 +71,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Bundle & config
 
 - **FR-BUNDLE-001**: `NowoAuthKitBundle` alias `nowo_auth_kit`.
-- **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles, optional `slide_to_confirm`, optional `device_intelligence`.
+- **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles, optional `slide_to_confirm`, optional `device_intelligence`, optional `otp_input`.
 - **FR-CFG-002**: `NowoAuthKitExtension` + `FieldConfigNormalizer`, `RememberMeConfigResolver`; `TwigPathsPass` registers bundle Twig paths.
 
 ### HTTP controllers
@@ -145,6 +149,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 - **FR-DIINTEL-001**: Duck-typed bridge (`DeviceIntelligenceContext`, `class_exists` / injectable `Closure`); never imports DeviceIntelligence classes so AuthKit stays PHP 8.2. Profile `device_intelligence.*` default `enabled: false`. Assets `_device_intelligence_assets.html.twig` only when enabled **and** the package is present. `NewDeviceLoginSubscriber` + `NewDeviceLoginNotifierInterface` (default null) on `isNew()` after `LoginSuccess` — session flag only, no auto-trust. Extra limiter consume by device ULID is a no-op without observation. `DeviceIntelligenceQrLoginStepUp` decorates `QrLoginStepUpInterface` for opt-in trusted-device QR approve; `NullQrLoginStepUp` is skipped when that check passes, a custom inner still runs. Device ID is not a credential.
 
+### Optional OTP input
+
+- **FR-OTP-001**: `OtpInputTypeResolver` (`class_exists` fallback); profile `otp_input.*` default `enabled: false`; `ResetPasswordCodeFormType` uses `OtpType` when enabled, `password_reset_code` is true, and the package is present. Twig partial `_otp_input_assets.html.twig` loads JS only when enabled **and** the package is present. Widget is UX, not authorization. Login forms MUST stay unchanged.
+
 ### CLI
 
 - **FR-CLI-001**: `ConfigureSecurityCommand` outputs firewall recipe.
@@ -153,7 +161,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**149** units as of 2026-08-24).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**151** units as of 2026-08-24).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.

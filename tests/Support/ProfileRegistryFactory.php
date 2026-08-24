@@ -58,6 +58,10 @@ final class ProfileRegistryFactory
                 'device_rate_limit'     => false,
                 'qr_login'              => ['approve_require_trusted' => false],
             ],
+            'otp_input' => [
+                'enabled'             => false,
+                'password_reset_code' => true,
+            ],
             'registration_fields' => FieldConfigNormalizer::normalizeRegistrationFields(['email', 'password']),
             'templates'           => [
                 'layout'              => '@NowoAuthKitBundle/layout.html.twig',

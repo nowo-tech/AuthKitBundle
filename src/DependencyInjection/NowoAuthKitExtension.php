@@ -59,6 +59,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             'nowo_auth_kit.device_intelligence_collect_endpoint',
             $defaultProfile['device_intelligence']['collect_endpoint'],
         );
+        $container->setParameter('nowo_auth_kit.otp_input', $defaultProfile['otp_input']);
+        $container->setParameter('nowo_auth_kit.otp_input_assets', $this->anyOtpInputAssets($profiles));
         $container->setParameter('nowo_auth_kit.registration_fields', $defaultProfile['registration_fields']);
         $container->setParameter('nowo_auth_kit.templates', $defaultProfile['templates']);
         $container->setParameter('nowo_auth_kit.css', $defaultProfile['css']);
@@ -289,6 +291,21 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         foreach ($profiles as $profile) {
             $config = $profile['device_intelligence'] ?? [];
             if (($config['enabled'] ?? false) === true && ($config['collect_on_auth_pages'] ?? true) === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function anyOtpInputAssets(array $profiles): bool
+    {
+        foreach ($profiles as $profile) {
+            $config = $profile['otp_input'] ?? [];
+            if (($config['enabled'] ?? false) === true && ($config['password_reset_code'] ?? true) === true) {
                 return true;
             }
         }

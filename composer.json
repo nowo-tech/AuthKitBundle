@@ -57,6 +57,7 @@
     "suggest": {
         "nowo-tech/device-intelligence-bundle": "Device observation on auth pages, new-device notify, QR trusted-device step-up (^1.1; PHP 8.3+)",
         "nowo-tech/login-throttle-bundle": "Required for production login forms — credential stuffing protection (^3.1; installed by Flex recipe)",
+        "nowo-tech/otp-input-bundle": "Multi-box OTP field on password-reset code entry (^1.4; UX only, server checks stay mandatory)",
         "nowo-tech/password-strength-bundle": "Strength policies, live feedback, and validator for registration and password reset fields (^2.0)",
         "nowo-tech/password-toggle-bundle": "Password fields with visibility toggle (^1.2.8)",
         "nowo-tech/slide-to-confirm-bundle": "Slide-to-confirm on registration consent and QR login approve (^1.0)",
@@ -67,10 +68,11 @@
     "require-dev": {
         "endroid/qr-code": "^6.0",
         "friendsofphp/php-cs-fixer": "^3.0",
+        "nowo-tech/otp-input-bundle": "^1.4",
         "nowo-tech/password-strength-bundle": "^2.0",
         "nowo-tech/password-toggle-bundle": "^2.0.0",
-        "nowo-tech/slide-to-confirm-bundle": "^1.0",
         "nowo-tech/phpstan-frankenphp": "^1.0",
+        "nowo-tech/slide-to-confirm-bundle": "^1.0",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",

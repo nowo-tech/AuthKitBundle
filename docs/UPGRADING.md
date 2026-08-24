@@ -4,6 +4,7 @@
 
 
 - [Unreleased](#unreleased)
+- [To 1.20.0](#to-1200)
 - [To 1.19.0](#to-1190)
 - [To 1.18.0](#to-1180)
 - [From 1.17.4 to 1.17.5](#from-1174-to-1175)
@@ -61,6 +62,28 @@
 ## Unreleased
 
 No pending upgrade notes.
+
+## To 1.20.0
+
+From **1.19.0** — optional **OTP input** (`nowo-tech/otp-input-bundle`, not installed by default). Skip this section unless you want the multi-box code field on password-reset completion.
+
+```bash
+composer require nowo-tech/otp-input-bundle
+php bin/console assets:install
+```
+
+```yaml
+nowo_auth_kit:
+    otp_input:
+        enabled: true
+        password_reset_code: true
+```
+
+No change unless you enable it. Login forms are unchanged. The widget is entry UX for the reset code, not a replacement for server OTP verification (`hash_equals`, `max_code_attempts`).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.19.0
 

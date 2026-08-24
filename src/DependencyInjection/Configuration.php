@@ -44,6 +44,7 @@ final class Configuration implements ConfigurationInterface
         'password_strength',
         'slide_to_confirm',
         'device_intelligence',
+        'otp_input',
         'registration_fields',
         'templates',
         'css',
@@ -188,6 +189,7 @@ final class Configuration implements ConfigurationInterface
                             ->append($this->createPasswordStrengthNode())
                             ->append($this->createSlideToConfirmNode())
                             ->append($this->createDeviceIntelligenceNode())
+                            ->append($this->createOtpInputNode())
                             ->arrayNode('registration_fields')
                                 ->info('Registration form fields. String names or arrays with name, type, property, hash, required, mapped, slide_to_confirm.')
                                 ->defaultValue(['email', 'password'])
@@ -370,6 +372,26 @@ final class Configuration implements ConfigurationInterface
                             ->defaultFalse()
                         ->end()
                     ->end()
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createOtpInputNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('otp_input'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->info('Optional integration with nowo-tech/otp-input-bundle for the password-reset code field. UX only; server checks stay mandatory.')
+            ->children()
+                ->booleanNode('enabled')
+                    ->info('When true, uses OtpType when that bundle is installed and password_reset_code is true.')
+                    ->defaultFalse()
+                ->end()
+                ->booleanNode('password_reset_code')
+                    ->info('Replace the reset OTP TextType with OtpType (length/charset from password_reset).')
+                    ->defaultTrue()
                 ->end()
             ->end();
 

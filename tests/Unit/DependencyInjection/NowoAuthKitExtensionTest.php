@@ -95,6 +95,7 @@ final class NowoAuthKitExtensionTest extends TestCase
 
         self::assertFalse($this->container->getParameter('nowo_auth_kit.slide_to_confirm_assets'));
         self::assertFalse($this->container->getParameter('nowo_auth_kit.device_intelligence_assets'));
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.otp_input_assets'));
     }
 
     public function testLoadSetsDeviceIntelligenceAssetsWhenEnabled(): void
@@ -123,6 +124,33 @@ final class NowoAuthKitExtensionTest extends TestCase
         ]], $this->container);
 
         self::assertFalse($this->container->getParameter('nowo_auth_kit.device_intelligence_assets'));
+    }
+
+    public function testLoadSetsOtpInputAssetsWhenEnabled(): void
+    {
+        $this->extension->load([[
+            'user_class' => 'App\\Entity\\User',
+            'otp_input'  => ['enabled' => true],
+        ]], $this->container);
+
+        self::assertTrue($this->container->getParameter('nowo_auth_kit.otp_input_assets'));
+        $config = $this->container->getParameter('nowo_auth_kit.otp_input');
+        self::assertIsArray($config);
+        self::assertTrue($config['enabled']);
+        self::assertTrue($config['password_reset_code']);
+    }
+
+    public function testLoadSkipsOtpInputAssetsWhenPasswordResetCodeDisabled(): void
+    {
+        $this->extension->load([[
+            'user_class' => 'App\\Entity\\User',
+            'otp_input'  => [
+                'enabled'             => true,
+                'password_reset_code' => false,
+            ],
+        ]], $this->container);
+
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.otp_input_assets'));
     }
 
     public function testLoadRejectsUnknownDefaultProfile(): void
