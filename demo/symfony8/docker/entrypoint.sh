@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+git config --global --add safe.directory /app 2>/dev/null || true
+git config --global --add safe.directory /var/auth-kit-bundle 2>/dev/null || true
+
 # Wait until Composer has installed the app (make up runs install after start).
 # Without this, FrankenPHP worker mode exits immediately on a clean checkout (CI).
 i=0
