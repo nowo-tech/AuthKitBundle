@@ -7,7 +7,8 @@ RUN install-php-extensions intl pdo_mysql zip
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-RUN git config --global --add safe.directory /app
+RUN git config --global --add safe.directory /app && \
+    git config --global --add safe.directory /var/auth-kit-bundle
 
 WORKDIR /app
 

@@ -62,12 +62,35 @@ final class AuthKitUiExtensionTest extends TestCase
         self::assertFalse($extension->isOutboundMailReady());
     }
 
+    public function testRegistersSlideToConfirmStubTwigFunctionsWhenBundleAbsent(): void
+    {
+        if (class_exists('Nowo\\SlideToConfirmBundle\\Twig\\NowoSlideToConfirmTwigExtension')) {
+            self::markTestSkipped('SlideToConfirm bundle is installed in this environment.');
+        }
+
+        $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker());
+        $byName    = [];
+        foreach ($extension->getFunctions() as $function) {
+            $byName[$function->getName()] = $function->getCallable();
+        }
+
+        self::assertArrayHasKey('nowo_slide_to_confirm_asset_path', $byName);
+        self::assertArrayHasKey('nowo_slide_to_confirm_asset_package', $byName);
+
+        /** @var callable(): string $pathCallable */
+        $pathCallable = $byName['nowo_slide_to_confirm_asset_path'];
+        /** @var callable(): string $packageCallable */
+        $packageCallable = $byName['nowo_slide_to_confirm_asset_package'];
+        self::assertSame('', $pathCallable());
+        self::assertSame('', $packageCallable());
+    }
+
     public function testRegistersOutboundMailReadyTwigFunction(): void
     {
         $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker());
         $functions = $extension->getFunctions();
 
-        self::assertCount(4, $functions);
+        self::assertCount(class_exists('Nowo\\SlideToConfirmBundle\\Twig\\NowoSlideToConfirmTwigExtension') ? 4 : 6, $functions);
         self::assertSame('nowo_auth_kit_outbound_mail_ready', $functions[0]->getName());
         self::assertSame('nowo_auth_kit_slide_to_confirm_assets', $functions[1]->getName());
         self::assertSame('nowo_auth_kit_device_intelligence_assets', $functions[2]->getName());

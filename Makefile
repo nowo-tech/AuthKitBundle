@@ -96,7 +96,15 @@ demo-smoke:
 	[ -z "$$PORT" ] && PORT=$$(grep "^PORT=" demo/symfony8/.env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	[ -z "$$PORT" ] && PORT=8010; \
 	echo "Smoke GET http://localhost:$$PORT/en/login"; \
-	code=$$(curl -fsS -o /dev/null -w "%{http_code}" "http://localhost:$$PORT/en/login" || true); \
+	code=000; \
+	i=0; \
+	while [ $$i -lt 30 ]; do \
+		code=$$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:$$PORT/en/login" || true); \
+		[ -z "$$code" ] && code=000; \
+		if [ "$$code" = "200" ]; then break; fi; \
+		i=$$((i+1)); \
+		sleep 2; \
+	done; \
 	if [ "$$code" != "200" ]; then echo "demo-smoke failed: HTTP $$code"; exit 1; fi; \
 	echo "demo-smoke OK (HTTP 200)"
 
