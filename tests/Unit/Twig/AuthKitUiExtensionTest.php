@@ -62,6 +62,22 @@ final class AuthKitUiExtensionTest extends TestCase
         self::assertFalse($extension->isOutboundMailReady());
     }
 
+    public function testRegistersSlideToConfirmStubTwigFunctionsWhenBundleAbsent(): void
+    {
+        if (class_exists('Nowo\\SlideToConfirmBundle\\Twig\\NowoSlideToConfirmTwigExtension')) {
+            self::markTestSkipped('SlideToConfirm bundle is installed in this environment.');
+        }
+
+        $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker());
+        $byName    = [];
+        foreach ($extension->getFunctions() as $function) {
+            $byName[$function->getName()] = $function->getCallable();
+        }
+
+        self::assertSame('', $byName['nowo_slide_to_confirm_asset_path']());
+        self::assertSame('', $byName['nowo_slide_to_confirm_asset_package']());
+    }
+
     public function testRegistersOutboundMailReadyTwigFunction(): void
     {
         $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker());
