@@ -74,8 +74,15 @@ final class AuthKitUiExtensionTest extends TestCase
             $byName[$function->getName()] = $function->getCallable();
         }
 
-        self::assertSame('', $byName['nowo_slide_to_confirm_asset_path']());
-        self::assertSame('', $byName['nowo_slide_to_confirm_asset_package']());
+        self::assertArrayHasKey('nowo_slide_to_confirm_asset_path', $byName);
+        self::assertArrayHasKey('nowo_slide_to_confirm_asset_package', $byName);
+
+        /** @var callable(): string $pathCallable */
+        $pathCallable = $byName['nowo_slide_to_confirm_asset_path'];
+        /** @var callable(): string $packageCallable */
+        $packageCallable = $byName['nowo_slide_to_confirm_asset_package'];
+        self::assertSame('', $pathCallable());
+        self::assertSame('', $packageCallable());
     }
 
     public function testRegistersOutboundMailReadyTwigFunction(): void

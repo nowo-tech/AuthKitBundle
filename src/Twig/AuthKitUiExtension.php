@@ -65,8 +65,8 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
         // Optional bundle Twig functions are referenced in _slide_to_confirm_assets.html.twig;
         // register no-op stubs so templates compile when the package is not installed.
         if (!class_exists('Nowo\\SlideToConfirmBundle\\Twig\\NowoSlideToConfirmTwigExtension')) {
-            $functions[] = new TwigFunction('nowo_slide_to_confirm_asset_path', static fn (): string => '');
-            $functions[] = new TwigFunction('nowo_slide_to_confirm_asset_package', static fn (): string => '');
+            $functions[] = new TwigFunction('nowo_slide_to_confirm_asset_path', static fn (): string => ''); // @codeCoverageIgnore
+            $functions[] = new TwigFunction('nowo_slide_to_confirm_asset_package', static fn (): string => ''); // @codeCoverageIgnore
         }
 
         return $functions;
