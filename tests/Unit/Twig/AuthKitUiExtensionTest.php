@@ -67,7 +67,7 @@ final class AuthKitUiExtensionTest extends TestCase
         $extension = new AuthKitUiExtension([], [], new AlwaysOutboundMailReadyChecker());
         $functions = $extension->getFunctions();
 
-        self::assertCount(4, $functions);
+        self::assertCount(class_exists('Nowo\\SlideToConfirmBundle\\Twig\\NowoSlideToConfirmTwigExtension') ? 4 : 6, $functions);
         self::assertSame('nowo_auth_kit_outbound_mail_ready', $functions[0]->getName());
         self::assertSame('nowo_auth_kit_slide_to_confirm_assets', $functions[1]->getName());
         self::assertSame('nowo_auth_kit_device_intelligence_assets', $functions[2]->getName());
