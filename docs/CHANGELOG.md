@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.20.1] - 2026-09-07](#1201-2026-09-07)
 - [[1.20.0] - 2026-08-24](#1200-2026-08-24)
 - [[1.19.0] - 2026-08-24](#1190-2026-08-24)
 - [[1.18.0] - 2026-08-24](#1180-2026-08-24)
@@ -123,6 +124,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.20.1] - 2026-09-07
+
+### Fixed
+
+- When `nowo-tech/slide-to-confirm-bundle` is not installed, register no-op Twig stubs for `nowo_slide_to_confirm_asset_path` and `nowo_slide_to_confirm_asset_package` so AuthKit templates that reference those helpers still compile.
+
+### Notes
+
+- **No configuration changes.** Optional SlideToConfirm integration behaviour is unchanged when the package is installed.
+
+[1.20.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.20.1
 
 ## [1.20.0] - 2026-08-24
 

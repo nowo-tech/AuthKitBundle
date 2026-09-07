@@ -4,6 +4,7 @@
 
 
 - [Unreleased](#unreleased)
+- [To 1.20.1](#to-1201)
 - [To 1.20.0](#to-1200)
 - [To 1.19.0](#to-1190)
 - [To 1.18.0](#to-1180)
@@ -62,6 +63,14 @@
 ## Unreleased
 
 No pending upgrade notes.
+
+## To 1.20.1
+
+From **1.20.0** — No breaking changes. **No application upgrade steps.** Templates that call SlideToConfirm Twig helpers without the optional package installed no longer fail to compile.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.20.0
 
