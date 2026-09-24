@@ -63,36 +63,37 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-08-24 (refresh of 2026-07-30) |
-| Method | Cursor security-review of the 1.20.0 OTP-input delta (`OtpInputTypeResolver`, `ResetPasswordCodeFormType`, Twig assets, Flex recipe, SECURITY docs) plus prior residual model |
-| Grade | **Pass (conditional)** — overall **Medium**; 1.20.0 delta **Low** (no new Critical/High/Medium) |
+| Date | 2026-09-24 (refresh of 2026-08-24) |
+| Method | FrankenPHP worker audit (scenario B, no kernel reset) for 1.21.0 plus prior residual model — see [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md) |
+| Grade | **Pass (conditional)** — overall **Medium**; 1.21.0 delta **Low** (hardening only; no new Critical/High/Medium) |
 | Mitigated in 1.10.0 | Unverified-email social auto-link; missing reset/magic/register rate limits; OTP lockout; custom OAuth SSRF; social `PUBLIC_ACCESS`; `first_user_only` race; magic login 500 oracle |
 | Mitigated in 1.18.0 | QR approve Form CSRF when slide-to-confirm is enabled (`QrLoginApproveType`) |
 | Mitigated in 1.19.0 | Device ID not used as a credential; no auto-trust; QR trusted-device step-up is opt-in and still runs a custom `QrLoginStepUpInterface` |
 | Mitigated in 1.20.0 | OTP input widget is UX only; `hash_equals` and `max_code_attempts` unchanged |
-| Open residuals | Cleartext OAuth secrets/tokens at rest (encrypt via DoctrineEncrypt); residual timing side-channels on reset/magic request; do not use logging notifiers in prod; CSRF on **plain** QR approve/deny when slide is off (pre-existing); extra device-keyed rate limit can be skipped if `collect()` never runs (IP limiter still applies) |
+| Mitigated in 1.21.0 | Stale Doctrine identity-map reads on QR/password-reset/social paths; atomic QR status transitions; closed EntityManager recovery; OAuth HTTP timeouts; embed dropdown ignores leftover tokens outside a secured firewall |
+| Open residuals | Cleartext OAuth secrets/tokens at rest (encrypt via DoctrineEncrypt); residual timing side-channels on reset/magic request; do not use logging notifiers in prod; CSRF on **plain** QR approve/deny when slide is off (pre-existing); extra device-keyed rate limit can be skipped if `collect()` never runs (IP limiter still applies); host app still owns shared `cache.app` and optional global EM clear in worker mode |
 
 See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.com/nowo-tech/bundles/blob/master/BUNDLES_SECURITY_ANALYSIS.md) (AuthKitBundle entry).
 
 ## Release security checklist (12.4.1)
 
-Last completed for **v1.20.0** (2026-08-24). Re-run before the next tag.
+Last completed for **v1.21.0** (2026-09-24). Re-run before the next tag.
 
 Before each release, confirm:
 
 | Item | Status |
 | --- | --- |
-| `docs/SECURITY.md` and `.github/SECURITY.md` up to date | ☐ |
-| `.env` listed in `.gitignore`; no secrets in repo | ☐ |
-| Flex recipe / default config contain no secrets | ☐ |
-| User input validated (forms + Symfony validator on registration) | ☐ |
-| Output escaped (Twig templates) | ☐ |
-| `composer audit` run on bundle and demo | ☐ |
-| Logs do not dump credentials | ☐ |
-| Password hashing via Symfony hasher (no custom crypto) | ☐ |
-| Registration gate prevents unwanted signups per config | ☐ |
-| Require Login Throttle bundle + `configure-security` in INSTALLATION/recipe | ☐ |
-| AI security audit Pass (good/conditional) recorded (REQ-SEC-004) | ☐ |
+| `docs/SECURITY.md` and `.github/SECURITY.md` up to date | ☑ |
+| `.env` listed in `.gitignore`; no secrets in repo | ☑ |
+| Flex recipe / default config contain no secrets | ☑ |
+| User input validated (forms + Symfony validator on registration) | ☑ |
+| Output escaped (Twig templates) | ☑ |
+| `composer audit` run on bundle and demo | ☑ |
+| Logs do not dump credentials | ☑ |
+| Password hashing via Symfony hasher (no custom crypto) | ☑ |
+| Registration gate prevents unwanted signups per config | ☑ |
+| Require Login Throttle bundle + `configure-security` in INSTALLATION/recipe | ☑ |
+| AI security audit Pass (good/conditional) recorded (REQ-SEC-004) | ☑ |
 
 ## Reporting
 

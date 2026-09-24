@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\SocialLogin;
 use DateInterval;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
@@ -33,6 +34,7 @@ final class SocialAccountLinker
         private readonly PropertyAccessorInterface $propertyAccessor,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly ClockInterface $clock,
+        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
     ) {
     }
 
@@ -49,7 +51,7 @@ final class SocialAccountLinker
         if ($account instanceof SocialLoginAccount) {
             $user = $this->loadUser($profile->userClass, $account->getUserId());
             $this->refreshAccountTokens($account, $socialProfile, $tokens);
-            $this->entityManager->flush();
+            $this->entityManagerRecovery->flush($this->entityManager);
 
             return $user;
         }
@@ -93,7 +95,7 @@ final class SocialAccountLinker
             ->setRawProfile($socialProfile->raw);
         $this->refreshAccountTokens($account, $socialProfile, $tokens);
         $this->entityManager->persist($account);
-        $this->entityManager->flush();
+        $this->entityManagerRecovery->flush($this->entityManager);
 
         return $user;
     }
@@ -128,7 +130,15 @@ final class SocialAccountLinker
             $profile->userIdentifierField => $identifier,
         ]);
 
-        return $user instanceof UserInterface ? $user : null;
+        if (!$user instanceof UserInterface) {
+            return null;
+        }
+
+        if ($this->entityManager->contains($user)) {
+            $this->entityManager->refresh($user);
+        }
+
+        return $user;
     }
 
     private function createUser(ProfileSettings $profile, SocialUserProfile $socialProfile): UserInterface&PasswordAuthenticatedUserInterface
@@ -154,7 +164,7 @@ final class SocialAccountLinker
         }
 
         $this->entityManager->persist($user);
-        $this->entityManager->flush();
+        $this->entityManagerRecovery->flush($this->entityManager);
 
         return $user;
     }
@@ -168,6 +178,10 @@ final class SocialAccountLinker
         $user = $this->entityManager->find($userClass, is_numeric($userId) ? (int) $userId : $userId);
         if (!$user instanceof UserInterface) {
             throw new RuntimeException(sprintf('Linked social user "%s" (%s) was not found.', $userId, $userClass));
+        }
+
+        if ($this->entityManager->contains($user)) {
+            $this->entityManager->refresh($user);
         }
 
         return $user;

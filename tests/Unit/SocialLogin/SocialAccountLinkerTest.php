@@ -80,6 +80,8 @@ final class SocialAccountLinkerTest extends TestCase
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
+        $em->method('contains')->with($existing)->willReturn(true);
+        $em->expects(self::once())->method('refresh')->with($existing);
         $em->expects(self::once())->method('persist');
         $em->expects(self::once())->method('flush');
 
@@ -120,6 +122,8 @@ final class SocialAccountLinkerTest extends TestCase
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('find')->with(TestUser::class, 7)->willReturn($existingUser);
+        $em->method('contains')->with($existingUser)->willReturn(true);
+        $em->expects(self::once())->method('refresh')->with($existingUser);
         $em->expects(self::once())->method('flush');
 
         $linker = new SocialAccountLinker(

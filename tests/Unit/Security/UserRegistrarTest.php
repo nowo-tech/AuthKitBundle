@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Security;
 
+use Doctrine\DBAL\Driver\AbstractException;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\Tests\Stub\RoleWritableUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
@@ -209,5 +213,46 @@ final class UserRegistrarTest extends TestCase
         ]);
 
         self::assertSame('user@example.com', $user->getUserIdentifier());
+    }
+
+    public function testDuplicateUserFlushFailureReopensEntityManagerAndThrowsRuntimeException(): void
+    {
+        $open          = true;
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('flush')->willReturnCallback(static function () use (&$open): never {
+            $open = false;
+
+            throw new UniqueConstraintViolationException(new class('Duplicate entry') extends AbstractException { }, null);
+        });
+        $entityManager->method('isOpen')->willReturnCallback(static function () use (&$open): bool {
+            return $open;
+        });
+
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->method('getManagers')->willReturn(['default' => $entityManager]);
+        $registry->expects(self::once())->method('resetManager')->with('default')
+            ->willReturnCallback(static function () use (&$open, $entityManager): EntityManagerInterface {
+                $open = true;
+
+                return $entityManager;
+            });
+
+        $registrar = new UserRegistrar(
+            ProfileRegistryFactory::single(TestUser::class),
+            $entityManager,
+            $this->createMock(UserPasswordHasherInterface::class),
+            new PropertyAccessor(),
+            new EntityManagerRecovery($registry),
+        );
+
+        try {
+            $registrar->register(['email' => 'taken@example.com']);
+            self::fail('A duplicate registration must fail.');
+        } catch (RuntimeException $exception) {
+            self::assertInstanceOf(UniqueConstraintViolationException::class, $exception->getPrevious());
+        }
+
+        // The next request served by the same worker gets an open manager again.
+        self::assertTrue($entityManager->isOpen());
     }
 }

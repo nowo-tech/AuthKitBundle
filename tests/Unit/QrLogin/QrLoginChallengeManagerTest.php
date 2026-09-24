@@ -213,6 +213,10 @@ final class QrLoginChallengeManagerTest extends TestCase
             ->with(self::callback(static fn ($event): bool => $event instanceof QrLoginChallengeCreatedEvent
                 || $event instanceof QrLoginApprovedEvent));
 
+        $this->repository->expects(self::once())->method('transitionStatus')
+            ->with($result['challenge'], QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Approved)
+            ->willReturn(true);
+
         $this->manager->approve($result['challenge'], $user, '+34 *** 78');
 
         self::assertSame(QrLoginChallengeStatus::Approved, $result['challenge']->getStatus());
@@ -228,6 +232,10 @@ final class QrLoginChallengeManagerTest extends TestCase
 
         $request = Request::create('/login/qr');
         $result  = $this->manager->create($request);
+
+        $this->repository->expects(self::once())->method('transitionStatus')
+            ->with($result['challenge'], QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Denied)
+            ->willReturn(true);
 
         $this->manager->deny($result['challenge']);
 
@@ -248,6 +256,10 @@ final class QrLoginChallengeManagerTest extends TestCase
 
         $result['challenge']->markApproved(TestUser::class, 'consumer@test.com', null);
 
+        $this->repository->expects(self::once())->method('transitionStatus')
+            ->with($result['challenge'], QrLoginChallengeStatus::Approved, QrLoginChallengeStatus::Consumed)
+            ->willReturn(true);
+
         $this->manager->consume($result['challenge'], $user);
 
         self::assertSame(QrLoginChallengeStatus::Consumed, $result['challenge']->getStatus());
@@ -267,6 +279,7 @@ final class QrLoginChallengeManagerTest extends TestCase
             expiresAt: new DateTimeImmutable('-1 second'),
         );
 
+        $this->repository->method('transitionStatus')->willReturn(true);
         $this->repository->expects(self::once())->method('save');
 
         self::assertTrue($this->manager->isExpiredOrInvalid($challenge));
@@ -311,7 +324,7 @@ final class QrLoginChallengeManagerTest extends TestCase
             hash('sha256', 'token'),
             new DateTimeImmutable('+60 seconds'),
         );
-        $this->repository->expects(self::once())->method('find')->with('find-me')->willReturn($challenge);
+        $this->repository->expects(self::once())->method('findFresh')->with('find-me')->willReturn($challenge);
 
         self::assertSame($challenge, $this->manager->find('find-me'));
     }

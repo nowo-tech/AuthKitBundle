@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Security;
 
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use RuntimeException;
@@ -26,6 +28,7 @@ final class UserRegistrar
         private readonly EntityManagerInterface $entityManager,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly PropertyAccessorInterface $propertyAccessor,
+        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
     ) {
     }
 
@@ -72,13 +75,18 @@ final class UserRegistrar
         }
 
         $this->entityManager->persist($user);
-        $this->entityManager->flush();
+
+        try {
+            $this->entityManagerRecovery->flush($this->entityManager);
+        } catch (UniqueConstraintViolationException $exception) {
+            throw new RuntimeException(sprintf('Registration failed: a "%s" with the same unique value already exists.', $profile->userClass), 0, $exception);
+        }
 
         if ($mode === RegistrationMode::FirstUserOnly) {
             $count = $this->entityManager->getRepository($profile->userClass)->count([]);
             if ($count > 1) {
                 $this->entityManager->remove($user);
-                $this->entityManager->flush();
+                $this->entityManagerRecovery->flush($this->entityManager);
 
                 throw new RuntimeException(sprintf('Registration race detected for first_user_only on "%s"; rolling back extra user.', $profile->userClass));
             }

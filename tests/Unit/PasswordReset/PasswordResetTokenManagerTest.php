@@ -56,6 +56,7 @@ final class PasswordResetTokenManagerTest extends TestCase
     public function testResolveUserByLinkTokenReturnsNullWhenNotFound(): void
     {
         $query = $this->createMock(Query::class);
+        $query->method('setHint')->willReturnSelf();
         $query->method('getOneOrNullResult')->willReturn(null);
 
         $queryBuilder = $this->createMock(QueryBuilder::class);
@@ -462,6 +463,7 @@ final class PasswordResetTokenManagerTest extends TestCase
     private function entityManagerForLinkResolve(TestUser $user): EntityManagerInterface
     {
         $query = $this->createMock(Query::class);
+        $query->expects(self::once())->method('setHint')->with(Query::HINT_REFRESH, true)->willReturnSelf();
         $query->method('getOneOrNullResult')->willReturn($user);
 
         $queryBuilder = $this->createMock(QueryBuilder::class);

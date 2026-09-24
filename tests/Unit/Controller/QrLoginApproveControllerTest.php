@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp;
+use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\QrLogin\QrLoginRateLimiter;
@@ -408,5 +409,21 @@ final class QrLoginApproveControllerTest extends TestCase
     private function availableSlideResolver(): SlideToConfirmTypeResolver
     {
         return new SlideToConfirmTypeResolver(static fn (string $class): bool => true);
+    }
+
+    public function testPostReturnsConflictWhenAnotherWorkerResolvedChallenge(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->challenge());
+        $manager->method('isExpiredOrInvalid')->willReturn(false);
+        $manager->method('verifyApproveToken')->willReturn(true);
+        $manager->method('approve')->willThrowException(
+            QrLoginChallengeConflictException::forTransition('approve-id', QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Approved),
+        );
+
+        $response = $this->controller($manager, $this->overrides(), $this->authenticatedStorage())
+            ->approve(Request::create('/approve', 'POST', ['t' => 'good-token']), 'approve-id');
+
+        self::assertSame(Response::HTTP_CONFLICT, $response->getStatusCode());
     }
 }

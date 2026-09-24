@@ -62,6 +62,27 @@ final class OAuth2ClientTest extends TestCase
         self::assertTrue($profile->emailVerified);
     }
 
+    public function testTokenAndUserinfoCallsUseExplicitTimeouts(): void
+    {
+        $options = [];
+        $http    = new MockHttpClient(static function (string $method, string $url, array $requestOptions) use (&$options): MockResponse {
+            $options[] = [$requestOptions['timeout'], $requestOptions['max_duration']];
+
+            return new MockResponse(json_encode(['access_token' => 'tok', 'sub' => 'uid-1'], JSON_THROW_ON_ERROR));
+        });
+
+        $client     = new OAuth2Client($http, new ProviderEndpointCatalog(), 3.0, 7.0);
+        $credential = (new SocialLoginCredential())
+            ->setProvider('google')
+            ->setClientId('id')
+            ->setClientSecret('secret');
+
+        $client->exchangeCode($credential, 'code', 'https://app.test/callback');
+        $client->fetchUserProfile($credential, 'tok');
+
+        self::assertSame([[3.0, 7.0], [3.0, 7.0]], $options);
+    }
+
     public function testExchangeCodeRequiresAccessToken(): void
     {
         $http = new MockHttpClient([

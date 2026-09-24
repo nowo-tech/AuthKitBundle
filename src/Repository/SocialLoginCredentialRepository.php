@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Repository;
 
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 
@@ -20,7 +21,16 @@ class SocialLoginCredentialRepository extends ServiceEntityRepository
 
     public function findOneByProvider(string $provider): ?SocialLoginCredential
     {
-        return $this->findOneBy(['provider' => $provider]);
+        /** @var SocialLoginCredential|null $credential */
+        $credential = $this->createQueryBuilder('c')
+            ->andWhere('c.provider = :provider')
+            ->setParameter('provider', $provider)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
+            ->getOneOrNullResult();
+
+        return $credential;
     }
 
     /**
@@ -33,6 +43,7 @@ class SocialLoginCredentialRepository extends ServiceEntityRepository
             ->andWhere('c.enabled = true')
             ->orderBy('c.label', 'ASC')
             ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
             ->getResult();
 
         return $rows;

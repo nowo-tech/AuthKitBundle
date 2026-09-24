@@ -13,7 +13,10 @@ use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -32,6 +35,8 @@ final class AuthEmbedContextFactory
         private readonly RegistrationGate $registrationGate,
         private readonly ProfileRegistry $profileRegistry,
         private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
+        private readonly ?RequestStack $requestStack = null,
+        private readonly ?Security $security = null,
     ) {
     }
 
@@ -53,7 +58,7 @@ final class AuthEmbedContextFactory
         $profile = $this->resolveProfile($opts);
         $embed   = $profile->embed;
 
-        $user            = $this->tokenStorage->getToken()?->getUser();
+        $user            = $this->resolveUser();
         $isAuthenticated = $user instanceof UserInterface;
 
         $registrationAllowed = $this->registrationGate->isRegistrationAllowed($profile->name);
@@ -117,6 +122,28 @@ final class AuthEmbedContextFactory
                 $profile->slideToConfirm,
             ),
         );
+    }
+
+    /**
+     * Only a firewall with security enabled refreshes the token storage on each request; elsewhere,
+     * without a kernel reset between requests (worker mode), it may still hold the previous visitor's token.
+     */
+    private function resolveUser(): ?UserInterface
+    {
+        if ($this->requestStack instanceof RequestStack) {
+            $request = $this->requestStack->getMainRequest();
+            if (!$request instanceof Request || !$request->attributes->has('_firewall_context')) {
+                return null;
+            }
+
+            if ($this->security instanceof Security && $this->security->getFirewallConfig($request)?->isSecurityEnabled() !== true) {
+                return null;
+            }
+        }
+
+        $user = $this->tokenStorage->getToken()?->getUser();
+
+        return $user instanceof UserInterface ? $user : null;
     }
 
     private function resolveProfile(AuthEmbedOptions $options): ProfileSettings

@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.21.0] - 2026-09-24](#1210-2026-09-24)
+  - [Fixed](#fixed)
+  - [Added](#added)
 - [[1.20.1] - 2026-09-07](#1201-2026-09-07)
 - [[1.20.0] - 2026-08-24](#1200-2026-08-24)
 - [[1.19.0] - 2026-08-24](#1190-2026-08-24)
@@ -124,6 +127,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.21.0] - 2026-09-24
+
+### Fixed
+
+- **FrankenPHP worker mode without kernel reset** (see [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md)):
+  - QR login: `QrLoginChallengeManager::find()` now reads the challenge with `Query::HINT_REFRESH` (`QrLoginChallengeRepository::findFresh()`), so a worker never decides on a stale identity-map copy. `approve()`, `deny()`, `consume()` and the expiry check move the status with an atomic conditional `UPDATE … WHERE status = :expected`; a lost race throws the new `QrLoginChallengeConflictException` (approve/deny answer `409`, complete redirects to login without logging in). A challenge can only be consumed once across workers.
+  - Password reset: the code flow refreshes the user before comparing the stored hash/expiry, and the link-token lookup uses `Query::HINT_REFRESH`. `PasswordResetUserResolver` / `MagicLoginUserResolver` also `refresh()` managed users after lookup.
+  - Social login: credential and account lookups use `Query::HINT_REFRESH`; `SocialAccountLinker` refreshes linked/matched users before login. OAuth token and userinfo calls set explicit `timeout` (10 s) and `max_duration` (20 s); override the `$timeout` / `$maxDuration` arguments of `OAuth2Client` to change them.
+  - Failed flushes no longer leave a closed EntityManager for the rest of the worker's life: the new `EntityManagerRecovery` service resets closed managers through `ManagerRegistry` before rethrowing (registration, password reset, social login, QR login).
+  - Registration: a unique constraint violation on flush is converted to a `RuntimeException`, so `RegisterController` redirects instead of returning a 500.
+  - `auth_kit_dropdown` / `AuthEmbedContextFactory` only trusts the security token when the main request is behind a firewall with security enabled, so a token left over from a previous request is never rendered on public pages.
+
+### Added
+
+- [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md) — audit under scenario B (kernel not reset between requests).
+- `Doctrine\EntityManagerRecovery`, `QrLoginChallengeConflictException`, `QrLoginChallengeRepository::findFresh()` / `transitionStatus()`.
+
+[1.21.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.21.0
 
 ## [1.20.1] - 2026-09-07
 

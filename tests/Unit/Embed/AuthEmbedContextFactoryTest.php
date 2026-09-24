@@ -20,9 +20,14 @@ use Nowo\AuthKitBundle\Tests\Unit\Controller\AuthKitRoutesTrait;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Bundle\SecurityBundle\Security\FirewallConfig;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Forms;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\BadCredentialsException;
@@ -41,6 +46,8 @@ final class AuthEmbedContextFactoryTest extends TestCase
         RegistrationGate $gate,
         ?AuthenticationUtils $authenticationUtils = null,
         ?TokenStorageInterface $tokenStorage = null,
+        ?RequestStack $requestStack = null,
+        ?Security $security = null,
     ): AuthEmbedContextFactory {
         $profileRegistry = ProfileRegistryFactory::single(TestUser::class, $profileOverrides);
 
@@ -65,6 +72,8 @@ final class AuthEmbedContextFactoryTest extends TestCase
             AuthKitTestUrlGenerator::fromMock($inner),
             $gate,
             $profileRegistry,
+            requestStack: $requestStack,
+            security: $security,
         );
     }
 
@@ -155,6 +164,119 @@ final class AuthEmbedContextFactoryTest extends TestCase
         self::assertSame('alice@example.com', $context->userIdentifier);
         self::assertNull($context->loginForm);
         self::assertNull($context->registrationForm);
+    }
+
+    public function testStaleTokenIsIgnoredOnNextRequestOutsideFirewallWithoutReset(): void
+    {
+        $alice = new TestUser();
+        $alice->setEmail('alice@example.com');
+
+        $tokenStorage = new TokenStorage();
+        $requestStack = new RequestStack();
+        $security     = $this->createMock(Security::class);
+        $security->method('getFirewallConfig')->willReturnCallback(
+            static fn (Request $request): FirewallConfig => new FirewallConfig('main', 'user_checker'),
+        );
+
+        $factory = $this->createFactory(
+            $this->embedConfig(),
+            $this->registrationGate(),
+            tokenStorage: $tokenStorage,
+            requestStack: $requestStack,
+            security: $security,
+        );
+
+        // Request 1: behind the firewall, Alice is logged in.
+        $first = Request::create('/account');
+        $first->attributes->set('_firewall_context', 'security.firewall.map.context.main');
+        $requestStack->push($first);
+        $tokenStorage->setToken(new UsernamePasswordToken($alice, 'main', ['ROLE_USER']));
+
+        $context = $factory->create();
+        self::assertNotNull($context);
+        self::assertTrue($context->isAuthenticated);
+        self::assertSame('alice@example.com', $context->userIdentifier);
+        $requestStack->pop();
+
+        // Request 2: an anonymous visitor on a page outside any firewall; the token storage was not reset.
+        $requestStack->push(Request::create('/public'));
+
+        $context = $factory->create();
+        self::assertNotNull($context);
+        self::assertFalse($context->isAuthenticated);
+        self::assertNull($context->userIdentifier);
+        self::assertNotNull($context->loginForm);
+    }
+
+    public function testTokenIgnoredWhenFirewallHasSecurityDisabled(): void
+    {
+        $alice = new TestUser();
+        $alice->setEmail('alice@example.com');
+
+        $tokenStorage = new TokenStorage();
+        $tokenStorage->setToken(new UsernamePasswordToken($alice, 'main', ['ROLE_USER']));
+
+        $request = Request::create('/assets');
+        $request->attributes->set('_firewall_context', 'security.firewall.map.context.dev');
+        $requestStack = new RequestStack();
+        $requestStack->push($request);
+
+        $security = $this->createMock(Security::class);
+        $security->method('getFirewallConfig')->willReturn(new FirewallConfig('dev', 'user_checker', securityEnabled: false));
+
+        $context = $this->createFactory(
+            $this->embedConfig(),
+            $this->registrationGate(),
+            tokenStorage: $tokenStorage,
+            requestStack: $requestStack,
+            security: $security,
+        )->create();
+
+        self::assertNotNull($context);
+        self::assertFalse($context->isAuthenticated);
+    }
+
+    public function testTokenIgnoredWithoutMainRequest(): void
+    {
+        $alice = new TestUser();
+        $alice->setEmail('alice@example.com');
+
+        $tokenStorage = new TokenStorage();
+        $tokenStorage->setToken(new UsernamePasswordToken($alice, 'main', ['ROLE_USER']));
+
+        $context = $this->createFactory(
+            $this->embedConfig(),
+            $this->registrationGate(),
+            tokenStorage: $tokenStorage,
+            requestStack: new RequestStack(),
+        )->create();
+
+        self::assertNotNull($context);
+        self::assertFalse($context->isAuthenticated);
+    }
+
+    public function testTokenTrustedBehindFirewallWithoutSecurityService(): void
+    {
+        $alice = new TestUser();
+        $alice->setEmail('alice@example.com');
+
+        $tokenStorage = new TokenStorage();
+        $tokenStorage->setToken(new UsernamePasswordToken($alice, 'main', ['ROLE_USER']));
+
+        $request = Request::create('/account');
+        $request->attributes->set('_firewall_context', 'security.firewall.map.context.main');
+        $requestStack = new RequestStack();
+        $requestStack->push($request);
+
+        $context = $this->createFactory(
+            $this->embedConfig(),
+            $this->registrationGate(),
+            tokenStorage: $tokenStorage,
+            requestStack: $requestStack,
+        )->create();
+
+        self::assertNotNull($context);
+        self::assertTrue($context->isAuthenticated);
     }
 
     public function testRegistrationHiddenWhenGateDisallows(): void

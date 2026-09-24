@@ -4,6 +4,7 @@
 
 
 - [Unreleased](#unreleased)
+- [To 1.21.0](#to-1210)
 - [To 1.20.1](#to-1201)
 - [To 1.20.0](#to-1200)
 - [To 1.19.0](#to-1190)
@@ -62,7 +63,25 @@
 
 ## Unreleased
 
-No pending upgrade notes.
+## To 1.21.0
+
+From **1.20.1** — FrankenPHP worker hardening (scenario B: kernel not reset). Clear cache after upgrade.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+No configuration keys required. Behaviour changes to be aware of:
+
+- `QrLoginChallengeManager::approve()`, `deny()` and `consume()` throw `Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException` when the challenge was already resolved by another request. Code that calls these methods outside the bundle controllers should catch it.
+- `QrLoginChallengeManager::find()` now calls `QrLoginChallengeRepository::findFresh()` instead of `find()`; if you replaced the repository, add that method.
+- A duplicate user on registration (unique constraint violation) now raises a `RuntimeException` from `UserRegistrar::register()`; `RegisterController` redirects to the login route instead of returning HTTP 500.
+- `auth_kit_dropdown` renders the guest panel on pages that are not behind a firewall with `security: true`, even when a token is present in the token storage.
+- OAuth token/userinfo HTTP calls time out after 10 s idle / 20 s total. Override the `$timeout` and `$maxDuration` arguments of `Nowo\AuthKitBundle\SocialLogin\OAuth2Client` in your service configuration to change them.
+- Social credential/account lookups and magic/password-reset user resolvers refresh managed Doctrine entities so worker mode without kernel reset does not reuse stale rows. See [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md).
+
+Recommended in worker mode: shared `cache.app` (not in-memory `ArrayAdapter`); Auth Kit routes behind a stateful firewall. Keeping Symfony `services_resetter` enabled remains a good idea but the bundle no longer depends on it for its own security decisions.
 
 ## To 1.20.1
 

@@ -25,7 +25,17 @@ final class PasswordResetUserResolver
 
         $repository = $this->entityManager->getRepository($profile->userClass);
 
-        return $repository->findOneBy([$profile->userIdentifierField => $identifier]);
+        $user = $repository->findOneBy([$profile->userIdentifierField => $identifier]);
+        if ($user === null) {
+            return null;
+        }
+
+        // Long-lived workers keep the identity map: refresh so bans/identifier changes apply.
+        if ($this->entityManager->contains($user)) {
+            $this->entityManager->refresh($user);
+        }
+
+        return $user;
     }
 
     private function resolveProfile(?string $profileName): ProfileSettings

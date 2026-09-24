@@ -7,7 +7,9 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
 use LogicException;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
@@ -36,6 +38,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         private readonly ProfileRegistry $profileRegistry,
         private readonly ClockInterface $clock,
         private readonly AuthKitAttemptLimiter $attemptLimiter,
+        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
     ) {
     }
 
@@ -56,7 +59,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $this->propertyAccessor->setValue($user, $settings['token_expires_field'], $expires);
 
         $this->entityManager->persist($user);
-        $this->entityManager->flush();
+        $this->entityManagerRecovery->flush($this->entityManager);
 
         return new PasswordResetTokenResult($user, $plain, $expires, $delivery);
     }
@@ -94,6 +97,8 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
 
             return null;
         }
+
+        $this->refreshIfManaged($user);
 
         $tokenField = $profile->passwordReset['token_field'];
         $stored     = $this->propertyAccessor->getValue($user, $tokenField);
@@ -146,7 +151,18 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $this->propertyAccessor->setValue($user, $expiresField, null);
 
         $this->entityManager->persist($user);
-        $this->entityManager->flush();
+        $this->entityManagerRecovery->flush($this->entityManager);
+    }
+
+    /**
+     * Reloads the reset credential columns from the database: an entity kept in the identity map
+     * by a long-running worker may hold a hash or expiry that another process already changed.
+     */
+    private function refreshIfManaged(object $user): void
+    {
+        if ($this->entityManager->contains($user)) {
+            $this->entityManager->refresh($user);
+        }
     }
 
     private function findUserByStoredToken(ProfileSettings $profile, string $hash): ?object
@@ -161,6 +177,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             ->setParameter('prefix', $hash . '|%')
             ->setMaxResults(1)
             ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
             ->getOneOrNullResult();
 
         return $user;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\QrLogin;
 
 use DateTimeImmutable;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Enum\QrLoginDesktopBinding;
@@ -42,6 +43,7 @@ class QrLoginChallengeManager
         private readonly ProfileRegistry $profileRegistry,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly string $kernelSecret,
+        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
     ) {
     }
 
@@ -68,7 +70,7 @@ class QrLoginChallengeManager
             expiresAt: new DateTimeImmutable("+{$ttl} seconds"),
         );
 
-        $this->repository->save($challenge);
+        $this->save($challenge);
         $this->eventDispatcher->dispatch(new QrLoginChallengeCreatedEvent($challenge, $profile->name));
 
         return [
@@ -78,9 +80,12 @@ class QrLoginChallengeManager
         ];
     }
 
+    /**
+     * Always reads the current row: a long-running worker may still hold an outdated copy in the identity map.
+     */
     public function find(string $id): ?QrLoginChallenge
     {
-        return $this->repository->find($id);
+        return $this->repository->findFresh($id);
     }
 
     public function createDesktopCookie(string $cookieValue, int $ttl): Cookie
@@ -138,6 +143,9 @@ class QrLoginChallengeManager
         return hash_equals($challenge->getApproveTokenHash(), $this->hashValue($token));
     }
 
+    /**
+     * @throws QrLoginChallengeConflictException when the challenge is no longer pending in the database
+     */
     public function approve(
         QrLoginChallenge $challenge,
         UserInterface $user,
@@ -146,42 +154,76 @@ class QrLoginChallengeManager
     ): void {
         $profile = $this->resolveProfile($profileName);
 
+        $this->claim($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Approved);
         $challenge->markApproved(
             userClass: $user::class,
             userId: $user->getUserIdentifier(),
             phoneHint: $phoneHint,
         );
 
-        $this->repository->save($challenge);
+        $this->save($challenge);
         $this->eventDispatcher->dispatch(new QrLoginApprovedEvent($challenge, $user, $profile->name));
     }
 
+    /**
+     * @throws QrLoginChallengeConflictException when the challenge is no longer pending in the database
+     */
     public function deny(QrLoginChallenge $challenge, ?string $profileName = null): void
     {
         $profile = $this->resolveProfile($profileName);
+        $this->claim($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Denied);
         $challenge->markDenied();
-        $this->repository->save($challenge);
+        $this->save($challenge);
         $this->eventDispatcher->dispatch(new QrLoginDeniedEvent($challenge, $profile->name));
     }
 
+    /**
+     * @throws QrLoginChallengeConflictException when the challenge is no longer approved in the database (already consumed)
+     */
     public function consume(QrLoginChallenge $challenge, UserInterface $user, ?string $profileName = null): void
     {
         $profile = $this->resolveProfile($profileName);
+        $this->claim($challenge, QrLoginChallengeStatus::Approved, QrLoginChallengeStatus::Consumed);
         $challenge->markConsumed();
-        $this->repository->save($challenge);
+        $this->save($challenge);
         $this->eventDispatcher->dispatch(new QrLoginCompletedEvent($challenge, $user, $profile->name));
     }
 
     public function isExpiredOrInvalid(QrLoginChallenge $challenge): bool
     {
         if ($challenge->isExpired() && $challenge->getStatus() === QrLoginChallengeStatus::Pending) {
-            $challenge->markExpired();
-            $this->repository->save($challenge);
+            if ($this->transition($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Expired)) {
+                $challenge->markExpired();
+                $this->save($challenge);
 
-            return true;
+                return true;
+            }
+
+            $challenge = $this->repository->findFresh($challenge->getId()) ?? $challenge;
         }
 
         return $challenge->getStatus() === QrLoginChallengeStatus::Expired;
+    }
+
+    private function claim(QrLoginChallenge $challenge, QrLoginChallengeStatus $from, QrLoginChallengeStatus $to): void
+    {
+        if (!$this->transition($challenge, $from, $to)) {
+            throw QrLoginChallengeConflictException::forTransition($challenge->getId(), $from, $to);
+        }
+    }
+
+    private function transition(QrLoginChallenge $challenge, QrLoginChallengeStatus $from, QrLoginChallengeStatus $to): bool
+    {
+        return $this->entityManagerRecovery->run(
+            fn (): bool => $this->repository->transitionStatus($challenge, $from, $to),
+        );
+    }
+
+    private function save(QrLoginChallenge $challenge): void
+    {
+        $this->entityManagerRecovery->run(function () use ($challenge): void {
+            $this->repository->save($challenge);
+        });
     }
 
     private function generateUuid(): string

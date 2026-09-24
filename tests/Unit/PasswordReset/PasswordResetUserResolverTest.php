@@ -22,6 +22,8 @@ final class PasswordResetUserResolverTest extends TestCase
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->with(TestUser::class)->willReturn($repository);
+        $entityManager->method('contains')->with($user)->willReturn(true);
+        $entityManager->expects(self::once())->method('refresh')->with($user);
 
         $resolver = new PasswordResetUserResolver(
             $entityManager,

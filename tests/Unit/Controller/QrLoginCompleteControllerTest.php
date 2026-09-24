@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Controller\QrLoginCompleteController;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
+use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
@@ -209,5 +210,29 @@ final class QrLoginCompleteControllerTest extends TestCase
         $response = $controller->complete(new Request(), 'complete-id');
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/dashboard', $response->headers->get('Location'));
+    }
+
+    public function testDoesNotLogInWhenChallengeWasAlreadyConsumed(): void
+    {
+        $user = new TestUser();
+        $user->setEmail('user@test.com');
+
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->approvedChallenge());
+        $manager->method('verifyDesktopCookie')->willReturn(true);
+        $manager->method('verifyDesktopBinding')->willReturn(true);
+        $manager->method('consume')->willThrowException(
+            QrLoginChallengeConflictException::forTransition('complete-id', QrLoginChallengeStatus::Approved, QrLoginChallengeStatus::Consumed),
+        );
+
+        $repo = $this->createMock(EntityRepository::class);
+        $repo->method('findOneBy')->willReturn($user);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($repo);
+
+        $security = $this->createMock(Security::class);
+        $security->expects(self::never())->method('login');
+
+        self::assertSame('/login', $this->controller($manager, $em, $security)->complete(new Request(), 'complete-id')->headers->get('Location'));
     }
 }

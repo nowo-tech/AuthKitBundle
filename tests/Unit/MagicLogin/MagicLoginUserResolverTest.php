@@ -26,6 +26,8 @@ final class MagicLoginUserResolverTest extends TestCase
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->with(TestUser::class)->willReturn($repository);
+        $em->method('contains')->with($user)->willReturn(true);
+        $em->expects(self::once())->method('refresh')->with($user);
 
         $resolver = new MagicLoginUserResolver($em, ProfileRegistryFactory::single(TestUser::class));
 

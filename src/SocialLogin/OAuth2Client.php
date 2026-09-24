@@ -20,9 +20,19 @@ use function is_string;
  */
 final class OAuth2Client
 {
+    public const DEFAULT_TIMEOUT = 10.0;
+
+    public const DEFAULT_MAX_DURATION = 20.0;
+
+    /**
+     * @param float $timeout idle timeout in seconds for token/userinfo calls
+     * @param float $maxDuration total time limit in seconds for token/userinfo calls
+     */
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly ProviderEndpointCatalog $endpoints,
+        private readonly float $timeout = self::DEFAULT_TIMEOUT,
+        private readonly float $maxDuration = self::DEFAULT_MAX_DURATION,
     ) {
     }
 
@@ -47,7 +57,9 @@ final class OAuth2Client
     {
         $resolved = $this->endpoints->resolve($credential);
         $response = $this->httpClient->request('POST', $resolved['token_url'], [
-            'headers' => [
+            'timeout'      => $this->timeout,
+            'max_duration' => $this->maxDuration,
+            'headers'      => [
                 'Accept'       => 'application/json',
                 'Content-Type' => 'application/x-www-form-urlencoded',
             ],
@@ -81,7 +93,9 @@ final class OAuth2Client
     {
         $resolved = $this->endpoints->resolve($credential);
         $response = $this->httpClient->request('GET', $resolved['userinfo_url'], [
-            'headers' => [
+            'timeout'      => $this->timeout,
+            'max_duration' => $this->maxDuration,
+            'headers'      => [
                 'Accept'        => 'application/json',
                 'Authorization' => 'Bearer ' . $accessToken,
             ],

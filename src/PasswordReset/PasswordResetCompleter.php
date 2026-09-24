@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\PasswordReset;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
@@ -21,6 +22,7 @@ final class PasswordResetCompleter
         private readonly PropertyAccessorInterface $propertyAccessor,
         private readonly PasswordResetTokenManagerInterface $tokenManager,
         private readonly ProfileRegistry $profileRegistry,
+        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
     ) {
     }
 
@@ -34,7 +36,7 @@ final class PasswordResetCompleter
         $this->tokenManager->clearForUser($user);
 
         $this->entityManager->persist($user);
-        $this->entityManager->flush();
+        $this->entityManagerRecovery->flush($this->entityManager);
     }
 
     /**

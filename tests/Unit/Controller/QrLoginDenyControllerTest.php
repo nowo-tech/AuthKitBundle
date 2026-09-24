@@ -7,6 +7,8 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 use DateTimeImmutable;
 use Nowo\AuthKitBundle\Controller\QrLoginDenyController;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
+use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
+use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
@@ -111,5 +113,25 @@ final class QrLoginDenyControllerTest extends TestCase
 
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
         self::assertStringContainsString('denied', strtolower((string) $response->getContent()));
+    }
+
+    public function testConflictWhenAnotherWorkerResolvedChallenge(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->challenge());
+        $manager->method('verifyApproveToken')->willReturn(true);
+        $manager->method('deny')->willThrowException(
+            QrLoginChallengeConflictException::forTransition('deny-id', QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Denied),
+        );
+
+        $user = new TestUser();
+        $user->setEmail('deny@test.com');
+        $storage = new TokenStorage();
+        $storage->setToken(new UsernamePasswordToken($user, 'main', $user->getRoles()));
+
+        $response = $this->controller($manager, [], $storage)
+            ->deny(Request::create('/deny', 'POST', ['t' => 'ok']), 'deny-id');
+
+        self::assertSame(Response::HTTP_CONFLICT, $response->getStatusCode());
     }
 }

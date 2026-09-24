@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Controller;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
+use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Symfony\Component\HttpFoundation\Request;
@@ -54,7 +55,11 @@ final class QrLoginDenyController
             return new Response('Authentication required', Response::HTTP_UNAUTHORIZED);
         }
 
-        $this->challengeManager->deny($challenge, $profile->name);
+        try {
+            $this->challengeManager->deny($challenge, $profile->name);
+        } catch (QrLoginChallengeConflictException) {
+            return new Response('Challenge already resolved', Response::HTTP_CONFLICT);
+        }
 
         return new Response('Login denied. You can close this window.');
     }

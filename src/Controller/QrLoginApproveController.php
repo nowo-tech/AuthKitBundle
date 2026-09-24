@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Form\QrLoginApproveType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
+use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\QrLogin\QrLoginRateLimiter;
@@ -135,7 +136,11 @@ final class QrLoginApproveController
             }
         }
 
-        $this->challengeManager->approve($challenge, $user, $phoneResult['phone_hint'], $profile->name);
+        try {
+            $this->challengeManager->approve($challenge, $user, $phoneResult['phone_hint'], $profile->name);
+        } catch (QrLoginChallengeConflictException) {
+            return new Response('Challenge already resolved', Response::HTTP_CONFLICT);
+        }
 
         return new Response('Approved. You can close this window and continue on your computer.');
     }
