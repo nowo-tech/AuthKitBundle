@@ -8,6 +8,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
+use SortDirection;
 
 /**
  * @extends ServiceEntityRepository<SocialLoginCredential>
@@ -41,7 +42,7 @@ class SocialLoginCredentialRepository extends ServiceEntityRepository
         /** @var list<SocialLoginCredential> $rows */
         $rows = $this->createQueryBuilder('c')
             ->andWhere('c.enabled = true')
-            ->orderBy('c.label', 'ASC')
+            ->orderBy('c.label', SortDirection::Ascending)
             ->getQuery()
             ->setHint(Query::HINT_REFRESH, true)
             ->getResult();

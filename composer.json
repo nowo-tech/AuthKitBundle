@@ -31,7 +31,7 @@
     ],
     "require": {
         "doctrine/doctrine-bundle": "^2.10 || ^3.0",
-        "doctrine/orm": "^2.15 || ^3.0",
+        "doctrine/orm": "^3.7",
         "nowo-tech/doctrine-encrypt-bundle": "^2.3",
         "nowo-tech/form-kit-bundle": "^2.2",
         "php": ">=8.2 <8.6",
