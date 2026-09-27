@@ -80,6 +80,7 @@ final class ResetPasswordCodeFormType extends AbstractType
             ]);
         }
 
+        // @igor-ignore - Request-scoped Twig/Form wiring; not a shared worker singleton.
         $this->passwordRepeatedFieldBuilder->add(
             $builder,
             'password',

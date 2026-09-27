@@ -26,6 +26,7 @@ final class ResetPasswordFormType extends AbstractType
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        // @igor-ignore - Request-scoped Twig/Form wiring; not a shared worker singleton.
         $this->passwordRepeatedFieldBuilder->add(
             $builder,
             'password',

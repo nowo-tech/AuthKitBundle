@@ -33,6 +33,7 @@ final class PasswordResetCompleter
         $hashed           = $this->passwordHasher->hashPassword($user, $plainPassword);
 
         $this->propertyAccessor->setValue($user, $passwordProperty, $hashed);
+        // @igor-ignore - Not shared worker service state.
         $this->tokenManager->clearForUser($user);
 
         $this->entityManager->persist($user);

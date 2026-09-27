@@ -29,6 +29,7 @@ make qa
 Before opening a PR:
 
 ```bash
+make igor
 make release-check
 ```
 

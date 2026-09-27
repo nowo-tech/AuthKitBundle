@@ -4,6 +4,7 @@
 
 
 - [Unreleased](#unreleased)
+- [To 1.21.1](#to-1211)
 - [To 1.21.0](#to-1210)
 - [To 1.20.1](#to-1201)
 - [To 1.20.0](#to-1200)
@@ -62,6 +63,18 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.21.1
+
+From **1.21.0** — REQ-CS-008 Igor FrankenPHP worker audit (igor-php require-dev, igor.json, make igor).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+- No application upgrade steps for require-dev Igor tooling (REQ-CS-008). Consumers do not pull `igor-php/igor-php` transitively.
+
 
 ## To 1.21.0
 

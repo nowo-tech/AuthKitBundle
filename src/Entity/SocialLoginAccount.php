@@ -87,6 +87,7 @@ class SocialLoginAccount
 
     public function setProvider(string $provider): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->provider = $provider;
         $this->touch();
 
@@ -100,6 +101,7 @@ class SocialLoginAccount
 
     public function setProviderUserId(string $providerUserId): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->providerUserId = $providerUserId;
         $this->touch();
 
@@ -113,6 +115,7 @@ class SocialLoginAccount
 
     public function setUserClass(string $userClass): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->userClass = $userClass;
         $this->touch();
 
@@ -126,6 +129,7 @@ class SocialLoginAccount
 
     public function setUserId(string $userId): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->userId = $userId;
         $this->touch();
 
@@ -139,6 +143,7 @@ class SocialLoginAccount
 
     public function setUserIdentifier(string $userIdentifier): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->userIdentifier = $userIdentifier;
         $this->touch();
 
@@ -152,6 +157,7 @@ class SocialLoginAccount
 
     public function setAccessToken(?string $accessToken): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->accessToken = $accessToken;
         $this->touch();
 
@@ -165,6 +171,7 @@ class SocialLoginAccount
 
     public function setRefreshToken(?string $refreshToken): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->refreshToken = $refreshToken;
         $this->touch();
 
@@ -178,6 +185,7 @@ class SocialLoginAccount
 
     public function setTokenExpiresAt(?DateTimeImmutable $tokenExpiresAt): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->tokenExpiresAt = $tokenExpiresAt;
         $this->touch();
 
@@ -191,6 +199,7 @@ class SocialLoginAccount
 
     public function setEmail(?string $email): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->email = $email;
         $this->touch();
 
@@ -204,6 +213,7 @@ class SocialLoginAccount
 
     public function setDisplayName(?string $displayName): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->displayName = $displayName;
         $this->touch();
 
@@ -219,6 +229,7 @@ class SocialLoginAccount
     /** @param array<string, mixed> $rawProfile */
     public function setRawProfile(array $rawProfile): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->rawProfile = $rawProfile;
         $this->touch();
 
@@ -237,6 +248,7 @@ class SocialLoginAccount
 
     private function touch(): void
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
     }
 }

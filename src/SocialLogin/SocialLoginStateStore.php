@@ -25,6 +25,7 @@ final class SocialLoginStateStore
     {
         $state   = bin2hex(random_bytes(16));
         $session = $this->requestStack->getSession();
+        // @igor-ignore - Not shared worker service state.
         $session->set(self::SESSION_KEY, [
             'provider' => $provider,
             'state'    => $state,
@@ -38,6 +39,7 @@ final class SocialLoginStateStore
         $session = $this->requestStack->getSession();
         /** @var array{provider?: string, state?: string}|null $payload */
         $payload = $session->get(self::SESSION_KEY);
+        // @igor-ignore - Not shared worker service state.
         $session->remove(self::SESSION_KEY);
 
         if (!is_array($payload)) {

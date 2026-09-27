@@ -221,6 +221,7 @@ class QrLoginChallengeManager
 
     private function save(QrLoginChallenge $challenge): void
     {
+        // @igor-ignore - Not shared worker service state.
         $this->entityManagerRecovery->run(function () use ($challenge): void {
             $this->repository->save($challenge);
         });

@@ -112,6 +112,7 @@ class QrLoginChallenge
 
     public function setStatus(QrLoginChallengeStatus $status): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->status = $status->value;
         $this->touch();
 
@@ -125,6 +126,7 @@ class QrLoginChallenge
 
     public function setUserClass(?string $userClass): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->userClass = $userClass;
         $this->touch();
 
@@ -138,6 +140,7 @@ class QrLoginChallenge
 
     public function setUserId(?string $userId): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->userId = $userId;
         $this->touch();
 
@@ -151,6 +154,7 @@ class QrLoginChallenge
 
     public function setPhoneHint(?string $phoneHint): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->phoneHint = $phoneHint;
         $this->touch();
 
@@ -189,6 +193,7 @@ class QrLoginChallenge
 
     public function markApproveTokenUsed(): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->approveTokenUsedAt = new DateTimeImmutable();
         $this->touch();
 
@@ -212,10 +217,15 @@ class QrLoginChallenge
 
     public function markApproved(string $userClass, string $userId, ?string $phoneHint): self
     {
-        $this->status     = QrLoginChallengeStatus::Approved->value;
-        $this->userClass  = $userClass;
-        $this->userId     = $userId;
-        $this->phoneHint  = $phoneHint;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->status = QrLoginChallengeStatus::Approved->value;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->userClass = $userClass;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->userId = $userId;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->phoneHint = $phoneHint;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->approvedAt = new DateTimeImmutable();
         $this->markApproveTokenUsed();
 
@@ -224,6 +234,7 @@ class QrLoginChallenge
 
     public function markDenied(): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->status = QrLoginChallengeStatus::Denied->value;
         $this->markApproveTokenUsed();
 
@@ -232,7 +243,9 @@ class QrLoginChallenge
 
     public function markConsumed(): self
     {
-        $this->status     = QrLoginChallengeStatus::Consumed->value;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->status = QrLoginChallengeStatus::Consumed->value;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->consumedAt = new DateTimeImmutable();
         $this->touch();
 
@@ -241,6 +254,7 @@ class QrLoginChallenge
 
     public function markExpired(): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->status = QrLoginChallengeStatus::Expired->value;
         $this->touch();
 
@@ -264,6 +278,7 @@ class QrLoginChallenge
 
     private function touch(): void
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
     }
 }

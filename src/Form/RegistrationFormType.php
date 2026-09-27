@@ -39,6 +39,7 @@ final class RegistrationFormType extends AbstractType
 
         foreach ($profile->registrationFields as $field) {
             if ($field['type'] === 'password') {
+                // @igor-ignore - Request-scoped Twig/Form wiring; not a shared worker singleton.
                 $this->passwordRepeatedFieldBuilder->add(
                     $builder,
                     $field['name'],

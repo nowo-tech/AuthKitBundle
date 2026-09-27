@@ -56,7 +56,7 @@
     },
     "suggest": {
         "nowo-tech/device-intelligence-bundle": "Device observation on auth pages, new-device notify, QR trusted-device step-up (^1.1; PHP 8.3+)",
-        "nowo-tech/login-throttle-bundle": "Required for production login forms — credential stuffing protection (^3.1; installed by Flex recipe)",
+        "nowo-tech/login-throttle-bundle": "Required for production login forms \u2014 credential stuffing protection (^3.1; installed by Flex recipe)",
         "nowo-tech/otp-input-bundle": "Multi-box OTP field on password-reset code entry (^1.4; UX only, server checks stay mandatory)",
         "nowo-tech/password-strength-bundle": "Strength policies, live feedback, and validator for registration and password reset fields (^2.0)",
         "nowo-tech/password-toggle-bundle": "Password fields with visibility toggle (^1.2.8)",
@@ -68,6 +68,7 @@
     "require-dev": {
         "endroid/qr-code": "^6.0",
         "friendsofphp/php-cs-fixer": "^3.0",
+        "igor-php/igor-php": "^0.9.7",
         "nowo-tech/otp-input-bundle": "^1.4",
         "nowo-tech/password-strength-bundle": "^2.0",
         "nowo-tech/password-toggle-bundle": "^2.0.0",
@@ -121,7 +122,8 @@
         ],
         "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
         "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
-        "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix"
+        "twig:fix:check": "twig-cs-fixer lint --config=.twig-cs-fixer.php --fix",
+        "igor": "igor-php --no-agent ."
     },
     "scripts-descriptions": {
         "test": "Run PHPUnit tests",
@@ -133,6 +135,7 @@
         "phpstan": "Run PHPStan static analysis",
         "rector": "Apply Rector refactoring",
         "rector-dry": "Run Rector in dry-run mode",
-        "qa": "Run all quality assurance checks"
+        "qa": "Run all quality assurance checks",
+        "igor": "Run Igor FrankenPHP worker-state audit (REQ-CS-008)"
     }
 }

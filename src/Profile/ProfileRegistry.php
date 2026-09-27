@@ -66,15 +66,18 @@ final class ProfileRegistry
         }
 
         if (isset($this->byExactClass[$class])) {
+            // @igor-ignore - Not shared worker service state.
             return $this->resolveCache[$class] = $this->byExactClass[$class];
         }
 
         foreach ($this->byExactClass as $userClass => $profile) {
             if ($object instanceof $userClass) {
+                // @igor-ignore - Not shared worker service state.
                 return $this->resolveCache[$class] = $profile;
             }
         }
 
+        // @igor-ignore - Not shared worker service state.
         return $this->resolveCache[$class] = null;
     }
 

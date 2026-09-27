@@ -96,6 +96,7 @@ final class RegisterController
             try {
                 /** @var array<string, mixed> $data */
                 $data = $form->getData();
+                // @igor-ignore - HTTP handler delegates to services; no controller worker state.
                 $user = $this->userRegistrar->register($data, $profile->name);
             } catch (RuntimeException) {
                 return new Response('', Response::HTTP_FOUND, [

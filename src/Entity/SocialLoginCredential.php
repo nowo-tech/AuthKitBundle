@@ -85,6 +85,7 @@ class SocialLoginCredential
 
     public function setProvider(string $provider): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->provider = $provider;
         $this->touch();
 
@@ -98,6 +99,7 @@ class SocialLoginCredential
 
     public function setLabel(string $label): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->label = $label;
         $this->touch();
 
@@ -111,6 +113,7 @@ class SocialLoginCredential
 
     public function setClientId(string $clientId): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->clientId = $clientId;
         $this->touch();
 
@@ -124,6 +127,7 @@ class SocialLoginCredential
 
     public function setClientSecret(string $clientSecret): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->clientSecret = $clientSecret;
         $this->touch();
 
@@ -137,6 +141,7 @@ class SocialLoginCredential
 
     public function setEnabled(bool $enabled): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->enabled = $enabled;
         $this->touch();
 
@@ -150,6 +155,7 @@ class SocialLoginCredential
 
     public function setEnterpriseSso(bool $enterpriseSso): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->enterpriseSso = $enterpriseSso;
         $this->touch();
 
@@ -165,6 +171,7 @@ class SocialLoginCredential
     /** @param array<int, string> $scopes */
     public function setScopes(array $scopes): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->scopes = array_values($scopes);
         $this->touch();
 
@@ -178,6 +185,7 @@ class SocialLoginCredential
 
     public function setAuthorizeUrl(?string $authorizeUrl): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->authorizeUrl = $authorizeUrl;
         $this->touch();
 
@@ -191,6 +199,7 @@ class SocialLoginCredential
 
     public function setTokenUrl(?string $tokenUrl): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->tokenUrl = $tokenUrl;
         $this->touch();
 
@@ -204,6 +213,7 @@ class SocialLoginCredential
 
     public function setUserinfoUrl(?string $userinfoUrl): self
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->userinfoUrl = $userinfoUrl;
         $this->touch();
 
@@ -222,6 +232,7 @@ class SocialLoginCredential
 
     private function touch(): void
     {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = new DateTimeImmutable();
     }
 }
