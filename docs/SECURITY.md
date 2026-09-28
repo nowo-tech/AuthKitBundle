@@ -55,7 +55,7 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - Require verified IdP email before social auto-link/create (configurable)
 - Validate custom OAuth endpoint URLs (HTTPS, no private/loopback hosts)
 - No automatic modification of `security.yaml` without explicit CLI command
-- Optional slide-to-confirm is confirmation UX only; QR approve with slide uses Form CSRF (`qr_login_approve`); unmapped registration consent fields are not persisted
+- Optional slide-to-confirm is confirmation UX only; QR approve always uses Form CSRF (`QrLoginApproveType` / `qr_login_approve`)
 - Optional device intelligence never authenticates by Device ID; `new_device_notify` is a notice only; QR `approve_require_trusted` requires explicit trust, not auto-trust on login
 - Optional OTP input is entry UX only; reset codes are still hashed and compared with `hash_equals`, and `max_code_attempts` still clears the credential
 
@@ -65,13 +65,13 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 | --- | --- |
 | Date | 2026-09-24 (refresh of 2026-08-24) |
 | Method | FrankenPHP worker audit (scenario B, no kernel reset) for 1.21.0 plus prior residual model — see [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md) |
-| Grade | **Pass (conditional)** — overall **Medium**; 1.21.0 delta **Low** (hardening only; no new Critical/High/Medium) |
+| Grade | **Pass (good)** — overall **Low** (re-audit **2026-09-28**; QR approve CSRF always on; prod `login_throttle_required`; residual OAuth secrets at rest = host) |
 | Mitigated in 1.10.0 | Unverified-email social auto-link; missing reset/magic/register rate limits; OTP lockout; custom OAuth SSRF; social `PUBLIC_ACCESS`; `first_user_only` race; magic login 500 oracle |
 | Mitigated in 1.18.0 | QR approve Form CSRF when slide-to-confirm is enabled (`QrLoginApproveType`) |
 | Mitigated in 1.19.0 | Device ID not used as a credential; no auto-trust; QR trusted-device step-up is opt-in and still runs a custom `QrLoginStepUpInterface` |
 | Mitigated in 1.20.0 | OTP input widget is UX only; `hash_equals` and `max_code_attempts` unchanged |
 | Mitigated in 1.21.0 | Stale Doctrine identity-map reads on QR/password-reset/social paths; atomic QR status transitions; closed EntityManager recovery; OAuth HTTP timeouts; embed dropdown ignores leftover tokens outside a secured firewall |
-| Open residuals | Cleartext OAuth secrets/tokens at rest (encrypt via DoctrineEncrypt); residual timing side-channels on reset/magic request; do not use logging notifiers in prod; CSRF on **plain** QR approve/deny when slide is off (pre-existing); extra device-keyed rate limit can be skipped if `collect()` never runs (IP limiter still applies); host app still owns shared `cache.app` and optional global EM clear in worker mode |
+| Open residuals | Cleartext OAuth secrets/tokens at rest (encrypt via DoctrineEncrypt); residual timing side-channels on reset/magic request; do not use logging notifiers in prod; host app still owns shared `cache.app` and optional global EM clear in worker mode; extra device-keyed rate limit can be skipped if `collect()` never runs (IP limiter still applies) |
 
 See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.com/nowo-tech/bundles/blob/master/BUNDLES_SECURITY_ANALYSIS.md) (AuthKitBundle entry).
 

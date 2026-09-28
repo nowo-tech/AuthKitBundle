@@ -73,6 +73,21 @@ final class QrLoginApproveControllerTest extends TestCase
         return $challenge;
     }
 
+    private function validFormFactory(): FormFactoryInterface
+    {
+        $formView = $this->createMock(FormView::class);
+        $form     = $this->createMock(FormInterface::class);
+        $form->method('handleRequest');
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('createView')->willReturn($formView);
+
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        return $formFactory;
+    }
+
     /**
      * @param array<string, mixed> $overrides
      */
@@ -100,7 +115,7 @@ final class QrLoginApproveControllerTest extends TestCase
             $stepUp ?? new NullQrLoginStepUp(),
             $tokenStorage ?? new TokenStorage(),
             ProfileRegistryFactory::requestResolver(TestUser::class, $overrides),
-            $formFactory ?? $this->createMock(FormFactoryInterface::class),
+            $formFactory ?? $this->validFormFactory(),
             $slideResolver ?? new SlideToConfirmTypeResolver(static fn (string $class): bool => false),
         );
     }

@@ -9,6 +9,7 @@ use Nowo\FormKitBundle\Attribute\FormKitConfig;
 use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -16,7 +17,8 @@ use Symfony\Component\Validator\Constraints\NotBlank;
 use function is_string;
 
 /**
- * Phone-side QR login approval. The slide field is the submit when SlideToConfirm is available.
+ * Phone-side QR login approval. The slide field is the submit when SlideToConfirm is available;
+ * otherwise a CSRF-protected submit button is used.
  */
 #[FormKitConfig('auth_kit')]
 final class QrLoginApproveType extends AbstractType
@@ -55,7 +57,15 @@ final class QrLoginApproveType extends AbstractType
                 'confirmed_text'     => 'qr_login.approve.confirmed',
                 'hint'               => 'qr_login.approve.slide_hint',
             ]);
+
+            return;
         }
+
+        $this->addWithDefaults($builder, 'submit', SubmitType::class, [
+            'label'              => 'qr_login.approve.submit',
+            'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
+            'attr'               => ['class' => 'nowo-auth-kit__button'],
+        ]);
     }
 
     public function configureOptions(OptionsResolver $resolver): void

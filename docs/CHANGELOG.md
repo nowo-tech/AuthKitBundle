@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.22.0] - 2026-09-28](#1220-2026-09-28)
 - [[1.21.1] - 2026-09-27](#1211-2026-09-27)
 - [[1.21.0] - 2026-09-24](#1210-2026-09-24)
   - [Fixed](#fixed)
@@ -129,6 +130,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-09-28
+
+### Security
+
+- QR login approve always uses Form CSRF via `QrLoginApproveType` (slide-to-confirm remains optional UX only).
+
 ### Changed
 
 - **Doctrine ORM SortDirection:** replace string `'ASC'`/`'DESC'` in `#[ORM\OrderBy]` and QueryBuilder `orderBy`/`addOrderBy` with `SortDirection::Ascending`/`Descending` (doctrine/orm deprecation, https://github.com/doctrine/orm/issues/11313); require `doctrine/orm` `^3.7` where applicable.
@@ -143,6 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Worker safety (Igor):** justified `// @igor-ignore` annotations and/or `ResetInterface` / request-scoped fixes so `make igor` passes on package `src/`.
 
+[1.22.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.22.0
 [1.21.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.21.1
 
 ## [1.21.0] - 2026-09-24

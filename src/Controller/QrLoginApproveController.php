@@ -90,14 +90,11 @@ final class QrLoginApproveController
         $slideProfile = $this->slideToConfirmTypeResolver->resolveQrApproveProfile($profile->slideToConfirm);
         $useSlide     = $slideProfile !== null && $this->slideToConfirmTypeResolver->resolveSwipeType() !== null;
 
-        if ($request->isMethod('GET')) {
-            $formView = null;
-            if ($useSlide) {
-                $formView = $this->formFactory->create(QrLoginApproveType::class, ['t' => $token], [
-                    'slide_profile' => $slideProfile,
-                ])->createView();
-            }
+        $form = $this->formFactory->create(QrLoginApproveType::class, ['t' => $token], [
+            'slide_profile' => $useSlide ? $slideProfile : null,
+        ]);
 
+        if ($request->isMethod('GET')) {
             return $this->renderApprove(
                 $profile->templates['layout'],
                 $challenge,
@@ -105,26 +102,21 @@ final class QrLoginApproveController
                 $phoneResult['phone_hint'],
                 $profile->routes['qr_login_deny']['name'],
                 $useSlide ? $slideProfile : null,
-                $formView,
+                $form->createView(),
             );
         }
 
-        if ($useSlide) {
-            $form = $this->formFactory->create(QrLoginApproveType::class, ['t' => $token], [
-                'slide_profile' => $slideProfile,
-            ]);
-            $form->handleRequest($request);
-            if (!$form->isSubmitted() || !$form->isValid()) {
-                return $this->renderApprove(
-                    $profile->templates['layout'],
-                    $challenge,
-                    $token,
-                    $phoneResult['phone_hint'],
-                    $profile->routes['qr_login_deny']['name'],
-                    $slideProfile,
-                    $form->createView(),
-                );
-            }
+        $form->handleRequest($request);
+        if (!$form->isSubmitted() || !$form->isValid()) {
+            return $this->renderApprove(
+                $profile->templates['layout'],
+                $challenge,
+                $token,
+                $phoneResult['phone_hint'],
+                $profile->routes['qr_login_deny']['name'],
+                $useSlide ? $slideProfile : null,
+                $form->createView(),
+            );
         }
 
         $approveMode = QrLoginApproveMode::from($profile->qrLogin['approve_requires'] ?? 'session');

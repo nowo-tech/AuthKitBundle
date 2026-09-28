@@ -4,6 +4,7 @@
 
 
 - [Unreleased](#unreleased)
+- [To 1.22.0](#to-1220)
 - [To 1.21.1](#to-1211)
 - [To 1.21.0](#to-1210)
 - [To 1.20.1](#to-1201)
@@ -63,6 +64,18 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.22.0
+
+From **1.21.1** — QR approve CSRF always on; Doctrine `SortDirection`.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+php bin/console cache:clear
+```
+
+- Ensure `doctrine/orm` is `^3.7` (SortDirection).
+- QR approve always posts through `QrLoginApproveType` CSRF; no host action if you already used the bundle form. Custom approve endpoints must keep Form CSRF.
 
 ## To 1.21.1
 
