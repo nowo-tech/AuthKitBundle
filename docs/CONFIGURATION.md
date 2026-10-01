@@ -465,7 +465,7 @@ nowo_auth_kit:
 When `in_path: both`:
 
 - `unlocalized: redirect` — bare URL redirects to `/{default}/…` (or current request locale via `auth_kit_route_params()`).
-- `unlocalized: serve` — bare URL renders with `_locale = locale.default`.
+- `unlocalized: serve` — bare URL renders with `_locale = locale.default`. `UnlocalizedDefaultLocaleSubscriber` (priority `14`) re-applies `locale.default` on each request so a stale warmed route cache cannot stick a wrong locale on `/login` (image build vs runtime `DEFAULT_LOCALE`).
 
 Legacy keys `default_locale`, `enabled_locales`, and `locale_in_path` (bool) still work and map into `locale.*`.
 
