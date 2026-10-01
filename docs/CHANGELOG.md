@@ -131,6 +131,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Tests: avoid PHP 8.4-only `new Foo()->method()` chaining in `UnlocalizedDefaultLocaleSubscriberTest` so PHP 8.2/8.3 CI jobs parse the suite.
+
 ## [1.22.1] - 2026-10-01
 
 ### Fixed
