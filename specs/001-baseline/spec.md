@@ -107,7 +107,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Profiles & locale
 
 - **FR-PROFILE-001**: `ProfileSettings`, `ProfileRegistry`, `RequestProfileResolver`, `UnknownProfileException`.
-- **FR-LOCALE-001**: Locale-in-path / unlocalized redirect modes and `UnlocalizedLocaleRedirectController`.
+- **FR-LOCALE-001**: Locale-in-path / unlocalized redirect modes and `UnlocalizedLocaleRedirectController`. When `unlocalized: serve`, `UnlocalizedDefaultLocaleSubscriber` forces `locale.default` at runtime on `*_unlocalized` AuthKit routes (covers warmed route-cache vs runtime env drift).
 
 ### Security integration
 

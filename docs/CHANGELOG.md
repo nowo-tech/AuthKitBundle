@@ -130,6 +130,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`locale.unlocalized: serve`:** `UnlocalizedDefaultLocaleSubscriber` forces `locale.default` at request time on AuthKit `*_unlocalized` routes (after Symfony `LocaleListener`), so bare `/login` (etc.) stays correct when the compiled route `_locale` default was warmed with a different value (Docker image build vs runtime env).
+
 ## [1.22.0] - 2026-09-28
 
 ### Security
