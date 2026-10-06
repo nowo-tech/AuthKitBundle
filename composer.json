@@ -68,7 +68,7 @@
     "require-dev": {
         "endroid/qr-code": "^6.0",
         "friendsofphp/php-cs-fixer": "^3.0",
-        "igor-php/igor-php": "^0.9.7",
+        "igor-php/igor-php": "^0.10.0",
         "nowo-tech/otp-input-bundle": "^1.4",
         "nowo-tech/password-strength-bundle": "^2.0",
         "nowo-tech/password-toggle-bundle": "^2.0.0",
