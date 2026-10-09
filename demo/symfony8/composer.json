@@ -17,7 +17,7 @@
         "doctrine/doctrine-fixtures-bundle": "4.3.1",
         "doctrine/doctrine-migrations-bundle": "4.0.0",
         "doctrine/migrations": "3.9.7",
-        "doctrine/orm": "3.6.7",
+        "doctrine/orm": "^3.7",
         "nowo-tech/auth-kit-bundle": "*",
         "nowo-tech/form-kit-bundle": "^2.0",
         "nowo-tech/password-toggle-bundle": "1.2.8",
