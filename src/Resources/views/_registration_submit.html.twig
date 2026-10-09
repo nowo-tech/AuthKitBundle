@@ -3,7 +3,8 @@
 <button type="submit" class="{{ button_class|default(nowo_auth_kit_button_class|default('nowo-auth-kit__button')) }}"{% if slide_mode == 'gate' %} disabled data-gated-submit="1"{% endif %}>{{ 'register.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
 {% endif %}
 {% if slide_mode == 'gate' %}
-<script>
+{% set _csp_nonce = app.request is defined and app.request ? app.request.attributes.get('csp_nonce')|default('') : '' %}
+<script{% if _csp_nonce %} nonce="{{ _csp_nonce }}"{% endif %}>
 document.addEventListener('nowo-slide-to-confirm:confirmed', function (event) {
     var host = event.target;
     if (!(host instanceof HTMLElement)) {

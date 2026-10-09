@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+
+- [[1.22.3] - 2026-10-09](#1223---2026-10-09)
 - [[1.22.2] - 2026-10-09](#1222-2026-10-09)
 - [[1.22.1] - 2026-10-01](#1221-2026-10-01)
 - [[1.22.0] - 2026-09-28](#1220-2026-09-28)
@@ -132,6 +134,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.22.3] - 2026-10-09
+
+### Changed
+
+- CSP: the inline `<script>` blocks in `_device_intelligence_assets.html.twig` and `_registration_submit.html.twig` now carry `nonce="…"` from the request attribute `csp_nonce` when it is set, so they run under a nonce-based `script-src` without template overrides. Added a template scan test (inline blocks must declare the nonce; no inline event handlers).
+
 ## [1.22.2] - 2026-10-09
 
 ### Fixed
@@ -144,6 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dev: `igor-php/igor-php` `^0.10.0` (was `^0.9.7`).
 - Demo lock refreshed: Symfony 8.1.8, `doctrine/orm` 3.7.4, `doctrine/dbal` 4.5.0, `nowo-tech/form-kit-bundle` 2.6.0, `nowo-tech/doctrine-encrypt-bundle` 2.4.2, Twig 3.30; regenerated `config/reference.php`.
 
+[1.22.3]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.22.3
 [1.22.2]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.22.2
 
 ## [1.22.1] - 2026-10-01

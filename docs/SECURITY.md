@@ -6,6 +6,7 @@
 - [Application responsibilities](#application-responsibilities)
 - [Logging](#logging)
 - [Bundle responsibilities](#bundle-responsibilities)
+- [Content Security Policy (CSP)](#content-security-policy-csp)
 - [AI security audit](#ai-security-audit)
 - [Release security checklist (12.4.1)](#release-security-checklist-1241)
 - [Reporting](#reporting)
@@ -58,6 +59,10 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - Optional slide-to-confirm is confirmation UX only; QR approve always uses Form CSRF (`QrLoginApproveType` / `qr_login_approve`)
 - Optional device intelligence never authenticates by Device ID; `new_device_notify` is a notice only; QR `approve_require_trusted` requires explicit trust, not auto-trust on login
 - Optional OTP input is entry UX only; reset codes are still hashed and compared with `hash_equals`, and `max_code_attempts` still clears the credential
+
+## Content Security Policy (CSP)
+
+Every inline `<script>` / `<style>` rendered by the bundle templates carries `nonce="…"` taken from the request attribute **`csp_nonce`** when it is present (nothing is emitted otherwise). Your CSP listener should set it before rendering, e.g. `$request->attributes->set('csp_nonce', $nonce)`, and send the same value in `script-src 'nonce-…'` / `style-src 'nonce-…'`. External scripts (`src=…`) and JSON islands need no nonce, and templates use no inline event handlers (`onclick`, `onsubmit`, …). `tests/Unit/Templates/InlineBlocksDeclareNonceTest.php` enforces this.
 
 ## AI security audit
 

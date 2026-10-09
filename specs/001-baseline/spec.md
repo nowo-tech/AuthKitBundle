@@ -125,6 +125,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-ROUT-001**: `AuthKitRouteLoader`, locale parameters, custom URL generator.
 - **FR-TWIG-001**: Routing + embed Twig extensions and security/embed templates.
 - **FR-TWIG-002**: `AuthKitUiExtension` for shared UI helpers (buttons/providers chrome).
+- **FR-TWIG-003**: CSP — inline `<script>`/`<style>` in bundle templates emit `nonce` from request attribute `csp_nonce` when set; no inline event handlers (enforced by `InlineBlocksDeclareNonceTest`).
 
 ### Embed
 

@@ -3,7 +3,7 @@
 ## Table of contents
 
 
-- [Unreleased](#unreleased)
+- [To 1.22.3](#to-1223)
 - [To 1.22.2](#to-1222)
 - [To 1.22.0](#to-1220)
 - [To 1.21.1](#to-1211)
@@ -64,7 +64,9 @@
 - [To 1.0.0](#to-100)
 - [Future upgrades](#future-upgrades)
 
-## Unreleased
+## To 1.22.3
+
+No action required. Inline `<script>` blocks in the bundle templates now emit `nonce` from the request attribute `csp_nonce` (see [Security — Content Security Policy](SECURITY.md#content-security-policy-csp)). If you overrode `_device_intelligence_assets.html.twig` or `_registration_submit.html.twig` **only** to add the nonce, you can delete those overrides.
 
 ## To 1.22.2
 
