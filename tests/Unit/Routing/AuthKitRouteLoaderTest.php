@@ -10,7 +10,6 @@ use Nowo\AuthKitBundle\Routing\AuthKitRouteLoader;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 final class AuthKitRouteLoaderTest extends TestCase
 {
@@ -27,6 +26,18 @@ final class AuthKitRouteLoaderTest extends TestCase
         self::assertNotNull($collection->get('nowo_auth_kit_reset_password_request'));
         self::assertNotNull($collection->get('nowo_auth_kit_reset_password'));
         self::assertNull($collection->get('nowo_auth_kit_reset_password_code'));
+    }
+
+    public function testCanLoadTwiceInTheSameProcess(): void
+    {
+        $loader = new AuthKitRouteLoader($this->profiles('link'), 'both', 'en', ['en', 'es']);
+
+        $first  = $loader->load('.', 'nowo_auth_kit');
+        $second = $loader->load('.', 'nowo_auth_kit');
+
+        self::assertNotSame($first, $second);
+        self::assertSame(array_keys($first->all()), array_keys($second->all()));
+        self::assertSame($first->get('nowo_auth_kit_login')?->getPath(), $second->get('nowo_auth_kit_login')?->getPath());
     }
 
     public function testPrefixesRoutesWithLocaleWhenEnabled(): void
@@ -75,15 +86,6 @@ final class AuthKitRouteLoaderTest extends TestCase
 
         self::assertNull($collection->get('nowo_auth_kit_reset_password'));
         self::assertNotNull($collection->get('nowo_auth_kit_reset_password_code'));
-    }
-
-    public function testThrowsWhenLoadedTwice(): void
-    {
-        $loader = new AuthKitRouteLoader($this->profiles('both'), false, 'en', ['en', 'es']);
-
-        $loader->load('.', 'nowo_auth_kit');
-        $this->expectException(RuntimeException::class);
-        $loader->load('.', 'nowo_auth_kit');
     }
 
     public function testMagicLoginCheckIsGetOnlyByDefault(): void

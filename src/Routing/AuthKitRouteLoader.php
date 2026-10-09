@@ -26,7 +26,6 @@ use Nowo\AuthKitBundle\Enum\LocaleInPathMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Enum\UnlocalizedLocaleMode;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
-use RuntimeException;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
@@ -39,8 +38,6 @@ use function is_bool;
 final class AuthKitRouteLoader extends Loader
 {
     public const UNLOCALIZED_ROUTE_SUFFIX = '_unlocalized';
-
-    private bool $loaded = false;
 
     private readonly LocaleInPathMode $localeInPathMode;
 
@@ -61,15 +58,14 @@ final class AuthKitRouteLoader extends Loader
         $this->unlocalizedMode  = UnlocalizedLocaleMode::from($unlocalizedMode);
     }
 
+    /**
+     * Stateless: the router may load this resource more than once in one process (cold cache rebuilt
+     * after a route invalidation, a second router, long-running workers), and each load returns the
+     * same collection built from configuration.
+     */
     public function load(mixed $resource, ?string $type = null): RouteCollection
     {
-        if ($this->loaded) {
-            throw new RuntimeException('AuthKit routes already loaded.');
-        }
-
-        // @igor-ignore - Route loader builds routes at compile/cache warm; not per-request mutation.
-        $this->loaded = true;
-        $collection   = new RouteCollection();
+        $collection = new RouteCollection();
 
         foreach ($this->profiles as $profileName => $profile) {
             $this->loadProfileRoutes($collection, $profileName, $profile);

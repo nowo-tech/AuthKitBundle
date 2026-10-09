@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [[Unreleased]](#unreleased)
 
+- [[1.22.4] - 2026-10-09](#1224---2026-10-09)
 - [[1.22.3] - 2026-10-09](#1223---2026-10-09)
 - [[1.22.2] - 2026-10-09](#1222-2026-10-09)
 - [[1.22.1] - 2026-10-01](#1221-2026-10-01)
@@ -133,6 +134,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.22.4] - 2026-10-09
+
+### Fixed
+
+- `AuthKitRouteLoader` no longer throws `AuthKit routes already loaded.` when the router loads the `nowo_auth_kit` resource a second time in the same process (cold route cache rebuilt after a host invalidates routes, console commands that warm the router twice, long-running workers). The loader is stateless and returns the same collection on every load.
+
+[1.22.4]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.22.4
 
 ## [1.22.3] - 2026-10-09
 

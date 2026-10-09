@@ -3,6 +3,7 @@
 ## Table of contents
 
 
+- [To 1.22.4](#to-1224)
 - [To 1.22.3](#to-1223)
 - [To 1.22.2](#to-1222)
 - [To 1.22.0](#to-1220)
@@ -63,6 +64,16 @@
   - [Demo users](#demo-users)
 - [To 1.0.0](#to-100)
 - [Future upgrades](#future-upgrades)
+
+## To 1.22.4
+
+From **1.22.3** — route loader fix only.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No action required. Hosts that wrapped or decorated `AuthKitRouteLoader` to swallow the “already loaded” exception can drop that workaround.
 
 ## To 1.22.3
 
