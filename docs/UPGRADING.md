@@ -4,6 +4,7 @@
 
 
 - [Unreleased](#unreleased)
+- [To 1.22.2](#to-1222)
 - [To 1.22.0](#to-1220)
 - [To 1.21.1](#to-1211)
 - [To 1.21.0](#to-1210)
@@ -64,6 +65,16 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.22.2
+
+From **1.22.1** — maintenance release (dependencies, demo, tests).
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No breaking changes. No application upgrade steps.
 
 ## To 1.22.0
 
