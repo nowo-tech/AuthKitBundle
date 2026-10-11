@@ -18,6 +18,7 @@ use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
 use function array_key_exists;
+use function array_keys;
 use function in_array;
 use function is_array;
 use function is_bool;
@@ -81,17 +82,29 @@ final class Configuration implements ConfigurationInterface
                         $config['profiles'] = ['default' => $profile];
                     }
 
-                    if (!isset($config['default_profile'])) {
-                        $profileNames              = array_keys($config['profiles']);
-                        $config['default_profile'] = $profileNames[0] ?? 'default';
+                    // Each config block (one per file / env) is normalized on its own before the blocks are
+                    // merged, so only map keys this block sets: injecting defaults here would let a later
+                    // partial block (e.g. config/packages/prod/*.yaml) reset values set by an earlier one.
+                    // Derived keys (default_profile, legacy mirrors) are filled after the merge (validate()).
+                    $hasExplicitLocale = isset($config['locale']) && is_array($config['locale']);
+                    $legacyLocale      = [];
+                    if (array_key_exists('locale_in_path', $config)) {
+                        $legacyInPath = $config['locale_in_path'];
+                        if (is_bool($legacyInPath)) {
+                            $legacyInPath = $legacyInPath ? 'always' : 'never';
+                        } elseif (!is_string($legacyInPath) || !in_array($legacyInPath, ['never', 'always', 'both'], true)) {
+                            $legacyInPath = 'never';
+                        }
+                        $legacyLocale['in_path'] = $legacyInPath;
+                    }
+                    if (array_key_exists('default_locale', $config)) {
+                        $legacyLocale['default'] = $config['default_locale'];
+                    }
+                    if (array_key_exists('enabled_locales', $config)) {
+                        $legacyLocale['enabled'] = $config['enabled_locales'];
                     }
 
-                    $hasExplicitLocale = isset($config['locale']) && is_array($config['locale']);
-                    $hasLegacyLocale   = array_key_exists('locale_in_path', $config)
-                        || array_key_exists('default_locale', $config)
-                        || array_key_exists('enabled_locales', $config);
-
-                    if ($hasExplicitLocale && $hasLegacyLocale) {
+                    if ($hasExplicitLocale && $legacyLocale !== []) {
                         trigger_deprecation(
                             'nowo-tech/auth-kit-bundle',
                             '1.7.0',
@@ -99,33 +112,30 @@ final class Configuration implements ConfigurationInterface
                         );
                     }
 
-                    $legacyInPath = $config['locale_in_path'] ?? false;
-                    if (is_bool($legacyInPath)) {
-                        $legacyInPath = $legacyInPath ? 'always' : 'never';
-                    } elseif (!is_string($legacyInPath) || !in_array($legacyInPath, ['never', 'always', 'both'], true)) {
-                        $legacyInPath = 'never';
-                    }
-
-                    if (!isset($config['locale']) || !is_array($config['locale'])) {
-                        $config['locale'] = [
-                            'in_path'     => $legacyInPath,
-                            'default'     => $config['default_locale'] ?? 'en',
-                            'enabled'     => $config['enabled_locales'] ?? ['en', 'es'],
-                            'unlocalized' => 'redirect',
-                        ];
-                    } else {
-                        $inPath = $config['locale']['in_path'] ?? 'never';
-                        if (is_bool($inPath)) {
-                            $config['locale']['in_path'] = $inPath ? 'always' : 'never';
+                    if ($hasExplicitLocale) {
+                        if (is_bool($config['locale']['in_path'] ?? null)) {
+                            $config['locale']['in_path'] = $config['locale']['in_path'] ? 'always' : 'never';
                         }
-                        $config['locale']['default'] ??= $config['default_locale'] ?? 'en';
-                        $config['locale']['enabled'] ??= $config['enabled_locales'] ?? ['en', 'es'];
-                        $config['locale']['unlocalized'] ??= 'redirect';
+                        $config['locale'] += $legacyLocale;
+                    } elseif ($legacyLocale !== []) {
+                        $config['locale'] = $legacyLocale;
                     }
 
+                    return $config;
+                })
+            ->end()
+            ->validate()
+                ->always()
+                ->then(static function (array $config): array {
+                    if ($config['default_profile'] === null) {
+                        $profileNames              = array_keys($config['profiles']);
+                        $config['default_profile'] = $profileNames[0] ?? 'default';
+                    }
+
+                    // Legacy mirrors of the merged locale node (deprecated keys, kept for BC).
                     $config['default_locale']  = $config['locale']['default'];
                     $config['enabled_locales'] = $config['locale']['enabled'];
-                    $config['locale_in_path']  = ($config['locale']['in_path'] ?? 'never') !== 'never';
+                    $config['locale_in_path']  = $config['locale']['in_path'] !== 'never';
 
                     return $config;
                 })
@@ -133,8 +143,8 @@ final class Configuration implements ConfigurationInterface
             ->addDefaultsIfNotSet()
             ->children()
                 ->scalarNode('default_profile')
-                    ->info('Profile name used when no profile is specified explicitly.')
-                    ->defaultValue('default')
+                    ->info('Profile name used when no profile is specified explicitly (default: first profile).')
+                    ->defaultNull()
                 ->end()
                 ->scalarNode('outbound_mail_ready_checker')
                     ->info('Optional service id implementing OutboundMailReadyCheckerInterface for password-reset and magic-login UI hints.')

@@ -157,6 +157,106 @@ final class ConfigurationTest extends TestCase
         self::assertSame('es', $config['default_locale']);
     }
 
+    public function testPartialLaterBlockKeepsEarlierLocaleAndDefaultProfile(): void
+    {
+        // e.g. config/packages/prod/*.yaml overriding only registration_mode after the main file.
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [
+            [
+                'default_profile' => 'admin',
+                'profiles'        => [
+                    'admin' => [
+                        'user_class' => TestUser::class,
+                    ],
+                ],
+                'locale' => [
+                    'in_path'     => 'both',
+                    'default'     => 'es',
+                    'enabled'     => ['es', 'en'],
+                    'unlocalized' => 'serve',
+                ],
+            ],
+            [
+                'profiles' => [
+                    'admin' => [
+                        'registration_mode' => 'disabled',
+                    ],
+                ],
+            ],
+        ]);
+
+        self::assertSame('admin', $config['default_profile']);
+        self::assertSame('disabled', $config['profiles']['admin']['registration_mode']);
+        self::assertSame(TestUser::class, $config['profiles']['admin']['user_class']);
+        self::assertSame('both', $config['locale']['in_path']);
+        self::assertSame('es', $config['locale']['default']);
+        self::assertSame(['es', 'en'], $config['locale']['enabled']);
+        self::assertSame('serve', $config['locale']['unlocalized']);
+        self::assertSame('es', $config['default_locale']);
+        self::assertTrue($config['locale_in_path']);
+    }
+
+    public function testPartialLaterLocaleBlockOnlyOverridesItsKeys(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [
+            [
+                'profiles' => [
+                    'default' => [
+                        'user_class' => TestUser::class,
+                    ],
+                ],
+                'locale' => [
+                    'in_path'     => 'both',
+                    'default'     => 'es',
+                    'unlocalized' => 'serve',
+                ],
+            ],
+            [
+                'locale' => [
+                    'in_path' => true,
+                ],
+            ],
+        ]);
+
+        self::assertSame('always', $config['locale']['in_path']);
+        self::assertSame('es', $config['locale']['default']);
+        self::assertSame('serve', $config['locale']['unlocalized']);
+    }
+
+    public function testLegacyLocaleKeysMapToLocaleNode(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'default' => [
+                    'user_class' => TestUser::class,
+                ],
+            ],
+            'default_locale'  => 'es',
+            'enabled_locales' => ['es', 'fr'],
+        ]]);
+
+        self::assertSame('never', $config['locale']['in_path']);
+        self::assertSame('es', $config['locale']['default']);
+        self::assertSame(['es', 'fr'], $config['locale']['enabled']);
+        self::assertSame(['es', 'fr'], $config['enabled_locales']);
+    }
+
+    public function testDefaultProfileFallsBackToFirstProfile(): void
+    {
+        $processor = new Processor();
+        $config    = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => [
+                'staff' => [
+                    'user_class' => TestUser::class,
+                ],
+            ],
+        ]]);
+
+        self::assertSame('staff', $config['default_profile']);
+    }
+
     public function testRegistrationModeValues(): void
     {
         $processor = new Processor();
