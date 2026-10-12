@@ -3,6 +3,7 @@
 ## Table of contents
 
 
+- [To 1.23.0](#to-1230)
 - [To 1.22.4](#to-1224)
 - [To 1.22.3](#to-1223)
 - [To 1.22.2](#to-1222)
@@ -64,6 +65,28 @@
   - [Demo users](#demo-users)
 - [To 1.0.0](#to-100)
 - [Future upgrades](#future-upgrades)
+
+## To 1.23.0
+
+From **1.22.x** — minor release, no required changes.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+**Flash messages are now translated before they are stored** (`nowo_auth_kit.flash.translate: true`). Templates that print `{{ message }}` now show text instead of `magic_login.request.flash_sent`; templates that already did `{{ message|trans({}, 'NowoAuthKitBundle') }}` keep working (translating an already translated sentence returns it unchanged). If a host test asserts the raw flash key, assert the translated text or set:
+
+```yaml
+nowo_auth_kit:
+    flash:
+        translate: false
+```
+
+Hosts that wrote their own `flash_trans` filter (messages → NowoAuthKitBundle) can delete it and the template override that used it: AuthKit now registers `flash_trans` (domains in `flash.twig_filter_domains`). Set `flash.twig_filter: false` if your app must keep its own filter of the same name.
+
+**Recipient-locale notifications** (`recipient_locale.enabled: true`) change nothing until your user entity implements `Nowo\AuthKitBundle\Locale\PreferredLocaleAwareInterface` (or you set `recipient_locale.resolver`). Then custom notifiers receive `$context->recipientLocale` and an already localized `resetUrl` / `loginUrl`, and run with the translator switched to that locale — drop any link-prefix rewriting or explicit locale lookups in your notifiers. The locale must be listed in `nowo_auth_kit.locale.enabled`.
+
+**Admin CLI:** `php bin/console nowo:auth-kit:create-admin admin@example.com` replaces app-specific "create admin" commands. Listen to `Nowo\AuthKitBundle\Admin\AdminUserCreatedEvent` for follow-up work (e.g. marking setup completed) and to `AdminUserCreatingEvent` to fill required entity fields before the flush. Configure `create_admin.min_password_length` / `create_admin.roles` if the defaults (12, `[ROLE_ADMIN]`) do not fit.
 
 ## To 1.22.4
 

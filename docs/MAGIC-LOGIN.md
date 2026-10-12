@@ -79,6 +79,7 @@ final class AppMagicLoginNotifier implements MagicLoginNotifierInterface
         // $context->loginUrl — absolute signed URL
         // $context->expiresAt
         // $context->maskedIdentifier
+        // $context->recipientLocale — account locale (1.23+, see CONFIGURATION.md#recipient-locale-notifications); loginUrl already uses it
     }
 }
 ```

@@ -65,7 +65,10 @@ Worker demo: `demo/symfony8/Caddyfile` runs `php_server` with a `worker` block (
 | `DeviceIntelligence\DeviceIntelligenceContext`, `Null*Notifier`, `Logging*Notifier`, `Mailer\AlwaysOutboundMailReadyChecker` | yes | none | ✅ | ✅ |
 | 10 form types + 5 form resolvers/builders (`Form/*`) | yes | none (readonly deps and closures) | ✅ | ✅ |
 | 17 controllers (`Controller/*`, public) | yes | none (readonly deps) | ✅ | ✅ (token read behind the firewall, see W-03) |
-| `Command\ConfigureSecurityCommand` | CLI only | none | N/A | N/A |
+| `Locale\RecipientLocale`, `Locale\PreferredLocaleAwareRecipientLocaleResolver` (1.23) | yes | none; `run()` switches locale through Symfony `LocaleSwitcher::runWithLocale()`, which restores translator / router context / ICU locale in `finally` | ✅ | ✅ |
+| `Flash\AuthKitFlashMessenger`, `Twig\AuthKitFlashExtension` (1.23) | yes | none (locale from the `Request` argument; catalogues cached by the translator) | ✅ | ✅ |
+| `Admin\AdminUserCreator` (1.23) | yes | none (EntityManager + readonly deps, `EntityManagerRecovery`) | ✅ | ✅ |
+| `Command\ConfigureSecurityCommand`, `Command\CreateAdminCommand` | CLI only | none | N/A | N/A |
 
 Entities (`QrLoginChallenge`, `SocialLoginAccount`, `SocialLoginCredential`), enums and value objects (`ProfileSettings`, `AuthEmbedOptions`, `AuthEmbedContext`, `SocialUserProfile`, notification contexts, events) are created per request or loaded by Doctrine; none is stored in a service property.
 

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [[Unreleased]](#unreleased)
 
+- [[1.23.0] - 2026-10-12](#1230---2026-10-12)
+  - [Added](#added)
+  - [Changed](#changed)
 - [[1.22.4] - 2026-10-09](#1224---2026-10-09)
 - [[1.22.3] - 2026-10-09](#1223---2026-10-09)
 - [[1.22.2] - 2026-10-09](#1222-2026-10-09)
@@ -134,6 +137,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.23.0] - 2026-10-12
+
+### Added
+
+- **Admin provisioning CLI** — `nowo:auth-kit:create-admin <identifier> [--auth-profile=NAME]` (not `--profile`, which Symfony reserves for the console profiler) creates a user for an AuthKit profile with the roles from `create_admin.roles` (default `[ROLE_ADMIN]`). The password is always read twice from a hidden prompt (no option/argument, no visible fallback, refuses non-interactive runs), must reach `create_admin.min_password_length` (default `12`) and, when the profile enables `password_strength` and `nowo-tech/password-strength-bundle` is installed, pass the same strength policy as the registration form. Duplicate identifiers are rejected. Bypasses `registration_mode` on purpose. Backed by the `AdminUserCreator` service; dispatches `Nowo\AuthKitBundle\Admin\AdminUserCreatingEvent` (before persist — fill host-specific fields) and `AdminUserCreatedEvent` (after flush — e.g. mark an install wizard as completed).
+- **Recipient-locale notifications** — password-reset, magic-login and new-device notifications are prepared in the recipient account's preferred locale: the user entity implements `Nowo\AuthKitBundle\Locale\PreferredLocaleAwareInterface` (or `recipient_locale.resolver` names a `RecipientLocaleResolverInterface` service); when the locale is listed in `locale.enabled`, AuthKit generates the reset / magic link with that `{_locale}`, exposes it as `recipientLocale` on `PasswordResetNotificationContext`, `MagicLoginNotificationContext` and `NewDeviceLoginNotificationContext`, and calls the notifier (and dispatches `PasswordResetRequestedEvent` / `MagicLoginRequestedEvent`) inside Symfony's `LocaleSwitcher::runWithLocale()` so `$translator->trans()` without an explicit locale uses it; the request locale is restored afterwards (worker-safe). `recipient_locale.enabled` defaults to `true` and is a no-op for users without a preference.
+- **`flash_trans` Twig filter** (`flash.twig_filter`, default on) — translates a flash key with the first domain of `flash.twig_filter_domains` (default `[messages, NowoAuthKitBundle]`) whose catalogue has it; unknown text and structured flashes pass through.
+- `AuthKitUrlGenerator::generate()` / `AuthKitRouteLocaleParameters::merge()` accept an optional explicit `$locale`.
+
+### Changed
+
+- **Flash messages are stored translated** (`flash.translate`, default `true`): AuthKit controllers translate their flash keys (`magic_login.request.flash_sent`, `reset.*.flash_*`, `register.flash_rate_limited`, `social.error.*`, …) from the `NowoAuthKitBundle` domain in the request locale before adding them, so host templates that print `{{ message }}` or `{{ message|trans }}` (and UiKitBundle's toast partial) show text instead of raw keys. Set `flash.translate: false` to keep raw keys.
+
+[1.23.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.23.0
 
 ## [1.22.4] - 2026-10-09
 

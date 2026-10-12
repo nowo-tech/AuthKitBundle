@@ -16,6 +16,9 @@
 - [Social login (OAuth)](#social-login-oauth)
 - [Embedded auth UI](#embedded-auth-ui)
 - [Locale in paths](#locale-in-paths)
+- [Recipient locale (notifications)](#recipient-locale-notifications)
+- [Flash messages](#flash-messages)
+- [Admin CLI (create-admin)](#admin-cli-create-admin)
 - [Templates](#templates)
 - [Routes](#routes)
 - [Security.yaml checklist](#securityyaml-checklist)
@@ -470,6 +473,73 @@ When `in_path: both`:
 Legacy keys `default_locale`, `enabled_locales`, and `locale_in_path` (bool) still work and map into `locale.*`.
 
 Update `access_control` (or run `nowo:auth-kit:configure-security`). Use `auth_kit_route_params()` in Twig. See [USAGE.md](USAGE.md#locale-in-url-paths).
+
+## Recipient locale (notifications)
+
+Since 1.23. Password-reset, magic-login and new-device notifications are prepared in the **recipient's** locale instead of the requesting page's.
+
+```yaml
+nowo_auth_kit:
+    recipient_locale:
+        enabled: true        # default; no-op for users without a preference
+        resolver: ~          # optional service id implementing RecipientLocaleResolverInterface
+```
+
+The default resolver reads `Nowo\AuthKitBundle\Locale\PreferredLocaleAwareInterface::getPreferredLocale(): ?string` on the user entity. The resolved locale is used only when it is listed in `locale.enabled`. Then AuthKit:
+
+1. generates the reset link (`AuthKitUrlGenerator`, explicit `_locale`) and the magic link (Symfony `LoginLinkHandler` with a copy of the request in that locale) for localized routes (`locale.in_path: always|both`); with `in_path: never` the URL is unchanged;
+2. sets `recipientLocale` on `PasswordResetNotificationContext`, `MagicLoginNotificationContext` and `NewDeviceLoginNotificationContext` (null = no preference: use the request locale);
+3. dispatches `PasswordResetRequestedEvent` / `MagicLoginRequestedEvent` and calls the notifier inside Symfony's `LocaleSwitcher::runWithLocale()` — translator, router context `_locale` and ICU default locale are switched and restored in a `finally` (worker-safe).
+
+Unknown identifiers never reach a notifier (anti-enumeration), so no locale is needed for them. A custom resolver:
+
+```php
+use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
+
+final class UserPreferredLocaleResolver implements RecipientLocaleResolverInterface
+{
+    public function resolve(object $user): ?string
+    {
+        return $user instanceof \App\Entity\User ? $user->getPreferredLocaleRaw() : null;
+    }
+}
+```
+
+## Flash messages
+
+Since 1.23.
+
+```yaml
+nowo_auth_kit:
+    flash:
+        translate: true                                   # store translated text (default)
+        twig_filter: true                                 # register the flash_trans Twig filter
+        twig_filter_domains: [messages, NowoAuthKitBundle]
+```
+
+- `translate: true` — AuthKit controllers translate their flash keys from the `NowoAuthKitBundle` domain in the request locale before adding them, so any flash template (`{{ message }}`, `{{ message|trans }}`, UiKitBundle `partials/_toasts.html.twig`) shows text. `false` keeps the raw keys (pre-1.23).
+- `flash_trans` — for hosts whose own controllers flash keys from several domains: `{{ message|flash_trans }}` uses the first domain of `twig_filter_domains` whose catalogue (current locale + fallbacks) has the key; anything else goes through `messages` (already translated text is returned unchanged). Non-string (structured) flashes pass through.
+
+## Admin CLI (create-admin)
+
+Since 1.23.
+
+```yaml
+nowo_auth_kit:
+    create_admin:
+        min_password_length: 12      # min 8
+        roles: [ROLE_ADMIN]
+```
+
+```bash
+php bin/console nowo:auth-kit:create-admin admin@example.com [--auth-profile=default]
+```
+
+- Writes the identifier to the profile `user_identifier_field` (lower-cased and validated when it is `email`), the hashed password to the property of the first hashed registration field (default `password`), and `roles` via `setRoles()` / property access.
+- The password is prompted twice with hidden input; it cannot be passed as an option and the command refuses non-interactive runs or terminals that cannot hide input.
+- Applies `min_password_length` and, when the profile enables `password_strength` and the bundle is installed, the same strength policy as registration.
+- Rejects an existing identifier; ignores `registration_mode` (operator provisioning).
+- Events: `Nowo\AuthKitBundle\Admin\AdminUserCreatingEvent` (before persist; fill required host fields such as a display name) and `AdminUserCreatedEvent` (after flush; e.g. mark an installation wizard as completed).
 
 ## Templates
 

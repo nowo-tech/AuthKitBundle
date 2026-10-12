@@ -29,6 +29,9 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 - **Device intelligence** (optional integration with `nowo-tech/device-intelligence-bundle`, PHP 8.3+: collect on auth pages, new-device notify, device-keyed rate limits, QR trusted-device step-up; Device ID is not a credential)
 - **OTP input** (optional integration with `nowo-tech/otp-input-bundle` for a multi-box password-reset code field; UX only)
 - Registration modes: disabled, first user only, always open
+- **Admin CLI** — `nowo:auth-kit:create-admin` (hidden password prompt, min length + password-strength policy, `AdminUserCreatedEvent` hook)
+- **Recipient-locale notifications** — reset / magic-login / new-device links and notifier translator in the account's preferred locale (`PreferredLocaleAwareInterface`)
+- **Translated flash messages** — AuthKit flashes are stored as text (any host flash template works) plus a `flash_trans` Twig filter with a configurable domain chain
 - **Named profiles** — separate auth config per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
 - Twig overrides via `templates/bundles/NowoAuthKitBundle/`

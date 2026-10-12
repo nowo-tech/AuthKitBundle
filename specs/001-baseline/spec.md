@@ -2,9 +2,9 @@
 
 **Feature Branch**: `001-baseline`  
 **Status**: Active  
-**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.20.0+**)  
+**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.23.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **151** units (123 PHP + 28 Resources), audited **2026-08-24**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **164** units (136 PHP + 28 Resources), audited **2026-10-12**
 
 ---
 
@@ -63,6 +63,18 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### US-12 — Optional OTP input (P2)
 
 **Given** `nowo-tech/otp-input-bundle` is optional (`suggest` / `require-dev` only), **When** `otp_input.enabled` is true, `otp_input.password_reset_code` is true, and the package is installed, **Then** AuthKit uses `OtpType` on the password-reset code field (`length` / charset from `password_reset`) and loads OTP Input JS on auth layouts. **When** the package is missing or `enabled` is false, **Then** the existing `TextType` remains. Login forms MUST stay unchanged. The widget is UX only; server OTP checks MUST stay mandatory.
+
+### US-13 — Translated flash messages (P1, v1.23.0)
+
+**Given** a host renders flashes with `{{ message }}` / `{{ message|trans }}` / UiKitBundle's toast partial, **When** an AuthKit controller adds a flash, **Then** (with `flash.translate: true`, default) the stored flash is the text translated from `NowoAuthKitBundle` in the request locale — never a raw key. **When** `flash.translate: false`, **Then** the raw key is stored (pre-1.23). **Given** host controllers flash keys from several domains, **When** a template uses `|flash_trans`, **Then** the first domain of `flash.twig_filter_domains` whose catalogue has the key is used, otherwise `messages`; non-string flashes pass through.
+
+### US-14 — Recipient-locale notifications (P1, v1.23.0)
+
+**Given** the user implements `PreferredLocaleAwareInterface` (or `recipient_locale.resolver` returns a locale) and that locale is in `locale.enabled`, **When** a password reset, magic link or new-device notice is prepared, **Then** the reset / magic link uses that `{_locale}` (localized routes only), the notification context carries `recipientLocale`, and the notifier + request event run inside `LocaleSwitcher::runWithLocale()`; the request locale is restored afterwards, also on exceptions. **When** the user has no allowed preference or `recipient_locale.enabled: false`, **Then** behaviour equals 1.22 (`recipientLocale` null, request locale).
+
+### US-15 — Admin provisioning CLI (P1, v1.23.0)
+
+**Given** public registration is disabled, **When** an operator runs `nowo:auth-kit:create-admin <identifier> [--auth-profile=NAME]` interactively, **Then** a user is created for the profile with `create_admin.roles` after a hidden, repeated password prompt that satisfies `create_admin.min_password_length` and the profile password-strength policy (when enabled and installed), and `AdminUserCreatingEvent` / `AdminUserCreatedEvent` are dispatched. The command MUST refuse non-interactive runs, MUST NOT accept the password as option/argument nor fall back to visible input, and MUST reject an existing identifier.
 
 ---
 
@@ -157,12 +169,27 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### CLI
 
 - **FR-CLI-001**: `ConfigureSecurityCommand` outputs firewall recipe.
+- **FR-CLI-002**: `CreateAdminCommand` (`nowo:auth-kit:create-admin`) — US-15; config `create_admin.min_password_length` (default 12, min 8), `create_admin.roles` (default `[ROLE_ADMIN]`).
+
+### Admin provisioning
+
+- **FR-ADMIN-001**: `AdminUserCreator` (profile-aware, independent of `registration_mode`, unique-violation → `RuntimeException`, worker-safe `EntityManagerRecovery`) + `AdminUserCreatingEvent` (pre-persist) + `AdminUserCreatedEvent` (post-flush).
+
+### Recipient locale
+
+- **FR-RLOCALE-001**: `PreferredLocaleAwareInterface`, `RecipientLocaleResolverInterface` (default `PreferredLocaleAwareRecipientLocaleResolver`, override `recipient_locale.resolver`), `RecipientLocale::resolve()` filtered by `locale.enabled` and `recipient_locale.enabled` (default true).
+- **FR-RLOCALE-002**: `PasswordResetRequestHandler`, `MagicLoginRequestHandler`, `NewDeviceLoginSubscriber` set `recipientLocale` on their notification contexts, generate links in that locale (`AuthKitUrlGenerator` explicit `$locale`; request copy for `LoginLinkHandler`), and run event + notifier through `RecipientLocale::run()` (`LocaleSwitcher`, restored in `finally`).
+
+### Flash messages
+
+- **FR-FLASH-001**: `AuthKitFlashMessenger` used by every AuthKit controller flash; `flash.translate` (default true) stores translated text.
+- **FR-FLASH-002**: `AuthKitFlashExtension` — `flash_trans` filter, `flash.twig_filter` (default true), `flash.twig_filter_domains` (default `[messages, NowoAuthKitBundle]`), catalogue lookup without request state.
 
 ---
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**151** units as of 2026-08-24).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**164** units as of 2026-10-12).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.

@@ -61,6 +61,7 @@ final class AppPasswordResetNotifier implements PasswordResetNotifierInterface
         // $token->linkToken() — path segment for link delivery
         // $token->code() — OTP for code / both
         // $context->maskedIdentifier — safe for logs/UI
+        // $context->recipientLocale — account locale (1.23+, see CONFIGURATION.md#recipient-locale-notifications); resetUrl already uses it
     }
 }
 ```

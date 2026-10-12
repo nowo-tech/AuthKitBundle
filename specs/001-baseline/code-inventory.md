@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-08-24  
-**Units**: **151** (`123` PHP under `src/` + `28` Resources)
+**Last audited**: 2026-10-12  
+**Units**: **164** (`136` PHP under `src/` + `28` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -12,6 +12,31 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
 | `Command/ConfigureSecurityCommand.php` | production | FR-CLI-001 | Mapped |
+| `Command/CreateAdminCommand.php` | production | FR-CLI-002 | Mapped |
+
+## Admin provisioning
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Admin/AdminUserCreatedEvent.php` | production | FR-ADMIN-001 | Mapped |
+| `Admin/AdminUserCreatingEvent.php` | production | FR-ADMIN-001 | Mapped |
+| `Admin/AdminUserCreator.php` | production | FR-ADMIN-001 | Mapped |
+
+## Recipient locale
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Locale/PreferredLocaleAwareInterface.php` | production | FR-RLOCALE-001 | Mapped |
+| `Locale/PreferredLocaleAwareRecipientLocaleResolver.php` | production | FR-RLOCALE-001 | Mapped |
+| `Locale/RecipientLocale.php` | production | FR-RLOCALE-001, FR-RLOCALE-002 | Mapped |
+| `Locale/RecipientLocaleResolverInterface.php` | production | FR-RLOCALE-001 | Mapped |
+
+## Flash messages
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Flash/AuthKitFlashMessenger.php` | production | FR-FLASH-001 | Mapped |
+| `Twig/AuthKitFlashExtension.php` | production | FR-FLASH-002 | Mapped |
 
 ## Bundle & DI
 
@@ -91,6 +116,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `QrLogin/NullQrCodeGenerator.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/NullQrLoginStepUp.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/QrCodeGeneratorInterface.php` | production | FR-QR-001 | Mapped |
+| `QrLogin/QrLoginChallengeConflictException.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/QrLoginChallengeManager.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/QrLoginGate.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/QrLoginRateLimiter.php` | production | FR-QR-001 | Mapped |
@@ -205,6 +231,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Security/AuthKitFormLoginParameters.php` | production | FR-SEC-001 | Mapped |
 | `Security/RegistrationGate.php` | production | FR-SEC-001 | Mapped |
 | `Security/UserRegistrar.php` | production | FR-SEC-001 | Mapped |
+| `Doctrine/EntityManagerRecovery.php` | production | FR-SEC-001 | Mapped |
 
 ## Symfony config
 
@@ -258,9 +285,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 123 |
+| PHP under `src/` | 136 |
 | Resources (config/translations/views/public) | 28 |
-| **Total production sources** | **151** |
+| **Total production sources** | **164** |
 
 ## Coverage gate
 
