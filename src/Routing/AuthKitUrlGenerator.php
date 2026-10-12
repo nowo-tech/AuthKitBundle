@@ -19,12 +19,13 @@ final class AuthKitUrlGenerator
 
     /**
      * @param array<string, mixed> $parameters
+     * @param string|null $locale explicit {_locale} (e.g. a mail recipient's); null uses the request locale
      */
-    public function generate(string $route, array $parameters = [], int $referenceType = UrlGeneratorInterface::ABSOLUTE_PATH): string
+    public function generate(string $route, array $parameters = [], int $referenceType = UrlGeneratorInterface::ABSOLUTE_PATH, ?string $locale = null): string
     {
         return $this->urlGenerator->generate(
             $route,
-            $this->routeLocaleParameters->merge($parameters),
+            $this->routeLocaleParameters->merge($parameters, $locale),
             $referenceType,
         );
     }

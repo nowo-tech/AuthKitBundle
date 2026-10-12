@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\MagicLoginConfirmType;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -15,7 +16,6 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Security\Http\LoginLink\Exception\ExpiredLoginLinkException;
 use Symfony\Component\Security\Http\LoginLink\Exception\InvalidLoginLinkException;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkHandlerInterface;
@@ -40,6 +40,7 @@ final class MagicLoginConfirmController
         private readonly Security $security,
         private readonly ?LoginLinkHandlerInterface $loginLinkHandler = null,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
     ) {
     }
 
@@ -102,9 +103,7 @@ final class MagicLoginConfirmController
         try {
             $user = $this->loginLinkHandler->consumeLoginLink($request);
         } catch (InvalidLoginLinkException|ExpiredLoginLinkException) {
-            if ($request->hasSession() && $request->getSession() instanceof FlashBagAwareSessionInterface) {
-                $request->getSession()->getFlashBag()->add('error', 'magic_login.confirm.flash_invalid');
-            }
+            $this->flashMessenger->flash($request, 'error', 'magic_login.confirm.flash_invalid');
 
             return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
         }

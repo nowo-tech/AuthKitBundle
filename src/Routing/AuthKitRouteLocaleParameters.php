@@ -33,13 +33,18 @@ final class AuthKitRouteLocaleParameters
 
     /**
      * @param array<string, mixed> $parameters
+     * @param string|null $locale explicit locale (e.g. a mail recipient's) instead of the request locale
      *
      * @return array<string, mixed>
      */
-    public function merge(array $parameters = []): array
+    public function merge(array $parameters = [], ?string $locale = null): array
     {
         if (!$this->localeInPathMode->usesLocalePrefix() || isset($parameters['_locale'])) {
             return $parameters;
+        }
+
+        if ($locale !== null && $locale !== '') {
+            return ['_locale' => $locale] + $parameters;
         }
 
         $request = $this->requestStack->getCurrentRequest();

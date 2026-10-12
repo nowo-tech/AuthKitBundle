@@ -9,6 +9,8 @@ use Nowo\AuthKitBundle\DeviceIntelligence\NewDeviceLoginNotificationContext;
 use Nowo\AuthKitBundle\DeviceIntelligence\NewDeviceLoginNotifierInterface;
 use Nowo\AuthKitBundle\DeviceIntelligence\NullNewDeviceLoginNotifier;
 use Nowo\AuthKitBundle\EventSubscriber\NewDeviceLoginSubscriber;
+use Nowo\AuthKitBundle\Locale\RecipientLocale;
+use Nowo\AuthKitBundle\Tests\Stub\PreferredLocaleTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
@@ -17,6 +19,8 @@ use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
+use Symfony\Component\Translation\LocaleSwitcher;
+use Symfony\Component\Translation\Translator;
 
 final class NewDeviceLoginSubscriberTest extends TestCase
 {
@@ -158,5 +162,56 @@ final class NewDeviceLoginSubscriberTest extends TestCase
         $event->method('getUser')->willReturn($user);
 
         return $event;
+    }
+
+    public function testNotifiesInRecipientLocale(): void
+    {
+        $translator = new Translator('en');
+        $notifier   = new class($translator) implements NewDeviceLoginNotifierInterface {
+            /** @var list<string|null> */
+            public array $seen = [];
+
+            public function __construct(private readonly Translator $translator)
+            {
+            }
+
+            public function notify(NewDeviceLoginNotificationContext $context): void
+            {
+                $this->seen = [$context->recipientLocale, $this->translator->getLocale()];
+            }
+        };
+
+        $subscriber = new NewDeviceLoginSubscriber(
+            ProfileRegistryFactory::requestResolver(PreferredLocaleTestUser::class, [
+                'device_intelligence' => [
+                    'enabled'               => true,
+                    'collect_on_auth_pages' => true,
+                    'collect_endpoint'      => '/_device/collect',
+                    'new_device_notify'     => true,
+                    'device_rate_limit'     => false,
+                    'qr_login'              => ['approve_require_trusted' => false],
+                ],
+            ]),
+            $notifier,
+            new DeviceIntelligenceContext(static fn (string $class): bool => true),
+            new RecipientLocale(
+                localeSwitcher: new LocaleSwitcher('en', [$translator]),
+                enabled: true,
+                allowedLocales: ['en', 'es'],
+            ),
+        );
+
+        $request = Request::create('/login');
+        $request->attributes->set(DeviceIntelligenceContext::REQUEST_ATTRIBUTE, new class {
+            public function isNew(): bool
+            {
+                return true;
+            }
+        });
+
+        $subscriber->onLoginSuccess($this->event($request, new PreferredLocaleTestUser('a@b.c', 'es')));
+
+        self::assertSame(['es', 'es'], $notifier->seen);
+        self::assertSame('en', $translator->getLocale());
     }
 }

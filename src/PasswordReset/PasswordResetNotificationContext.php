@@ -16,6 +16,8 @@ final readonly class PasswordResetNotificationContext
         public string $resetUrl,
         public PasswordResetDeliveryMode $deliveryMode,
         public ?string $maskedIdentifier = null,
+        /** Recipient's preferred locale (allowed by locale.enabled), or null to use the request locale. */
+        public ?string $recipientLocale = null,
     ) {
     }
 }

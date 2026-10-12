@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 
 use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
+use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
@@ -30,6 +31,7 @@ final class PasswordResetRequestHandler
         private readonly AuthKitAttemptLimiter $attemptLimiter,
         private readonly RequestStack $requestStack,
         private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
+        private readonly RecipientLocale $recipientLocale = new RecipientLocale(),
     ) {
     }
 
@@ -68,16 +70,19 @@ final class PasswordResetRequestHandler
         $tokenResult = $this->tokenManager->createForUser($user);
         $delivery    = PasswordResetDeliveryMode::from($profile->passwordReset['delivery']);
 
+        $locale    = $this->recipientLocale->resolve($user);
         $linkToken = $tokenResult->linkToken();
         $resetUrl  = $linkToken !== null
             ? $this->urlGenerator->generate(
                 $profile->routes['reset_password']['name'],
                 ['token' => $linkToken],
                 UrlGeneratorInterface::ABSOLUTE_URL,
+                $locale,
             )
             : $this->urlGenerator->generate(
                 $profile->routes['reset_password_code']['name'],
                 referenceType: UrlGeneratorInterface::ABSOLUTE_URL,
+                locale: $locale,
             );
 
         $context = new PasswordResetNotificationContext(
@@ -85,8 +90,14 @@ final class PasswordResetRequestHandler
             resetUrl: $resetUrl,
             deliveryMode: $delivery,
             maskedIdentifier: $this->maskIdentifier($identifier),
+            recipientLocale: $locale,
         );
 
+        $this->recipientLocale->run($locale, $this->dispatchAndNotify(...), $tokenResult, $context);
+    }
+
+    private function dispatchAndNotify(PasswordResetTokenResult $tokenResult, PasswordResetNotificationContext $context): void
+    {
         $this->eventDispatcher->dispatch(new PasswordResetRequestedEvent($tokenResult, $context));
         $this->notifier->notify($tokenResult, $context);
     }

@@ -7,8 +7,10 @@ namespace Nowo\AuthKitBundle\DependencyInjection;
 use InvalidArgumentException;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
+use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
+use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -97,9 +99,23 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.locale_in_path', $config['locale']['in_path']);
         $container->setParameter('nowo_auth_kit.outbound_mail_ready_checker', $config['outbound_mail_ready_checker']);
         $container->setParameter('nowo_auth_kit.login_throttle_required', $config['login_throttle_required']);
+        $container->setParameter('nowo_auth_kit.flash.translate', $config['flash']['translate']);
+        $container->setParameter('nowo_auth_kit.flash.twig_filter_domains', array_values($config['flash']['twig_filter_domains']));
+        $container->setParameter('nowo_auth_kit.recipient_locale.enabled', $config['recipient_locale']['enabled']);
+        $container->setParameter('nowo_auth_kit.create_admin.min_password_length', $config['create_admin']['min_password_length']);
+        $container->setParameter('nowo_auth_kit.create_admin.roles', array_values($config['create_admin']['roles']));
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
+
+        if ($config['flash']['twig_filter'] !== true) {
+            $container->removeDefinition(AuthKitFlashExtension::class);
+        }
+
+        $resolverServiceId = $config['recipient_locale']['resolver'];
+        if (is_string($resolverServiceId) && $resolverServiceId !== '') {
+            $container->setAlias(RecipientLocaleResolverInterface::class, $resolverServiceId);
+        }
 
         $checkerServiceId = $config['outbound_mail_ready_checker'];
         if (is_string($checkerServiceId) && $checkerServiceId !== '') {

@@ -5,11 +5,18 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
 use InvalidArgumentException;
+use Nowo\AuthKitBundle\Admin\AdminUserCreator;
+use Nowo\AuthKitBundle\Command\CreateAdminCommand;
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
+use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
+use Nowo\AuthKitBundle\Locale\PreferredLocaleAwareRecipientLocaleResolver;
+use Nowo\AuthKitBundle\Locale\RecipientLocale;
+use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -377,5 +384,43 @@ final class NowoAuthKitExtensionTest extends TestCase
                 return 'framework';
             }
         };
+    }
+
+    public function testLoadRegistersFlashRecipientLocaleAndCreateAdminDefaults(): void
+    {
+        $this->extension->load([['user_class' => 'App\\Entity\\User']], $this->container);
+
+        self::assertTrue($this->container->getParameter('nowo_auth_kit.flash.translate'));
+        self::assertSame(['messages', 'NowoAuthKitBundle'], $this->container->getParameter('nowo_auth_kit.flash.twig_filter_domains'));
+        self::assertTrue($this->container->getParameter('nowo_auth_kit.recipient_locale.enabled'));
+        self::assertSame(12, $this->container->getParameter('nowo_auth_kit.create_admin.min_password_length'));
+        self::assertSame(['ROLE_ADMIN'], $this->container->getParameter('nowo_auth_kit.create_admin.roles'));
+        self::assertTrue($this->container->hasDefinition(AuthKitFlashExtension::class));
+        self::assertTrue($this->container->hasDefinition(AuthKitFlashMessenger::class));
+        self::assertTrue($this->container->hasDefinition(CreateAdminCommand::class));
+        self::assertTrue($this->container->hasDefinition(AdminUserCreator::class));
+        self::assertTrue($this->container->hasDefinition(RecipientLocale::class));
+        self::assertSame(
+            PreferredLocaleAwareRecipientLocaleResolver::class,
+            (string) $this->container->getAlias(RecipientLocaleResolverInterface::class),
+        );
+    }
+
+    public function testLoadAppliesFlashRecipientLocaleAndCreateAdminOverrides(): void
+    {
+        $this->extension->load([[
+            'user_class'       => 'App\\Entity\\User',
+            'flash'            => ['translate' => false, 'twig_filter' => false, 'twig_filter_domains' => ['NowoAuthKitBundle']],
+            'recipient_locale' => ['enabled' => false, 'resolver' => 'app.recipient_locale_resolver'],
+            'create_admin'     => ['min_password_length' => 16, 'roles' => ['ROLE_SUPER_ADMIN']],
+        ]], $this->container);
+
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.flash.translate'));
+        self::assertSame(['NowoAuthKitBundle'], $this->container->getParameter('nowo_auth_kit.flash.twig_filter_domains'));
+        self::assertFalse($this->container->hasDefinition(AuthKitFlashExtension::class));
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.recipient_locale.enabled'));
+        self::assertSame('app.recipient_locale_resolver', (string) $this->container->getAlias(RecipientLocaleResolverInterface::class));
+        self::assertSame(16, $this->container->getParameter('nowo_auth_kit.create_admin.min_password_length'));
+        self::assertSame(['ROLE_SUPER_ADMIN'], $this->container->getParameter('nowo_auth_kit.create_admin.roles'));
     }
 }

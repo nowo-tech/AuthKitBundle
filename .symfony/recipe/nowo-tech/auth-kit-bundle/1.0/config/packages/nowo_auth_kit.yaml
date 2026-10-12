@@ -33,6 +33,16 @@ nowo_auth_kit:
             #     max_uses: 1
     default_locale: en
     enabled_locales: [en, es]
+    # flash:
+    #     translate: true                 # store AuthKit flashes as translated text
+    #     twig_filter: true               # {{ message|flash_trans }}
+    #     twig_filter_domains: [messages, NowoAuthKitBundle]
+    # recipient_locale:
+    #     enabled: true                   # user implements PreferredLocaleAwareInterface
+    #     resolver: ~                     # or a RecipientLocaleResolverInterface service id
+    # create_admin:                       # bin/console nowo:auth-kit:create-admin
+    #     min_password_length: 12
+    #     roles: [ROLE_ADMIN]
 
 when@prod:
     nowo_auth_kit:

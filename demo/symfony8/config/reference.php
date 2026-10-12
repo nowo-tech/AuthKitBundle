@@ -1376,6 +1376,19 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     default_profile?: scalar|Param|null, // Profile name used when no profile is specified explicitly. // Default: "default"
  *     outbound_mail_ready_checker?: scalar|Param|null, // Optional service id implementing OutboundMailReadyCheckerInterface for password-reset and magic-login UI hints. // Default: null
  *     login_throttle_required?: bool|Param, // When true, container compilation fails if nowo-tech/login-throttle-bundle is not registered (production hardening). // Default: false
+ *     flash?: array{ // Flash messages added by AuthKit controllers.
+ *         translate?: bool|Param, // Store flashes already translated (NowoAuthKitBundle domain, request locale) so any host flash template shows text. false keeps raw keys (pre-1.23). // Default: true
+ *         twig_filter?: bool|Param, // Register the flash_trans Twig filter (translates a flash key with the first domain of twig_filter_domains that has it). // Default: true
+ *         twig_filter_domains?: list<scalar|Param|null>,
+ *     },
+ *     recipient_locale?: array{ // Localize password-reset / magic-login / new-device notifications (context recipientLocale, generated links, translator) in the recipient account locale.
+ *         enabled?: bool|Param, // No-op unless the user implements PreferredLocaleAwareInterface (or a custom resolver returns a locale) listed in locale.enabled. // Default: true
+ *         resolver?: scalar|Param|null, // Optional service id implementing RecipientLocaleResolverInterface (default reads PreferredLocaleAwareInterface). // Default: null
+ *     },
+ *     create_admin?: array{ // nowo:auth-kit:create-admin console command.
+ *         min_password_length?: int|Param, // Minimum password length accepted by the command (the profile password_strength policy also applies when enabled). // Default: 12
+ *         roles?: list<scalar|Param|null>,
+ *     },
  *     profiles?: array<string, array{ // Default: []
  *         user_class?: scalar|Param|null, // FQCN of the application user entity (must implement UserInterface). // Default: null
  *         user_identifier_field?: scalar|Param|null, // Entity property used as the security user identifier (form_login username). // Default: "email"

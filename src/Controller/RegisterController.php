@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Controller;
 
 use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
+use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -16,7 +17,6 @@ use RuntimeException;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -42,6 +42,7 @@ final class RegisterController
         private readonly AuthKitAttemptLimiter $attemptLimiter,
         private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
         private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
+        private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
     ) {
     }
 
@@ -84,9 +85,7 @@ final class RegisterController
                     $profile->registrationRateWindow,
                 )
             ) {
-                if ($request->hasSession() && $request->getSession() instanceof FlashBagAwareSessionInterface) {
-                    $request->getSession()->getFlashBag()->add('error', 'register.flash_rate_limited');
-                }
+                $this->flashMessenger->flash($request, 'error', 'register.flash_rate_limited');
 
                 return new Response('', Response::HTTP_FOUND, [
                     'Location' => $this->urlGenerator->generate($profile->routes['register']['name']),

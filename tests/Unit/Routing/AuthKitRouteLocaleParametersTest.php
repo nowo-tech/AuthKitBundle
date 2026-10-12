@@ -79,4 +79,20 @@ final class AuthKitRouteLocaleParametersTest extends TestCase
     {
         return new AuthKitRouteLocaleParameters(new RequestStack(), $localeInPath, 'en', ['en', 'es']);
     }
+
+    public function testMergeUsesExplicitRecipientLocaleOnlyWithLocalePrefix(): void
+    {
+        $request = Request::create('/en/reset-password');
+        $request->attributes->set('_locale', 'en');
+        $stack = new RequestStack();
+        $stack->push($request);
+
+        $prefixed = new AuthKitRouteLocaleParameters($stack, 'both', 'en', ['en', 'es']);
+        self::assertSame(['_locale' => 'es', 'token' => 't'], $prefixed->merge(['token' => 't'], 'es'));
+        self::assertSame(['_locale' => 'en'], $prefixed->merge([], ''));
+        self::assertSame(['_locale' => 'fr'], $prefixed->merge(['_locale' => 'fr'], 'es'));
+
+        $bare = new AuthKitRouteLocaleParameters($stack, 'never', 'en', ['en', 'es']);
+        self::assertSame(['token' => 't'], $bare->merge(['token' => 't'], 'es'));
+    }
 }

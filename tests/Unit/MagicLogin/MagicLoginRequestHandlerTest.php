@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\MagicLogin;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
+use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\MagicLogin\LoggingMagicLoginNotifier;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginNotificationContext;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginNotifierInterface;
@@ -15,6 +16,7 @@ use Nowo\AuthKitBundle\MagicLogin\MagicLoginRequestHandler;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginUserResolver;
 use Nowo\AuthKitBundle\MagicLogin\NullMagicLoginNotifier;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Tests\Stub\PreferredLocaleTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
@@ -26,6 +28,8 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkDetails;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkHandlerInterface;
+use Symfony\Component\Translation\LocaleSwitcher;
+use Symfony\Component\Translation\Translator;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_key_exists;
@@ -385,5 +389,97 @@ final class MagicLoginRequestHandlerTest extends TestCase
             new AuthKitAttemptLimiter(new ArrayAdapter()),
             $loginLinkHandler,
         );
+    }
+
+    public function testLocalizesLoginLinkContextAndNotifierForRecipient(): void
+    {
+        $user = new PreferredLocaleTestUser('user@example.com', 'es');
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $request = Request::create('/en/login/magic', 'POST');
+        $request->setLocale('en');
+        $request->attributes->set('_locale', 'en');
+        $stack = new RequestStack();
+        $stack->push($request);
+
+        $loginLinkHandler = $this->createMock(LoginLinkHandlerInterface::class);
+        $loginLinkHandler->expects(self::once())->method('createLoginLink')
+            ->with(self::identicalTo($user), self::callback(
+                static fn (Request $linkRequest): bool => $linkRequest !== $request
+                    && $linkRequest->getLocale() === 'es'
+                    && $linkRequest->attributes->get('_locale') === 'es',
+            ), 600)
+            ->willReturn(new LoginLinkDetails('https://example.test/es/login/magic/check?user=1', new DateTimeImmutable('+10 minutes')));
+
+        $translator = new Translator('en');
+        $notifier   = new class($translator) implements MagicLoginNotifierInterface {
+            /** @var list<string|null> */
+            public array $seen = [];
+
+            public function __construct(private readonly Translator $translator)
+            {
+            }
+
+            public function notify(MagicLoginNotificationContext $context): void
+            {
+                $this->seen = [$context->recipientLocale, $context->loginUrl, $this->translator->getLocale()];
+            }
+        };
+
+        $registry = ProfileRegistryFactory::single(PreferredLocaleTestUser::class, [
+            'magic_login' => ['mode' => 'enabled', 'lifetime' => 600, 'max_uses' => 1],
+        ]);
+        (new MagicLoginRequestHandler(
+            new MagicLoginUserResolver($entityManager, $registry),
+            $notifier,
+            $this->createMock(EventDispatcherInterface::class),
+            $registry,
+            $stack,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            $loginLinkHandler,
+            recipientLocale: new RecipientLocale(
+                localeSwitcher: new LocaleSwitcher('en', [$translator]),
+                enabled: true,
+                allowedLocales: ['en', 'es'],
+            ),
+        ))->handle('user@example.com');
+
+        self::assertSame(['es', 'https://example.test/es/login/magic/check?user=1', 'es'], $notifier->seen);
+        self::assertSame('en', $translator->getLocale());
+        self::assertSame('en', $request->getLocale());
+        self::assertSame('en', $request->attributes->get('_locale'));
+    }
+
+    public function testRecipientLocaleWithoutRequestPassesNullRequest(): void
+    {
+        $user = new PreferredLocaleTestUser('user@example.com', 'es');
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $loginLinkHandler = $this->createMock(LoginLinkHandlerInterface::class);
+        $loginLinkHandler->expects(self::once())->method('createLoginLink')
+            ->with(self::identicalTo($user), null, 600)
+            ->willReturn(new LoginLinkDetails('https://example.test/login/magic/check', new DateTimeImmutable('+10 minutes')));
+
+        $registry = ProfileRegistryFactory::single(PreferredLocaleTestUser::class, [
+            'magic_login' => ['mode' => 'enabled', 'lifetime' => 600, 'max_uses' => 1],
+        ]);
+        (new MagicLoginRequestHandler(
+            new MagicLoginUserResolver($entityManager, $registry),
+            new NullMagicLoginNotifier(),
+            $this->createMock(EventDispatcherInterface::class),
+            $registry,
+            new RequestStack(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            $loginLinkHandler,
+            recipientLocale: new RecipientLocale(enabled: true, allowedLocales: ['en', 'es']),
+        ))->handle('user@example.com');
     }
 }

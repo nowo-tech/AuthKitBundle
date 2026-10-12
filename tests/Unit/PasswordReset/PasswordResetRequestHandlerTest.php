@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
+use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\PasswordReset\NullPasswordResetNotifier;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotificationContext;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
@@ -19,13 +20,17 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Tests\Stub\PreferredLocaleTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Translation\LocaleSwitcher;
+use Symfony\Component\Translation\Translator;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class PasswordResetRequestHandlerTest extends TestCase
@@ -310,5 +315,100 @@ final class PasswordResetRequestHandlerTest extends TestCase
             $this->createMock(UrlGeneratorInterface::class),
             new AuthKitRouteLocaleParameters(new RequestStack(), false, 'en', ['en', 'es']),
         );
+    }
+
+    public function testHandleLocalizesLinkContextAndNotifierForRecipient(): void
+    {
+        $user   = new PreferredLocaleTestUser('user@example.com', 'es');
+        $result = new PasswordResetTokenResult($user, 'token', new DateTimeImmutable('+1 hour'), PasswordResetDeliveryMode::Link);
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
+        $tokenManager->method('createForUser')->willReturn($result);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->expects(self::once())->method('generate')
+            ->with('nowo_auth_kit_reset_password', ['_locale' => 'es', 'token' => 'token'], UrlGeneratorInterface::ABSOLUTE_URL)
+            ->willReturn('https://example.test/es/reset-password/reset/token');
+
+        $request = Request::create('/en/reset-password');
+        $request->attributes->set('_locale', 'en');
+        $stack = new RequestStack();
+        $stack->push($request);
+
+        $translator = new Translator('en');
+        $notifier   = new class($translator) implements PasswordResetNotifierInterface {
+            /** @var list<string|null> */
+            public array $seen = [];
+
+            public function __construct(private readonly Translator $translator)
+            {
+            }
+
+            public function notify(PasswordResetTokenResult $token, PasswordResetNotificationContext $context): void
+            {
+                $this->seen = [$context->recipientLocale, $context->resetUrl, $this->translator->getLocale()];
+            }
+        };
+
+        $registry = ProfileRegistryFactory::single(PreferredLocaleTestUser::class, ['password_reset' => ['delivery' => 'link']]);
+        $handler  = new PasswordResetRequestHandler(
+            new PasswordResetUserResolver($entityManager, $registry),
+            $tokenManager,
+            $notifier,
+            new AuthKitUrlGenerator($inner, new AuthKitRouteLocaleParameters($stack, 'both', 'en', ['en', 'es'])),
+            $this->createMock(EventDispatcherInterface::class),
+            $registry,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            $stack,
+            recipientLocale: new RecipientLocale(
+                localeSwitcher: new LocaleSwitcher('en', [$translator]),
+                enabled: true,
+                allowedLocales: ['en', 'es'],
+            ),
+        );
+
+        $handler->handle('user@example.com');
+
+        self::assertSame(['es', 'https://example.test/es/reset-password/reset/token', 'es'], $notifier->seen);
+        self::assertSame('en', $translator->getLocale());
+    }
+
+    public function testHandleLocalizesCodeRouteForRecipient(): void
+    {
+        $user   = new PreferredLocaleTestUser('user@example.com', 'es');
+        $result = new PasswordResetTokenResult($user, '123456', new DateTimeImmutable('+1 hour'), PasswordResetDeliveryMode::Code);
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
+        $tokenManager->method('createForUser')->willReturn($result);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->expects(self::once())->method('generate')
+            ->with('nowo_auth_kit_reset_password_code', ['_locale' => 'es'], UrlGeneratorInterface::ABSOLUTE_URL)
+            ->willReturn('https://example.test/es/reset-password/complete');
+
+        $registry = ProfileRegistryFactory::single(PreferredLocaleTestUser::class, ['password_reset' => ['delivery' => 'code']]);
+        $handler  = new PasswordResetRequestHandler(
+            new PasswordResetUserResolver($entityManager, $registry),
+            $tokenManager,
+            new NullPasswordResetNotifier(),
+            new AuthKitUrlGenerator($inner, new AuthKitRouteLocaleParameters(new RequestStack(), 'always', 'en', ['en', 'es'])),
+            $this->createMock(EventDispatcherInterface::class),
+            $registry,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
+            recipientLocale: new RecipientLocale(enabled: true, allowedLocales: ['en', 'es']),
+        );
+
+        $handler->handle('user@example.com');
     }
 }

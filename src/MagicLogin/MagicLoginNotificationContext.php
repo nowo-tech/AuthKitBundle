@@ -16,6 +16,8 @@ final readonly class MagicLoginNotificationContext
         public string $loginUrl,
         public DateTimeImmutable $expiresAt,
         public ?string $maskedIdentifier = null,
+        /** Recipient's preferred locale (allowed by locale.enabled), or null to use the request locale. */
+        public ?string $recipientLocale = null,
     ) {
     }
 }

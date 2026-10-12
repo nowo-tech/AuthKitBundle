@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\MagicLogin;
 
 use DateTimeImmutable;
 use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
+use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Psr\Log\LoggerInterface;
@@ -36,6 +37,7 @@ final class MagicLoginRequestHandler
         private readonly ?LoginLinkHandlerInterface $loginLinkHandler = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
+        private readonly RecipientLocale $recipientLocale = new RecipientLocale(),
     ) {
     }
 
@@ -86,7 +88,8 @@ final class MagicLoginRequestHandler
             ? $profile->magicLogin['lifetime']
             : null;
 
-        $details = $this->loginLinkHandler->createLoginLink($user, $request instanceof Request ? $request : null, $lifetime);
+        $locale  = $this->recipientLocale->resolve($user);
+        $details = $this->loginLinkHandler->createLoginLink($user, $this->linkRequest($request, $locale), $lifetime);
         $expires = DateTimeImmutable::createFromInterface($details->getExpiresAt());
 
         $context = new MagicLoginNotificationContext(
@@ -94,10 +97,33 @@ final class MagicLoginRequestHandler
             loginUrl: $details->getUrl(),
             expiresAt: $expires,
             maskedIdentifier: $this->maskIdentifier($identifier),
+            recipientLocale: $locale,
         );
 
+        $this->recipientLocale->run($locale, $this->dispatchAndNotify(...), $context);
+    }
+
+    private function dispatchAndNotify(MagicLoginNotificationContext $context): void
+    {
         $this->eventDispatcher->dispatch(new MagicLoginRequestedEvent($context));
         $this->notifier->notify($context);
+    }
+
+    /**
+     * Symfony's LoginLinkHandler takes {_locale} from the request it is given: hand it a copy in the
+     * recipient's locale so a localized check route links to /{recipient-locale}/… (the live request is untouched).
+     */
+    private function linkRequest(?Request $request, ?string $locale): ?Request
+    {
+        if (!$request instanceof Request || $locale === null) {
+            return $request;
+        }
+
+        $copy = $request->duplicate();
+        $copy->setLocale($locale);
+        $copy->attributes->set('_locale', $locale);
+
+        return $copy;
     }
 
     private function maskIdentifier(string $identifier): string

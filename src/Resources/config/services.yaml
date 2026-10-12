@@ -176,3 +176,33 @@ services:
 
     Nowo\AuthKitBundle\Controller\QrLoginDenyController:
         public: true
+
+    Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger:
+        arguments:
+            $translator: '@?translator'
+            $translate: '%nowo_auth_kit.flash.translate%'
+
+    Nowo\AuthKitBundle\Twig\AuthKitFlashExtension:
+        arguments:
+            $domains: '%nowo_auth_kit.flash.twig_filter_domains%'
+        tags:
+            - { name: twig.extension }
+
+    Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface:
+        alias: Nowo\AuthKitBundle\Locale\PreferredLocaleAwareRecipientLocaleResolver
+
+    Nowo\AuthKitBundle\Locale\RecipientLocale:
+        arguments:
+            $localeSwitcher: '@?translation.locale_switcher'
+            $enabled: '%nowo_auth_kit.recipient_locale.enabled%'
+            $allowedLocales: '%nowo_auth_kit.locale.enabled%'
+
+    Nowo\AuthKitBundle\Admin\AdminUserCreator:
+        arguments:
+            $eventDispatcher: '@?event_dispatcher'
+
+    Nowo\AuthKitBundle\Command\CreateAdminCommand:
+        arguments:
+            $minPasswordLength: '%nowo_auth_kit.create_admin.min_password_length%'
+            $roles: '%nowo_auth_kit.create_admin.roles%'
+            $validator: '@?validator'

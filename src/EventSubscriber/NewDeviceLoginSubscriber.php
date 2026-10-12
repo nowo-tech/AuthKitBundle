@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\EventSubscriber;
 use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
 use Nowo\AuthKitBundle\DeviceIntelligence\NewDeviceLoginNotificationContext;
 use Nowo\AuthKitBundle\DeviceIntelligence\NewDeviceLoginNotifierInterface;
+use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
@@ -22,6 +23,7 @@ final class NewDeviceLoginSubscriber implements EventSubscriberInterface
         private readonly RequestProfileResolver $profileResolver,
         private readonly NewDeviceLoginNotifierInterface $notifier,
         private readonly DeviceIntelligenceContext $devices = new DeviceIntelligenceContext(),
+        private readonly RecipientLocale $recipientLocale = new RecipientLocale(),
     ) {
     }
 
@@ -45,9 +47,14 @@ final class NewDeviceLoginSubscriber implements EventSubscriberInterface
             $request->getSession()->set(DeviceIntelligenceContext::SESSION_NEW_DEVICE, true);
         }
 
-        $this->notifier->notify(new NewDeviceLoginNotificationContext(
-            $event->getUser()->getUserIdentifier(),
+        $user    = $event->getUser();
+        $locale  = $this->recipientLocale->resolve($user);
+        $context = new NewDeviceLoginNotificationContext(
+            $user->getUserIdentifier(),
             $this->profileResolver->resolve($request)->name,
-        ));
+            $locale,
+        );
+
+        $this->recipientLocale->run($locale, $this->notifier->notify(...), $context);
     }
 }

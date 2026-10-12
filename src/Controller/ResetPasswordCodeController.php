@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
@@ -14,7 +15,6 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -34,6 +34,7 @@ final class ResetPasswordCodeController
         private readonly TokenStorageInterface $tokenStorage,
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RequestProfileResolver $profileResolver,
+        private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
     ) {
     }
 
@@ -83,9 +84,7 @@ final class ResetPasswordCodeController
                 $this->passwordResetCompleter->complete($user, $data['password']);
             }
 
-            if ($request->hasSession() && $request->getSession() instanceof FlashBagAwareSessionInterface) {
-                $request->getSession()->getFlashBag()->add('success', 'reset.password.flash_success');
-            }
+            $this->flashMessenger->flash($request, 'success', 'reset.password.flash_success');
 
             return new Response('', Response::HTTP_FOUND, [
                 'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
