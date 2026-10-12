@@ -1373,7 +1373,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  * }
  * @psalm-type NowoAuthKitConfig = array{
- *     default_profile?: scalar|Param|null, // Profile name used when no profile is specified explicitly. // Default: "default"
+ *     default_profile?: scalar|Param|null, // Profile name used when no profile is specified explicitly (default: first profile). // Default: null
  *     outbound_mail_ready_checker?: scalar|Param|null, // Optional service id implementing OutboundMailReadyCheckerInterface for password-reset and magic-login UI hints. // Default: null
  *     login_throttle_required?: bool|Param, // When true, container compilation fails if nowo-tech/login-throttle-bundle is not registered (production hardening). // Default: false
  *     flash?: array{ // Flash messages added by AuthKit controllers.

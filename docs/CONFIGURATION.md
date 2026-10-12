@@ -25,6 +25,8 @@
 
 All options live under the `nowo_auth_kit` root key in `config/packages/nowo_auth_kit.yaml`.
 
+The config can be split across several blocks (`config/packages/<env>/nowo_auth_kit.yaml`, `when@<env>:`): Symfony merges them in load order and a later block only overrides the keys it sets. `default_profile` (first profile key when unset) and the deprecated `default_locale` / `enabled_locales` / `locale_in_path` mirrors are derived from the merged result.
+
 ## Profiles
 
 Each **profile** maps a `user_class` to its own auth settings (registration, login fields, password reset, routes, templates, firewall, embed). Use multiple profiles when the application has more than one authenticated user entity (for example `App\Entity\User` and `App\Entity\Admin`).

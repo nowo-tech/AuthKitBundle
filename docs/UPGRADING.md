@@ -3,6 +3,7 @@
 ## Table of contents
 
 
+- [To 1.23.1](#to-1231)
 - [To 1.23.0](#to-1230)
 - [To 1.22.4](#to-1224)
 - [To 1.22.3](#to-1223)
@@ -65,6 +66,16 @@
   - [Demo users](#demo-users)
 - [To 1.0.0](#to-100)
 - [Future upgrades](#future-upgrades)
+
+## To 1.23.1
+
+From **1.23.0** — configuration merge fix only.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No action required. A partial `nowo_auth_kit` block loaded after the main file (`config/packages/prod/*.yaml`, `when@prod:`, a bundle prepend) no longer resets `locale` (`in_path`, `default`, `enabled`, `unlocalized`) or `default_profile`. If you repeated the full `locale` node in every env file only to work around that, you can drop the copies. `default_profile` still falls back to the first profile key when it is not set in any block.
 
 ## To 1.23.0
 

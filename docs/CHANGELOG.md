@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [[Unreleased]](#unreleased)
 
+- [[1.23.1] - 2026-10-12](#1231---2026-10-12)
 - [[1.23.0] - 2026-10-12](#1230---2026-10-12)
   - [Added](#added)
   - [Changed](#changed)
@@ -138,9 +139,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.23.1] - 2026-10-12
+
 ### Fixed
 
 - A partial `nowo_auth_kit` block loaded after the main config (e.g. `config/packages/prod/*.yaml` with only `profiles.default.registration_mode`) no longer resets `locale` to the legacy defaults (`in_path: never`, `default: en`, `unlocalized: redirect`) nor `default_profile` to its first profile. Each block now maps only the keys it sets; `default_profile` (first profile when unset) and the deprecated `default_locale` / `enabled_locales` / `locale_in_path` mirrors are derived after the merge. Hosts on `in_path: both` lost `/{_locale}/login` and every `*_unlocalized` route (`RouteNotFoundException` on `/login`).
+
+[1.23.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.23.1
 
 ## [1.23.0] - 2026-10-12
 

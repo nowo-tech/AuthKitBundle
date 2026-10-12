@@ -83,7 +83,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Bundle & config
 
 - **FR-BUNDLE-001**: `NowoAuthKitBundle` alias `nowo_auth_kit`.
-- **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles, optional `slide_to_confirm`, optional `device_intelligence`, optional `otp_input`.
+- **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles, optional `slide_to_confirm`, optional `device_intelligence`, optional `otp_input`. `beforeNormalization` only maps keys present in each block (legacy flat keys → `profiles.default`, legacy locale keys → `locale`); `default_profile` and legacy locale mirrors are derived in `validate()` after the multi-block merge, so a partial env block never resets `locale` / `default_profile` (v1.23.1).
 - **FR-CFG-002**: `NowoAuthKitExtension` + `FieldConfigNormalizer`, `RememberMeConfigResolver`; `TwigPathsPass` registers bundle Twig paths.
 
 ### HTTP controllers
