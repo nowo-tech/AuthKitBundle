@@ -2,7 +2,7 @@
 
 ## Table of contents
 
-
+- [To 1.24.1](#to-1241)
 - [To 1.24.0](#to-1240)
 - [To 1.23.1](#to-1231)
 - [To 1.23.0](#to-1230)
@@ -67,6 +67,17 @@
   - [Demo users](#demo-users)
 - [To 1.0.0](#to-100)
 - [Future upgrades](#future-upgrades)
+
+## To 1.24.1
+
+From **1.24.0** — security fixes - QR completion expiry, social login fallback route, provider errors, locale redirect query.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+- QR login completion after the challenge has expired now redirects to login instead of authenticating.
+- After a social login without `login_success_route`, users land on the login route instead of the hard-coded `homepage` route.
 
 ## To 1.24.0
 
@@ -166,7 +177,6 @@ php bin/console cache:clear
 ```
 
 - No application upgrade steps for require-dev Igor tooling (REQ-CS-008). Consumers do not pull `igor-php/igor-php` transitively.
-
 
 ## To 1.21.0
 
