@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [[Unreleased]](#unreleased)
 
+- [[1.24.0] - 2026-10-13](#1240---2026-10-13)
+  - [Security](#security)
+  - [Added](#added)
 - [[1.23.1] - 2026-10-12](#1231---2026-10-12)
 - [[1.23.0] - 2026-10-12](#1230---2026-10-12)
   - [Added](#added)
@@ -138,6 +141,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - [Removed](#removed)
 
 ## [Unreleased]
+
+## [1.24.0] - 2026-10-13
+
+### Security
+
+- **Password-reset poisoning hardening** — new `absolute_url.base_uri` (nullable, default `null`; e.g. `'%env(DEFAULT_URI)%'`). When set, every absolute URL that leaves the request is built against that fixed origin (scheme, host, port, path prefix) instead of the incoming `Host` header: password-reset link and reset-code page link, magic-login link (Symfony `LoginLinkHandler`, `{_locale}` kept), QR login approve URL, and the social-login OAuth `redirect_uri` (start and code exchange). A forged `Host` on the reset / magic request no longer reaches the victim's email. `null` keeps the previous behaviour exactly; then configure `framework.trusted_hosts` (see `docs/SECURITY.md`).
+
+### Added
+
+- `Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator` — wraps the router, applies a `RequestContext` built from `base_uri` for one generation (`generate()` / `withBaseContext()`) and restores the original context in `finally` (FrankenPHP worker-safe). `AuthKitUrlGenerator` routes `ABSOLUTE_URL` / `NETWORK_PATH` through it; relative paths are unchanged.
+- `base_uri` is validated (absolute http(s) URL, no user info / query / fragment) at compile time for literals and at service construction for `%env()%` values (empty env = disabled).
+
+[1.24.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.24.0
 
 ## [1.23.1] - 2026-10-12
 

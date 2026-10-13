@@ -4,6 +4,9 @@ nowo_auth_kit:
     registration_mode: first_user_only
     registration_role: ROLE_USER
     login_success_route: demo_home
+    # Mailed / QR / OAuth callback links use this origin, never the request Host (password-reset poisoning hardening).
+    absolute_url:
+        base_uri: '%env(DEFAULT_URI)%'
     locale:
         # both: /en/login (canonical) + /login (_unlocalized)
         # unlocalized: redirect → 302 to /{default|current}/…

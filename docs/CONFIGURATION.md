@@ -17,6 +17,7 @@
 - [Embedded auth UI](#embedded-auth-ui)
 - [Locale in paths](#locale-in-paths)
 - [Recipient locale (notifications)](#recipient-locale-notifications)
+- [Absolute URL base (mailed / QR links)](#absolute-url-base-mailed--qr-links)
 - [Flash messages](#flash-messages)
 - [Admin CLI (create-admin)](#admin-cli-create-admin)
 - [Templates](#templates)
@@ -506,6 +507,27 @@ final class UserPreferredLocaleResolver implements RecipientLocaleResolverInterf
     }
 }
 ```
+
+## Absolute URL base (mailed / QR links)
+
+Since 1.24. Links that leave the request are absolute URLs. By default the router builds them from the incoming request (scheme, `Host` header, port, base path). Behind a proxy that forwards any `Host` — and without `framework.trusted_hosts` — an attacker can request a password reset for a victim with `Host: evil.example` and the victim receives a reset link to `evil.example` (**password-reset poisoning**). Pin the origin:
+
+```yaml
+nowo_auth_kit:
+    absolute_url:
+        base_uri: '%env(DEFAULT_URI)%'   # e.g. https://app.example.com or https://example.com/portal
+```
+
+- Value: absolute `http`/`https` URL, optional port and path prefix (trailing `/` ignored); no user info, query or fragment. Invalid literals fail at container compile; `%env()%` values are checked when the service is built (invalid → `InvalidArgumentException`; empty → disabled).
+- Covered URLs (all built by `Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator`):
+  - password-reset link (`reset_password` route with token) and, in code-only delivery, the reset-code page link (`reset_password_code`);
+  - magic-login link (Symfony `LoginLinkHandler`, `{_locale}` = recipient locale, else request locale);
+  - QR login approve URL (QR payload scanned by the phone);
+  - social login OAuth `redirect_uri` (start **and** code exchange) — register `{base_uri}{check path}` as the callback URL at each provider; with `base_uri` set the request host no longer influences it, which is what providers expect;
+  - any other `AuthKitUrlGenerator::generate(..., UrlGeneratorInterface::ABSOLUTE_URL|NETWORK_PATH)` call.
+- Relative links (`ABSOLUTE_PATH`, redirects, form actions) are unchanged.
+- The router context is swapped only during the generation and restored in `finally` (FrankenPHP worker-safe; no state is kept between requests).
+- `null` / empty (default): links are built from the request as before 1.24. In production either set `base_uri` or configure `framework.trusted_hosts` (see [SECURITY.md](SECURITY.md#password-reset-poisoning-host-header)).
 
 ## Flash messages
 

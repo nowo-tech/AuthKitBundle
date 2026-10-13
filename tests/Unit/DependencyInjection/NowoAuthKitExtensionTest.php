@@ -15,12 +15,18 @@ use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
+use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
+use Symfony\Component\Routing\Generator\UrlGenerator;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\RequestContext;
+use Symfony\Component\Routing\RouteCollection;
 
 final class NowoAuthKitExtensionTest extends TestCase
 {
@@ -422,5 +428,52 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertSame('app.recipient_locale_resolver', (string) $this->container->getAlias(RecipientLocaleResolverInterface::class));
         self::assertSame(16, $this->container->getParameter('nowo_auth_kit.create_admin.min_password_length'));
         self::assertSame(['ROLE_SUPER_ADMIN'], $this->container->getParameter('nowo_auth_kit.create_admin.roles'));
+    }
+
+    public function testAbsoluteUrlBaseUriDefaultsToNullAndRegistersGenerator(): void
+    {
+        $this->extension->load([['user_class' => 'App\\Entity\\User']], $this->container);
+
+        self::assertNull($this->container->getParameter('nowo_auth_kit.absolute_url.base_uri'));
+        self::assertSame(
+            '%nowo_auth_kit.absolute_url.base_uri%',
+            $this->container->getDefinition(AbsoluteUrlGenerator::class)->getArgument('$baseUri'),
+        );
+    }
+
+    public function testAbsoluteUrlBaseUriFromEnvIsResolvedAndValidatedAtRuntime(): void
+    {
+        $container = new ContainerBuilder();
+        $container->registerExtension($this->extension);
+        $container->loadFromExtension('nowo_auth_kit', [
+            'user_class'   => 'App\\Entity\\User',
+            'absolute_url' => ['base_uri' => '%env(AUTH_KIT_TEST_BASE_URI)%'],
+        ]);
+        $container->register('router', UrlGenerator::class)
+            ->setArguments([new RouteCollection(), new RequestContext()]);
+        $container->setAlias(UrlGeneratorInterface::class, 'router');
+        $container->addCompilerPass(new class implements CompilerPassInterface {
+            public function process(ContainerBuilder $container): void
+            {
+                // Keep only the generator under test (the rest of the bundle needs Doctrine, cache, Twig…).
+                foreach (array_keys($container->getDefinitions()) as $id) {
+                    if (str_starts_with($id, 'Nowo\\') && $id !== AbsoluteUrlGenerator::class) {
+                        $container->removeDefinition($id);
+                    }
+                }
+                $container->getDefinition(AbsoluteUrlGenerator::class)->setPublic(true);
+            }
+        });
+
+        $_SERVER['AUTH_KIT_TEST_BASE_URI'] = 'https://app.example.com/portal';
+
+        try {
+            $container->compile(true);
+            $generator = $container->get(AbsoluteUrlGenerator::class);
+            self::assertInstanceOf(AbsoluteUrlGenerator::class, $generator);
+            self::assertTrue($generator->isEnabled());
+        } finally {
+            unset($_SERVER['AUTH_KIT_TEST_BASE_URI']);
+        }
     }
 }

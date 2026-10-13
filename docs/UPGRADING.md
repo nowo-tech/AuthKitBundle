@@ -3,6 +3,7 @@
 ## Table of contents
 
 
+- [To 1.24.0](#to-1240)
 - [To 1.23.1](#to-1231)
 - [To 1.23.0](#to-1230)
 - [To 1.22.4](#to-1224)
@@ -66,6 +67,26 @@
   - [Demo users](#demo-users)
 - [To 1.0.0](#to-100)
 - [Future upgrades](#future-upgrades)
+
+## To 1.24.0
+
+From **1.23.x** — minor release, no required changes.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+**Recommended (security):** pin the origin of mailed / QR links so a forged `Host` header cannot poison password-reset or magic links:
+
+```yaml
+nowo_auth_kit:
+    absolute_url:
+        base_uri: '%env(DEFAULT_URI)%'   # https://app.example.com (optional :port and /path prefix)
+```
+
+With it set, reset links, magic links, the QR approve URL and the social-login OAuth `redirect_uri` use that scheme/host/port/path instead of the request. If you use social login, make sure the callback URL registered at each provider is `{base_uri}` + the `social_login_check` path (it normally already is). Without the option nothing changes; then configure `framework.trusted_hosts` in production.
+
+`AuthKitUrlGenerator` and `MagicLoginRequestHandler` gained an optional trailing constructor argument (`?AbsoluteUrlGenerator`); code that instantiates them by hand keeps working.
 
 ## To 1.23.1
 

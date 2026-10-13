@@ -4,7 +4,7 @@
 **Status**: Active  
 **Package**: `nowo-tech/auth-kit-bundle` (tag **v1.23.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **164** units (136 PHP + 28 Resources), audited **2026-10-12**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **165** units (137 PHP + 28 Resources), audited **2026-10-13**
 
 ---
 
@@ -135,6 +135,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Routing & Twig
 
 - **FR-ROUT-001**: `AuthKitRouteLoader`, locale parameters, custom URL generator.
+- **FR-ROUT-002**: `AbsoluteUrlGenerator` — optional `absolute_url.base_uri` origin for out-of-band absolute URLs (reset / magic / QR / OAuth `redirect_uri`); router context restored in `finally` (v1.24.0, [spec 002](../002-absolute-url-base-uri/spec.md)).
 - **FR-TWIG-001**: Routing + embed Twig extensions and security/embed templates.
 - **FR-TWIG-002**: `AuthKitUiExtension` for shared UI helpers (buttons/providers chrome).
 - **FR-TWIG-003**: CSP — inline `<script>`/`<style>` in bundle templates emit `nonce` from request attribute `csp_nonce` when set; no inline event handlers (enforced by `InlineBlocksDeclareNonceTest`).

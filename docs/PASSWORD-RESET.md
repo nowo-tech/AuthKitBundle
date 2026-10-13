@@ -91,6 +91,8 @@ The request step **never reveals** whether the identifier exists (anti-enumerati
 
 Built-in (via `cache.app`): `request_rate_limit` / `request_rate_window` on reset requests, and `max_code_attempts` OTP lockout (clears the stored reset credential when exceeded). Set limits to `0` to disable.
 
+Set `absolute_url.base_uri` (1.24+, e.g. `'%env(DEFAULT_URI)%'`) so the mailed link is built from a fixed origin, not the request `Host` header (password-reset poisoning). See [CONFIGURATION.md](CONFIGURATION.md#absolute-url-base-mailed--qr-links).
+
 ## Templates
 
 Override under `templates/bundles/NowoAuthKitBundle/security/`:

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\DependencyInjection;
 
+use InvalidArgumentException;
 use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Enum\MagicLoginMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
@@ -13,6 +14,7 @@ use Nowo\AuthKitBundle\Enum\QrLoginDesktopBinding;
 use Nowo\AuthKitBundle\Enum\QrLoginMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Enum\SocialLoginMode;
+use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -23,7 +25,9 @@ use function in_array;
 use function is_array;
 use function is_bool;
 use function is_string;
+use function sprintf;
 use function trigger_deprecation;
+use function trim;
 
 /**
  * Configuration tree for AuthKitBundle.
@@ -153,6 +157,23 @@ final class Configuration implements ConfigurationInterface
                 ->booleanNode('login_throttle_required')
                     ->info('When true, container compilation fails if nowo-tech/login-throttle-bundle is not registered (production hardening).')
                     ->defaultFalse()
+                ->end()
+                ->arrayNode('absolute_url')
+                    ->info('Origin used for absolute URLs that leave the request (password-reset / magic-login links, QR login payload, social OAuth redirect_uri).')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('base_uri')
+                            ->info('Absolute http(s) URL (optional port and path prefix, no query/fragment), e.g. "%env(DEFAULT_URI)%". When set those links ignore the request Host header (password-reset poisoning hardening). null/empty: build them from the request (pre-1.24 behaviour; then configure framework.trusted_hosts).')
+                            ->defaultNull()
+                            ->example('https://app.example.com')
+                            ->validate()
+                                ->ifTrue(static fn (mixed $value): bool => self::baseUriError($value) !== null)
+                                ->then(static function (mixed $value): never {
+                                    throw new InvalidArgumentException(sprintf('Invalid "nowo_auth_kit.absolute_url.base_uri": %s', (string) self::baseUriError($value)));
+                                })
+                            ->end()
+                        ->end()
+                    ->end()
                 ->end()
                 ->arrayNode('flash')
                     ->info('Flash messages added by AuthKit controllers.')
@@ -874,5 +895,23 @@ final class Configuration implements ConfigurationInterface
             ->end();
 
         return $node;
+    }
+
+    /**
+     * Env placeholders (e.g. %env(DEFAULT_URI)%) and empty values pass here; AbsoluteUrlGenerator validates the resolved value.
+     */
+    private static function baseUriError(mixed $value): ?string
+    {
+        if ($value === null || AbsoluteUrlGenerator::isEnvPlaceholder($value)) {
+            return null;
+        }
+
+        if (!is_string($value)) {
+            return 'expected a string or null.';
+        }
+
+        $value = trim($value);
+
+        return $value === '' ? null : AbsoluteUrlGenerator::validationError($value);
     }
 }

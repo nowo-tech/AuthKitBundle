@@ -1376,6 +1376,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     default_profile?: scalar|Param|null, // Profile name used when no profile is specified explicitly (default: first profile). // Default: null
  *     outbound_mail_ready_checker?: scalar|Param|null, // Optional service id implementing OutboundMailReadyCheckerInterface for password-reset and magic-login UI hints. // Default: null
  *     login_throttle_required?: bool|Param, // When true, container compilation fails if nowo-tech/login-throttle-bundle is not registered (production hardening). // Default: false
+ *     absolute_url?: array{ // Origin used for absolute URLs that leave the request (password-reset / magic-login links, QR login payload, social OAuth redirect_uri).
+ *         base_uri?: scalar|Param|null, // Absolute http(s) URL (optional port and path prefix, no query/fragment), e.g. "%env(DEFAULT_URI)%". When set those links ignore the request Host header (password-reset poisoning hardening). null/empty: build them from the request (pre-1.24 behaviour; then configure framework.trusted_hosts). // Default: null
+ *     },
  *     flash?: array{ // Flash messages added by AuthKit controllers.
  *         translate?: bool|Param, // Store flashes already translated (NowoAuthKitBundle domain, request locale) so any host flash template shows text. false keeps raw keys (pre-1.23). // Default: true
  *         twig_filter?: bool|Param, // Register the flash_trans Twig filter (translates a flash key with the first domain of twig_filter_domains that has it). // Default: true

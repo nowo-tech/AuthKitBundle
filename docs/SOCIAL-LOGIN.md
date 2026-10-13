@@ -52,7 +52,7 @@ Public routes (also locale-prefixed when `locale.in_path` is `always`/`both`):
 - `GET /login/social/{provider}` → start
 - `GET /login/social/{provider}/check` → callback
 
-Add matching `access_control` entries (`PUBLIC_ACCESS`), same pattern as magic login / password reset. The OAuth redirect URI registered at the IdP must match the **absolute** check URL (including locale prefix if you use one).
+Add matching `access_control` entries (`PUBLIC_ACCESS`), same pattern as magic login / password reset. The OAuth redirect URI registered at the IdP must match the **absolute** check URL (including locale prefix if you use one). With `absolute_url.base_uri` (1.24+) that URL is `{base_uri}` + check path for start and code exchange alike, independent of the request `Host` — register exactly that.
 
 ## Login template variables
 

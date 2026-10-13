@@ -291,6 +291,7 @@ Stolen-phone residual with step-up: attacker needs biometrics/PIN knowledge — 
 **Solution:**
 
 - QR / approve URL contains **only** opaque UUID + `t` secret.
+- With `absolute_url.base_uri` (1.24+) the approve URL is built from that origin, not from the desktop request `Host`.
 - `phone_hint` is computed server-side **after** the approving identity is known and rendered only on the approve HTML page.
 - `status` JSON: `{ "status", "expires_in" }` exclusively — never user id, phone, hint, or email.
 - Logging notifiers: no QR URLs, no `t`, no full phone (REQ-OBS-001).

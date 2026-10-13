@@ -59,6 +59,10 @@ services:
             $defaultLocale: '%nowo_auth_kit.locale.default%'
             $enabledLocales: '%nowo_auth_kit.locale.enabled%'
 
+    Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator:
+        arguments:
+            $baseUri: '%nowo_auth_kit.absolute_url.base_uri%'
+
     Nowo\AuthKitBundle\EventSubscriber\UnlocalizedDefaultLocaleSubscriber:
         arguments:
             $defaultLocale: '%nowo_auth_kit.locale.default%'

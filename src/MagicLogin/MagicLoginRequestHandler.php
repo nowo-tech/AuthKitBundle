@@ -8,12 +8,14 @@ use DateTimeImmutable;
 use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
 use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Http\LoginLink\LoginLinkDetails;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkHandlerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -38,6 +40,7 @@ final class MagicLoginRequestHandler
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
         private readonly RecipientLocale $recipientLocale = new RecipientLocale(),
+        private readonly ?AbsoluteUrlGenerator $absoluteUrlGenerator = null,
     ) {
     }
 
@@ -89,7 +92,7 @@ final class MagicLoginRequestHandler
             : null;
 
         $locale  = $this->recipientLocale->resolve($user);
-        $details = $this->loginLinkHandler->createLoginLink($user, $this->linkRequest($request, $locale), $lifetime);
+        $details = $this->createLoginLink($this->loginLinkHandler, $user, $request, $locale, $lifetime);
         $expires = DateTimeImmutable::createFromInterface($details->getExpiresAt());
 
         $context = new MagicLoginNotificationContext(
@@ -107,6 +110,30 @@ final class MagicLoginRequestHandler
     {
         $this->eventDispatcher->dispatch(new MagicLoginRequestedEvent($context));
         $this->notifier->notify($context);
+    }
+
+    /**
+     * With `absolute_url.base_uri` configured the link is built against that origin: no request is handed to
+     * the LoginLinkHandler (it would rebuild the router context from the request Host) and the router context
+     * is swapped to the base for the call, keeping {_locale} (recipient locale, else the request locale).
+     */
+    private function createLoginLink(
+        LoginLinkHandlerInterface $handler,
+        UserInterface $user,
+        ?Request $request,
+        ?string $locale,
+        ?int $lifetime,
+    ): LoginLinkDetails {
+        if (!$this->absoluteUrlGenerator instanceof AbsoluteUrlGenerator || !$this->absoluteUrlGenerator->isEnabled()) {
+            return $handler->createLoginLink($user, $this->linkRequest($request, $locale), $lifetime);
+        }
+
+        $linkLocale = $locale ?? $request?->getLocale();
+
+        return $this->absoluteUrlGenerator->withBaseContext(
+            static fn (): LoginLinkDetails => $handler->createLoginLink($user, null, $lifetime),
+            $linkLocale !== null ? ['_locale' => $linkLocale] : [],
+        );
     }
 
     /**

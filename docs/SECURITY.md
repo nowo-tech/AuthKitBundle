@@ -6,6 +6,7 @@
 - [Application responsibilities](#application-responsibilities)
 - [Logging](#logging)
 - [Bundle responsibilities](#bundle-responsibilities)
+- [Password-reset poisoning (Host header)](#password-reset-poisoning-host-header)
 - [Content Security Policy (CSP)](#content-security-policy-csp)
 - [AI security audit](#ai-security-audit)
 - [Release security checklist (12.4.1)](#release-security-checklist-1241)
@@ -21,6 +22,7 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Registration | Mass signup, privilege escalation, session fixation | `registration_mode`; configurable `registration_role`; session ID migrated after auto-login |
 | Password storage | Weak hashing | Uses `UserPasswordHasherInterface` |
 | Password reset / magic login | Token leakage, enumeration, OTP brute-force | Tokens stored hashed; uniform UX messages; built-in request rate limits + OTP `max_code_attempts` lockout; prefer `link` delivery |
+| Mailed / QR links | Password-reset poisoning: forged `Host` header puts an attacker origin in the victim's reset / magic link | `absolute_url.base_uri` (1.24+) builds out-of-band links from a fixed origin; otherwise configure `framework.trusted_hosts` |
 | Social login | Account takeover via unverified email; SSRF via custom IdP URLs | `require_verified_email` (default true); HTTPS + public-host checks on custom endpoints |
 | Registration | Mass signup, privilege escalation, session fixation | `registration_mode`; `registration_rate_*`; race check for `first_user_only`; configurable `registration_role`; session ID migrated after auto-login |
 | Logout | CSRF | `logout.enable_csrf: true` from `configure-security`; embed link includes CSRF token |
@@ -36,6 +38,7 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 - **Require** `nowo-tech/login-throttle-bundle` and run `nowo:login-throttle:configure-security` so login forms are throttled in production
 - Protect admin routes with appropriate roles
 - Provide a working Symfony `cache.app` pool (used by Auth Kit attempt limiter and Login Throttle when storage is `cache`)
+- Set `nowo_auth_kit.absolute_url.base_uri` (e.g. `%env(DEFAULT_URI)%`) or `framework.trusted_hosts` in production so mailed links cannot be poisoned through the `Host` header
 - Prefer password-reset `delivery: link` (or stronger OTP charset) in production
 - Do not alias `LoggingPasswordResetNotifier` / `LoggingMagicLoginNotifier` in production (even redacted, they are sample/dev helpers)
 - Run `composer audit` in the application
@@ -59,6 +62,17 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - Optional slide-to-confirm is confirmation UX only; QR approve always uses Form CSRF (`QrLoginApproveType` / `qr_login_approve`)
 - Optional device intelligence never authenticates by Device ID; `new_device_notify` is a notice only; QR `approve_require_trusted` requires explicit trust, not auto-trust on login
 - Optional OTP input is entry UX only; reset codes are still hashed and compared with `hash_equals`, and `max_code_attempts` still clears the credential
+
+## Password-reset poisoning (Host header)
+
+Reset links, magic links, the QR approve URL and the OAuth `redirect_uri` are absolute URLs. Without configuration Symfony builds them from the request context, i.e. from the incoming `Host` header (and `X-Forwarded-*` from trusted proxies). If the edge forwards any `Host` to the app and `framework.trusted_hosts` is empty, an attacker can submit the reset form for a victim with `Host: evil.example`; the victim then receives a genuine token inside a link to `evil.example`, and one click leaks it.
+
+Mitigations (use at least one, ideally both):
+
+1. `nowo_auth_kit.absolute_url.base_uri: '%env(DEFAULT_URI)%'` (1.24+) — AuthKit builds every out-of-band link against that origin, whatever the request `Host` is. See [CONFIGURATION.md](CONFIGURATION.md#absolute-url-base-mailed--qr-links).
+2. `framework.trusted_hosts: ['^app\\.example\\.com$']` — Symfony rejects requests for other hosts (protects every absolute URL the app builds, not only AuthKit's).
+
+Custom notifiers that build their own URLs (e.g. asset URLs in email templates) should use the same base.
 
 ## Content Security Policy (CSP)
 

@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
@@ -408,5 +409,60 @@ final class ConfigurationTest extends TestCase
             ['form/auth_kit_theme.html.twig'],
             $config['profiles']['default']['templates']['form_theme'],
         );
+    }
+
+    public function testAbsoluteUrlBaseUriDefaultsToNull(): void
+    {
+        self::assertNull($this->processBaseUri(null)['absolute_url']['base_uri']);
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function acceptedBaseUris(): iterable
+    {
+        yield 'https' => ['https://app.example.com'];
+        yield 'port and path' => ['http://localhost:8010/portal/'];
+        yield 'empty' => [''];
+        yield 'env placeholder' => ['env_0123456789abcdef_DEFAULT_URI_0123456789abcdef0123456789abcdef'];
+    }
+
+    #[DataProvider('acceptedBaseUris')]
+    public function testAbsoluteUrlBaseUriAccepts(mixed $baseUri): void
+    {
+        self::assertSame($baseUri, $this->processBaseUri($baseUri)['absolute_url']['base_uri']);
+    }
+
+    /**
+     * @return iterable<string, array{mixed, string}>
+     */
+    public static function rejectedBaseUris(): iterable
+    {
+        yield 'relative' => ['/portal', 'expected an absolute URL'];
+        yield 'query' => ['https://app.example.com/?x=1', 'query strings and fragments are not allowed.'];
+        yield 'scheme' => ['ftp://app.example.com', 'the scheme must be http or https.'];
+        yield 'not a string' => [true, 'expected a string or null.'];
+    }
+
+    #[DataProvider('rejectedBaseUris')]
+    public function testAbsoluteUrlBaseUriRejects(mixed $baseUri, string $message): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage($message);
+
+        $this->processBaseUri($baseUri);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function processBaseUri(mixed $baseUri): array
+    {
+        $config = ['profiles' => ['default' => ['user_class' => TestUser::class]]];
+        if ($baseUri !== null) {
+            $config['absolute_url'] = ['base_uri' => $baseUri];
+        }
+
+        return (new Processor())->processConfiguration(new Configuration(), [$config]);
     }
 }

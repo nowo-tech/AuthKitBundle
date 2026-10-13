@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-10-12  
-**Units**: **164** (`136` PHP under `src/` + `28` Resources)
+**Last audited**: 2026-10-13  
+**Units**: **165** (`137` PHP under `src/` + `28` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -218,6 +218,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | --- | --- | --- | --- |
 | `Routing/AuthKitRouteLoader.php` | production | FR-ROUT-001 | Mapped |
 | `Routing/AuthKitRouteLocaleParameters.php` | production | FR-ROUT-001 | Mapped |
+| `Routing/AbsoluteUrlGenerator.php` | production | FR-ROUT-002 | Mapped |
 | `Routing/AuthKitUrlGenerator.php` | production | FR-ROUT-001 | Mapped |
 | `Twig/AuthEmbedExtension.php` | production | FR-TWIG-001 | Mapped |
 | `Twig/AuthKitRoutingExtension.php` | production | FR-TWIG-001 | Mapped |
@@ -285,9 +286,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 136 |
+| PHP under `src/` | 137 |
 | Resources (config/translations/views/public) | 28 |
-| **Total production sources** | **164** |
+| **Total production sources** | **165** |
 
 ## Coverage gate
 

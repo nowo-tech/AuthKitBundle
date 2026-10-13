@@ -103,6 +103,7 @@ Subscribe to `MagicLoginRequestedEvent` for audit or rate limiting.
 - If firewall `login_link` is missing, the handler skips silently (warning log) instead of returning 500.
 - Tokens are signed by Symfony `login_link` (not stored on the user entity).
 - No extra entity fields are required.
+- Set `absolute_url.base_uri` (1.24+, e.g. `'%env(DEFAULT_URI)%'`) so the mailed link is built from a fixed origin, not the request `Host` header (password-reset poisoning). See [CONFIGURATION.md](CONFIGURATION.md#absolute-url-base-mailed--qr-links).
 
 ## Templates
 
