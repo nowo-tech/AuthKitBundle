@@ -20,7 +20,7 @@
         "doctrine/orm": "^3.7",
         "nowo-tech/auth-kit-bundle": "*",
         "nowo-tech/form-kit-bundle": "^2.0",
-        "nowo-tech/password-toggle-bundle": "1.2.8",
+        "nowo-tech/password-toggle-bundle": "^1.2.10",
         "php": ">=8.4,<8.6",
         "symfony/asset": "8.1.*",
         "symfony/console": "8.1.*",
@@ -41,7 +41,7 @@
     },
     "require-dev": {
         "nowo-tech/hot-reload-bundle": "^1.4",
-        "nowo-tech/twig-inspector-bundle": "1.0.32",
+        "nowo-tech/twig-inspector-bundle": "^1.2",
         "phpunit/phpunit": "11.5.*",
         "symfony/browser-kit": "8.1.*",
         "symfony/css-selector": "8.1.*",

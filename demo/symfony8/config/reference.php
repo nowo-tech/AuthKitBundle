@@ -135,6 +135,15 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     type_map?: array<string, scalar|Param|null>,
  *     default_profile?: scalar|Param|null, // Name of the profile to use when no profile is specified (key in profiles) // Default: "default"
  *     css_framework?: scalar|Param|null, // CSS framework for CssClassUtilities (column merge + class ordering): bootstrap, tailwind, foundation, none. // Default: "bootstrap"
+ *     stateless_csrf?: array{ // Give selected (usually anonymous/public) form types a stateless CSRF token id so rendering them does not start a session. Off by default.
+ *         enabled?: bool|Param, // Default: false
+ *         token_id?: scalar|Param|null, // csrf_token_id default applied to the listed form types. Must be listed in framework.csrf_protection.stateless_token_ids. // Default: "submit"
+ *         form_types?: list<scalar|Param|null>,
+ *         register_stateless_token_id?: bool|Param, // Prepend token_id to framework.csrf_protection.stateless_token_ids (enables framework CSRF protection if it was not configured). // Default: true
+ *     },
+ *     accessibility?: array{ // Accessibility helpers applied by kit form type extensions.
+ *         unlabelled_choice_aria_label?: bool|Param, // When true (default), non-expanded ChoiceType fields (and subtypes such as EntityType) rendered with label: false and no aria-label/aria-labelledby get aria-label from their translated help, else their placeholder. // Default: true
+ *     },
  *     profiles?: array<string, array{ // Default: []
  *         alias?: scalar|Param|null, // Alias for this profile (e.g. for reference in form types)
  *         translation_domain?: scalar|Param|null, // Default: "messages"
@@ -1479,6 +1488,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             mode?: "disabled"|"enabled"|Param, // disabled: hide social login. enabled: OAuth buttons when provider credentials exist in the database. // Default: "disabled"
  *             create_user_if_missing?: bool|Param, // When true, creates a local user from the social profile email if none exists. // Default: true
  *             require_verified_email?: bool|Param, // When true, linking or creating a local user requires the IdP to assert email_verified (or GitHub verified). // Default: true
+ *             pkce?: array<string, bool|Param>,
  *         },
  *         qr_login?: array{
  *             mode?: "disabled"|"enabled"|Param, // disabled: hide QR login. enabled: show QR challenge start link on login page. // Default: "disabled"
