@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [[Unreleased]](#unreleased)
 
+- [[1.25.0] - 2026-10-13](#1250---2026-10-13)
 - [[1.24.1] - 2026-10-13](#1241---2026-10-13)
 - [[1.24.0] - 2026-10-13](#1240---2026-10-13)
   - [Security](#security)
@@ -143,10 +144,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-10-13
+
 ### Security
 
 - Social login: PKCE (RFC 7636, `S256`) on the OAuth authorization-code flow. The `code_verifier` is stored in the session next to the `state`, `code_challenge` / `code_challenge_method` go on the authorize redirect, and `code_verifier` is sent in the token exchange. Per-provider toggle `social_login.pkce` (provider → bool); providers not listed default to enabled for built-in `google`, `github` and `microsoft` and disabled for custom IdPs.
 - `AuthKitAttemptLimiter`: `hit()` / `consume()` run the counter read-modify-write under a per-key lock when `symfony/lock` is installed (`lock.factory` service), so concurrent requests can no longer overshoot rate limits / OTP lockout. Without a lock factory the behaviour is unchanged (best-effort, now documented). `symfony/lock` is suggested, not required.
+
+[1.25.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.25.0
 
 ## [1.24.1] - 2026-10-13
 

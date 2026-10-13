@@ -2,6 +2,7 @@
 
 ## Table of contents
 
+- [To 1.25.0](#to-1250)
 - [To 1.24.1](#to-1241)
 - [To 1.24.0](#to-1240)
 - [To 1.23.1](#to-1231)
@@ -69,6 +70,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.25.0
+
+From **1.24.1** — security - PKCE for social login, lock-serialized attempt limiter.
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 - **Social login PKCE:** `google`, `github` and `microsoft` credentials now send `code_challenge` (S256) on the authorize redirect and `code_verifier` on the token exchange. All three accept PKCE for confidential web clients, so no IdP-side change is needed. To keep the old behaviour for a provider set `social_login.pkce: { github: false }`; to enable PKCE for a custom IdP set `social_login.pkce: { my_idp: true }`. A login started before the upgrade (no verifier in the session) still completes without PKCE.
 - **Rate-limit locking (optional):** install `symfony/lock` to make `AuthKitAttemptLimiter` counters concurrency-safe (FrameworkBundle registers `lock.factory` automatically). Use a shared lock store (Redis, PDO, …) when several hosts share `cache.app`.
