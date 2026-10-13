@@ -72,9 +72,9 @@ Register the first user, then try password login, **password reset**, **magic lo
 ### Screenshots
 
 <p align="center">
-  <img src="docs/assets/demo-welcome.png" width="280" alt="Welcome page with locale switcher and Account dropdown" />
-  <img src="docs/assets/demo-login.png" width="280" alt="Full-page login at /en/login" />
-  <img src="docs/assets/demo-embed-dropdown.png" width="280" alt="Embedded sign-in in navbar dropdown" />
+  <img src="docs/assets/demo-welcome.webp" width="280" alt="Welcome page with locale switcher and Account dropdown" />
+  <img src="docs/assets/demo-login.webp" width="280" alt="Full-page login at /en/login" />
+  <img src="docs/assets/demo-embed-dropdown.webp" width="280" alt="Embedded sign-in in navbar dropdown" />
 </p>
 <p align="center"><sub>Welcome · Login · <code>auth_kit_dropdown()</code></sub></p>
 

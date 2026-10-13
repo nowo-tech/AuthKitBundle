@@ -8,6 +8,7 @@ endif
 DOCKER_COMPOSE := $(COMPOSE)
 SERVICE_PHP = php
 
+.PHONY: test-e2e demo-screenshots
 .PHONY: help ensure-env ensure-up up down restart build install database shell logs \
 	test test-coverage update-bundle release-check
 
@@ -27,6 +28,8 @@ help:
 	@echo "  update-bundle  Sync bundle autoload and clear cache"
 	@echo "  update-deps    composer update in demo (REQ-MAKE-008)"
 	@echo "  release-check  update-bundle + HTTP healthcheck"
+	@echo "  test-e2e       Playwright e2e (Docker image)"
+	@echo "  demo-screenshots  Recapture README screenshots (docs/assets/*.webp)"
 
 ensure-env:
 	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example")
@@ -96,3 +99,28 @@ release-check: ensure-up update-bundle
 
 # Optional: monorepo helper absent on standalone GitHub Actions checkout (REQ-MAKE-009).
 -include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)
+
+# REQ-DEMO-013: Playwright e2e + README screenshots (official Playwright image).
+PLAYWRIGHT_IMAGE ?= mcr.microsoft.com/playwright:v1.63.0-jammy
+
+test-e2e: ensure-up
+	@mkdir -p e2e/node_modules
+	@PORT=$$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2); PORT=$${PORT:-8010}; \
+	docker run --rm --network host \
+		-v "$(CURDIR)/e2e:/e2e" -w /e2e \
+		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
+		$(PLAYWRIGHT_IMAGE) \
+		bash -lc 'npm install --no-fund --no-audit && npx playwright test --project=chromium'
+
+demo-screenshots: ensure-up
+	@mkdir -p ../../docs/assets e2e/node_modules
+	@PORT=$$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2); PORT=$${PORT:-8010}; \
+	docker run --rm --network host \
+		-v "$(CURDIR)/e2e:/e2e" \
+		-v "$(CURDIR)/../../docs/assets:/screenshots" \
+		-w /e2e \
+		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
+		-e SCREENSHOT_DIR=/screenshots \
+		$(PLAYWRIGHT_IMAGE) \
+		bash -lc 'npm install --no-fund --no-audit && npx playwright test --project=screenshots && node scripts/to-webp.mjs /screenshots'
+	@echo "Screenshots written under docs/assets/ (WebP)"
