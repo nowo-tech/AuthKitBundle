@@ -66,7 +66,8 @@ final class SocialLoginCheckController
             return new RedirectResponse($loginUrl);
         }
 
-        if ($code === '' || $state === '' || !$this->stateStore->consume($provider, $state)) {
+        $pending = $code !== '' && $state !== '' ? $this->stateStore->consumePending($provider, $state) : null;
+        if ($pending === null) {
             $this->flashMessenger->flash($request, 'error', 'social.error.invalid_state');
 
             return new RedirectResponse($loginUrl);
@@ -78,7 +79,7 @@ final class SocialLoginCheckController
                 ['provider' => $provider],
                 UrlGeneratorInterface::ABSOLUTE_URL,
             );
-            $tokens = $this->oauth2Client->exchangeCode($credential, $code, $redirectUri);
+            $tokens = $this->oauth2Client->exchangeCode($credential, $code, $redirectUri, $pending['code_verifier']);
             $social = $this->oauth2Client->fetchUserProfile($credential, $tokens['access_token']);
             $user   = $this->accountLinker->linkOrCreate($profile, $provider, $social, $tokens);
             $this->security->login($user, null, $profile->firewall);

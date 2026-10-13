@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use RuntimeException;
 
+use function in_array;
 use function is_string;
 use function sprintf;
 
@@ -53,6 +54,18 @@ final class ProviderEndpointCatalog
             'userinfo_url'  => $userinfo,
             'scopes'        => $scopes,
         ];
+    }
+
+    /**
+     * Whether PKCE (S256) is sent by default for a provider when `social_login.pkce` has no entry for it.
+     *
+     * Only built-in providers whose authorization servers are known to accept PKCE alongside a client secret
+     * default to true; custom providers default to false so an unknown token endpoint is never sent a
+     * `code_verifier` it might reject.
+     */
+    public function supportsPkceByDefault(string $provider): bool
+    {
+        return in_array(strtolower($provider), ['google', 'github', 'microsoft'], true);
     }
 
     /**

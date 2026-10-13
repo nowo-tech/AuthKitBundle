@@ -21,11 +21,15 @@ nowo_auth_kit:
                 mode: enabled
                 create_user_if_missing: true
                 require_verified_email: true
+                pkce:                       # optional per-provider overrides (keys = credential provider)
+                    google: true
+                    my_idp: false
 ```
 
 - **`mode: enabled`** alone is not enough: the login UI only shows buttons when at least one **enabled** row exists in `auth_kit_social_credential` (start/check handlers redirect to login otherwise).
 - **`create_user_if_missing`**: create a local user from the social email when no account matches; otherwise require a pre-existing user (matched by `user_identifier_field`).
 - **`require_verified_email`**: when true (default), linking or creating a local user requires the IdP to assert a verified email (`email_verified` / GitHub `verified`). Prevents account takeover via unverified provider emails.
+- **`pkce`**: map of provider → bool for [PKCE](https://datatracker.ietf.org/doc/html/rfc7636) (`S256`). When enabled, the start handler generates a `code_verifier`, keeps it in the session next to the OAuth `state`, sends `code_challenge` + `code_challenge_method=S256` to the authorize endpoint, and sends `code_verifier` in the token exchange (the client secret is still sent). Providers without an entry default to **enabled** for the built-in `google`, `github` and `microsoft` (all accept PKCE for confidential web clients) and **disabled** for custom providers, so an IdP that rejects unknown parameters keeps working until you opt in with `pkce: { my_idp: true }`. Keys are matched case-insensitively.
 
 ## Seed credentials (example)
 

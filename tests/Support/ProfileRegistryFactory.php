@@ -112,6 +112,7 @@ final class ProfileRegistryFactory
                 'mode'                   => 'disabled',
                 'create_user_if_missing' => true,
                 'require_verified_email' => true,
+                'pkce'                   => [],
             ],
             'qr_login' => [
                 'mode'                 => 'disabled',

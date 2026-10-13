@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\SocialLogin\Pkce;
 use Nowo\AuthKitBundle\SocialLogin\ProviderEndpointCatalog;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
@@ -34,7 +35,10 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
+use function is_string;
+
 use const JSON_THROW_ON_ERROR;
+use const PHP_URL_QUERY;
 
 final class SocialLoginControllerTest extends TestCase
 {
@@ -489,6 +493,120 @@ final class SocialLoginControllerTest extends TestCase
         );
 
         self::assertSame('/login', $controller->check(new Request(), 'google')->headers->get('Location'));
+    }
+
+    public function testStartSendsPkceChallengeAndKeepsVerifierInSession(): void
+    {
+        [$controller, $request, $stateStore] = $this->pkceStartController([]);
+
+        $location = (string) $controller->start($request, 'google')->headers->get('Location');
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+
+        self::assertSame('S256', $query['code_challenge_method'] ?? null);
+        self::assertIsString($query['code_challenge'] ?? null);
+        self::assertIsString($query['state'] ?? null);
+
+        $pending = $stateStore->consumePending('google', $query['state']);
+        self::assertNotNull($pending);
+        self::assertIsString($pending['code_verifier']);
+        self::assertSame(Pkce::challenge($pending['code_verifier']), $query['code_challenge']);
+    }
+
+    public function testStartOmitsPkceWhenDisabledForProvider(): void
+    {
+        [$controller, $request, $stateStore] = $this->pkceStartController(['google' => false]);
+
+        $location = (string) $controller->start($request, 'google')->headers->get('Location');
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+
+        self::assertArrayNotHasKey('code_challenge', $query);
+        self::assertArrayNotHasKey('code_challenge_method', $query);
+        self::assertSame(['code_verifier' => null], $stateStore->consumePending('google', is_string($query['state'] ?? null) ? $query['state'] : ''));
+    }
+
+    public function testCheckSendsStoredCodeVerifierToTokenEndpoint(): void
+    {
+        $credential = (new SocialLoginCredential())
+            ->setProvider('google')
+            ->setEnabled(true)
+            ->setClientId('id')
+            ->setClientSecret('secret');
+        $credentials = $this->createMock(SocialLoginCredentialRepository::class);
+        $credentials->method('findEnabledOrdered')->willReturn([$credential]);
+        $credentials->method('findOneByProvider')->willReturn($credential);
+
+        $tokenBody = null;
+        $http      = new MockHttpClient(static function (string $method, string $url, array $options) use (&$tokenBody): MockResponse {
+            if ($method === 'POST') {
+                $tokenBody = $options['body'];
+
+                return new MockResponse(json_encode(['access_token' => 'tok'], JSON_THROW_ON_ERROR));
+            }
+
+            return new MockResponse(json_encode(['sub' => '1', 'email' => 'a@b.c', 'email_verified' => true], JSON_THROW_ON_ERROR));
+        });
+
+        $request = new Request(['code' => 'c']);
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        $stateStore = $this->stateStore($request);
+        $request->query->set('state', $stateStore->issue('google', 'stored-verifier'));
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('https://app.test/callback');
+
+        $profileConfig = ['social_login' => ['mode' => 'enabled']];
+        $controller    = new SocialLoginCheckController(
+            new SocialLoginGate(ProfileRegistryFactory::single(TestUser::class, $profileConfig), $credentials),
+            $credentials,
+            new OAuth2Client($http, new ProviderEndpointCatalog()),
+            $stateStore,
+            $this->linker(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $profileConfig),
+            $this->createMock(Security::class),
+        );
+
+        $controller->check($request, 'google');
+
+        self::assertIsString($tokenBody);
+        parse_str($tokenBody, $body);
+        self::assertSame('stored-verifier', $body['code_verifier'] ?? null);
+    }
+
+    /**
+     * @param array<string, bool> $pkce
+     *
+     * @return array{0: SocialLoginStartController, 1: Request, 2: SocialLoginStateStore}
+     */
+    private function pkceStartController(array $pkce): array
+    {
+        $credential = (new SocialLoginCredential())
+            ->setProvider('google')
+            ->setEnabled(true)
+            ->setClientId('id')
+            ->setClientSecret('secret');
+        $credentials = $this->createMock(SocialLoginCredentialRepository::class);
+        $credentials->method('findEnabledOrdered')->willReturn([$credential]);
+        $credentials->method('findOneByProvider')->willReturn($credential);
+
+        $request = new Request();
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        $stateStore = $this->stateStore($request);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('https://app.test/callback');
+
+        $profileConfig = ['social_login' => ['mode' => 'enabled', 'pkce' => $pkce]];
+        $controller    = new SocialLoginStartController(
+            new SocialLoginGate(ProfileRegistryFactory::single(TestUser::class, $profileConfig), $credentials),
+            $credentials,
+            $this->oauthClient(),
+            $stateStore,
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $profileConfig),
+        );
+
+        return [$controller, $request, $stateStore];
     }
 
     private function oauthClient(): OAuth2Client

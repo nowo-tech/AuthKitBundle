@@ -198,6 +198,7 @@ nowo_auth_kit:
         mode: disabled              # disabled | enabled
         create_user_if_missing: true
         require_verified_email: true
+        pkce: {}                    # provider → bool; unset = on for google/github/microsoft, off for custom IdPs
 
     registration_rate_limit: 5      # 0 = disabled
     registration_rate_window: 900
@@ -395,6 +396,8 @@ The bundle is **optional** (`composer suggest` only). It needs **PHP 8.3+**; Aut
 | `collect_endpoint` | `/_device/collect` | POST path expected by that bundle (Flex recipe registers the route) |
 | `new_device_notify` | `false` | After `LoginSuccess`, sets session `nowo_auth_kit.new_device` and calls `NewDeviceLoginNotifierInterface` when `isNew()` |
 | `device_rate_limit` | `false` | Extra `AuthKitAttemptLimiter` consume keyed by device ULID on register / reset request / magic-login request. Missing observation is a no-op (first HTML hit is not locked out) |
+
+**Rate-limit atomicity:** `AuthKitAttemptLimiter` (registration / reset / magic-login / QR / device limits, OTP lockout) stores counters in `cache.app`, which has no atomic increment. When `symfony/lock` is installed (FrameworkBundle then registers `lock.factory`), the check-and-increment runs under a per-key lock so concurrent requests cannot overshoot the limit. Without it the counter is best-effort (parallel requests can slip a few attempts past the limit). On several hosts, point `framework.lock` at a shared store (Redis, PDO, …); the default `flock` store only serializes one host.
 | `qr_login.approve_require_trusted` | `false` | QR `session_step_up` requires an observed **trusted** device. Default `NullQrLoginStepUp` is skipped so it does not throw; a custom `QrLoginStepUpInterface` still runs after the trusted-device check |
 
 Alias `NewDeviceLoginNotifierInterface` to your mailer/SMS service if you enable `new_device_notify` (default: `NullNewDeviceLoginNotifier`).
@@ -442,6 +445,8 @@ See [MAGIC-LOGIN.md](MAGIC-LOGIN.md).
 ## Social login (OAuth)
 
 When `social_login.mode` is `enabled` **and** at least one enabled `SocialLoginCredential` exists in the database, the login page shows provider buttons. Client secrets and linked-user tokens live in Doctrine tables owned by the bundle (`auth_kit_social_credential`, `auth_kit_social_account`).
+
+`social_login.pkce` toggles PKCE (RFC 7636, `S256` only) per provider key. Built-in `google`, `github` and `microsoft` default to enabled (verifier stored in the session with the OAuth `state`, `code_challenge` on the authorize redirect, `code_verifier` on the token exchange); custom providers default to disabled. Example: `pkce: { github: false, my_idp: true }`.
 
 See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md).
 

@@ -16,7 +16,7 @@ use function is_scalar;
 use function is_string;
 
 /**
- * Minimal OAuth2 authorization-code client (authorize URL + token + userinfo).
+ * Minimal OAuth2 authorization-code client (authorize URL + token + userinfo), with optional PKCE (S256).
  */
 final class OAuth2Client
 {
@@ -36,26 +36,64 @@ final class OAuth2Client
     ) {
     }
 
-    public function buildAuthorizeUrl(SocialLoginCredential $credential, string $redirectUri, string $state): string
+    /**
+     * Resolves whether PKCE applies to this credential: an explicit `social_login.pkce` entry (provider key,
+     * case-insensitive) wins; otherwise built-in providers known to support PKCE default to enabled.
+     *
+     * @param array<string, bool> $overrides
+     */
+    public function usesPkce(SocialLoginCredential $credential, array $overrides = []): bool
+    {
+        $provider = strtolower($credential->getProvider());
+        foreach ($overrides as $key => $enabled) {
+            if (strtolower((string) $key) === $provider) {
+                return (bool) $enabled;
+            }
+        }
+
+        return $this->endpoints->supportsPkceByDefault($provider);
+    }
+
+    /**
+     * @param string|null $codeVerifier when set, adds `code_challenge` (S256) and `code_challenge_method`
+     */
+    public function buildAuthorizeUrl(SocialLoginCredential $credential, string $redirectUri, string $state, ?string $codeVerifier = null): string
     {
         $resolved = $this->endpoints->resolve($credential);
-        $query    = http_build_query([
+        $params   = [
             'client_id'     => $credential->getClientId(),
             'redirect_uri'  => $redirectUri,
             'response_type' => 'code',
             'scope'         => implode(' ', $resolved['scopes']),
             'state'         => $state,
-        ]);
+        ];
+        if ($codeVerifier !== null && $codeVerifier !== '') {
+            $params['code_challenge']        = Pkce::challenge($codeVerifier);
+            $params['code_challenge_method'] = Pkce::METHOD;
+        }
+        $query = http_build_query($params);
 
         return $resolved['authorize_url'] . (str_contains($resolved['authorize_url'], '?') ? '&' : '?') . $query;
     }
 
     /**
+     * @param string|null $codeVerifier PKCE verifier issued with the authorization request (sent as `code_verifier`)
+     *
      * @return array{access_token: string, refresh_token: ?string, expires_in: ?int, raw: array<string, mixed>}
      */
-    public function exchangeCode(SocialLoginCredential $credential, string $code, string $redirectUri): array
+    public function exchangeCode(SocialLoginCredential $credential, string $code, string $redirectUri, ?string $codeVerifier = null): array
     {
         $resolved = $this->endpoints->resolve($credential);
+        $body     = [
+            'grant_type'    => 'authorization_code',
+            'client_id'     => $credential->getClientId(),
+            'client_secret' => $credential->getClientSecret(),
+            'redirect_uri'  => $redirectUri,
+            'code'          => $code,
+        ];
+        if ($codeVerifier !== null && $codeVerifier !== '') {
+            $body['code_verifier'] = $codeVerifier;
+        }
         $response = $this->httpClient->request('POST', $resolved['token_url'], [
             'timeout'      => $this->timeout,
             'max_duration' => $this->maxDuration,
@@ -63,13 +101,7 @@ final class OAuth2Client
                 'Accept'       => 'application/json',
                 'Content-Type' => 'application/x-www-form-urlencoded',
             ],
-            'body' => [
-                'grant_type'    => 'authorization_code',
-                'client_id'     => $credential->getClientId(),
-                'client_secret' => $credential->getClientSecret(),
-                'redirect_uri'  => $redirectUri,
-                'code'          => $code,
-            ],
+            'body' => $body,
         ]);
 
         /** @var array<string, mixed> $data */

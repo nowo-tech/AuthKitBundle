@@ -63,6 +63,7 @@
         "nowo-tech/slide-to-confirm-bundle": "Slide-to-confirm on registration consent and QR login approve (^1.0)",
         "symfony/ux-icons": "Required for password visibility toggle icons (^2.0 || ^3.0)",
         "symfony/http-client": "Required with symfony/ux-icons to fetch toggle icons on demand",
+        "symfony/lock": "Serializes AuthKitAttemptLimiter read-modify-write so concurrent requests cannot exceed rate limits (^7.4 || ^8.0; use a shared store on multi-host setups)",
         "endroid/qr-code": "PNG/SVG data-URI QR codes for QR phone login (^6.0; PNG needs ext-gd)"
     },
     "require-dev": {
@@ -80,6 +81,7 @@
         "phpunit/phpunit": "^10.0",
         "rector/rector": "^2.0",
         "symfony/clock": "^7.4 || ^8.0",
+        "symfony/lock": "^7.4 || ^8.0",
         "vincentlanglet/twig-cs-fixer": "^4.0"
     },
     "autoload": {

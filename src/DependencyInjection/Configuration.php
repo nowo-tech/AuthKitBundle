@@ -700,6 +700,13 @@ final class Configuration implements ConfigurationInterface
                     ->info('When true, linking or creating a local user requires the IdP to assert email_verified (or GitHub verified).')
                     ->defaultTrue()
                 ->end()
+                ->arrayNode('pkce')
+                    ->info('Per-provider PKCE (S256) toggle, keyed by provider (e.g. google: true, my_idp: false). Providers not listed: enabled for built-in google / github / microsoft, disabled for custom providers.')
+                    ->useAttributeAsKey('provider')
+                    ->normalizeKeys(false)
+                    ->booleanPrototype()->end()
+                    ->defaultValue([])
+                ->end()
             ->end();
 
         return $node;

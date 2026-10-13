@@ -85,4 +85,14 @@ final class ProviderEndpointCatalogTest extends TestCase
                 ->setUserinfoUrl('https://idp.example/me'),
         );
     }
+
+    public function testPkceDefaultsToBuiltInProvidersOnly(): void
+    {
+        $catalog = new ProviderEndpointCatalog();
+
+        self::assertTrue($catalog->supportsPkceByDefault('google'));
+        self::assertTrue($catalog->supportsPkceByDefault('GitHub'));
+        self::assertTrue($catalog->supportsPkceByDefault('microsoft'));
+        self::assertFalse($catalog->supportsPkceByDefault('keycloak'));
+    }
 }

@@ -465,4 +465,21 @@ final class ConfigurationTest extends TestCase
 
         return (new Processor())->processConfiguration(new Configuration(), [$config]);
     }
+
+    public function testSocialLoginPkceDefaultsToEmptyMapAndKeepsProviderKeys(): void
+    {
+        $processor = new Processor();
+        $defaults  = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => ['user_class' => TestUser::class]],
+        ]]);
+        self::assertSame([], $defaults['profiles']['default']['social_login']['pkce']);
+
+        $config = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['pkce' => ['google' => false, 'my-idp' => true]],
+            ]],
+        ]]);
+        self::assertSame(['google' => false, 'my-idp' => true], $config['profiles']['default']['social_login']['pkce']);
+    }
 }

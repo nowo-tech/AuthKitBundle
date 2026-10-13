@@ -142,6 +142,8 @@ services:
     Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter:
         arguments:
             $cache: '@cache.app'
+            # Optional (symfony/lock): serializes the counter read-modify-write per key.
+            $lockFactory: '@?lock.factory'
 
     Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface:
         alias: Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp

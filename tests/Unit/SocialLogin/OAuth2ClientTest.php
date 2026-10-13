@@ -13,6 +13,7 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
 use const JSON_THROW_ON_ERROR;
+use const PHP_URL_QUERY;
 
 final class OAuth2ClientTest extends TestCase
 {
@@ -244,5 +245,63 @@ final class OAuth2ClientTest extends TestCase
         yield 'zero string' => ['0', false];
         yield 'zero int' => [0, false];
         yield 'unknown' => ['maybe', null];
+    }
+
+    public function testBuildAuthorizeUrlAddsS256ChallengeWhenVerifierGiven(): void
+    {
+        $client     = new OAuth2Client(new MockHttpClient(), new ProviderEndpointCatalog());
+        $credential = (new SocialLoginCredential())->setProvider('google')->setClientId('client-123');
+        $verifier   = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+
+        $url = $client->buildAuthorizeUrl($credential, 'https://app.test/callback', 'state-1', $verifier);
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+        self::assertSame('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM', $query['code_challenge'] ?? null);
+        self::assertSame('S256', $query['code_challenge_method'] ?? null);
+        self::assertStringNotContainsString($verifier, $url, 'The verifier itself must never leave the server in the redirect.');
+    }
+
+    public function testBuildAuthorizeUrlOmitsPkceWithoutVerifier(): void
+    {
+        $client     = new OAuth2Client(new MockHttpClient(), new ProviderEndpointCatalog());
+        $credential = (new SocialLoginCredential())->setProvider('google')->setClientId('client-123');
+
+        foreach ([null, ''] as $verifier) {
+            $url = $client->buildAuthorizeUrl($credential, 'https://app.test/callback', 'state-1', $verifier);
+            self::assertStringNotContainsString('code_challenge', $url);
+        }
+    }
+
+    public function testExchangeCodeSendsCodeVerifier(): void
+    {
+        $bodies = [];
+        $http   = new MockHttpClient(static function (string $method, string $url, array $options) use (&$bodies): MockResponse {
+            $bodies[] = $options['body'];
+
+            return new MockResponse(json_encode(['access_token' => 'tok'], JSON_THROW_ON_ERROR));
+        });
+        $client     = new OAuth2Client($http, new ProviderEndpointCatalog());
+        $credential = (new SocialLoginCredential())->setProvider('google')->setClientId('id')->setClientSecret('secret');
+
+        $client->exchangeCode($credential, 'code', 'https://app.test/callback', 'the-verifier');
+        $client->exchangeCode($credential, 'code', 'https://app.test/callback');
+
+        parse_str((string) $bodies[0], $withPkce);
+        parse_str((string) $bodies[1], $withoutPkce);
+        self::assertSame('the-verifier', $withPkce['code_verifier'] ?? null);
+        self::assertSame('secret', $withPkce['client_secret'] ?? null);
+        self::assertArrayNotHasKey('code_verifier', $withoutPkce);
+    }
+
+    public function testUsesPkceDefaultsAndOverrides(): void
+    {
+        $client = new OAuth2Client(new MockHttpClient(), new ProviderEndpointCatalog());
+        $google = (new SocialLoginCredential())->setProvider('google');
+        $custom = (new SocialLoginCredential())->setProvider('my_idp');
+
+        self::assertTrue($client->usesPkce($google));
+        self::assertFalse($client->usesPkce($custom));
+        self::assertFalse($client->usesPkce($google, ['Google' => false]));
+        self::assertTrue($client->usesPkce($custom, ['other' => false, 'MY_IDP' => true]));
     }
 }

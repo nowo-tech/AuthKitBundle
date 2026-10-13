@@ -55,7 +55,8 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - Use Symfony form CSRF defaults on login forms; logout CSRF when configured via CLI / demo
 - Migrate the session after registration auto-login
 - Compare reset OTP hashes with `hash_equals`; clear reset credentials after too many failed OTP attempts
-- Rate-limit password-reset / magic-login / registration requests via `AuthKitAttemptLimiter` (`cache.app`)
+- Rate-limit password-reset / magic-login / registration requests via `AuthKitAttemptLimiter` (`cache.app`; serialized per key with `symfony/lock` when `lock.factory` exists, best-effort otherwise)
+- Social login: one-time OAuth `state` plus PKCE (`S256`) by default for built-in providers (`social_login.pkce`)
 - Require verified IdP email before social auto-link/create (configurable)
 - Validate custom OAuth endpoint URLs (HTTPS, no private/loopback hosts)
 - No automatic modification of `security.yaml` without explicit CLI command

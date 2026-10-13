@@ -68,6 +68,11 @@
 - [To 1.0.0](#to-100)
 - [Future upgrades](#future-upgrades)
 
+## Unreleased
+
+- **Social login PKCE:** `google`, `github` and `microsoft` credentials now send `code_challenge` (S256) on the authorize redirect and `code_verifier` on the token exchange. All three accept PKCE for confidential web clients, so no IdP-side change is needed. To keep the old behaviour for a provider set `social_login.pkce: { github: false }`; to enable PKCE for a custom IdP set `social_login.pkce: { my_idp: true }`. A login started before the upgrade (no verifier in the session) still completes without PKCE.
+- **Rate-limit locking (optional):** install `symfony/lock` to make `AuthKitAttemptLimiter` counters concurrency-safe (FrameworkBundle registers `lock.factory` automatically). Use a shared lock store (Redis, PDO, …) when several hosts share `cache.app`.
+
 ## To 1.24.1
 
 From **1.24.0** — security fixes - QR completion expiry, social login fallback route, provider errors, locale redirect query.

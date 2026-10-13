@@ -96,6 +96,7 @@ final readonly class ProfileSettings
                 'mode'                   => 'disabled',
                 'create_user_if_missing' => true,
                 'require_verified_email' => true,
+                'pkce'                   => [],
             ],
             qrLogin: $config['qr_login'] ?? [
                 'mode' => 'disabled',
