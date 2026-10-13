@@ -57,6 +57,11 @@ final class QrLoginCompleteController
             return $this->redirectToLogin($profile->routes['login']['name']);
         }
 
+        // An approved challenge must still be completed within its lifetime.
+        if ($challenge->isExpired()) {
+            return $this->redirectToLogin($profile->routes['login']['name']);
+        }
+
         $userClass = $challenge->getUserClass();
         $userId    = $challenge->getUserId();
         if ($userClass === null || $userId === null) {

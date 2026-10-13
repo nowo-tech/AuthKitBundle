@@ -11,6 +11,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 use function is_array;
 use function is_string;
+use function str_contains;
 
 /**
  * Redirects bare auth URLs to the canonical localized route when locale.unlocalized=redirect.
@@ -36,6 +37,14 @@ final class UnlocalizedLocaleRedirectController
 
         unset($parameters['_auth_kit_canonical_route'], $parameters['_auth_kit_profile'], $parameters['_locale']);
 
-        return new RedirectResponse($this->urlGenerator->generate($canonicalRoute, $parameters));
+        $url = $this->urlGenerator->generate($canonicalRoute, $parameters);
+
+        // Keep the original query string (e.g. reset/magic-link tokens, target paths) on the redirect.
+        $queryString = $request->getQueryString();
+        if ($queryString !== null && $queryString !== '') {
+            $url .= (str_contains($url, '?') ? '&' : '?') . $queryString;
+        }
+
+        return new RedirectResponse($url);
     }
 }

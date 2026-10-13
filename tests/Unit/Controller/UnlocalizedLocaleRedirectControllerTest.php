@@ -66,4 +66,37 @@ final class UnlocalizedLocaleRedirectControllerTest extends TestCase
 
         self::assertSame('/en/login', $response->getTargetUrl());
     }
+
+    public function testPreservesQueryString(): void
+    {
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->expects(self::once())
+            ->method('generate')
+            ->with('nowo_auth_kit_reset_password', ['_locale' => 'en'])
+            ->willReturn('/en/reset-password');
+
+        $request = Request::create('/reset-password?token=abc123&_target_path=%2Fdashboard');
+        $request->attributes->set('_auth_kit_canonical_route', 'nowo_auth_kit_reset_password');
+
+        $response = (new UnlocalizedLocaleRedirectController(
+            AuthKitTestUrlGenerator::fromMock($inner, true),
+        ))->redirect($request);
+
+        self::assertSame('/en/reset-password?_target_path=%2Fdashboard&token=abc123', $response->getTargetUrl());
+    }
+
+    public function testAppendsQueryStringToGeneratedUrlWithQuery(): void
+    {
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/en/login?foo=bar');
+
+        $request = Request::create('/login?token=abc');
+        $request->attributes->set('_auth_kit_canonical_route', 'nowo_auth_kit_login');
+
+        $response = (new UnlocalizedLocaleRedirectController(
+            AuthKitTestUrlGenerator::fromMock($inner, true),
+        ))->redirect($request);
+
+        self::assertSame('/en/login?foo=bar&token=abc', $response->getTargetUrl());
+    }
 }

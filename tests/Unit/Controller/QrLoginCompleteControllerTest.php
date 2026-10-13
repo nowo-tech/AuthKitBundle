@@ -127,6 +127,35 @@ final class QrLoginCompleteControllerTest extends TestCase
         self::assertSame('/login', $this->controller($manager)->complete(new Request(), 'complete-id')->headers->get('Location'));
     }
 
+    public function testRedirectsWhenApprovedChallengeHasExpired(): void
+    {
+        $expired = new QrLoginChallenge(
+            'complete-id',
+            'COMP1234',
+            hash('sha256', 'cookie'),
+            hash_hmac('sha256', '127.0.0.1', 'secret'),
+            hash_hmac('sha256', 'UA', 'secret'),
+            'Chrome',
+            hash('sha256', 'token'),
+            new DateTimeImmutable('-1 second'),
+        );
+        $expired->markApproved(TestUser::class, 'user@test.com', '+34 *** 22');
+
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($expired);
+        $manager->method('verifyDesktopCookie')->willReturn(true);
+        $manager->method('verifyDesktopBinding')->willReturn(true);
+        $manager->expects(self::never())->method('consume');
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('getRepository');
+        $security = $this->createMock(Security::class);
+        $security->expects(self::never())->method('login');
+
+        $response = $this->controller($manager, $em, $security)->complete(new Request(), 'complete-id');
+        self::assertSame('/login', $response->headers->get('Location'));
+    }
+
     public function testRedirectsWhenUserMissingFromChallenge(): void
     {
         $challenge = $this->approvedChallenge();

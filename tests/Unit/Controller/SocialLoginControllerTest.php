@@ -20,6 +20,7 @@ use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -347,6 +348,120 @@ final class SocialLoginControllerTest extends TestCase
         );
 
         self::assertSame('/login', $failController->check($fail, 'google')->headers->get('Location'));
+    }
+
+    public function testCheckProviderDeniedWithoutCodeShowsProviderDeniedAndBurnsState(): void
+    {
+        $credential  = (new SocialLoginCredential())->setProvider('google')->setEnabled(true)->setClientId('id')->setClientSecret('s');
+        $credentials = $this->createMock(SocialLoginCredentialRepository::class);
+        $credentials->method('findEnabledOrdered')->willReturn([$credential]);
+        $credentials->method('findOneByProvider')->willReturn($credential);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/login');
+
+        // Real provider denial: error + state, no code (RFC 6749 §4.1.2.1)
+        $request = new Request(['error' => 'access_denied']);
+        $session = new Session(new MockArraySessionStorage());
+        $request->setSession($session);
+        $stateStore = $this->stateStore($request);
+        $state      = $stateStore->issue('google');
+        $request->query->set('state', $state);
+
+        $security = $this->createMock(Security::class);
+        $security->expects(self::never())->method('login');
+
+        $controller = new SocialLoginCheckController(
+            new SocialLoginGate(ProfileRegistryFactory::single(TestUser::class, [
+                'social_login' => ['mode' => 'enabled'],
+            ]), $credentials),
+            $credentials,
+            $this->oauthClient(),
+            $stateStore,
+            $this->linker(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'social_login' => ['mode' => 'enabled'],
+            ]),
+            $security,
+        );
+
+        self::assertSame('/login', $controller->check($request, 'google')->headers->get('Location'));
+        self::assertSame(['social.error.provider_denied'], $session->getFlashBag()->get('error'));
+        self::assertFalse($stateStore->consume('google', $state), 'Denied callback must burn the pending state.');
+
+        // Denial without state still reports provider_denied
+        $noState        = new Request(['error' => 'access_denied']);
+        $noStateSession = new Session(new MockArraySessionStorage());
+        $noState->setSession($noStateSession);
+        self::assertSame('/login', $controller->check($noState, 'google')->headers->get('Location'));
+        self::assertSame(['social.error.provider_denied'], $noStateSession->getFlashBag()->get('error'));
+    }
+
+    public function testCheckSuccessFallsBackToLoginRouteWithoutLoginSuccessRoute(): void
+    {
+        $credential = (new SocialLoginCredential())
+            ->setProvider('google')
+            ->setEnabled(true)
+            ->setClientId('id')
+            ->setClientSecret('secret');
+
+        $credentials = $this->createMock(SocialLoginCredentialRepository::class);
+        $credentials->method('findEnabledOrdered')->willReturn([$credential]);
+        $credentials->method('findOneByProvider')->willReturn($credential);
+
+        $http = new MockHttpClient([
+            new MockResponse(json_encode(['access_token' => 'tok', 'expires_in' => 60], JSON_THROW_ON_ERROR)),
+            new MockResponse(json_encode([
+                'sub'            => '1',
+                'email'          => 'a@b.c',
+                'email_verified' => true,
+                'name'           => 'A',
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $userRepo = $this->createMock(EntityRepository::class);
+        $userRepo->method('findOneBy')->willReturn(null);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($userRepo);
+
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->method('hashPassword')->willReturn('hashed');
+
+        $accountRepo = $this->createMock(SocialLoginAccountRepository::class);
+        $accountRepo->method('findOneByProviderSubject')->willReturn(null);
+
+        $security = $this->createMock(Security::class);
+        $security->expects(self::once())->method('login');
+
+        $request = new Request(['code' => 'c']);
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        $stateStore = $this->stateStore($request);
+        $request->query->set('state', $stateStore->issue('google'));
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturnCallback(static fn (string $route): string => match ($route) {
+            'nowo_auth_kit_login' => '/login',
+            'homepage'            => throw new RuntimeException('Route "homepage" does not exist.'),
+            default               => 'https://app.test/callback',
+        });
+
+        $controller = new SocialLoginCheckController(
+            new SocialLoginGate(ProfileRegistryFactory::single(TestUser::class, [
+                'social_login' => ['mode' => 'enabled'],
+            ]), $credentials),
+            $credentials,
+            new OAuth2Client($http, new ProviderEndpointCatalog()),
+            $stateStore,
+            new SocialAccountLinker($em, $accountRepo, PropertyAccess::createPropertyAccessor(), $hasher, new MockClock()),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'social_login' => ['mode' => 'enabled'],
+            ]),
+            $security,
+        );
+
+        self::assertSame('/login', $controller->check($request, 'google')->headers->get('Location'));
     }
 
     public function testCheckRedirectsWhenCredentialMissing(): void

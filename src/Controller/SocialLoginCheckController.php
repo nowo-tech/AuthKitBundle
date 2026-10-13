@@ -53,14 +53,21 @@ final class SocialLoginCheckController
 
         $state = (string) $request->query->get('state', '');
         $code  = (string) $request->query->get('code', '');
-        if ($code === '' || $state === '' || !$this->stateStore->consume($provider, $state)) {
-            $this->flashMessenger->flash($request, 'error', 'social.error.invalid_state');
+
+        // A denied/failed authorization comes back with `error` and no `code` (RFC 6749 §4.1.2.1):
+        // handle it before the code/state check so users see the provider_denied message.
+        if ($request->query->has('error')) {
+            if ($state !== '') {
+                // Burn the pending state so it cannot be replayed with a code later.
+                $this->stateStore->consume($provider, $state);
+            }
+            $this->flashMessenger->flash($request, 'error', 'social.error.provider_denied');
 
             return new RedirectResponse($loginUrl);
         }
 
-        if ($request->query->has('error')) {
-            $this->flashMessenger->flash($request, 'error', 'social.error.provider_denied');
+        if ($code === '' || $state === '' || !$this->stateStore->consume($provider, $state)) {
+            $this->flashMessenger->flash($request, 'error', 'social.error.invalid_state');
 
             return new RedirectResponse($loginUrl);
         }
@@ -81,7 +88,7 @@ final class SocialLoginCheckController
             return new RedirectResponse($loginUrl);
         }
 
-        $target = $profile->loginSuccessRoute ?? 'homepage';
+        $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
         return new RedirectResponse($this->urlGenerator->generate($target));
     }

@@ -142,6 +142,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- QR login: `/qr-login/{id}/complete` now rejects an approved challenge whose lifetime has expired instead of logging the desktop user in.
+
+### Fixed
+
+- Social login callback: after a successful login without `login_success_route`, the redirect falls back to the profile login route (like the other controllers) instead of the hard-coded `homepage` route, which broke apps without such a route.
+- Social login callback: a provider denial (`?error=access_denied&state=…`, no `code`) now shows `social.error.provider_denied` (and burns the pending state) instead of `social.error.invalid_state`.
+- `locale.unlocalized: redirect`: the redirect from a bare auth URL to its localized route keeps the query string (e.g. `?token=…`, `_target_path`).
+
 ## [1.24.0] - 2026-10-13
 
 ### Security
