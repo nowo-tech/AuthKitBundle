@@ -51,6 +51,6 @@ final class PublicUrlGeneratorTest extends TestCase
         $routes = new RouteCollection();
         $routes->add('issue', new Route('/issues/{id}'));
 
-        return new UrlGenerator($routes, new RequestContext()->fromRequest(Request::create($requestUrl)));
+        return new UrlGenerator($routes, (new RequestContext())->fromRequest(Request::create($requestUrl)));
     }
 }
