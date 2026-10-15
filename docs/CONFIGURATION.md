@@ -533,6 +533,13 @@ nowo_auth_kit:
 - Relative links (`ABSOLUTE_PATH`, redirects, form actions) are unchanged.
 - The router context is swapped only during the generation and restored in `finally` (FrankenPHP worker-safe; no state is kept between requests).
 - `null` / empty (default): links are built from the request as before 1.24. In production either set `base_uri` or configure `framework.trusted_hosts` (see [SECURITY.md](SECURITY.md#password-reset-poisoning-host-header)).
+- **Host code (notifications, share links, exports):** inject `Nowo\AuthKitBundle\Routing\PublicUrlGenerator` (`nowo_auth_kit.public_url_generator`, a `UrlGeneratorInterface`) instead of the router wherever you build a link that leaves the request — `ABSOLUTE_URL` / `NETWORK_PATH` use `base_uri`, relative paths use the router:
+
+  ```php
+  public function __construct(
+      #[Autowire(service: PublicUrlGenerator::class)] private UrlGeneratorInterface $urlGenerator,
+  ) {}
+  ```
 
 ## Flash messages
 

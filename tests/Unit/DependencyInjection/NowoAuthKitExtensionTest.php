@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
+use Nowo\AuthKitBundle\Routing\PublicUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use PHPUnit\Framework\TestCase;
@@ -457,7 +458,7 @@ final class NowoAuthKitExtensionTest extends TestCase
             {
                 // Keep only the generator under test (the rest of the bundle needs Doctrine, cache, Twig…).
                 foreach (array_keys($container->getDefinitions()) as $id) {
-                    if (str_starts_with($id, 'Nowo\\') && $id !== AbsoluteUrlGenerator::class) {
+                    if (str_starts_with($id, 'Nowo\\') && $id !== AbsoluteUrlGenerator::class && $id !== PublicUrlGenerator::class) {
                         $container->removeDefinition($id);
                     }
                 }
@@ -472,6 +473,7 @@ final class NowoAuthKitExtensionTest extends TestCase
             $generator = $container->get(AbsoluteUrlGenerator::class);
             self::assertInstanceOf(AbsoluteUrlGenerator::class, $generator);
             self::assertTrue($generator->isEnabled());
+            self::assertInstanceOf(PublicUrlGenerator::class, $container->get('nowo_auth_kit.public_url_generator'));
         } finally {
             unset($_SERVER['AUTH_KIT_TEST_BASE_URI']);
         }

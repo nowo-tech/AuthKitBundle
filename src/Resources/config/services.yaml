@@ -63,6 +63,16 @@ services:
         arguments:
             $baseUri: '%nowo_auth_kit.absolute_url.base_uri%'
 
+    # Links that leave the request (mails, chat payloads, share links): absolute URLs on base_uri.
+    Nowo\AuthKitBundle\Routing\PublicUrlGenerator:
+        arguments:
+            $router: '@router'
+        public: false
+
+    nowo_auth_kit.public_url_generator:
+        alias: Nowo\AuthKitBundle\Routing\PublicUrlGenerator
+        public: true
+
     Nowo\AuthKitBundle\EventSubscriber\UnlocalizedDefaultLocaleSubscriber:
         arguments:
             $defaultLocale: '%nowo_auth_kit.locale.default%'
