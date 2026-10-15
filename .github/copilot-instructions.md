@@ -28,3 +28,7 @@ Use this when suggesting code, tests, documentation, or CI changes for **Auth Ki
 ### Demos
 
 - Demos use **FrankenPHP** (`demo/symfony8/`). See `docs/DEMO-FRANKENPHP.md`.
+
+## Commits
+
+- Never add AI co-author trailers: no `Co-authored-by: Cursor` / `cursoragent@cursor.com`, no `Co-Authored-By: Claude …` / `noreply@anthropic.com` (REQ-GIT-001).

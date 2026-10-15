@@ -55,7 +55,7 @@ Report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
 
 ## Git hooks (REQ-GIT-001)
 
-Do **not** add `Co-authored-by: Cursor` or `cursoragent@cursor.com` trailers to commit messages.
+Do **not** add `Co-authored-by: Cursor` or `cursoragent@cursor.com` trailers, nor `Co-Authored-By: Claude …` / `noreply@anthropic.com` ones, to commit messages.
 
 ```bash
 make setup-hooks
