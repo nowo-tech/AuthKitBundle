@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.26.0] - 2026-10-15](#1260---2026-10-15)
 - [[1.25.0] - 2026-10-13](#1250---2026-10-13)
 - [[1.24.1] - 2026-10-13](#1241---2026-10-13)
 - [[1.24.0] - 2026-10-13](#1240---2026-10-13)
@@ -74,9 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.26.0] - 2026-10-15
+
 ### Added
 
 - **`PublicUrlGenerator` (`nowo_auth_kit.public_url_generator`).** A `UrlGeneratorInterface` for host code that builds links leaving the request (notification mails, chat / webhook payloads, share links, exports): absolute URLs and network paths go through `AbsoluteUrlGenerator` on `absolute_url.base_uri` (e.g. `%env(DEFAULT_URI)%`), relative paths through the router. Inject it instead of the router in notifiers so a forged `Host` never reaches a mail generated during a request (Nowo REQ-AUTH-011 item 3); apps can drop their host copies.
+
+[1.26.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.26.0
 
 ## [1.25.0] - 2026-10-13
 

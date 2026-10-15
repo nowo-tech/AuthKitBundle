@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.26.0](#to-1260)
 - [To 1.25.0](#to-1250)
 - [To 1.24.1](#to-1241)
 - [To 1.24.0](#to-1240)
@@ -79,6 +80,8 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.26.0
 
 ## To 1.25.0
 
