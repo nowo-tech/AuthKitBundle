@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.27.0](#to-1270)
   - [Template contract (1.27)](#template-contract-127)
 - [To 1.26.0](#to-1260)
 - [To 1.25.0](#to-1250)
@@ -82,6 +83,14 @@
 
 ## Unreleased
 
+## To 1.27.0
+
+From **1.26.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
 ### Template contract (1.27)
 
 The auth pages follow the **UiKit 2.x page contract** (REQ-UI-003) and require **`nowo-tech/ui-kit-bundle` ^2.2**:
@@ -143,7 +152,6 @@ that only configured `nowo_auth_kit` need no template work; check the points bel
 | `auth_brand` | `web_ui.brand` (`AuthPage::brand`) |
 | `title` | `nowo_ui_document_title` |
 | `nowo_auth_kit_button_class` / `nowo_auth_kit_secondary_button_class` | `nowo_ui_class('btn_primary' / 'btn_secondary', 'NowoAuthKitBundle')` |
-
 
 ## To 1.26.0
 

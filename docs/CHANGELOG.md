@@ -75,6 +75,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.0] - 2026-10-18
+
+Auth pages on the UiKit 2.2 page contract (REQ-UI-003): every security page on the auth scaffold and guest layout, reset-password field order fixed, override-friendly QR login page, translated validation messages; deprecated `templates.*` / `css.*` keys mapped to `web_ui.*` / UiKit theme. See [UPGRADING](UPGRADING.md#to-1270).
+
 UiKit 2.2 page contract (REQ-UI-003, phase 2): every auth page is the UiKit auth scaffold on the host's guest layout.
 See [UPGRADING — Template contract](UPGRADING.md#template-contract-127) and [TEMPLATES.md](TEMPLATES.md).
 
@@ -122,6 +126,8 @@ See [UPGRADING — Template contract](UPGRADING.md#template-contract-127) and [T
   `nowo_auth_kit_secondary_button_class`.
 - `@NowoAuthKitBundle/layout.html.twig` (now a bridge to the UiKit guest layout for 1.x page templates); blocks
   `auth_panel_heading`, `auth_brand`.
+
+[1.27.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.27.0
 
 ## [1.26.0] - 2026-10-15
 
