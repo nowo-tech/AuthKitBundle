@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity;
 
 use DateTimeImmutable;
-use LogicException;
 use Doctrine\ORM\Mapping as ORM;
+use LogicException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 

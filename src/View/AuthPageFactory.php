@@ -58,7 +58,7 @@ final class AuthPageFactory
         Label|string|null $error = null,
         array $attributes = [],
     ): AuthPage {
-        [$title, , $intro, $submit] = self::definition($page);
+        [$title, , $intro, $submit] = $this->definition($page);
         $brand                      = $profile->webUi['brand'] ?? null;
 
         return new AuthPage(
@@ -88,7 +88,7 @@ final class AuthPageFactory
         return [
             'page'            => $authPage,
             'auth_kit_page'   => $page,
-            'document_title'  => self::label(self::definition($page)[1]),
+            'document_title'  => self::label($this->definition($page)[1]),
             'form_themes'     => $profile->formThemes(),
             'layout_template' => $profile->legacyLayoutTemplate(),
         ] + $variables;
@@ -137,7 +137,7 @@ final class AuthPageFactory
     /**
      * @return array{0: string, 1: string, 2: ?string, 3: ?string}
      */
-    private static function definition(string $page): array
+    private function definition(string $page): array
     {
         return self::PAGES[$page] ?? throw new InvalidArgumentException(sprintf('Unknown AuthKit page "%s" (known: %s).', $page, implode(', ', array_keys(self::PAGES))));
     }

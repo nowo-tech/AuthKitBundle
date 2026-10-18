@@ -5,7 +5,7 @@
   tab / tab_active, flash_error, form, btn_primary, muted; layout in nowo-auth-kit.css (nowo-auth-kit-embed*).
 #}
 {% if is_authenticated %}
-    {% include authenticated_template %}
+    {{ include(authenticated_template) }}
 {% else %}
 {% set _b = 'NowoAuthKitBundle' %}
 <details class="nowo-auth-kit-embed" data-nowo-auth-kit-embed{% if active_panel %} data-nowo-auth-kit-embed-panel="{{ active_panel }}"{% endif %}{% if error|default(null) %} open{% endif %}>
@@ -19,16 +19,16 @@
                     {% endfor %}
                 </div>
                 <div class="nowo-auth-kit-embed__panel" id="auth-kit-panel-login" role="tabpanel" aria-labelledby="auth-kit-tab-login" data-nowo-ui-tabs-panel data-nowo-ui-tab-id="login"{% if active_panel != 'login' %} hidden{% endif %}>
-                    {% include login_panel_template %}
+                    {{ include(login_panel_template) }}
                 </div>
                 <div class="nowo-auth-kit-embed__panel" id="auth-kit-panel-register" role="tabpanel" aria-labelledby="auth-kit-tab-register" data-nowo-ui-tabs-panel data-nowo-ui-tab-id="register"{% if active_panel != 'register' %} hidden{% endif %}>
-                    {% include register_panel_template %}
+                    {{ include(register_panel_template) }}
                 </div>
             </div>
         {% elseif show_login %}
-            <div class="nowo-auth-kit-embed__panel">{% include login_panel_template %}</div>
+            <div class="nowo-auth-kit-embed__panel">{{ include(login_panel_template) }}</div>
         {% elseif show_register %}
-            <div class="nowo-auth-kit-embed__panel">{% include register_panel_template %}</div>
+            <div class="nowo-auth-kit-embed__panel">{{ include(register_panel_template) }}</div>
         {% endif %}
     </div>
 </details>

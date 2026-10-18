@@ -27,7 +27,7 @@ final class AuthPagesKernelTest extends WebTestCase
 
     protected function setUp(): void
     {
-        $this->client = static::createClient();
+        $this->client = self::createClient();
         $this->client->disableReboot();
 
         $em       = $this->entityManager();
@@ -108,7 +108,7 @@ final class AuthPagesKernelTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $form  = $crawler->filter('[data-testid="auth-kit-reset_password"] form');
         $order = $form->filter('input[type="password"], button[type="submit"], input[type="hidden"]')
-            ->each(static fn (Crawler $node): string => (string) ($node->attr('name') ?? $node->nodeName()));
+            ->each(static fn (Crawler $node): string => $node->attr('name') ?? $node->nodeName());
         self::assertSame(['reset_password_form[password][first]', 'reset_password_form[password][second]', 'reset_password_form[_token]', 'button'], $order, 'Every field (confirmation and CSRF included) renders before the submit button.');
 
         $crawler = $this->client->submit($form->form([
@@ -143,10 +143,10 @@ final class AuthPagesKernelTest extends WebTestCase
         $form = $crawler->filter('[data-testid="auth-kit-reset_password_code"] form');
         self::assertSame(
             ['reset_password_code_form[identifier]', 'reset_password_code_form[code]', 'reset_password_code_form[password][first]', 'reset_password_code_form[password][second]', 'reset_password_code_form[_token]', 'button'],
-            $form->filter('input, button')->each(static fn (Crawler $node): string => (string) ($node->attr('name') ?? $node->nodeName())),
+            $form->filter('input, button')->each(static fn (Crawler $node): string => $node->attr('name') ?? $node->nodeName()),
         );
 
-        $crawler = $this->client->submit($form->form([
+        $this->client->submit($form->form([
             'reset_password_code_form[identifier]'       => 'ada@example.com',
             'reset_password_code_form[code]'             => '000000',
             'reset_password_code_form[password][first]'  => 'new-password-456',
@@ -175,7 +175,7 @@ final class AuthPagesKernelTest extends WebTestCase
     private function entityManager(): EntityManagerInterface
     {
         /** @var EntityManagerInterface $em */
-        $em = static::getContainer()->get('doctrine.orm.entity_manager');
+        $em = self::getContainer()->get('doctrine.orm.entity_manager');
 
         return $em;
     }
@@ -183,7 +183,7 @@ final class AuthPagesKernelTest extends WebTestCase
     private function notifier(): CapturingPasswordResetNotifier
     {
         /** @var CapturingPasswordResetNotifier $notifier */
-        $notifier = static::getContainer()->get(CapturingPasswordResetNotifier::class);
+        $notifier = self::getContainer()->get(CapturingPasswordResetNotifier::class);
 
         return $notifier;
     }
