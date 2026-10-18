@@ -8,16 +8,16 @@ use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Config\Definition\ConfigurationInterface;
+use Symfony\Component\Config\Definition\ArrayNode;
+use Symfony\Component\Config\Definition\BaseNode;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
+use Symfony\Component\Config\Definition\PrototypedArrayNode;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 
-use function restore_error_handler;
-use function set_error_handler;
-
-use const E_USER_DEPRECATED;
+use function array_slice;
+use function implode;
 
 /**
  * REQ-UI-003 configuration vocabulary: per-profile web_ui (layout_template, templates.<page>, form_themes), the
@@ -38,8 +38,7 @@ final class WebUiConfigurationTest extends TestCase
 
     public function testLegacyTemplatesMapToWebUiWithDeprecations(): void
     {
-        $deprecations = [];
-        $config       = $this->process([[
+        $config = $this->process([[
             'user_class' => TestUser::class,
             'templates'  => [
                 'layout'     => 'auth/layout.html.twig',
@@ -47,7 +46,7 @@ final class WebUiConfigurationTest extends TestCase
                 'register'   => '',
                 'form_theme' => 'form/auth.html.twig',
             ],
-        ]], $deprecations);
+        ]]);
         $profile = $config['profiles']['default'];
 
         self::assertSame('auth/layout.html.twig', $profile['web_ui']['layout_template']);
@@ -57,9 +56,9 @@ final class WebUiConfigurationTest extends TestCase
         self::assertSame('auth/layout.html.twig', $profile['templates']['layout']);
         self::assertSame('auth/login.html.twig', $profile['templates']['login']);
         self::assertSame(['form/auth.html.twig'], $profile['templates']['form_theme']);
-        self::assertContains('Since nowo-tech/auth-kit-bundle 1.27.0: The "layout" option at "nowo_auth_kit.profiles.default.templates" is deprecated, use "web_ui.layout_template" (null = UiKit guest layout).', $deprecations);
-        self::assertContains('Since nowo-tech/auth-kit-bundle 1.27.0: The "login" option at "nowo_auth_kit.profiles.default.templates" is deprecated, use "web_ui.templates.login".', $deprecations);
-        self::assertContains('Since nowo-tech/auth-kit-bundle 1.27.0: The "form_theme" option at "nowo_auth_kit.profiles.default.templates" is deprecated, use "web_ui.form_themes".', $deprecations);
+        self::assertSame('The "layout" option at "nowo_auth_kit.profiles.default.templates" is deprecated, use "web_ui.layout_template" (null = UiKit guest layout).', $this->deprecation(['templates', 'layout']));
+        self::assertSame('The "login" option at "nowo_auth_kit.profiles.default.templates" is deprecated, use "web_ui.templates.login".', $this->deprecation(['templates', 'login']));
+        self::assertSame('The "form_theme" option at "nowo_auth_kit.profiles.default.templates" is deprecated, use "web_ui.form_themes".', $this->deprecation(['templates', 'form_theme']));
     }
 
     public function testWebUiWinsOverLegacyTemplates(): void
@@ -88,10 +87,10 @@ final class WebUiConfigurationTest extends TestCase
 
     public function testCssButtonClassesAreDeprecated(): void
     {
-        $deprecations = [];
-        $this->process([['user_class' => TestUser::class, 'css' => ['button_class' => 'btn btn-dark']]], $deprecations);
+        $config = $this->process([['user_class' => TestUser::class, 'css' => ['button_class' => 'btn btn-dark']]]);
+        self::assertSame('btn btn-dark', $config['profiles']['default']['css']['button_class']);
 
-        self::assertContains('Since nowo-tech/auth-kit-bundle 1.27.0: The "button_class" option at "nowo_auth_kit.profiles.default.css" is deprecated, use "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary".', $deprecations);
+        self::assertSame('The "button_class" option at "nowo_auth_kit.profiles.default.css" is deprecated, use "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary".', $this->deprecation(['css', 'button_class']));
     }
 
     public function testStimulusControllerMustBeAnIdentifier(): void
@@ -155,26 +154,34 @@ final class WebUiConfigurationTest extends TestCase
 
     /**
      * @param list<array<string, mixed>> $configs
-     * @param list<string> $deprecations
      *
      * @return array<string, mixed>
      */
-    private function process(array $configs, array &$deprecations = []): array
+    private function process(array $configs): array
     {
-        set_error_handler(static function (int $level, string $message) use (&$deprecations): bool {
-            $deprecations[] = $message;
+        return (new Processor())->processConfiguration(new Configuration(), $configs);
+    }
 
-            return true;
-        }, E_USER_DEPRECATED);
-
-        try {
-            /** @var ConfigurationInterface $configuration */
-            $configuration = new Configuration();
-
-            return (new Processor())->processConfiguration($configuration, $configs);
-        } finally {
-            restore_error_handler();
+    /**
+     * Deprecation message of a per-profile option (e.g. ['templates', 'layout']), "%node%" / "%path%" resolved.
+     *
+     * @param list<string> $path
+     */
+    private function deprecation(array $path): ?string
+    {
+        $root = (new Configuration())->getConfigTreeBuilder()->buildTree();
+        self::assertInstanceOf(ArrayNode::class, $root);
+        $profiles = $root->getChildren()['profiles'];
+        self::assertInstanceOf(PrototypedArrayNode::class, $profiles);
+        $node = $profiles->getPrototype();
+        foreach ($path as $name) {
+            self::assertInstanceOf(ArrayNode::class, $node);
+            $node = $node->getChildren()[$name];
         }
+
+        self::assertInstanceOf(BaseNode::class, $node);
+
+        return $node->isDeprecated() ? $node->getDeprecation($node->getName(), 'nowo_auth_kit.profiles.default.' . implode('.', array_slice($path, 0, -1)))['message'] : null;
     }
 
     private function stubExtension(string $alias): Extension
