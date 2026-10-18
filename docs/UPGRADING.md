@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.27.1](#to-1271)
 - [To 1.27.0](#to-1270)
   - [Template contract (1.27)](#template-contract-127)
 - [To 1.26.0](#to-1260)
@@ -82,6 +83,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.27.1
+
+From **1.27.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.27.0
 

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.27.1] - 2026-10-18](#1271---2026-10-18)
+- [[1.27.0] - 2026-10-18](#1270---2026-10-18)
 - [[1.26.0] - 2026-10-15](#1260---2026-10-15)
 - [[1.25.0] - 2026-10-13](#1250---2026-10-13)
 - [[1.24.1] - 2026-10-13](#1241---2026-10-13)
@@ -75,6 +77,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.1] - 2026-10-18
+
+Root form errors shown once with UiKit 2.3 (and 2.2). See [UPGRADING](UPGRADING.md#to-1271).
+
 ### Fixed
 
 - **Root form errors shown once with UiKit 2.3**: the UiKit 2.3 `page/auth` scaffold prints the root form errors
@@ -82,6 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   form-level errors appeared twice. `security/_auth_page.html.twig` now sets `nowo_ui_auth_root_errors = false` (the
   UiKit 2.3 opt-out; ignored by 2.2) and keeps its own `form_errors(form)` call, so the errors are shown exactly once on
   UiKit 2.2 and 2.3. Covered by `AuthPagesKernelTest` (error text counted once in the response).
+
+[1.27.1]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.27.1
 
 ## [1.27.0] - 2026-10-18
 
