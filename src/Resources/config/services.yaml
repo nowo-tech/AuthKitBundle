@@ -95,6 +95,7 @@ services:
             $slideToConfirmAssets: '%nowo_auth_kit.slide_to_confirm_assets%'
             $deviceIntelligenceAssets: '%nowo_auth_kit.device_intelligence_assets%'
             $deviceIntelligenceCollectEndpoint: '%nowo_auth_kit.device_intelligence_collect_endpoint%'
+            $passwordToggleAssets: '%nowo_auth_kit.password_toggle_assets%'
             $otpInputAssets: '%nowo_auth_kit.otp_input_assets%'
         tags:
             - { name: twig.extension }

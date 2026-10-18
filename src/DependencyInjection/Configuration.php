@@ -19,12 +19,16 @@ use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
+use function array_filter;
 use function array_key_exists;
 use function array_keys;
+use function array_values;
+use function class_exists;
 use function in_array;
 use function is_array;
 use function is_bool;
 use function is_string;
+use function preg_match;
 use function sprintf;
 use function trigger_deprecation;
 use function trim;
@@ -35,6 +39,32 @@ use function trim;
 final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_auth_kit';
+
+    /** Deprecated 1.x layout (a bridge to the UiKit guest layout since 1.27); as a layout override it means null. */
+    public const LEGACY_LAYOUT = '@NowoAuthKitBundle/layout.html.twig';
+
+    public const UI_KIT_FORM_THEME = '@NowoUiKit/form/nowo_ui_layout.html.twig';
+
+    public const PASSWORD_TOGGLE_FORM_THEME = '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig';
+
+    public const PASSWORD_TOGGLE_TYPE = 'Nowo\\PasswordToggleBundle\\Form\\Type\\PasswordType';
+
+    public const DEFAULT_BUTTON_CLASS = 'nowo-auth-kit__button';
+
+    public const DEFAULT_SECONDARY_BUTTON_CLASS = 'nowo-auth-kit__social-button';
+
+    /** Auth pages => default template (web_ui.templates.<page>). */
+    public const PAGE_TEMPLATES = [
+        'login'               => '@NowoAuthKitBundle/security/login.html.twig',
+        'register'            => '@NowoAuthKitBundle/security/register.html.twig',
+        'reset_request'       => '@NowoAuthKitBundle/security/reset_request.html.twig',
+        'reset_password'      => '@NowoAuthKitBundle/security/reset_password.html.twig',
+        'reset_password_code' => '@NowoAuthKitBundle/security/reset_password_code.html.twig',
+        'magic_login_request' => '@NowoAuthKitBundle/security/magic_login_request.html.twig',
+        'magic_login_confirm' => '@NowoAuthKitBundle/security/magic_login_confirm.html.twig',
+        'qr_login_show'       => '@NowoAuthKitBundle/security/qr_login_show.html.twig',
+        'qr_login_approve'    => '@NowoAuthKitBundle/security/qr_login_approve.html.twig',
+    ];
 
     /** @var list<string> */
     private const PROFILE_KEYS = [
@@ -51,6 +81,7 @@ final class Configuration implements ConfigurationInterface
         'device_intelligence',
         'otp_input',
         'registration_fields',
+        'web_ui',
         'templates',
         'css',
         'embed',
@@ -229,6 +260,10 @@ final class Configuration implements ConfigurationInterface
                     ->requiresAtLeastOneElement()
                     ->useAttributeAsKey('name')
                     ->prototype('array')
+                        ->validate()
+                            ->always()
+                            ->then(static fn (array $profile): array => self::resolveWebUi($profile))
+                        ->end()
                         ->addDefaultsIfNotSet()
                         ->children()
                             ->scalarNode('user_class')
@@ -276,6 +311,7 @@ final class Configuration implements ConfigurationInterface
                                 ->defaultValue(['email', 'password'])
                                 ->prototype('variable')->end()
                             ->end()
+                            ->append($this->createWebUiNode())
                             ->append($this->createTemplatesNode())
                             ->append($this->createCssNode())
                             ->append($this->createEmbedNode())
@@ -479,45 +515,82 @@ final class Configuration implements ConfigurationInterface
         return $node;
     }
 
-    private function createTemplatesNode(): ArrayNodeDefinition
+    private function createWebUiNode(): ArrayNodeDefinition
     {
-        $node = (new TreeBuilder('templates'))->getRootNode();
+        $node      = (new TreeBuilder('web_ui'))->getRootNode();
+        $templates = (new TreeBuilder('templates'))->getRootNode();
+        $templates
+            ->info('Per-page template overrides (REQ-UI-003 web_ui.templates.<page>): a host template that extends "@!NowoAuthKitBundle/security/<page>.html.twig" and overrides a data block.')
+            ->addDefaultsIfNotSet();
+        $children = $templates->children();
+        foreach (self::PAGE_TEMPLATES as $page => $template) {
+            $children->scalarNode($page)->defaultValue($template)->cannotBeEmpty()->end();
+        }
+        $children->end();
+
         $node
             ->addDefaultsIfNotSet()
+            ->info('Page contract (REQ-UI-003): the auth pages extend @NowoUiKit/page/auth.html.twig on the UiKit guest layout.')
             ->children()
-                ->scalarNode('layout')
-                    ->defaultValue('@NowoAuthKitBundle/layout.html.twig')
+                ->scalarNode('layout_template')
+                    ->info('Per-profile layout override; null (default) uses nowo_ui_kit.layouts.guest. The layout must render the UiKit canonical blocks.')
+                    ->defaultNull()
                 ->end()
-                ->scalarNode('login')
-                    ->defaultValue('@NowoAuthKitBundle/security/login.html.twig')
-                ->end()
-                ->scalarNode('register')
-                    ->defaultValue('@NowoAuthKitBundle/security/register.html.twig')
-                ->end()
-                ->scalarNode('reset_request')
-                    ->defaultValue('@NowoAuthKitBundle/security/reset_request.html.twig')
-                ->end()
-                ->scalarNode('reset_password')
-                    ->defaultValue('@NowoAuthKitBundle/security/reset_password.html.twig')
-                ->end()
-                ->scalarNode('reset_password_code')
-                    ->defaultValue('@NowoAuthKitBundle/security/reset_password_code.html.twig')
-                ->end()
-                ->scalarNode('magic_login_request')
-                    ->defaultValue('@NowoAuthKitBundle/security/magic_login_request.html.twig')
-                ->end()
-                ->scalarNode('magic_login_confirm')
-                    ->defaultValue('@NowoAuthKitBundle/security/magic_login_confirm.html.twig')
-                ->end()
-                ->arrayNode('form_theme')
+                ->append($templates)
+                ->arrayNode('form_themes')
+                    ->info('Form themes applied to the auth forms (null = UiKit form theme + PasswordToggle widget theme when installed).')
                     ->beforeNormalization()
-                        ->ifTrue(static fn (mixed $value): bool => is_string($value))
+                        ->ifString()
                         ->then(static fn (string $value): array => [$value])
                     ->end()
-                    ->scalarPrototype()->end()
-                    ->defaultValue(['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'])
+                    ->scalarPrototype()->cannotBeEmpty()->end()
+                    ->defaultNull()
+                ->end()
+                ->scalarNode('brand')
+                    ->info('Brand line printed above the panel heading (AuthPage::brand; plain text, null = none).')
+                    ->defaultNull()
+                ->end()
+                ->arrayNode('qr_login')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('stimulus_controller')
+                            ->info('Stimulus controller identifier for the QR challenge (data-controller + <id>-*-value / <id>-target attributes). null = the bundled nowo-auth-kit-qr-login.js poller.')
+                            ->defaultNull()
+                            ->validate()
+                                ->ifTrue(static fn (mixed $value): bool => $value !== null && (!is_string($value) || preg_match('/^[a-z][a-z0-9-]*(--[a-z0-9-]+)*$/', $value) !== 1))
+                                ->thenInvalid('web_ui.qr_login.stimulus_controller must be a Stimulus identifier (lowercase, dashes), e.g. "qr-login".')
+                            ->end()
+                        ->end()
+                    ->end()
                 ->end()
             ->end();
+
+        return $node;
+    }
+
+    private function createTemplatesNode(): ArrayNodeDefinition
+    {
+        $node     = (new TreeBuilder('templates'))->getRootNode();
+        $children = $node
+            ->info('Deprecated since 1.27: use web_ui.layout_template, web_ui.templates.<page> and web_ui.form_themes.')
+            ->children();
+        $children->scalarNode('layout')
+            ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "web_ui.layout_template" (null = UiKit guest layout).')
+        ->end();
+        foreach (array_keys(self::PAGE_TEMPLATES) as $page) {
+            $children->scalarNode($page)
+                ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "web_ui.templates.%node%".')
+            ->end();
+        }
+        $children->arrayNode('form_theme')
+            ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "web_ui.form_themes".')
+            ->beforeNormalization()
+                ->ifString()
+                ->then(static fn (string $value): array => [$value])
+            ->end()
+            ->scalarPrototype()->end()
+        ->end();
+        $children->end();
 
         return $node;
     }
@@ -527,18 +600,97 @@ final class Configuration implements ConfigurationInterface
         $node = (new TreeBuilder('css'))->getRootNode();
         $node
             ->addDefaultsIfNotSet()
+            ->info('Deprecated since 1.27: buttons use the UiKit btn_primary / btn_secondary slots (nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes).')
             ->children()
                 ->scalarNode('button_class')
-                    ->defaultValue('nowo-auth-kit__button')
+                    ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary".')
+                    ->defaultValue(self::DEFAULT_BUTTON_CLASS)
                     ->cannotBeEmpty()
                 ->end()
                 ->scalarNode('secondary_button_class')
-                    ->defaultValue('nowo-auth-kit__social-button')
+                    ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_secondary".')
+                    ->defaultValue(self::DEFAULT_SECONDARY_BUTTON_CLASS)
                     ->cannotBeEmpty()
                 ->end()
             ->end();
 
         return $node;
+    }
+
+    /**
+     * Default form themes of the auth forms: the UiKit form theme, then the PasswordToggle widget theme when that
+     * bundle is registered ($bundles = kernel.bundles) or, without the kernel bundle list, installed.
+     *
+     * @param array<string, string>|null $bundles
+     *
+     * @return list<string>
+     */
+    public static function defaultFormThemes(?array $bundles = null): array
+    {
+        $themes = [self::UI_KIT_FORM_THEME];
+        if ($bundles !== null ? isset($bundles['NowoPasswordToggleBundle']) : class_exists(self::PASSWORD_TOGGLE_TYPE)) {
+            $themes[] = self::PASSWORD_TOGGLE_FORM_THEME;
+        }
+
+        return $themes;
+    }
+
+    /**
+     * Fills web_ui.form_themes (null = {@see self::defaultFormThemes()}) and the legacy templates.form_theme mirror.
+     *
+     * @param array<string, mixed> $profile
+     * @param array<string, string>|null $bundles
+     *
+     * @return array<string, mixed>
+     */
+    public static function withFormThemes(array $profile, ?array $bundles = null): array
+    {
+        /** @var array<string, mixed> $webUi */
+        $webUi = $profile['web_ui'];
+        $webUi['form_themes'] ??= self::defaultFormThemes($bundles);
+        $profile['web_ui']                  = $webUi;
+        $profile['templates']['form_theme'] = $webUi['form_themes'];
+
+        return $profile;
+    }
+
+    /**
+     * Maps the deprecated per-profile templates.* keys onto web_ui.* (after the config blocks are merged; a web_ui
+     * value other than the default wins) and rebuilds templates.* as a resolved legacy mirror for 1.x readers
+     * (form themes: {@see self::withFormThemes()}, applied by the extension).
+     *
+     * @param array<string, mixed> $profile
+     *
+     * @return array<string, mixed>
+     */
+    private static function resolveWebUi(array $profile): array
+    {
+        /** @var array<string, mixed> $legacy */
+        $legacy = is_array($profile['templates'] ?? null) ? $profile['templates'] : [];
+        /** @var array{layout_template: ?string, templates: array<string, string>, form_themes: ?list<string>, brand: ?string, qr_login: array{stimulus_controller: ?string}} $webUi */
+        $webUi = $profile['web_ui'];
+
+        if (is_string($legacy['layout'] ?? null) && $webUi['layout_template'] === null && $legacy['layout'] !== self::LEGACY_LAYOUT) {
+            $webUi['layout_template'] = $legacy['layout'];
+        }
+        if ($webUi['layout_template'] === self::LEGACY_LAYOUT) {
+            $webUi['layout_template'] = null;
+        }
+        foreach (self::PAGE_TEMPLATES as $page => $default) {
+            if (is_string($legacy[$page] ?? null) && $legacy[$page] !== '' && $webUi['templates'][$page] === $default) {
+                $webUi['templates'][$page] = $legacy[$page];
+            }
+        }
+        if ($webUi['form_themes'] === null && is_array($legacy['form_theme'] ?? null)) {
+            $webUi['form_themes'] = array_values(array_filter($legacy['form_theme'], is_string(...)));
+        }
+
+        $profile['web_ui']    = $webUi;
+        $profile['templates'] = ['layout' => $webUi['layout_template'] ?? self::LEGACY_LAYOUT]
+            + $webUi['templates']
+            + ['form_theme' => $webUi['form_themes']];
+
+        return $profile;
     }
 
     private function createEmbedNode(): ArrayNodeDefinition

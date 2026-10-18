@@ -22,6 +22,15 @@ qr_login:
         waiting: A aguardar aprovação…
         expires_label: Expira em
         back_to_login: Voltar ao início de sessão
+        intro: 'Digitalize o código com a câmara do telemóvel (com sessão iniciada) ou introduza lá o código.'
+        continue: 'Já aprovei — continuar'
+        retry: 'Gerar um novo código'
+        state:
+            pending: 'A aguardar aprovação…'
+            approved: 'Aprovado — a iniciar sessão…'
+            denied: 'O início de sessão foi recusado no telemóvel.'
+            expired: 'Este código expirou. Gere um novo.'
+            error: 'Não foi possível verificar o estado. A tentar novamente…'
     approve:
         title: Aprovar início de sessão
         heading: Aprovar este início de sessão?

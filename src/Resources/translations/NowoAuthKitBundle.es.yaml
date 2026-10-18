@@ -22,6 +22,15 @@ qr_login:
         waiting: Esperando aprobación…
         expires_label: Caduca en
         back_to_login: Volver al inicio de sesión
+        intro: 'Escanea el código con la cámara del teléfono (con la sesión iniciada en él) o introduce el código allí.'
+        continue: 'Ya lo he aprobado — continuar'
+        retry: 'Generar un código nuevo'
+        state:
+            pending: 'Esperando aprobación…'
+            approved: 'Aprobado — iniciando sesión…'
+            denied: 'El acceso se ha denegado en el teléfono.'
+            expired: 'Este código ha caducado. Genera uno nuevo.'
+            error: 'No se pudo comprobar el estado. Reintentando…'
     approve:
         title: Aprobar acceso
         heading: ¿Aprobar este acceso?

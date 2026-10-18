@@ -22,6 +22,15 @@ qr_login:
         waiting: Waiting for approval…
         expires_label: Expires in
         back_to_login: Back to sign in
+        intro: 'Scan the code with your phone camera (signed in on the phone), or enter the code there.'
+        continue: 'I approved it — continue'
+        retry: 'Generate a new code'
+        state:
+            pending: 'Waiting for approval…'
+            approved: 'Approved — signing you in…'
+            denied: 'Sign-in was denied on the phone.'
+            expired: 'This code has expired. Generate a new one.'
+            error: 'Could not check the status. Retrying…'
     approve:
         title: Approve sign-in
         heading: Approve this sign-in?

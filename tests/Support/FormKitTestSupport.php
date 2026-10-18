@@ -18,11 +18,8 @@ final class FormKitTestSupport
     {
         $profile = [
             'translation_domain' => 'NowoAuthKitBundle',
-            'defaults'           => [
-                'attr'     => ['class' => 'nowo-ui-input form-control'],
-                'row_attr' => ['class' => 'mb-2'],
-            ],
-            'field_types' => [],
+            'defaults'           => ['attr' => [], 'row_attr' => []],
+            'field_types'        => [],
         ];
 
         return new FormOptionsMerger(

@@ -49,10 +49,15 @@ final class ConfigurationTest extends TestCase
         self::assertTrue($config['profiles']['default']['otp_input']['password_reset_code']);
         self::assertTrue($config['profiles']['default']['embed']['show_login']);
         self::assertTrue($config['profiles']['default']['embed']['show_register']);
-        self::assertSame(
-            ['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
-            $config['profiles']['default']['templates']['form_theme'],
-        );
+        // web_ui (REQ-UI-003): null form themes = defaults resolved by the extension; legacy templates.* mirror
+        self::assertNull($config['profiles']['default']['web_ui']['form_themes']);
+        self::assertNull($config['profiles']['default']['web_ui']['layout_template']);
+        self::assertNull($config['profiles']['default']['web_ui']['brand']);
+        self::assertNull($config['profiles']['default']['web_ui']['qr_login']['stimulus_controller']);
+        self::assertSame('@NowoAuthKitBundle/security/qr_login_show.html.twig', $config['profiles']['default']['web_ui']['templates']['qr_login_show']);
+        self::assertSame('@NowoAuthKitBundle/layout.html.twig', $config['profiles']['default']['templates']['layout']);
+        self::assertSame('@NowoAuthKitBundle/security/login.html.twig', $config['profiles']['default']['templates']['login']);
+        self::assertNull($config['profiles']['default']['templates']['form_theme']);
         self::assertSame('nowo-auth-kit__button', $config['profiles']['default']['css']['button_class']);
         self::assertSame('nowo-auth-kit__social-button', $config['profiles']['default']['css']['secondary_button_class']);
         self::assertNull($config['outbound_mail_ready_checker']);

@@ -22,6 +22,15 @@ qr_login:
         waiting: Warte auf Freigabe…
         expires_label: Läuft ab in
         back_to_login: Zurück zur Anmeldung
+        intro: 'Scanne den Code mit der Kamera deines Telefons (dort angemeldet) oder gib den Code dort ein.'
+        continue: 'Freigegeben — weiter'
+        retry: 'Neuen Code erzeugen'
+        state:
+            pending: 'Warte auf Freigabe…'
+            approved: 'Freigegeben — du wirst angemeldet…'
+            denied: 'Die Anmeldung wurde auf dem Telefon abgelehnt.'
+            expired: 'Dieser Code ist abgelaufen. Erzeuge einen neuen.'
+            error: 'Status konnte nicht geprüft werden. Neuer Versuch…'
     approve:
         title: Anmeldung freigeben
         heading: Diese Anmeldung freigeben?

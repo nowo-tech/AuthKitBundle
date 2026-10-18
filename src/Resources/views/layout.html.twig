@@ -1,23 +1,29 @@
-<!DOCTYPE html>
-<html lang="{{ app.request.locale|default('en') }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ 'layout.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}</title>
-    <link rel="stylesheet" href="{{ asset('css/nowo-auth-kit.css', 'nowo_auth_kit') }}">
-    <link rel="stylesheet" href="{{ asset('bundles/nowopasswordtoggle/css/toggle_password.css') }}">
-    {{ include('@NowoAuthKitBundle/_slide_to_confirm_assets.html.twig') }}
-    {{ include('@NowoAuthKitBundle/_device_intelligence_assets.html.twig') }}
-    {{ include('@NowoAuthKitBundle/_otp_input_assets.html.twig') }}
+{#
+  Deprecated since 1.27 (removed in 2.0): the 1.x AuthKit layout, now a bridge to the UiKit guest layout
+  (nowo_ui_kit.layouts.guest). The auth pages no longer use it: they extend @NowoUiKit/page/auth. It stays for
+  1.x page templates of host applications ({% extends layout_template %} filling auth_brand / auth_panel), which
+  receive this template as `layout_template` when web_ui.layout_template is null.
+#}
+{% extends nowo_ui_layout.guest %}
+{% set nowo_ui_bundle = 'NowoAuthKitBundle' %}
+
+{% block nowo_ui_document_title %}{% block title %}{{ 'layout.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{- parent() -}}
+    {{ include('@NowoAuthKitBundle/_auth_kit_styles.html.twig') }}
     {% block stylesheets %}{% endblock %}
-</head>
-<body class="nowo-auth-kit">
-    <main class="nowo-auth-kit__main">
-        {% block body %}
-            {% block auth_brand %}{% endblock %}
-            {% block auth_panel %}{% endblock %}
-        {% endblock %}
-    </main>
+{% endblock %}
+
+{% block nowo_ui_content %}
+    {% block body %}
+        {% block auth_brand %}{% endblock %}
+        {% block auth_panel %}{% endblock %}
+    {% endblock %}
+{% endblock %}
+
+{% block nowo_ui_scripts %}
+    {{- parent() -}}
+    {{ include('@NowoAuthKitBundle/_auth_kit_scripts.html.twig') }}
     {% block javascripts %}{% endblock %}
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,22 @@
+# AuthKit form constraint messages (validators domain: the validator translates violation messages there).
+# Keep in sync with NowoAuthKitBundle.nl.yaml.
+register:
+    password:
+        mismatch: 'De wachtwoorden moeten overeenkomen.'
+        required: 'Voer een wachtwoord in.'
+        min_length: 'Je wachtwoord moet minimaal {{ limit }} tekens bevatten.'
+reset:
+    request:
+        identifier_required: 'Voer je identificatie in.'
+    password:
+        mismatch: 'De wachtwoorden moeten overeenkomen.'
+        required: 'Voer een wachtwoord in.'
+        min_length: 'Je wachtwoord moet minimaal {{ limit }} tekens bevatten.'
+    code:
+        identifier_required: 'Voer je identificatie in.'
+        code_required: 'Voer de code in.'
+        code_length: 'De code moet exact {{ limit }} tekens bevatten.'
+        flash_invalid: 'De code is ongeldig of verlopen.'
+magic_login:
+    request:
+        identifier_required: 'Voer je identifier in.'

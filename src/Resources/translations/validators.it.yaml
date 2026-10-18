@@ -1,0 +1,22 @@
+# AuthKit form constraint messages (validators domain: the validator translates violation messages there).
+# Keep in sync with NowoAuthKitBundle.it.yaml.
+register:
+    password:
+        mismatch: 'Le password devono coincidere.'
+        required: 'Inserisci una password.'
+        min_length: 'La password deve contenere almeno {{ limit }} caratteri.'
+reset:
+    request:
+        identifier_required: 'Inserisci il tuo identificativo.'
+    password:
+        mismatch: 'Le password devono coincidere.'
+        required: 'Inserisci una password.'
+        min_length: 'La password deve contenere almeno {{ limit }} caratteri.'
+    code:
+        identifier_required: 'Inserisci il tuo identificativo.'
+        code_required: 'Inserisci il codice.'
+        code_length: 'Il codice deve contenere esattamente {{ limit }} caratteri.'
+        flash_invalid: 'Il codice non è valido o è scaduto.'
+magic_login:
+    request:
+        identifier_required: 'Inserisci il tuo identificatore.'

@@ -66,7 +66,7 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertIsArray($css);
         self::assertSame('disabled', $embed['mode']);
         self::assertSame(
-            ['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
+            ['@NowoUiKit/form/nowo_ui_layout.html.twig', '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
             $templates['form_theme'],
         );
         self::assertSame('nowo-auth-kit__button', $css['button_class']);
@@ -278,7 +278,9 @@ final class NowoAuthKitExtensionTest extends TestCase
                 self::assertSame('NowoAuthKitBundle', $cfg['profiles']['auth_kit']['translation_domain']);
                 self::assertFalse($cfg['profiles']['auth_kit']['auto_placeholder']);
                 self::assertFalse($cfg['profiles']['auth_kit']['auto_help']);
-                self::assertSame('nowo-ui-input form-control', $cfg['profiles']['auth_kit']['defaults']['attr']['class']);
+                // REQ-UI-003: no framework classes seeded; the UiKit form theme paints inputs through theme slots
+                self::assertArrayNotHasKey('defaults', $cfg['profiles']['auth_kit']);
+                self::assertArrayNotHasKey('field_types', $cfg['profiles']['auth_kit']);
                 break;
             }
         }

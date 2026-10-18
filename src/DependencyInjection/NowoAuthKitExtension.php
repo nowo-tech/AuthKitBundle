@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
+use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -18,6 +19,7 @@ use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
 use function array_key_exists;
+use function class_exists;
 use function is_array;
 use function is_string;
 use function sprintf;
@@ -40,7 +42,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $profiles = $config['profiles'];
         $this->assertUniqueUserClasses($profiles);
         $this->assertUniqueRouteNames($profiles);
-        $this->normalizeProfiles($profiles);
+        $bundles = $container->hasParameter('kernel.bundles') ? $container->getParameter('kernel.bundles') : null;
+        /* @var array<string, string>|null $bundles */
+        $this->normalizeProfiles($profiles, is_array($bundles) ? $bundles : null);
 
         $defaultProfile = $profiles[$defaultProfileName];
 
@@ -63,6 +67,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         );
         $container->setParameter('nowo_auth_kit.otp_input', $defaultProfile['otp_input']);
         $container->setParameter('nowo_auth_kit.otp_input_assets', $this->anyOtpInputAssets($profiles));
+        $container->setParameter(
+            'nowo_auth_kit.password_toggle_assets',
+            is_array($bundles) ? isset($bundles['NowoPasswordToggleBundle']) : class_exists(Configuration::PASSWORD_TOGGLE_TYPE),
+        );
         $container->setParameter('nowo_auth_kit.registration_fields', $defaultProfile['registration_fields']);
         $container->setParameter('nowo_auth_kit.templates', $defaultProfile['templates']);
         $container->setParameter('nowo_auth_kit.css', $defaultProfile['css']);
@@ -136,6 +144,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     public function prepend(ContainerBuilder $container): void
     {
         $this->prependFormKitDefaults($container);
+        $this->prependUiKitThemeBridge($container);
         if (!$container->hasExtension('framework')) {
             return;
         }
@@ -153,10 +162,13 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
     /**
      * @param array<string, array<string, mixed>> $profiles
+     * @param array<string, string>|null $bundles kernel.bundles
      */
-    private function normalizeProfiles(array &$profiles): void
+    private function normalizeProfiles(array &$profiles, ?array $bundles = null): void
     {
         foreach ($profiles as $name => &$profile) {
+            $profile = Configuration::withFormThemes($profile, $bundles);
+
             if ('' === ($profile['user_class'] ?? '')) {
                 throw new InvalidArgumentException(sprintf('The "nowo_auth_kit.profiles.%s.user_class" configuration value is required.', $name));
             }
@@ -249,40 +261,54 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         if (!$hostHasProfile) {
+            // REQ-UI-003: no framework classes here — the UiKit form theme (web_ui.form_themes) paints inputs and
+            // checkboxes through the input / check / check_input theme slots for the host's css_framework.
             $seed['profiles'] = [
                 'auth_kit' => [
                     'alias'              => 'auth_kit',
                     'translation_domain' => 'NowoAuthKitBundle',
                     'auto_placeholder'   => false,
                     'auto_help'          => false,
-                    'defaults'           => [
-                        'attr'     => ['class' => 'nowo-ui-input form-control'],
-                        'row_attr' => ['class' => 'mb-2'],
-                    ],
-                    'field_types' => [
-                        'checkbox' => [
-                            'attr'     => ['class' => 'form-check-input'],
-                            'row_attr' => ['class' => 'form-check mb-2'],
-                        ],
-                        'choice' => [
-                            'attr' => ['class' => 'form-select'],
-                        ],
-                        'entity' => [
-                            'attr' => ['class' => 'form-select'],
-                        ],
-                        'file' => [
-                            'attr' => ['class' => 'nowo-ui-input form-control'],
-                        ],
-                        'textarea' => [
-                            'attr' => ['class' => 'nowo-ui-input form-control'],
-                        ],
-                    ],
                 ],
             ];
         }
 
         if ($seed !== []) {
             $container->prependExtensionConfig('nowo_form_kit', $seed);
+        }
+    }
+
+    /**
+     * Deprecated css.button_class / css.secondary_button_class (any profile; first non-default value wins) →
+     * nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary / btn_secondary, prepended so a host's own
+     * theme exception still wins (REQ-UI-003 chrome bridge, removed in 2.0).
+     */
+    private function prependUiKitThemeBridge(ContainerBuilder $container): void
+    {
+        if (!$container->hasExtension('nowo_ui_kit')) {
+            return;
+        }
+
+        $map     = ['button_class' => ['btn_primary', Configuration::DEFAULT_BUTTON_CLASS], 'secondary_button_class' => ['btn_secondary', Configuration::DEFAULT_SECONDARY_BUTTON_CLASS]];
+        $classes = [];
+        foreach ($container->getExtensionConfig($this->getAlias()) as $config) {
+            /** @var array<string, mixed> $config */
+            $blocks = [$config['css'] ?? null];
+            foreach (is_array($config['profiles'] ?? null) ? $config['profiles'] : [] as $profile) {
+                $blocks[] = is_array($profile) ? ($profile['css'] ?? null) : null;
+            }
+            foreach ($blocks as $css) {
+                foreach ($map as $key => [$slot, $default]) {
+                    $value = is_array($css) ? ($css[$key] ?? null) : null;
+                    if (is_string($value) && $value !== '' && $value !== $default && !isset($classes[$slot])) {
+                        $classes[$slot] = $value;
+                    }
+                }
+            }
+        }
+
+        if ($classes !== []) {
+            $container->prependExtensionConfig('nowo_ui_kit', ['theme' => ['bundles' => [AuthPageFactory::BUNDLE => ['classes' => $classes]]]]);
         }
     }
 

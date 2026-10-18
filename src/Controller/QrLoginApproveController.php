@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Enum\QrLoginApproveMode;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Form\QrLoginApproveType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
@@ -16,6 +17,9 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\QrLogin\QrLoginRateLimiter;
 use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface;
 use Nowo\AuthKitBundle\QrLogin\QrLoginUserResolver;
+use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\UiKitBundle\View\DetailItem;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,6 +47,8 @@ final class QrLoginApproveController
         private readonly RequestProfileResolver $profileResolver,
         private readonly FormFactoryInterface $formFactory,
         private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
+        private readonly ?AuthKitUrlGenerator $urlGenerator = null,
+        private readonly AuthPageFactory $pages = new AuthPageFactory(),
     ) {
     }
 
@@ -96,11 +102,10 @@ final class QrLoginApproveController
 
         if ($request->isMethod('GET')) {
             return $this->renderApprove(
-                $profile->templates['layout'],
+                $profile,
                 $challenge,
                 $token,
                 $phoneResult['phone_hint'],
-                $profile->routes['qr_login_deny']['name'],
                 $useSlide ? $slideProfile : null,
                 $form->createView(),
             );
@@ -109,11 +114,10 @@ final class QrLoginApproveController
         $form->handleRequest($request);
         if (!$form->isSubmitted() || !$form->isValid()) {
             return $this->renderApprove(
-                $profile->templates['layout'],
+                $profile,
                 $challenge,
                 $token,
                 $phoneResult['phone_hint'],
-                $profile->routes['qr_login_deny']['name'],
                 $useSlide ? $slideProfile : null,
                 $form->createView(),
             );
@@ -153,24 +157,31 @@ final class QrLoginApproveController
     }
 
     private function renderApprove(
-        string $layoutTemplate,
+        ProfileSettings $profile,
         QrLoginChallenge $challenge,
         string $token,
         ?string $phoneHint,
-        string $denyRoute,
         ?string $slideProfile,
-        ?FormView $formView = null,
+        FormView $formView,
     ): Response {
-        $content = $this->twig->render('@NowoAuthKitBundle/security/qr_login_approve.html.twig', [
+        $denyRoute = $profile->routes['qr_login_deny']['name'];
+        $page      = $this->pages->create('qr_login_approve', $profile, $formView);
+        $details   = [new DetailItem(AuthPageFactory::label('qr_login.approve.device_label'), $challenge->getDesktopUaLabel())];
+        if ($phoneHint !== null && $phoneHint !== '') {
+            $details[] = new DetailItem(AuthPageFactory::label('qr_login.approve.phone_label'), $phoneHint);
+        }
+
+        $content = $this->twig->render($profile->template('qr_login_approve'), $this->pages->context('qr_login_approve', $page, $profile, [
             'challenge_id'          => $challenge->getId(),
             'desktop_label'         => $challenge->getDesktopUaLabel(),
             'phone_hint'            => $phoneHint,
             'approve_token'         => $token,
             'deny_route'            => $denyRoute,
-            'layout_template'       => $layoutTemplate,
+            'deny_url'              => $this->urlGenerator?->generate($denyRoute, ['id' => $challenge->getId(), 't' => $token]),
             'approve_form'          => $formView,
+            'approve_details'       => $details,
             'slide_to_confirm_mode' => $slideProfile,
-        ]);
+        ]));
 
         return new Response($content);
     }

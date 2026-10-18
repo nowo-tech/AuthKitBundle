@@ -1,37 +1,35 @@
+{#
+  Embedded sign-in / registration widget (auth_kit_dropdown()): a native <details> disclosure (no framework JS) with
+  the login and register panels; with both panels, UiKit tabs (data-nowo-ui-tabs, nowo-ui-tabs.js from the UiKit
+  scripts partial) switch between them. Theme slots only (bundle NowoAuthKitBundle): btn_secondary (toggle), tabs /
+  tab / tab_active, flash_error, form, btn_primary, muted; layout in nowo-auth-kit.css (nowo-auth-kit-embed*).
+#}
 {% if is_authenticated %}
     {% include authenticated_template %}
 {% else %}
-<div class="dropdown nowo-auth-kit__embed">
-    <button class="btn btn-outline-primary dropdown-toggle nowo-auth-kit__embed-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-        {{ 'embed.dropdown.toggle'|trans({}, 'NowoAuthKitBundle') }}
-    </button>
-    <div class="dropdown-menu dropdown-menu-end nowo-auth-kit__embed-menu p-0 shadow">
+{% set _b = 'NowoAuthKitBundle' %}
+<details class="nowo-auth-kit-embed" data-nowo-auth-kit-embed{% if active_panel %} data-nowo-auth-kit-embed-panel="{{ active_panel }}"{% endif %}{% if error|default(null) %} open{% endif %}>
+    <summary class="{{ nowo_ui_class('btn_secondary', _b) }} nowo-auth-kit-embed__toggle">{{ 'embed.dropdown.toggle'|trans({}, 'NowoAuthKitBundle') }}</summary>
+    <div class="nowo-auth-kit-embed__menu">
         {% if show_login and show_register %}
-            <ul class="nav nav-tabs nav-justified nowo-auth-kit__embed-tabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link{{ active_panel == 'login' ? ' active' : '' }}" id="auth-kit-tab-login" data-bs-toggle="tab" data-bs-target="#auth-kit-panel-login" type="button" role="tab" aria-controls="auth-kit-panel-login" aria-selected="{{ active_panel == 'login' ? 'true' : 'false' }}">
-                        {{ 'embed.tab.login'|trans({}, 'NowoAuthKitBundle') }}
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link{{ active_panel == 'register' ? ' active' : '' }}" id="auth-kit-tab-register" data-bs-toggle="tab" data-bs-target="#auth-kit-panel-register" type="button" role="tab" aria-controls="auth-kit-panel-register" aria-selected="{{ active_panel == 'register' ? 'true' : 'false' }}">
-                        {{ 'embed.tab.register'|trans({}, 'NowoAuthKitBundle') }}
-                    </button>
-                </li>
-            </ul>
-            <div class="tab-content nowo-auth-kit__embed-panels p-3">
-                <div class="tab-pane fade{{ active_panel == 'login' ? ' show active' : '' }}" id="auth-kit-panel-login" role="tabpanel" aria-labelledby="auth-kit-tab-login" tabindex="0">
-                    {% if show_login %}{% include login_panel_template %}{% endif %}
+            <div class="nowo-auth-kit-embed__tabs" data-nowo-ui-tabs data-nowo-ui-tabs-active="{{ active_panel }}">
+                <div class="{{ nowo_ui_class('tabs', _b) }}" role="tablist"{{ nowo_ui_attrs('tabs', _b) }}>
+                    {% for _panel in ['login', 'register'] %}
+                        <button type="button" class="{{ nowo_ui_class(active_panel == _panel ? 'tab_active' : 'tab', _b) }}" id="auth-kit-tab-{{ _panel }}" role="tab" aria-controls="auth-kit-panel-{{ _panel }}" aria-selected="{{ active_panel == _panel ? 'true' : 'false' }}" data-nowo-ui-tabs-trigger data-nowo-ui-tab-id="{{ _panel }}"{% if active_panel == _panel %} data-active{% endif %}>{{ ('embed.tab.' ~ _panel)|trans({}, 'NowoAuthKitBundle') }}</button>
+                    {% endfor %}
                 </div>
-                <div class="tab-pane fade{{ active_panel == 'register' ? ' show active' : '' }}" id="auth-kit-panel-register" role="tabpanel" aria-labelledby="auth-kit-tab-register" tabindex="0">
-                    {% if show_register %}{% include register_panel_template %}{% endif %}
+                <div class="nowo-auth-kit-embed__panel" id="auth-kit-panel-login" role="tabpanel" aria-labelledby="auth-kit-tab-login" data-nowo-ui-tabs-panel data-nowo-ui-tab-id="login"{% if active_panel != 'login' %} hidden{% endif %}>
+                    {% include login_panel_template %}
+                </div>
+                <div class="nowo-auth-kit-embed__panel" id="auth-kit-panel-register" role="tabpanel" aria-labelledby="auth-kit-tab-register" data-nowo-ui-tabs-panel data-nowo-ui-tab-id="register"{% if active_panel != 'register' %} hidden{% endif %}>
+                    {% include register_panel_template %}
                 </div>
             </div>
         {% elseif show_login %}
-            <div class="p-3">{% include login_panel_template %}</div>
+            <div class="nowo-auth-kit-embed__panel">{% include login_panel_template %}</div>
         {% elseif show_register %}
-            <div class="p-3">{% include register_panel_template %}</div>
+            <div class="nowo-auth-kit-embed__panel">{% include register_panel_template %}</div>
         {% endif %}
     </div>
-</div>
+</details>
 {% endif %}

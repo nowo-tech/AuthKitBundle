@@ -4,8 +4,18 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Profile;
 
+use Nowo\AuthKitBundle\DependencyInjection\Configuration;
+
+use function array_filter;
+use function array_key_exists;
+use function array_values;
+use function is_array;
+use function is_string;
+
 final readonly class ProfileSettings
 {
+    private const LEGACY_LAYOUT = Configuration::LEGACY_LAYOUT;
+
     /**
      * @param class-string $userClass
      * @param list<array<string, mixed>> $loginFields
@@ -23,6 +33,7 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $socialLogin
      * @param array<string, mixed> $qrLogin
      * @param array<string, array{path: string, name: string}> $routes
+     * @param array{layout_template?: ?string, templates?: array<string, string>, form_themes?: list<string>, brand?: ?string, qr_login?: array{stimulus_controller?: ?string}} $webUi page contract settings (REQ-UI-003)
      */
     public function __construct(
         public string $name,
@@ -49,7 +60,51 @@ final readonly class ProfileSettings
         public ?string $loginSuccessRoute,
         public int $registrationRateLimit = 5,
         public int $registrationRateWindow = 900,
+        public array $webUi = [],
     ) {
+    }
+
+    /**
+     * Template of an auth page: web_ui.templates.<page>, else the (deprecated) templates.<page> mirror, else the
+     * bundle default.
+     */
+    public function template(string $page): string
+    {
+        $template = $this->webUi['templates'][$page] ?? $this->templates[$page] ?? null;
+
+        return is_string($template) && $template !== '' ? $template : '@NowoAuthKitBundle/security/' . $page . '.html.twig';
+    }
+
+    /**
+     * Layout override of the auth pages (AuthPage::layout): null = nowo_ui_kit.layouts.guest.
+     */
+    public function layoutTemplate(): ?string
+    {
+        if (array_key_exists('layout_template', $this->webUi)) {
+            return $this->webUi['layout_template'];
+        }
+        $legacy = $this->templates['layout'] ?? null;
+
+        return is_string($legacy) && $legacy !== '' && $legacy !== self::LEGACY_LAYOUT ? $legacy : null;
+    }
+
+    /**
+     * Layout handed to 1.x page templates as `layout_template` ({% extends layout_template %}): the override, else
+     * the deprecated bundle layout (a bridge to the UiKit guest layout).
+     */
+    public function legacyLayoutTemplate(): string
+    {
+        return $this->layoutTemplate() ?? self::LEGACY_LAYOUT;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function formThemes(): array
+    {
+        $themes = $this->webUi['form_themes'] ?? $this->templates['form_theme'] ?? null;
+
+        return is_array($themes) ? array_values(array_filter($themes, is_string(...))) : Configuration::defaultFormThemes();
     }
 
     /**
@@ -106,6 +161,7 @@ final readonly class ProfileSettings
             loginSuccessRoute: $config['login_success_route'],
             registrationRateLimit: (int) ($config['registration_rate_limit'] ?? 5),
             registrationRateWindow: (int) ($config['registration_rate_window'] ?? 900),
+            webUi: $config['web_ui'] ?? [],
         );
     }
 }

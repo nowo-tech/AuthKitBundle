@@ -22,6 +22,15 @@ qr_login:
         waiting: En attente d’approbation…
         expires_label: Expire dans
         back_to_login: Retour à la connexion
+        intro: 'Scannez le code avec l’appareil photo de votre téléphone (connecté), ou saisissez le code sur celui-ci.'
+        continue: 'J’ai approuvé — continuer'
+        retry: 'Générer un nouveau code'
+        state:
+            pending: 'En attente d’approbation…'
+            approved: 'Approuvé — connexion en cours…'
+            denied: 'La connexion a été refusée sur le téléphone.'
+            expired: 'Ce code a expiré. Générez-en un nouveau.'
+            error: 'Impossible de vérifier l’état. Nouvelle tentative…'
     approve:
         title: Approuver la connexion
         heading: Approuver cette connexion ?

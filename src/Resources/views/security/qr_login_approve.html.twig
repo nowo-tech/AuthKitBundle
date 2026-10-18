@@ -1,36 +1,32 @@
-{% extends layout_template %}
+{#
+  QR sign-in approval on the phone (web_ui.templates.qr_login_approve) — @NowoUiKit/page/auth through
+  _auth_page.html.twig. Intro = the warning; nowo_ui_auth_fields renders the request details (approve_details:
+  list<View\DetailItem>, UiKit detail_list partial) then the approve form fields (hidden token, CSRF, the
+  SlideToConfirm control when slide_to_confirm.qr_login_approve is set); nowo_ui_auth_actions the Approve button
+  (absent with the slide, which submits the form); the footer the separate Deny form (POST to the deny route).
+#}
+{% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
 
-{% block title %}{{ 'qr_login.approve.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
-
-{% block auth_panel %}
-<section class="nowo-auth-kit__panel">
-    <h1>{{ 'qr_login.approve.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
-
-    <dl class="nowo-auth-kit__qr-approve-details">
-        <dt>{{ 'qr_login.approve.device_label'|trans({}, 'NowoAuthKitBundle') }}</dt>
-        <dd>{{ desktop_label }}</dd>
-
-        {% if phone_hint %}
-        <dt>{{ 'qr_login.approve.phone_label'|trans({}, 'NowoAuthKitBundle') }}</dt>
-        <dd>{{ phone_hint }}</dd>
-        {% endif %}
-    </dl>
-
-    <p class="nowo-auth-kit__qr-approve-warning">
-        {{ 'qr_login.approve.warning'|trans({}, 'NowoAuthKitBundle') }}
-    </p>
-
-    {% if approve_form is defined and approve_form %}
-        {% if nowo_auth_kit_form_themes is defined and nowo_auth_kit_form_themes is not empty %}
-            {% form_theme approve_form with nowo_auth_kit_form_themes %}
-        {% endif %}
-        {{ form_start(approve_form, {attr: {class: 'nowo-auth-kit__qr-approve-form'}}) }}
-            {{ form_widget(approve_form) }}
-        {{ form_end(approve_form) }}
+{% block nowo_ui_auth_fields %}
+    {{ form_errors(form) }}
+    {% if approve_details|default([]) is not empty %}
+        {{ include(nowo_ui_partial('detail_list', page.bundle), {items: approve_details, bundle: page.bundle}) }}
     {% endif %}
+    {% for child in form %}
+        {% if child.vars.name != 'submit' and not child.rendered %}
+            {{ form_row(child) }}
+        {% endif %}
+    {% endfor %}
+{% endblock %}
 
-    <form method="post" action="{{ path(deny_route, auth_kit_route_params({ id: challenge_id, t: approve_token })) }}">
-        <button type="submit" class="nowo-auth-kit__button nowo-auth-kit__button--secondary">{{ 'qr_login.approve.deny'|trans({}, 'NowoAuthKitBundle') }}</button>
+{% block nowo_ui_auth_actions %}
+    {% if form.submit is defined %}
+        {{ form_widget(form.submit, {attr: {class: nowo_ui_class('btn_primary', page.bundle)}}) }}
+    {% endif %}
+{% endblock %}
+
+{% block nowo_auth_kit_footer_before %}
+    <form method="post" action="{{ deny_url|default(null) ?: path(deny_route, {id: challenge_id, t: approve_token}) }}" class="nowo-auth-kit-qr-deny" data-nowo-auth-kit-region="deny">
+        <button type="submit" class="{{ nowo_ui_class('btn_danger', page.bundle) }}">{{ 'qr_login.approve.deny'|trans({}, 'NowoAuthKitBundle') }}</button>
     </form>
-</section>
 {% endblock %}

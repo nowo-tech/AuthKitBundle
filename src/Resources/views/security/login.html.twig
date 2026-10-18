@@ -1,87 +1,27 @@
-{% extends layout_template %}
+{#
+  Sign in (web_ui.templates.login) — @NowoUiKit/page/auth through _auth_page.html.twig. page (View\AuthPage): heading,
+  security error of the last attempt, the form_login form (fields in form order: identifier, password, remember me,
+  CSRF), submit, footer links (magic link, QR, forgot password, register). Social / SSO providers render in the
+  footer before the links (block nowo_auth_kit_providers; social_links / sso_links: list<View\Link>).
+#}
+{% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
 
-{% block title %}{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
-
-{% block auth_panel %}
-{% if nowo_auth_kit_form_themes is defined and nowo_auth_kit_form_themes is not empty %}
-{% form_theme login_form with nowo_auth_kit_form_themes %}
-{% else %}
-{% form_theme login_form '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig' %}
-{% endif %}
-<section class="nowo-auth-kit__panel">
-    {% block auth_panel_heading %}
-    <h1>{{ 'login.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+{% block nowo_auth_kit_footer_before %}
+    {% block nowo_auth_kit_providers %}
+        {% for _group in [
+            {region: 'social', heading: 'social.heading', links: social_links|default([])},
+            {region: 'sso', heading: 'sso.heading', links: sso_links|default([])},
+        ] %}
+            {% if _group.links is not empty %}
+                <div class="nowo-auth-kit-providers" data-nowo-auth-kit-region="{{ _group.region }}">
+                    <p class="{{ nowo_ui_class('muted', page.bundle) }} nowo-auth-kit-providers__heading">{{ _group.heading|trans({}, 'NowoAuthKitBundle') }}</p>
+                    <ul class="nowo-auth-kit-providers__list">
+                        {% for _link in _group.links %}
+                            <li><a class="{{ nowo_ui_class('btn_secondary', page.bundle) }}" href="{{ _link.href }}">{{ _link.label|nowo_ui_trans }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        {% endfor %}
     {% endblock %}
-
-    {% if error %}
-        <div class="nowo-auth-kit__alert nowo-auth-kit__alert--error" role="alert">
-            {{ error.messageKey|trans(error.messageData, 'security') }}
-        </div>
-    {% endif %}
-
-    {{ form_start(login_form) }}
-        {{ form_row(login_form._username) }}
-        {{ form_row(login_form._password) }}
-        {% if login_form._remember_me is defined %}
-            {{ form_row(login_form._remember_me) }}
-        {% endif %}
-        <button type="submit" class="{{ nowo_auth_kit_button_class|default('nowo-auth-kit__button') }}">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
-    {{ form_end(login_form) }}
-
-    {% set outbound_mail_ready = nowo_auth_kit_outbound_mail_ready() %}
-    {% set magic_login_link_enabled = outbound_mail_ready and magic_login_enabled|default(false) %}
-    {% set password_reset_link_enabled = outbound_mail_ready and password_reset_enabled|default(false) %}
-    {% set qr_login_link_enabled = qr_login_enabled|default(false) %}
-    {% if password_reset_link_enabled or registration_allowed|default(false) or magic_login_link_enabled or social_login_enabled|default(false) or qr_login_link_enabled %}
-    <p class="nowo-auth-kit__footer">
-        {% if magic_login_link_enabled %}
-            <a href="{{ path(magic_login_route, auth_kit_route_params()) }}">{{ 'login.magic_login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
-            {% if password_reset_link_enabled or registration_allowed|default(false) or social_login_enabled|default(false) or qr_login_link_enabled %} · {% endif %}
-        {% endif %}
-        {% if qr_login_link_enabled %}
-            <a href="{{ path(qr_login_start_route, auth_kit_route_params()) }}">{{ 'login.qr_login_link'|trans({}, 'NowoAuthKitBundle') }}</a>
-            {% if password_reset_link_enabled or registration_allowed|default(false) or social_login_enabled|default(false) %} · {% endif %}
-        {% endif %}
-        {% if password_reset_link_enabled %}
-            <a href="{{ path(reset_password_route, auth_kit_route_params()) }}">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
-            {% if registration_allowed|default(false) or social_login_enabled|default(false) %} · {% endif %}
-        {% endif %}
-        {% if registration_allowed|default(false) %}
-            <a href="{{ path(register_route, auth_kit_route_params()) }}">{{ 'login.register_link'|trans({}, 'NowoAuthKitBundle') }}</a>
-            {% if social_login_enabled|default(false) %} · {% endif %}
-        {% endif %}
-    </p>
-    {% endif %}
-
-    {% if social_login_enabled|default(false) and social_login_providers|default([]) is not empty %}
-    <div class="nowo-auth-kit__social">
-        <p class="nowo-auth-kit__social-heading">{{ 'social.heading'|trans({}, 'NowoAuthKitBundle') }}</p>
-        <ul class="nowo-auth-kit__social-list">
-            {% for provider in social_login_providers %}
-                <li>
-                    <a class="{{ nowo_auth_kit_secondary_button_class|default('nowo-auth-kit__social-button') }}" href="{{ path(social_login_route, auth_kit_route_params({ provider: provider.provider })) }}">
-                        {{ 'social.continue_with'|trans({'%provider%': provider.label}, 'NowoAuthKitBundle') }}
-                    </a>
-                </li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-
-    {% if sso_login_enabled|default(false) and sso_login_providers|default([]) is not empty %}
-    <div class="nowo-auth-kit__sso">
-        <p class="nowo-auth-kit__sso-heading">{{ 'sso.heading'|trans({}, 'NowoAuthKitBundle') }}</p>
-        <ul class="nowo-auth-kit__sso-list">
-            {% for provider in sso_login_providers %}
-                <li>
-                    <a class="{{ nowo_auth_kit_secondary_button_class|default('nowo-auth-kit__social-button') }}" href="{{ path(social_login_route, auth_kit_route_params({ provider: provider.provider })) }}">
-                        {{ 'sso.continue_with'|trans({'%provider%': provider.label}, 'NowoAuthKitBundle') }}
-                    </a>
-                </li>
-            {% endfor %}
-        </ul>
-    </div>
-    {% endif %}
-    {% block auth_footer_extra %}{% endblock %}
-</section>
 {% endblock %}

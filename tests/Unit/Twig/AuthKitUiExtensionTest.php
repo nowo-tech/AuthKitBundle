@@ -34,6 +34,7 @@ final class AuthKitUiExtensionTest extends TestCase
                 'nowo_auth_kit_device_intelligence_assets'           => false,
                 'nowo_auth_kit_device_intelligence_collect_endpoint' => '/_device/collect',
                 'nowo_auth_kit_otp_input_assets'                     => false,
+                'nowo_auth_kit_password_toggle_assets'               => true,
             ],
             $extension->getGlobals(),
         );
@@ -56,7 +57,7 @@ final class AuthKitUiExtensionTest extends TestCase
         });
 
         self::assertSame(
-            ['@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
+            ['@NowoUiKit/form/nowo_ui_layout.html.twig', '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
             $extension->getGlobals()['nowo_auth_kit_form_themes'],
         );
         self::assertFalse($extension->isOutboundMailReady());

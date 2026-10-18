@@ -1,0 +1,7 @@
+{#- Stylesheets of the auth pages (nowo_ui_styles): bundle CSS (UiKit tokens) and the optional widget bundles. -#}
+<link rel="stylesheet" href="{{ asset('css/nowo-auth-kit.css', 'nowo_auth_kit') }}">
+{% if nowo_auth_kit_password_toggle_assets|default(false) %}
+<link rel="stylesheet" href="{{ asset('bundles/nowopasswordtoggle/css/toggle_password.css') }}">
+{% endif %}
+{#- included only when enabled: the partial calls SlideToConfirm Twig functions (compiled on include) -#}
+{% if nowo_auth_kit_slide_to_confirm_assets|default(false) %}{{ include('@NowoAuthKitBundle/_slide_to_confirm_assets.html.twig', {part: 'styles'}) }}{% endif %}

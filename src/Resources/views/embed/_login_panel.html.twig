@@ -1,26 +1,26 @@
+{#- Login panel of the embedded widget (theme slots of NowoAuthKitBundle; form theme: form_theme option, else the AuthKit form themes). -#}
+{% set _b = 'NowoAuthKitBundle' %}
 {% if form_theme is defined and form_theme %}
     {% form_theme login_form form_theme %}
 {% else %}
-    {% form_theme login_form '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig' %}
+    {% form_theme login_form with nowo_auth_kit_form_themes|default(['@NowoUiKit/form/nowo_ui_layout.html.twig']) %}
 {% endif %}
 
 {% if error %}
-    <div class="alert alert-danger py-2 small mb-3" role="alert">
+    <div class="{{ nowo_ui_class('flash_error', _b) }}" role="alert"{{ nowo_ui_attrs('flash_error', _b) }}>
         {{ error.messageKey|trans(error.messageData, 'security') }}
     </div>
 {% endif %}
 
-{{ form_start(login_form, {attr: {class: 'nowo-auth-kit__embed-form vstack gap-2'}}) }}
-    {{ form_row(login_form._username, {row_attr: {class: 'mb-0'}}) }}
-    {{ form_row(login_form._password, {row_attr: {class: 'mb-0'}}) }}
-    {% if login_form._remember_me is defined %}
-        {{ form_row(login_form._remember_me, {row_attr: {class: 'mb-0'}}) }}
-    {% endif %}
-    <button type="submit" class="btn btn-primary w-100 mt-1">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
+{{ form_start(login_form, {attr: {class: (nowo_ui_class('form', _b) ~ ' nowo-auth-kit-embed__form')|trim}}) }}
+    {% for child in login_form %}
+        {% if not child.rendered %}{{ form_row(child) }}{% endif %}
+    {% endfor %}
+    <button type="submit" class="{{ nowo_ui_class('btn_primary', _b) }} nowo-auth-kit-embed__submit">{{ 'login.submit'|trans({}, 'NowoAuthKitBundle') }}</button>
 {{ form_end(login_form) }}
 
 {% if password_reset_enabled %}
-    <p class="small text-center mb-0 mt-2">
-        <a href="{{ path(reset_password_route, auth_kit_route_params()) }}" class="text-decoration-none">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
+    <p class="{{ nowo_ui_class('muted', _b) }} nowo-auth-kit-embed__links">
+        <a href="{{ path(reset_password_route, auth_kit_route_params()) }}">{{ 'login.forgot_password_link'|trans({}, 'NowoAuthKitBundle') }}</a>
     </p>
 {% endif %}

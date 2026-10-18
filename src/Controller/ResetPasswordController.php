@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,6 +35,7 @@ final class ResetPasswordController
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RequestProfileResolver $profileResolver,
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
+        private readonly AuthPageFactory $pages = new AuthPageFactory(),
     ) {
     }
 
@@ -86,11 +88,15 @@ final class ResetPasswordController
             ]);
         }
 
-        $content = $this->twig->render($profile->templates['reset_password'], [
-            'reset_password_form' => $form->createView(),
-            'login_route'         => $profile->routes['login']['name'],
-            'layout_template'     => $profile->templates['layout'],
+        $formView = $form->createView();
+        $page     = $this->pages->create('reset_password', $profile, $formView, [
+            $this->pages->link('reset.password.back_to_login', $this->urlGenerator->generate($profile->routes['login']['name'])),
         ]);
+
+        $content = $this->twig->render($profile->template('reset_password'), $this->pages->context('reset_password', $page, $profile, [
+            'reset_password_form' => $formView,
+            'login_route'         => $profile->routes['login']['name'],
+        ]));
 
         return new Response($content);
     }

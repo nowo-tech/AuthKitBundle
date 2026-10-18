@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
+use Nowo\AuthKitBundle\View\AuthPageFactory;
 use RuntimeException;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,6 +44,7 @@ final class RegisterController
         private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
         private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
+        private readonly AuthPageFactory $pages = new AuthPageFactory(),
     ) {
     }
 
@@ -120,15 +122,19 @@ final class RegisterController
             ]);
         }
 
-        $content = $this->twig->render($profile->templates['register'], [
-            'registration_form'     => $form->createView(),
+        $formView = $form->createView();
+        $page     = $this->pages->create('register', $profile, $formView, [
+            $this->pages->link('register.login_link', $this->urlGenerator->generate($profile->routes['login']['name'])),
+        ]);
+
+        $content = $this->twig->render($profile->template('register'), $this->pages->context('register', $page, $profile, [
+            'registration_form'     => $formView,
             'login_route'           => $profile->routes['login']['name'],
-            'layout_template'       => $profile->templates['layout'],
             'slide_to_confirm_mode' => $this->slideToConfirmTypeResolver->resolveRegistrationSlideMode(
                 $profile->registrationFields,
                 $profile->slideToConfirm,
             ),
-        ]);
+        ]));
 
         return new Response($content);
     }

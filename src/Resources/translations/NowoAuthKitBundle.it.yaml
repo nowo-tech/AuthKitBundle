@@ -22,6 +22,15 @@ qr_login:
         waiting: In attesa di approvazione…
         expires_label: Scade tra
         back_to_login: Torna all’accesso
+        intro: 'Scansiona il codice con la fotocamera del telefono (con l’accesso già effettuato) o inserisci lì il codice.'
+        continue: 'Ho approvato — continua'
+        retry: 'Genera un nuovo codice'
+        state:
+            pending: 'In attesa di approvazione…'
+            approved: 'Approvato — accesso in corso…'
+            denied: 'L’accesso è stato negato sul telefono.'
+            expired: 'Questo codice è scaduto. Generane uno nuovo.'
+            error: 'Impossibile verificare lo stato. Nuovo tentativo…'
     approve:
         title: Approva accesso
         heading: Approvare questo accesso?

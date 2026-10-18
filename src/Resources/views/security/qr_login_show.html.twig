@@ -1,37 +1,74 @@
-{% extends layout_template %}
+{#
+  QR challenge on the desktop (web_ui.templates.qr_login_show) — @NowoUiKit/page/auth through _auth_page.html.twig.
+  page.form is a field-less GET form to the start route (no-JS retry: "Generate a new code"); nowo_ui_auth_fields
+  renders the challenge, nowo_ui_auth_actions the Continue link (complete route, works without JS once approved) and
+  the retry button.
 
-{% block title %}{{ 'qr_login.show.title'|trans({}, 'NowoAuthKitBundle') }}{% endblock %}
+  Challenge root `[data-nowo-auth-kit-qr]` (state in data-nowo-auth-kit-qr-state: pending | approved | denied |
+  expired | error), URLs and timing as data attributes (1.x: data-status-url, data-complete-url, data-poll-interval,
+  data-expires-at), state texts as data-label-<state>, parts as [data-nowo-auth-kit-qr-region="image|code|status|
+  countdown|continue|retry"]. The bundled nowo-auth-kit-qr-login.js polls the status URL, updates the status text and
+  the countdown, redirects on approval and dispatches `nowo-auth-kit:qr-state`. With
+  web_ui.qr_login.stimulus_controller set (`qr_stimulus_controller`), the root also gets data-controller="<id>",
+  data-<id>-{status-url,complete-url,start-url,poll-interval,expires-at}-value and every part data-<id>-target, and
+  the bundled script is not loaded. Blocks: nowo_auth_kit_qr_attributes (extra root attributes),
+  nowo_auth_kit_qr_code, nowo_auth_kit_qr_status, nowo_auth_kit_qr_countdown, nowo_auth_kit_qr_continue,
+  nowo_auth_kit_qr_retry.
+#}
+{% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
 
-{% block auth_panel %}
-<section class="nowo-auth-kit__panel">
-    <h1>{{ 'qr_login.show.heading'|trans({}, 'NowoAuthKitBundle') }}</h1>
+{% set _qr_ctrl = qr_stimulus_controller|default(null) %}
 
-    <div class="nowo-auth-kit__qr-challenge" data-status-url="{{ path(status_route, auth_kit_route_params({ id: challenge_id })) }}" data-complete-url="{{ path(complete_route, auth_kit_route_params({ id: challenge_id })) }}" data-poll-interval="{{ poll_interval_ms }}" data-expires-at="{{ expires_at }}">
-        {% if qr_data_uri %}
-            <img class="nowo-auth-kit__qr-image" src="{{ qr_data_uri }}" alt="{{ 'qr_login.show.qr_alt'|trans({}, 'NowoAuthKitBundle') }}" width="200" height="200">
-        {% else %}
-            <p class="nowo-auth-kit__qr-url">
-                <a href="{{ qr_payload }}" rel="noopener">{{ 'qr_login.show.open_on_phone'|trans({}, 'NowoAuthKitBundle') }}</a>
+{% macro target(controller, name) %}{% if controller %} data-{{ controller }}-target="{{ name }}"{% endif %}{% endmacro %}
+
+{% block nowo_ui_auth_fields %}
+    {% set _b = page.bundle %}
+    {% set _left = expires_in|default(0) %}
+    <div class="nowo-auth-kit-qr" data-nowo-auth-kit-qr data-nowo-auth-kit-qr-state="pending"
+        data-status-url="{{ status_url }}" data-complete-url="{{ complete_url }}" data-start-url="{{ start_url }}"
+        data-poll-interval="{{ poll_interval_ms }}" data-expires-at="{{ expires_at }}"
+        {%- for _state in ['pending', 'approved', 'denied', 'expired', 'error'] %} data-label-{{ _state }}="{{ ('qr_login.show.state.' ~ _state)|trans({}, 'NowoAuthKitBundle') }}"{% endfor %}
+        {%- if _qr_ctrl %} data-controller="{{ _qr_ctrl }}" data-{{ _qr_ctrl }}-status-url-value="{{ status_url }}" data-{{ _qr_ctrl }}-complete-url-value="{{ complete_url }}" data-{{ _qr_ctrl }}-start-url-value="{{ start_url }}" data-{{ _qr_ctrl }}-poll-interval-value="{{ poll_interval_ms }}" data-{{ _qr_ctrl }}-expires-at-value="{{ expires_at }}"{% endif %}
+        {%- block nowo_auth_kit_qr_attributes %}{% endblock %}>
+        {% block nowo_auth_kit_qr_code %}
+            {% if qr_data_uri %}
+                <img class="nowo-auth-kit-qr__image" src="{{ qr_data_uri }}" alt="{{ 'qr_login.show.qr_alt'|trans({}, 'NowoAuthKitBundle') }}" width="200" height="200" data-nowo-auth-kit-qr-region="image"{{ _self.target(_qr_ctrl, 'image') }}>
+            {% else %}
+                <p class="nowo-auth-kit-qr__link" data-nowo-auth-kit-qr-region="image"{{ _self.target(_qr_ctrl, 'image') }}>
+                    <a href="{{ qr_payload }}" rel="noopener">{{ 'qr_login.show.open_on_phone'|trans({}, 'NowoAuthKitBundle') }}</a>
+                </p>
+            {% endif %}
+            <p class="nowo-auth-kit-qr__code">
+                <span class="{{ nowo_ui_class('muted', _b) }}">{{ 'qr_login.show.code_label'|trans({}, 'NowoAuthKitBundle') }}</span>
+                <code class="{{ nowo_ui_class('code', _b) }}" data-nowo-auth-kit-qr-region="code"{{ _self.target(_qr_ctrl, 'code') }}>{{ public_code }}</code>
             </p>
-        {% endif %}
-
-        <p class="nowo-auth-kit__qr-code">
-            {{ 'qr_login.show.code_label'|trans({}, 'NowoAuthKitBundle') }}
-            <strong>{{ public_code }}</strong>
-        </p>
-
-        <p class="nowo-auth-kit__qr-status" aria-live="polite">
-            {{ 'qr_login.show.waiting'|trans({}, 'NowoAuthKitBundle') }}
-        </p>
-
-        <p class="nowo-auth-kit__qr-expires">
-            {{ 'qr_login.show.expires_label'|trans({}, 'NowoAuthKitBundle') }}
-            <time datetime="{{ expires_at|date('c') }}"></time>
-        </p>
+        {% endblock %}
+        {% block nowo_auth_kit_qr_status %}
+            <p class="nowo-auth-kit-qr__status" role="status" aria-live="polite" data-nowo-auth-kit-qr-region="status"{{ _self.target(_qr_ctrl, 'status') }}>{{ 'qr_login.show.state.pending'|trans({}, 'NowoAuthKitBundle') }}</p>
+        {% endblock %}
+        {% block nowo_auth_kit_qr_countdown %}
+            <p class="nowo-auth-kit-qr__expires {{ nowo_ui_class('muted', _b) }}">
+                {{ 'qr_login.show.expires_label'|trans({}, 'NowoAuthKitBundle') }}
+                <time datetime="{{ expires_at|date('c') }}" data-nowo-auth-kit-qr-region="countdown"{{ _self.target(_qr_ctrl, 'countdown') }}>{{ (_left // 60) ~ ':' ~ ('%02d'|format(_left % 60)) }}</time>
+            </p>
+        {% endblock %}
     </div>
+    {{ parent() }}
+{% endblock %}
 
-    <p class="nowo-auth-kit__footer">
-        <a href="{{ path(login_route, auth_kit_route_params()) }}">{{ 'qr_login.show.back_to_login'|trans({}, 'NowoAuthKitBundle') }}</a>
-    </p>
-</section>
+{% block nowo_ui_auth_actions %}
+    {% block nowo_auth_kit_qr_continue %}
+        <a class="{{ nowo_ui_class('btn_primary', page.bundle) }}" href="{{ complete_url }}" data-nowo-auth-kit-qr-region="continue"{{ _self.target(_qr_ctrl, 'continue') }}>{{ 'qr_login.show.continue'|trans({}, 'NowoAuthKitBundle') }}</a>
+    {% endblock %}
+    {% block nowo_auth_kit_qr_retry %}
+        <button type="submit" class="{{ nowo_ui_class('btn_secondary', page.bundle) }}" data-nowo-auth-kit-qr-region="retry"{{ _self.target(_qr_ctrl, 'retry') }}>{{ page.submitLabel|nowo_ui_trans }}</button>
+    {% endblock %}
+{% endblock %}
+
+{% block nowo_ui_scripts %}
+    {{- parent() -}}
+    {% if not _qr_ctrl %}
+        {% set _csp_nonce = app is defined and app and app.request ? app.request.attributes.get('csp_nonce')|default('') : '' %}
+        <script src="{{ asset('js/nowo-auth-kit-qr-login.js', 'nowo_auth_kit') }}" defer{% if _csp_nonce %} nonce="{{ _csp_nonce }}"{% endif %}></script>
+    {% endif %}
 {% endblock %}

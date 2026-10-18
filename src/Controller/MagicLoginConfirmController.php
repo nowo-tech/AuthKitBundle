@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Form\MagicLoginConfirmType;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -41,6 +42,7 @@ final class MagicLoginConfirmController
         private readonly ?LoginLinkHandlerInterface $loginLinkHandler = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
+        private readonly AuthPageFactory $pages = new AuthPageFactory(),
     ) {
     }
 
@@ -60,7 +62,7 @@ final class MagicLoginConfirmController
             'action' => $this->urlGenerator->generate($profile->routes['magic_login_confirm']['name']),
         ]);
 
-        return $this->renderConfirm($profile->templates['magic_login_confirm'], $form->createView(), $profile, $params);
+        return $this->renderConfirm($profile->template('magic_login_confirm'), $form->createView(), $profile, $params);
     }
 
     public function confirm(Request $request): Response
@@ -87,7 +89,7 @@ final class MagicLoginConfirmController
 
         if (!$form->isSubmitted() || !$form->isValid()) {
             return $this->renderConfirm(
-                $profile->templates['magic_login_confirm'],
+                $profile->template('magic_login_confirm'),
                 $form->createView(),
                 $profile,
                 $params,
@@ -139,13 +141,17 @@ final class MagicLoginConfirmController
      */
     private function renderConfirm(string $template, FormView $formView, ProfileSettings $profile, array $params): Response
     {
-        $content = $this->twig->render($template, [
+        // data-turbo="false" on the panel (Turbo honours it on ancestors): the one-time link is posted as a full navigation.
+        $page = $this->pages->create('magic_login_confirm', $profile, $formView, [
+            $this->pages->link('magic_login.confirm.back_to_login', $this->urlGenerator->generate($profile->routes['login']['name'])),
+        ], attributes: ['data-turbo' => 'false']);
+
+        $content = $this->twig->render($template, $this->pages->context('magic_login_confirm', $page, $profile, [
             'magic_login_confirm_form' => $formView,
             'action'                   => $this->urlGenerator->generate($profile->routes['magic_login_confirm']['name']),
             'params'                   => $params,
             'login_route'              => $profile->routes['login']['name'],
-            'layout_template'          => $profile->templates['layout'],
-        ]);
+        ]));
 
         $response = new Response($content);
         $response->headers->set('Referrer-Policy', 'no-referrer');

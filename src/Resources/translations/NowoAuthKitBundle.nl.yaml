@@ -22,6 +22,15 @@ qr_login:
         waiting: Wachten op goedkeuring…
         expires_label: Verloopt over
         back_to_login: Terug naar inloggen
+        intro: 'Scan de code met de camera van je telefoon (daar ingelogd) of voer de code daar in.'
+        continue: 'Goedgekeurd — doorgaan'
+        retry: 'Nieuwe code maken'
+        state:
+            pending: 'Wachten op goedkeuring…'
+            approved: 'Goedgekeurd — je wordt ingelogd…'
+            denied: 'Inloggen is geweigerd op de telefoon.'
+            expired: 'Deze code is verlopen. Maak een nieuwe.'
+            error: 'Status kon niet worden gecontroleerd. Opnieuw proberen…'
     approve:
         title: Inloggen goedkeuren
         heading: Dit inloggen goedkeuren?

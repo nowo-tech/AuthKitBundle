@@ -1,50 +1,173 @@
-.nowo-auth-kit {
-  --nowo-auth-kit-primary: #2563eb;
-  --nowo-auth-kit-surface: #fff;
-  --nowo-auth-kit-text: #0f172a;
-  --nowo-auth-kit-muted: #64748b;
-  --nowo-auth-kit-border: #e2e8f0;
-  --nowo-auth-kit-danger: #b91c1c;
-  --nowo-auth-kit-radius: 0.5rem;
+/*
+ * AuthKit — layout of the bundle's own markup inside the UiKit auth scaffold (REQ-UI-003). Colours, radii and
+ * spacing come from the UiKit tokens (--nowo-ui-*); the panel, buttons, inputs, alerts and links are UiKit theme
+ * slots. Local asset, no CDN.
+ */
+
+/* Guest page: centre the auth panel (UiKit guest layout; host layouts keep their own frame). */
+.nowo-ui-page--guest [data-nowo-ui-page="auth"] {
+  width: min(28rem, 100%);
+  margin-inline: auto;
 }
 
-.nowo-auth-kit__panel {
-  background: var(--nowo-auth-kit-surface);
-  color: var(--nowo-auth-kit-text);
-  border: 1px solid var(--nowo-auth-kit-border);
-  border-radius: var(--nowo-auth-kit-radius);
-  padding: 1.25rem;
+/* Social / SSO providers (login footer) */
+.nowo-auth-kit-providers {
+  margin: 0 0 0.75rem;
 }
 
-.nowo-auth-kit__button,
-.nowo-auth-kit__social-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.nowo-auth-kit-providers__heading {
+  margin: 0 0 0.5rem;
+}
+
+.nowo-auth-kit-providers__list {
+  display: grid;
   gap: 0.5rem;
-  border-radius: var(--nowo-auth-kit-radius);
-  padding: 0.75rem 1rem;
-  border: 1px solid transparent;
-  text-decoration: none;
-  font: inherit;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nowo-auth-kit-providers__list a {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* QR challenge (desktop) */
+.nowo-auth-kit-qr {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  text-align: center;
+}
+
+.nowo-auth-kit-qr p {
+  margin: 0;
+}
+
+.nowo-auth-kit-qr__image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  padding: 0.5rem;
+  border: var(--nowo-ui-border-width, 1px) solid var(--nowo-ui-border, #e2e8f0);
+  border-radius: var(--nowo-ui-radius, 0.5rem);
+  background: #fff;
+  transition: opacity 0.2s ease;
+}
+
+.nowo-auth-kit-qr__code {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.nowo-auth-kit-qr__code code {
+  font-size: 1.25rem;
+  letter-spacing: 0.15em;
+}
+
+.nowo-auth-kit-qr__status {
+  font-weight: 600;
+}
+
+.nowo-auth-kit-qr[data-nowo-auth-kit-qr-state="approved"] .nowo-auth-kit-qr__status {
+  color: var(--nowo-ui-success-text, #166534);
+}
+
+.nowo-auth-kit-qr[data-nowo-auth-kit-qr-state="denied"] .nowo-auth-kit-qr__status,
+.nowo-auth-kit-qr[data-nowo-auth-kit-qr-state="expired"] .nowo-auth-kit-qr__status,
+.nowo-auth-kit-qr[data-nowo-auth-kit-qr-state="error"] .nowo-auth-kit-qr__status {
+  color: var(--nowo-ui-danger-text, #b91c1c);
+}
+
+.nowo-auth-kit-qr[data-nowo-auth-kit-qr-state="denied"] .nowo-auth-kit-qr__image,
+.nowo-auth-kit-qr[data-nowo-auth-kit-qr-state="expired"] .nowo-auth-kit-qr__image {
+  opacity: 0.25;
+}
+
+.nowo-auth-kit-qr__expires time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* QR approve (phone): Deny form in the footer */
+.nowo-auth-kit-qr-deny {
+  margin: 0 0 0.75rem;
+}
+
+/* Embedded widget (auth_kit_dropdown()) */
+.nowo-auth-kit-embed {
+  position: relative;
+  display: inline-block;
+}
+
+.nowo-auth-kit-embed__toggle {
+  list-style: none;
   cursor: pointer;
 }
 
-.nowo-auth-kit__button {
-  background: var(--nowo-auth-kit-primary);
-  color: #fff;
+.nowo-auth-kit-embed__toggle::-webkit-details-marker {
+  display: none;
 }
 
-.nowo-auth-kit__social-button {
-  background: var(--nowo-auth-kit-surface);
-  color: var(--nowo-auth-kit-text);
-  border-color: var(--nowo-auth-kit-border);
+.nowo-auth-kit-embed__toggle::after {
+  content: "";
+  display: inline-block;
+  margin-left: 0.4em;
+  border-top: 0.3em solid currentColor;
+  border-right: 0.3em solid transparent;
+  border-left: 0.3em solid transparent;
+  vertical-align: 0.15em;
 }
 
-.nowo-auth-kit__footer {
-  color: var(--nowo-auth-kit-muted);
+.nowo-auth-kit-embed__menu {
+  position: absolute;
+  z-index: 1000;
+  inset-inline-end: 0;
+  top: calc(100% + 0.25rem);
+  width: min(20rem, calc(100vw - 2rem));
+  padding: 1rem;
+  border: var(--nowo-ui-border-width, 1px) solid var(--nowo-ui-border, #e2e8f0);
+  border-radius: var(--nowo-ui-radius, 0.5rem);
+  background: var(--nowo-ui-surface, #fff);
+  color: var(--nowo-ui-text, #0f172a);
+  box-shadow: 0 0.5rem 1.5rem rgb(15 23 42 / 0.15);
 }
 
-.nowo-auth-kit__alert--error {
-  color: var(--nowo-auth-kit-danger);
+.nowo-auth-kit-embed--authenticated .nowo-auth-kit-embed__menu {
+  width: auto;
+  min-width: 10rem;
+  padding: 0.5rem 0;
+}
+
+.nowo-auth-kit-embed__item {
+  display: block;
+  padding: 0.375rem 1rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.nowo-auth-kit-embed__item:hover,
+.nowo-auth-kit-embed__item:focus-visible {
+  background: var(--nowo-ui-surface-muted, #f1f5f9);
+}
+
+.nowo-auth-kit-embed__panel[hidden] {
+  display: none;
+}
+
+.nowo-auth-kit-embed__form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.nowo-auth-kit-embed__submit {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.nowo-auth-kit-embed__links {
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-size: 0.875rem;
 }

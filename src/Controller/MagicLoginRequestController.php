@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginRequestHandler;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,6 +32,7 @@ final class MagicLoginRequestController
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RequestProfileResolver $profileResolver,
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
+        private readonly AuthPageFactory $pages = new AuthPageFactory(),
     ) {
     }
 
@@ -72,11 +74,15 @@ final class MagicLoginRequestController
             ]);
         }
 
-        $content = $this->twig->render($profile->templates['magic_login_request'], [
-            'magic_login_form' => $form->createView(),
-            'login_route'      => $profile->routes['login']['name'],
-            'layout_template'  => $profile->templates['layout'],
+        $formView = $form->createView();
+        $page     = $this->pages->create('magic_login_request', $profile, $formView, [
+            $this->pages->link('magic_login.request.back_to_login', $this->urlGenerator->generate($profile->routes['login']['name'])),
         ]);
+
+        $content = $this->twig->render($profile->template('magic_login_request'), $this->pages->context('magic_login_request', $page, $profile, [
+            'magic_login_form' => $formView,
+            'login_route'      => $profile->routes['login']['name'],
+        ]));
 
         return new Response($content);
     }

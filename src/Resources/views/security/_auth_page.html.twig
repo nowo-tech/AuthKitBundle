@@ -1,0 +1,48 @@
+{#
+  Base of every AuthKit auth page (REQ-UI-003 page contract): extends the UiKit auth scaffold, which renders on the
+  guest layout (page.layout = web_ui.layout_template; null = nowo_ui_kit.layouts.guest). The controller passes
+  `page` (View\AuthPage: title, intro, brand, error, form, submit label, footer links), `document_title` and
+  `form_themes` (web_ui.form_themes), plus the 1.x page variables.
+
+  Data blocks (UiKit): nowo_ui_auth_fields (here: form_errors(form), then the UiKit child loop), nowo_ui_auth_actions,
+  nowo_ui_auth_footer.
+  AuthKit blocks: nowo_auth_kit_footer_before (inside the footer, before page.links), auth_footer_extra (1.x: after
+  page.links). Assets of the optional widgets (PasswordToggle, SlideToConfirm, Device Intelligence, OTP input) are
+  stacked on nowo_ui_styles / nowo_ui_scripts (CSP nonce on every script).
+#}
+{% extends '@NowoUiKit/page/auth.html.twig' %}
+
+{% block nowo_ui_document_title %}{{ document_title|default(page.title)|nowo_ui_trans }}{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{- parent() -}}
+    {{ include('@NowoAuthKitBundle/_auth_kit_styles.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_scripts %}
+    {{- parent() -}}
+    {{ include('@NowoAuthKitBundle/_auth_kit_scripts.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_content %}
+    {% if page.form and form_themes|default([]) is not empty %}
+        {% form_theme page.form with form_themes %}
+    {% endif %}
+    {{ parent() }}
+{% endblock %}
+
+{#- Form-level errors (invalid CSRF token, errors bubbled to the root) before the fields: the UiKit auth scaffold
+    only renders the child rows. -#}
+{% block nowo_ui_auth_fields %}
+    {{ form_errors(form) }}
+    {{ parent() }}
+{% endblock %}
+
+{% block nowo_ui_auth_footer %}
+    {% block nowo_auth_kit_footer_before %}{% endblock %}
+    {{ parent() }}
+    {% block auth_footer_extra %}{% endblock %}
+{% endblock %}
+
+{#- 1.x host layouts (web_ui.layout_template) render auth_panel instead of the UiKit canonical blocks. -#}
+{% block auth_panel %}{{ block('nowo_ui_content') }}{% endblock %}

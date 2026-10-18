@@ -1,0 +1,22 @@
+# AuthKit form constraint messages (validators domain: the validator translates violation messages there).
+# Keep in sync with NowoAuthKitBundle.de.yaml.
+register:
+    password:
+        mismatch: 'Die Passwörter müssen übereinstimmen.'
+        required: 'Bitte geben Sie ein Passwort ein.'
+        min_length: 'Ihr Passwort muss mindestens {{ limit }} Zeichen lang sein.'
+reset:
+    request:
+        identifier_required: 'Bitte geben Sie Ihren Identifikator ein.'
+    password:
+        mismatch: 'Die Passwörter müssen übereinstimmen.'
+        required: 'Bitte geben Sie ein Passwort ein.'
+        min_length: 'Ihr Passwort muss mindestens {{ limit }} Zeichen lang sein.'
+    code:
+        identifier_required: 'Bitte geben Sie Ihren Identifikator ein.'
+        code_required: 'Bitte geben Sie den Code ein.'
+        code_length: 'Der Code muss genau {{ limit }} Zeichen lang sein.'
+        flash_invalid: 'Der Code ist ungültig oder abgelaufen.'
+magic_login:
+    request:
+        identifier_required: 'Bitte Identifier eingeben.'

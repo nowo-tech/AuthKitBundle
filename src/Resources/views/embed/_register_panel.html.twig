@@ -1,12 +1,14 @@
+{#- Registration panel of the embedded widget (theme slots of NowoAuthKitBundle). -#}
+{% set _b = 'NowoAuthKitBundle' %}
 {% if form_theme is defined and form_theme %}
     {% form_theme registration_form form_theme %}
 {% else %}
-    {% form_theme registration_form '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig' %}
+    {% form_theme registration_form with nowo_auth_kit_form_themes|default(['@NowoUiKit/form/nowo_ui_layout.html.twig']) %}
 {% endif %}
 
-{{ form_start(registration_form, {attr: {class: 'nowo-auth-kit__embed-form vstack gap-2'}}) }}
+{{ form_start(registration_form, {attr: {class: (nowo_ui_class('form', _b) ~ ' nowo-auth-kit-embed__form')|trim}}) }}
     {% for field in registration_form %}
-        {{ form_row(field, {row_attr: {class: 'mb-0'}}) }}
+        {% if not field.rendered %}{{ form_row(field) }}{% endif %}
     {% endfor %}
-    {{ include('@NowoAuthKitBundle/_registration_submit.html.twig', {button_class: 'btn btn-primary w-100 mt-1'}) }}
+    {{ include('@NowoAuthKitBundle/_registration_submit.html.twig', {button_class: nowo_ui_class('btn_primary', _b) ~ ' nowo-auth-kit-embed__submit'}) }}
 {{ form_end(registration_form) }}
