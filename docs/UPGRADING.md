@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.27.2](#to-1272)
 - [To 1.27.1](#to-1271)
 - [To 1.27.0](#to-1270)
   - [Template contract (1.27)](#template-contract-127)
@@ -83,6 +84,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.27.2
+
+From **1.27.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 - **Per-page overrides**: extend the bundle original with `{% extends '@!NowoAuthKit/security/<page>.html.twig' %}`.
   The `@!NowoAuthKitBundle` namespace shown in earlier docs is not registered; replace it if you copied it.

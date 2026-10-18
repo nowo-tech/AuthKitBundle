@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.27.2] - 2026-10-18](#1272---2026-10-18)
 - [[1.27.1] - 2026-10-18](#1271---2026-10-18)
 - [[1.27.0] - 2026-10-18](#1270---2026-10-18)
 - [[1.26.0] - 2026-10-15](#1260---2026-10-15)
@@ -77,6 +78,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.2] - 2026-10-18
+
+QR login Stimulus targets resolved, approve link always shown, reset request links the code page, override namespace fixed in the docs. See [UPGRADING](UPGRADING.md#to-1272).
+
 ### Fixed
 
 - **Override namespace in the docs**: `docs/TEMPLATES.md`, `USAGE.md`, `CONFIGURATION.md`, `UPGRADING.md`, the README
@@ -96,6 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **QR approve link always offered**: "Open approve link on your phone" was rendered only without a QR image. It is
   now also rendered next to the image (`[data-nowo-auth-kit-qr-region="link"]`, Stimulus target `link`) for the
   same-device flow and screen readers; without an image it stays the `image` region as before.
+
+[1.27.2]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.27.2
 
 ## [1.27.1] - 2026-10-18
 
