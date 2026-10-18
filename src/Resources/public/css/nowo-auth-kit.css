@@ -10,6 +10,39 @@
   margin-inline: auto;
 }
 
+/* Auth forms: full-width fields (UiKit caps .nowo-ui-input at 20rem for admin forms) and quiet field errors. */
+[data-nowo-ui-page="auth"] [data-nowo-ui-region="form"] .nowo-ui-input {
+  width: 100%;
+  max-width: none;
+}
+
+[data-nowo-ui-page="auth"] [data-nowo-ui-region="form"] .form-password-toggle {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+[data-nowo-ui-page="auth"] [data-nowo-ui-region="form"] .form-password-toggle > .nowo-ui-input {
+  flex: 1 1 auto;
+  width: 1%;
+  min-width: 0;
+}
+
+[data-nowo-ui-page="auth"] [data-nowo-ui-region="form"] label + ul,
+[data-nowo-ui-page="auth"] [data-nowo-ui-region="form"] > ul {
+  margin: 0.25rem 0;
+  padding: 0;
+  list-style: none;
+  color: var(--nowo-ui-danger-text, #b91c1c);
+  font-size: 0.875rem;
+}
+
+/* Footer links: no list indent under hosts whose CSS reset is unlayered (e.g. Bootstrap reboot). */
+[data-nowo-ui-page="auth"] .nowo-ui-auth-panel__links {
+  margin-bottom: 0;
+  padding-left: 0;
+}
+
 /* Social / SSO providers (login footer) */
 .nowo-auth-kit-providers {
   margin: 0 0 0.75rem;
@@ -63,6 +96,7 @@
 }
 
 .nowo-auth-kit-qr__code code {
+  color: var(--nowo-ui-text, inherit);
   font-size: 1.25rem;
   letter-spacing: 0.15em;
 }

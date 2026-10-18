@@ -3,9 +3,12 @@
 ## Table of contents
 
 - [Twig template overrides (REQ-TWIG-001)](#twig-template-overrides-req-twig-001)
+  - [Theme once, do not fork pages](#theme-once-do-not-fork-pages)
   - [Override in the application](#override-in-the-application)
   - [Available variables](#available-variables)
   - [Custom layout](#custom-layout)
+  - [Bootstrap 5 and password toggle (demo reference)](#bootstrap-5-and-password-toggle-demo-reference)
+  - [Password field type without password-toggle bundle](#password-field-type-without-password-toggle-bundle)
 - [Translation overrides (REQ-I18N-001)](#translation-overrides-req-i18n-001)
   - [Override in the application](#override-in-the-application-1)
 - [Registration flow](#registration-flow)
@@ -16,137 +19,97 @@
 
 ## Twig template overrides (REQ-TWIG-001)
 
-Bundle templates use the `@NowoAuthKitBundle` namespace.
+Bundle templates use the `@NowoAuthKitBundle` namespace. Since 1.27 every auth page is the **UiKit auth scaffold**
+(`@NowoUiKit/page/auth.html.twig`, REQ-UI-003) on the host's guest layout — see [TEMPLATES.md](TEMPLATES.md) for the
+pages, data blocks and view-model fields.
+
+### Theme once, do not fork pages
+
+1. Point `nowo_ui_kit.layouts.guest` at your guest layout (or a one-file bridge over your base layout that renders the
+   UiKit canonical blocks; the demo's `templates/layouts/guest.html.twig`).
+2. Theme `nowo_ui_kit.theme` (tokens + class map); per-bundle exceptions in `theme.bundles.NowoAuthKitBundle`.
+3. Optionally override `templates/bundles/NowoUiKitBundle/page/auth.html.twig` once for every auth page of every bundle.
 
 ### Override in the application
 
-Create files under:
-
-```
-templates/bundles/NowoAuthKitBundle/
-├── layout.html.twig
-├── _slide_to_confirm_assets.html.twig
-├── _device_intelligence_assets.html.twig
-├── _otp_input_assets.html.twig
-├── _registration_submit.html.twig
-└── security/
-    ├── login.html.twig
-    └── register.html.twig
-```
-
-Symfony resolves app overrides before bundle defaults.
-
-### Available variables
-
-**Login** (`security/login.html.twig`):
-
-| Variable | Description |
-|----------|-------------|
-| `login_form` | Login form view |
-| `error` | Last authentication error |
-| `register_route` | Route name for registration link |
-| `registration_allowed` | Whether self-registration is currently allowed (`registration_mode` + user count) |
-| `reset_password_route` | Route name for password reset request |
-| `password_reset_enabled` | Whether password reset flows are enabled |
-| `magic_login_route` | Route name for passwordless magic login request |
-| `magic_login_enabled` | Whether magic login is enabled |
-| `layout_template` | Parent layout template |
-
-**Shared full-page globals**:
-
-| Variable / function | Description |
-|---------------------|-------------|
-| `nowo_auth_kit_form_themes` | Default form theme list from profile `templates.form_theme` |
-| `nowo_auth_kit_button_class` | Default submit button class from profile `css.button_class` |
-| `nowo_auth_kit_secondary_button_class` | Default social button class from profile `css.secondary_button_class` |
-| `nowo_auth_kit_outbound_mail_ready()` | Returns whether outbound email-dependent UI should be shown |
-| `nowo_auth_kit_slide_to_confirm_assets` / `nowo_auth_kit_slide_to_confirm_assets()` | True when slide-to-confirm assets should be loaded |
-| `nowo_auth_kit_device_intelligence_assets` / `nowo_auth_kit_device_intelligence_assets()` | True when Device Intelligence collect JS should be loaded |
-| `nowo_auth_kit_device_intelligence_collect_endpoint` | POST path for `collect()` (default `/_device/collect`) |
-| `nowo_auth_kit_otp_input_assets` / `nowo_auth_kit_otp_input_assets()` | True when OTP Input JS should be loaded |
-
-**Register** (`security/register.html.twig`):
-
-| Variable | Description |
-|----------|-------------|
-| `registration_form` | Registration form view |
-| `login_route` | Route name for login link |
-| `layout_template` | Parent layout |
-| `slide_to_confirm_mode` | SlideToConfirm profile name when registration consent uses a slider (`gate`, `legal`, …), otherwise unset/null |
-
-### Custom layout
-
-Extend your app layout in an override:
+For a genuinely AuthKit-specific need, point `web_ui.templates.<page>` at a thin template that extends the shipped
+one with `@!` and overrides a data block:
 
 ```twig
-{# templates/bundles/NowoAuthKitBundle/security/login.html.twig #}
-{% extends 'base.html.twig' %}
+{# templates/auth/login.html.twig #}
+{% extends '@!NowoAuthKitBundle/security/login.html.twig' %}
 
-{% block body %}
-    {{ include('@NowoAuthKitBundle/security/_login_form.html.twig', { login_form: login_form }) }}
+{% block auth_footer_extra %}
+    <p class="{{ nowo_ui_class('muted', page.bundle) }}"><a href="{{ path('app_help') }}">Need help?</a></p>
 {% endblock %}
 ```
-
-Or set `nowo_auth_kit.templates.layout` to your layout and override only the inner templates.
-
-For shared branding without forking every page, the bundle layout now exposes:
-
-- `auth_brand` before the panel
-- `auth_panel` for the page-specific content
-- `auth_panel_heading` inside each security template heading
-- `auth_footer_extra` after the default footer/social links
-
-Example:
-
-```twig
-{# templates/bundles/NowoAuthKitBundle/layout.html.twig #}
-{% extends 'base.html.twig' %}
-
-{% block body %}
-    <aside class="marketing-column">
-        {% block auth_brand %}
-            <h2>Acme Cloud</h2>
-            <p>Secure access for your workspace.</p>
-        {% endblock %}
-
-        {% block auth_panel %}{% endblock %}
-    </aside>
-{% endblock %}
-```
-
-### Bootstrap 5 and password toggle (demo reference)
-
-The demo under `demo/symfony8` shows a full override with Bootstrap 5:
-
-1. Copy or adapt `templates/bundles/NowoAuthKitBundle/` (layout, login, register).
-2. Use a single combined form theme:
-
-   ```twig
-   {# templates/form/auth_kit_theme.html.twig #}
-   {% use "bootstrap_5_layout.html.twig" %}
-   {% use "@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig" %}
-
-   {% block toggle_password_widget %}
-       {% set attr = attr|merge({class: (attr.class|default('') ~ ' form-control')|trim}) %}
-       {{ parent() }}
-   {% endblock %}
-   ```
-
-3. In login/register overrides: `{% form_theme login_form 'form/auth_kit_theme.html.twig' %}`.
-
-You can also configure the bundle-wide defaults instead of repeating the theme in every page override:
 
 ```yaml
 nowo_auth_kit:
     profiles:
         default:
-            templates:
-                form_theme:
-                    - 'bootstrap_5_layout.html.twig'
-                    - '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'
+            web_ui:
+                templates:
+                    login: 'auth/login.html.twig'
 ```
 
-See `demo/README.md` for locale switching and template paths.
+Files under `templates/bundles/NowoAuthKitBundle/` still take precedence (REQ-TWIG-001), but full page copies are
+discouraged: they stop receiving fixes (e.g. the 1.27 field-order fix of the reset pages).
+
+### Available variables
+
+Every page: `page` (`AuthPage`), `document_title`, `form_themes`, `auth_kit_page`, plus the 1.x variables below
+(`layout_template` is the deprecated bridge layout unless `web_ui.layout_template` is set).
+
+**Login** (`security/login.html.twig`):
+
+| Variable | Description |
+|----------|-------------|
+| `login_form` | Login form view (also `page.form`) |
+| `error` | Last authentication error (also `page.error`, a `security`-domain label) |
+| `register_route` / `registration_allowed` | Registration link route / whether self-registration is allowed |
+| `reset_password_route` / `password_reset_enabled` | Password reset request route / flag |
+| `magic_login_route` / `magic_login_enabled` | Magic login request route / flag |
+| `qr_login_start_route` / `qr_login_enabled` | QR start route / flag |
+| `social_login_providers` / `sso_login_providers` | Enabled credentials; rendered from `social_links` / `sso_links` (`View\Link`) |
+
+**Register** (`security/register.html.twig`): `registration_form`, `login_route`, `slide_to_confirm_mode`
+(SlideToConfirm profile when registration consent uses a slider, otherwise null).
+
+**Shared full-page globals**:
+
+| Variable / function | Description |
+|---------------------|-------------|
+| `nowo_auth_kit_form_themes` | Form themes of the default profile (`web_ui.form_themes`) |
+| `nowo_auth_kit_button_class` / `nowo_auth_kit_secondary_button_class` | Deprecated (1.27) with `css.*` |
+| `nowo_auth_kit_outbound_mail_ready()` | Whether outbound email-dependent UI should be shown |
+| `nowo_auth_kit_slide_to_confirm_assets` / `nowo_auth_kit_device_intelligence_assets` / `nowo_auth_kit_otp_input_assets` / `nowo_auth_kit_password_toggle_assets` | Which widget assets the pages load |
+| `nowo_auth_kit_device_intelligence_collect_endpoint` | POST path for `collect()` (default `/_device/collect`) |
+
+### Custom layout
+
+Per profile, `web_ui.layout_template` overrides `nowo_ui_kit.layouts.guest` (for example an admin profile with its
+own frame). The layout must render the UiKit canonical blocks. `@NowoAuthKitBundle/layout.html.twig` is deprecated
+(a bridge to the UiKit guest layout kept for 1.x page templates).
+
+### Bootstrap 5 and password toggle (demo reference)
+
+The demo under `demo/symfony8` themes the pages without template overrides: `nowo_ui_kit.css_framework: bootstrap5`,
+`nowo_ui_kit.layouts.guest: layouts/guest.html.twig` (navbar + delivery inbox around the canonical blocks), and the
+default AuthKit form themes (UiKit form theme + `@NowoAuthKitBundle/form/password_toggle_widget.html.twig`, the
+PasswordToggle widget on the UiKit `input` slot). To keep Symfony's Bootstrap form layout instead:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            web_ui:
+                form_themes:
+                    - 'bootstrap_5_layout.html.twig'
+                    - '@NowoAuthKitBundle/form/password_toggle_widget.html.twig'
+```
+
+See `demo/README.md` for locale switching and the demo layout.
 
 ### Password field type without password-toggle bundle
 
@@ -210,9 +173,16 @@ When `mode` is `disabled`, `auth_kit_dropdown()` returns an empty string.
 ### Render in Twig
 
 ```twig
-{# optional form_theme for Bootstrap or password toggle #}
+{{ auth_kit_dropdown() }}
+{# optional: a form theme of your own instead of nowo_auth_kit_form_themes #}
 {{ auth_kit_dropdown({form_theme: 'form/auth_kit_theme.html.twig'}) }}
 ```
+
+The widget is a native `<details>` disclosure painted with UiKit theme slots (`btn_secondary` toggle, `tabs` /
+`tab` / `tab_active`, `flash_error`, `btn_primary`) and `nowo-auth-kit.css` (`nowo-auth-kit-embed*`); no Bootstrap
+dropdown JavaScript. Load on the host pages that show it: `nowo-ui.css`, `{{ asset('css/nowo-auth-kit.css',
+'nowo_auth_kit') }}` and the UiKit scripts partial (`{{ include(nowo_ui_partial('scripts')) }}`, tab switching between
+login and register).
 
 Forms POST to the same routes as full-page login/register (`form_login` on the firewall). After a failed login, Symfony redirects to the login page by default.
 

@@ -66,7 +66,7 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertIsArray($css);
         self::assertSame('disabled', $embed['mode']);
         self::assertSame(
-            ['@NowoUiKit/form/nowo_ui_layout.html.twig', '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
+            ['@NowoUiKit/form/nowo_ui_layout.html.twig', '@NowoAuthKitBundle/form/password_toggle_widget.html.twig'],
             $templates['form_theme'],
         );
         self::assertSame('nowo-auth-kit__button', $css['button_class']);

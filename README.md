@@ -11,6 +11,23 @@ Works alongside Symfony Security — `security.yaml` remains required and is doc
 
 This bundle is **FrankenPHP worker mode friendly** (including when the kernel is **not** reset between requests — see [FRANKENPHP-WORKER-AUDIT.md](docs/FRANKENPHP-WORKER-AUDIT.md)).
 
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/images/demo/login.webp" alt="AuthKit sign-in page in the demo: UiKit auth panel on the host guest layout (demo navbar with locale switcher), email and password with visibility toggle, Sign in button, footer links to magic link, QR phone sign-in and password reset, Symfony profiler toolbar" />
+      <br /><sub>Sign in — UiKit auth scaffold on the host's guest layout</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/images/demo/reset-password-error.webp" alt="AuthKit new-password page after a mismatched submit: 'The password fields must match.' under New password, the confirmation field before the Update password button, Back to sign in link, Symfony profiler toolbar" />
+      <br /><sub>Password reset — validation error, confirmation before the submit</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/images/demo/qr-login.webp" alt="AuthKit QR phone sign-in: QR code, short code to type on the phone, live status 'Waiting for approval…', countdown, Continue and Generate a new code buttons, Symfony profiler toolbar" />
+      <br /><sub>QR phone sign-in — live status and countdown (Stimulus-friendly)</sub>
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 - Login page compatible with Symfony `form_login`
@@ -34,7 +51,8 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 - **Translated flash messages** — AuthKit flashes are stored as text (any host flash template works) plus a `flash_trans` Twig filter with a configurable domain chain
 - **Named profiles** — separate auth config per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
-- Twig overrides via `templates/bundles/NowoAuthKitBundle/`
+- **UiKit page contract** (REQ-UI-003): every auth page is the UiKit auth scaffold on your guest layout — theme it once in `nowo_ui_kit`, no page overrides ([TEMPLATES.md](docs/TEMPLATES.md))
+- Per-page template overrides via `web_ui.templates.<page>` (thin `{% extends '@!NowoAuthKitBundle/…' %}` + data block)
 - Translation domain `NowoAuthKitBundle` with app overrides (`de`, `en`, `es`, `fr`, `it`, `nl`, `pt`)
 
 ## Installation
@@ -67,16 +85,7 @@ php bin/console nowo:auth-kit:configure-security
 make -C demo up-symfony8   # Symfony 8.1 — http://localhost:8010
 ```
 
-Register the first user, then try password login, **password reset**, **magic login**, and **dual locale URLs** (`/en/login` and bare `/login` → redirect). The demo includes **Bootstrap 5** UI overrides, embed dropdown, a session **delivery inbox** (no mailer), and FrankenPHP (Docker).
-
-### Screenshots
-
-<p align="center">
-  <img src="docs/assets/demo-welcome.webp" width="280" alt="Welcome page with locale switcher and Account dropdown" />
-  <img src="docs/assets/demo-login.webp" width="280" alt="Full-page login at /en/login" />
-  <img src="docs/assets/demo-embed-dropdown.webp" width="280" alt="Embedded sign-in in navbar dropdown" />
-</p>
-<p align="center"><sub>Welcome · Login · <code>auth_kit_dropdown()</code></sub></p>
+Register the first user, then try password login, **password reset**, **magic login**, **QR phone sign-in** and **dual locale URLs** (`/en/login` and bare `/login` → redirect). The demo host renders the auth pages through its UiKit guest layout (`templates/layouts/guest.html.twig`, Bootstrap 5 theme), with the navbar `auth_kit_dropdown()`, a session **delivery inbox** (no mailer) and FrankenPHP (Docker); it has no AuthKit template overrides. Screenshots: see the top of this README (`make -C demo/symfony8 demo-screenshots`).
 
 See [demo/README.md](demo/README.md) for template override paths and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup (including **worker mode** for production).
 
@@ -94,6 +103,7 @@ make release-check
 - [Configuration](docs/CONFIGURATION.md)
 - [PSR evaluation (REQ-CS-007)](docs/PSR.md)
 - [Usage](docs/USAGE.md)
+- [Templates (UiKit page contract)](docs/TEMPLATES.md)
 - [Contributing](docs/CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](docs/CHANGELOG.md)

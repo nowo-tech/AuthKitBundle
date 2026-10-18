@@ -57,7 +57,7 @@ final class AuthKitUiExtensionTest extends TestCase
         });
 
         self::assertSame(
-            ['@NowoUiKit/form/nowo_ui_layout.html.twig', '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'],
+            ['@NowoUiKit/form/nowo_ui_layout.html.twig', '@NowoAuthKitBundle/form/password_toggle_widget.html.twig'],
             $extension->getGlobals()['nowo_auth_kit_form_themes'],
         );
         self::assertFalse($extension->isOutboundMailReady());

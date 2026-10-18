@@ -29,7 +29,7 @@ help:
 	@echo "  update-deps    composer update in demo (REQ-MAKE-008)"
 	@echo "  release-check  update-bundle + HTTP healthcheck"
 	@echo "  test-e2e       Playwright e2e (Docker image)"
-	@echo "  demo-screenshots  Recapture README screenshots (docs/assets/*.webp)"
+	@echo "  demo-screenshots  Recapture README screenshots (docs/images/demo/*.webp)"
 
 ensure-env:
 	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example")
@@ -113,14 +113,14 @@ test-e2e: ensure-up
 		bash -lc 'npm install --no-fund --no-audit && npx playwright test --project=chromium'
 
 demo-screenshots: ensure-up
-	@mkdir -p ../../docs/assets e2e/node_modules
+	@mkdir -p ../../docs/images/demo e2e/node_modules
 	@PORT=$$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2); PORT=$${PORT:-8010}; \
 	docker run --rm --network host \
 		-v "$(CURDIR)/e2e:/e2e" \
-		-v "$(CURDIR)/../../docs/assets:/screenshots" \
+		-v "$(CURDIR)/../../docs/images/demo:/screenshots" \
 		-w /e2e \
 		-e DEMO_BASE_URL=http://127.0.0.1:$$PORT \
 		-e SCREENSHOT_DIR=/screenshots \
 		$(PLAYWRIGHT_IMAGE) \
 		bash -lc 'npm install --no-fund --no-audit && npx playwright test --project=screenshots && node scripts/to-webp.mjs /screenshots'
-	@echo "Screenshots written under docs/assets/ (WebP)"
+	@echo "Screenshots written under docs/images/demo/ (WebP)"

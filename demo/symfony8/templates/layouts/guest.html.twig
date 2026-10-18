@@ -1,0 +1,31 @@
+{#
+  Demo host guest layout — the one-file bridge of REQ-UI-003 (nowo_ui_kit.layouts.guest): extends the demo base
+  (navbar + Account widget) and renders every UiKit canonical block. The AuthKit pages (@NowoUiKit/page/auth) render
+  inside it; no bundle layout, no template overrides.
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}{% block nowo_ui_document_title %}{% endblock %} · {{ 'demo.home.title'|trans({}, 'demo') }}{% endblock %}
+
+{% block stylesheets %}
+    {% block nowo_ui_head %}{% endblock %}
+    {% block nowo_ui_styles %}{% endblock %}
+{% endblock %}
+
+{% block main %}
+    <main class="container flex-grow-1 py-5 demo-guest" id="nowo-ui-content"{% if nowo_ui_bundle|default(null) %} data-nowo-ui-bundle="{{ nowo_ui_bundle }}"{% endif %}>
+        <div class="demo-guest__column">
+            {% include 'demo/_delivery_inbox.html.twig' %}
+            {% block nowo_ui_page_header %}{% endblock %}
+            {% block nowo_ui_flashes %}
+                {{ include(nowo_ui_partial('flashes', nowo_ui_bundle|default(null)), {bundle: nowo_ui_bundle|default(null)}) }}
+            {% endblock %}
+            {% block nowo_ui_content %}{% endblock %}
+        </div>
+        {% block nowo_ui_modals %}{% endblock %}
+    </main>
+{% endblock %}
+
+{% block javascripts %}
+    {% block nowo_ui_scripts %}{% endblock %}
+{% endblock %}

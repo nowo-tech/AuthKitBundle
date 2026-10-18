@@ -47,6 +47,9 @@ final class Configuration implements ConfigurationInterface
 
     public const PASSWORD_TOGGLE_FORM_THEME = '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig';
 
+    /** PasswordToggle widget theme with the UiKit `input` slot on the password input (uses PASSWORD_TOGGLE_FORM_THEME). */
+    public const AUTH_KIT_PASSWORD_TOGGLE_FORM_THEME = '@NowoAuthKitBundle/form/password_toggle_widget.html.twig';
+
     public const PASSWORD_TOGGLE_TYPE = 'Nowo\\PasswordToggleBundle\\Form\\Type\\PasswordType';
 
     public const DEFAULT_BUTTON_CLASS = 'nowo-auth-kit__button';
@@ -618,8 +621,8 @@ final class Configuration implements ConfigurationInterface
     }
 
     /**
-     * Default form themes of the auth forms: the UiKit form theme, then the PasswordToggle widget theme when that
-     * bundle is registered ($bundles = kernel.bundles) or, without the kernel bundle list, installed.
+     * Default form themes of the auth forms: the UiKit form theme, then the PasswordToggle widget theme (on UiKit
+     * slots) when that bundle is registered ($bundles = kernel.bundles) or, without the kernel bundle list, installed.
      *
      * @param array<string, string>|null $bundles
      *
@@ -629,7 +632,7 @@ final class Configuration implements ConfigurationInterface
     {
         $themes = [self::UI_KIT_FORM_THEME];
         if ($bundles !== null ? isset($bundles['NowoPasswordToggleBundle']) : class_exists(self::PASSWORD_TOGGLE_TYPE)) {
-            $themes[] = self::PASSWORD_TOGGLE_FORM_THEME;
+            $themes[] = self::AUTH_KIT_PASSWORD_TOGGLE_FORM_THEME;
         }
 
         return $themes;

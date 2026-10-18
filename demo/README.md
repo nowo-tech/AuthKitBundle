@@ -1,6 +1,6 @@
 # Auth Kit Bundle — Demo
 
-FrankenPHP demo for **Symfony 8.1** with login, logout, first-user registration, **Bootstrap 5** UI, and **en/es** locale switching.
+FrankenPHP demo for **Symfony 8.1** with login, logout, first-user registration, password reset, magic link, **QR phone sign-in**, the UiKit page contract (Bootstrap 5 host theme) and **en/es** locale switching.
 
 See [docs/DEMO-FRANKENPHP.md](../docs/DEMO-FRANKENPHP.md) for **`FRANKENPHP_MODE`** (`worker` default / `classic`) and troubleshooting.
 
@@ -26,35 +26,24 @@ Notifiers only log and store the last payload in the session **demo inbox**.
 | Password reset | `/en/reset-password` or `/reset-password` | Submit email → inbox link/code |
 | Magic login | `/en/magic-login` or `/magic-login` | Submit email → inbox signed link |
 | Register | `/en/register` or `/register` | Until the first user exists (`first_user_only`) |
+| QR phone sign-in | `/en/login/qr` | QR + short code, live status and countdown (`nowo-auth-kit-qr-login.js`) |
 
 To try **serve** instead of redirect, set `locale.unlocalized: serve` in `symfony8/config/packages/nowo_auth_kit.yaml` and clear the cache — bare URLs then render with `locale.default`.
 
 The welcome page (`/en`) lists the same use cases as cards.
 
-## Template overrides & Bootstrap
+## UiKit guest layout (no template overrides)
 
-The demo overrides Auth Kit Twig templates under:
+The auth pages are the UiKit auth scaffold (`@NowoUiKit/page/auth`, REQ-UI-003); the demo themes them **once** and
+ships **no** `templates/bundles/NowoAuthKitBundle/` overrides:
 
-```
-symfony8/templates/bundles/NowoAuthKitBundle/
-├── layout.html.twig
-└── security/
-    ├── login.html.twig
-    ├── register.html.twig
-    ├── reset_request.html.twig
-    └── magic_login_request.html.twig
-```
-
-Symfony resolves these before the bundle defaults (`@NowoAuthKitBundle/…`). The overrides:
-
-- Load **Bootstrap 5** from CDN
-- Use `bootstrap_5_layout.html.twig` for form fields
-- Keep `@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig` for password fields
-- Include `demo/_locale_switcher.html.twig` in the demo navbar
-- Show the session **demo delivery inbox** (last reset / magic-login link or code) on auth pages
-- Render `auth_kit_dropdown()` in `templates/base.html.twig` (`embed.mode: dropdown`)
-
-Details: `symfony8/templates/bundles/NowoAuthKitBundle/README.md`.
+| Piece | Location |
+|-------|----------|
+| Guest layout bridge (`nowo_ui_kit.layouts.guest`) | `symfony8/templates/layouts/guest.html.twig` — extends `base.html.twig` (navbar, locale switcher), renders the UiKit canonical blocks and the demo **delivery inbox** |
+| Theme | `symfony8/config/packages/nowo_ui_kit.yaml` (`css_framework: bootstrap5`, tokens) |
+| Host CSS | Bootstrap 5 (demo host's choice, CDN in `base.html.twig`), `nowo-ui.css`, `nowo-auth-kit.css`, `public/css/demo-auth.css` |
+| Forms | AuthKit default form themes: UiKit form theme + PasswordToggle widget on the UiKit `input` slot |
+| Navbar widget | `auth_kit_dropdown()` in `base.html.twig` (`embed.mode: dropdown`; hidden on the auth pages themselves) |
 
 The public welcome page (`/en`, `/es`) and the logged-in home (`/en/home`) use `templates/base.html.twig` with navbar, locale switcher, and embedded auth dropdown. `/` redirects to the session locale (default `/en`).
 
@@ -86,6 +75,8 @@ The demo uses `locale.in_path: both` with `unlocalized: redirect`:
 | `make test-symfony8` | Run demo tests |
 | `make update-bundle-symfony8` | Refresh bundle autoload / cache |
 | `make release-check` | Start demo and healthcheck `/en/login` |
+| `make -C symfony8 test-e2e` | Playwright e2e (auth scaffold, login error, reset mismatch error, QR status) |
+| `make -C symfony8 demo-screenshots` | Re-capture `docs/images/demo/*.webp` (README) |
 
 Bundle code is mounted from the repository root (`/var/auth-kit-bundle` in the container).
 

@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Template contract (1.27)](#template-contract-127)
 - [To 1.26.0](#to-1260)
 - [To 1.25.0](#to-1250)
 - [To 1.24.1](#to-1241)
@@ -80,6 +81,69 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### Template contract (1.27)
+
+The auth pages follow the **UiKit 2.x page contract** (REQ-UI-003) and require **`nowo-tech/ui-kit-bundle` ^2.2**:
+register `Nowo\UiKitBundle\NowoUiKitBundle` in `config/bundles.php` (Flex does it) and run `assets:install`. Hosts
+that only configured `nowo_auth_kit` need no template work; check the points below.
+
+**Pages → scaffold** ([TEMPLATES.md](TEMPLATES.md)): every page (`login`, `register`, `reset_request`,
+`reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`,
+`qr_login_approve`) extends `@NowoUiKit/page/auth.html.twig` / `AuthPage`; data blocks `nowo_ui_auth_fields`,
+`nowo_ui_auth_actions`, `nowo_ui_auth_footer`.
+
+**What hosts may notice**
+
+1. **Layout.** Pages render in `nowo_ui_kit.layouts.guest` (default `@NowoUiKit/layout/guest.html.twig`, which loads
+   `nowo-ui.css` but no CSS framework). Point `nowo_ui_kit.layouts.guest` (or `web_ui.layout_template` per profile) at
+   a layout that loads your CSS and renders the canonical blocks (`nowo_ui_document_title`, `nowo_ui_head`,
+   `nowo_ui_styles`, `nowo_ui_page_header`, `nowo_ui_flashes`, `nowo_ui_content`, `nowo_ui_modals`,
+   `nowo_ui_scripts`); the demo's `templates/layouts/guest.html.twig` is a one-file bridge. A 1.x layout set as
+   `templates.layout` keeps working (it renders `auth_panel`, which every page maps to the scaffold content) but gets
+   none of the UiKit assets; `templates.layout: '@NowoAuthKitBundle/layout.html.twig'` now means the UiKit guest layout.
+2. **Overrides.** Delete forks under `templates/bundles/NowoAuthKitBundle/security/`:
+   - reset password forks that only moved the confirmation field before the button — fixed upstream;
+   - `qr_login_show` forks for Stimulus values / countdown / retry — use `web_ui.qr_login.stimulus_controller`
+     (values + targets on the challenge) or a thin `web_ui.templates.qr_login_show` extending
+     `@!NowoAuthKitBundle/security/qr_login_show.html.twig` (blocks `nowo_auth_kit_qr_*`);
+   - `layout.html.twig` forks that changed the base layout — set `nowo_ui_kit.layouts.guest`;
+   - `_device_intelligence_assets.html.twig` forks for the CSP nonce — not needed (nonce on every script since 1.22.3,
+     external scripts too now).
+   1.x page forks (`{% extends layout_template %}` + `auth_panel`) still render: `layout_template` is the deprecated
+   bridge layout unless `web_ui.layout_template` is set.
+3. **Markup.** Panel, heading, intro, error, form frame, buttons and footer links are UiKit markup (`nowo-ui-*` +
+   theme slots). CSS or tests targeting `.nowo-auth-kit__panel`, `.nowo-auth-kit__button`, `.nowo-auth-kit__footer`,
+   `.nowo-auth-kit__alert--error`, `.nowo-auth-kit__qr-*` or the Bootstrap embed classes should use
+   `[data-testid="auth-kit-<page>"]`, `[data-nowo-ui-page="auth"]`, `[data-nowo-ui-region="form"]`, the theme slots
+   (`auth_panel`, `btn_primary`, `flash_error`, …) and `[data-nowo-auth-kit-qr]`.
+4. **Forms.** Default form themes are the UiKit form theme + the AuthKit PasswordToggle theme (UiKit `input` slot);
+   the seeded FormKit `auth_kit` profile no longer adds `form-control` / `form-check-input` / `mb-2`. Bootstrap hosts
+   get the Bootstrap classes from the slot defaults (`css_framework: bootstrap5`); set `web_ui.form_themes` to keep
+   e.g. `bootstrap_5_layout.html.twig`.
+5. **Embedded widget.** `auth_kit_dropdown()` is a `<details>` disclosure styled by `nowo-auth-kit.css` + slots (no
+   Bootstrap dropdown JS); its register / login tabs use the UiKit tabs runtime — load the UiKit `scripts` partial in
+   the host layout (`{{ include(nowo_ui_partial('scripts')) }}`) and `nowo-auth-kit.css` on pages that show it.
+6. **Validation messages** are translated through the bundle's new `validators` catalogues (they were raw keys).
+
+**Deprecated configuration (removed in 2.0)**
+
+| 1.x key (per profile) | Replacement |
+| --- | --- |
+| `templates.layout` | `web_ui.layout_template` (null = `nowo_ui_kit.layouts.guest`) |
+| `templates.<page>` | `web_ui.templates.<page>` |
+| `templates.form_theme` | `web_ui.form_themes` |
+| `css.button_class` | `nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary` (bridged) |
+| `css.secondary_button_class` | `nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_secondary` (bridged) |
+
+| 1.x template / block / global | Replacement |
+| --- | --- |
+| `@NowoAuthKitBundle/layout.html.twig` | `nowo_ui_kit.layouts.guest` |
+| `auth_panel_heading` | `page.title` (`AuthPage`), or override the UiKit auth scaffold |
+| `auth_brand` | `web_ui.brand` (`AuthPage::brand`) |
+| `title` | `nowo_ui_document_title` |
+| `nowo_auth_kit_button_class` / `nowo_auth_kit_secondary_button_class` | `nowo_ui_class('btn_primary' / 'btn_secondary', 'NowoAuthKitBundle')` |
+
 
 ## To 1.26.0
 

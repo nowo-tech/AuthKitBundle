@@ -75,6 +75,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+UiKit 2.2 page contract (REQ-UI-003, phase 2): every auth page is the UiKit auth scaffold on the host's guest layout.
+See [UPGRADING — Template contract](UPGRADING.md#template-contract-127) and [TEMPLATES.md](TEMPLATES.md).
+
+### Added
+
+- **Page contract**: requires `nowo-tech/ui-kit-bundle` ^2.2. Login, register, reset request / password / code, magic
+  link request / confirm, QR challenge and QR approve extend `@NowoUiKit/page/auth.html.twig` (through
+  `security/_auth_page.html.twig`) on `nowo_ui_kit.layouts.guest`; controllers build a UiKit `AuthPage`
+  (`View\AuthPageFactory`: heading, intro, brand, security error, form, submit label, footer links).
+- Per-profile **`web_ui`** node: `layout_template` (null = UiKit guest layout), `templates.<page>` (now also
+  `qr_login_show` / `qr_login_approve`), `form_themes`, `brand`, `qr_login.stimulus_controller`.
+- **QR challenge page**: state / URL / timing data attributes, translated state texts, regions and blocks (status,
+  countdown, continue, retry), optional Stimulus values and targets, bundled CSP-safe poller
+  `js/nowo-auth-kit-qr-login.js` (countdown, status, redirect on approval, `nowo-auth-kit:qr-state` event); no-JS
+  Continue and "Generate a new code".
+- `validators` catalogues (7 locales) for the form constraint messages; translations for the QR states.
+- AuthKit PasswordToggle form theme on the UiKit `input` slot (`@NowoAuthKitBundle/form/password_toggle_widget.html.twig`).
+- Page contract test (`Tests\Integration\Contract\PageContractTest`) and real-kernel tests of the login (CSRF and
+  credential errors), password reset by link / code and QR pages.
+
+### Changed
+
+- Default form themes: UiKit form theme (`input`, `check`, `check_input` slots) + the AuthKit PasswordToggle theme
+  when NowoPasswordToggleBundle is registered (it was the PasswordToggle theme only, also when the bundle was not
+  registered). The seeded FormKit `auth_kit` profile no longer adds Bootstrap classes.
+- Embedded widget (`auth_kit_dropdown()`): native `<details>` disclosure and UiKit theme slots / tabs runtime instead
+  of Bootstrap dropdown / tab markup and JavaScript.
+- Widget scripts (SlideToConfirm, Device Intelligence, OTP input) carry the CSP nonce and load on `nowo_ui_scripts`;
+  stylesheets on `nowo_ui_styles`. The PasswordToggle stylesheet loads only when that bundle is registered.
+
+### Fixed
+
+- New-password pages rendered the confirmation field (and CSRF token) **after** the submit button; every field now
+  renders before the actions.
+- Validation messages (`reset.password.mismatch`, `*.required`, …) were printed as raw keys (no `validators`
+  catalogue); the invalid reset code error is translated; form-level errors (invalid CSRF token) are shown.
+- SlideToConfirm assets no longer break the pages when the package is installed but not enabled.
+
+### Deprecated
+
+- `profiles.<p>.templates.layout` → `web_ui.layout_template`; `templates.<page>` → `web_ui.templates.<page>`;
+  `templates.form_theme` → `web_ui.form_themes` (mapped; `templates.*` stays readable as a resolved mirror).
+- `css.button_class` / `css.secondary_button_class` → `nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary`
+  / `btn_secondary` (bridged automatically); Twig globals `nowo_auth_kit_button_class` /
+  `nowo_auth_kit_secondary_button_class`.
+- `@NowoAuthKitBundle/layout.html.twig` (now a bridge to the UiKit guest layout for 1.x page templates); blocks
+  `auth_panel_heading`, `auth_brand`.
+
 ## [1.26.0] - 2026-10-15
 
 ### Added

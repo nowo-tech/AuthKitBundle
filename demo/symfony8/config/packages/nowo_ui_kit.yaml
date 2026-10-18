@@ -1,0 +1,13 @@
+# UiKit page contract (REQ-UI-003): one guest layout and one theme for every bundle page.
+nowo_ui_kit:
+    css_framework: bootstrap5
+    layouts:
+        guest: 'layouts/guest.html.twig'
+    theme:
+        tokens:
+            primary: '#0b5fff'
+            primary-contrast: '#ffffff'
+            surface: '#ffffff'
+            surface-muted: '#f4f6f8'
+            border: '#dee2e6'
+            radius: '0.75rem'

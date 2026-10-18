@@ -394,7 +394,9 @@ Copy must stress: **only approve if you started this login on the device shown**
 | `qr_login_enabled` | Gate true |
 | `qr_login_start_route` | Start route name |
 
-Challenge page vars: `challenge_id`, `public_code`, `qr_data_uri` (nullable), `expires_at`, `status_route`, `complete_route`, `poll_interval_ms`.
+Challenge page vars: `challenge_id`, `public_code`, `qr_data_uri` (nullable), `expires_at`, `expires_in`, `status_route` / `status_url`, `complete_route` / `complete_url`, `start_url`, `poll_interval_ms`, `qr_stimulus_controller`.
+
+Since 1.27 the page is the UiKit auth scaffold with a bundled CSP-safe poller (`js/nowo-auth-kit-qr-login.js`: status, countdown, redirect on approval, `nowo-auth-kit:qr-state` event) and Stimulus-friendly data attributes / blocks (`web_ui.qr_login.stimulus_controller`, `web_ui.templates.qr_login_show`) — see [TEMPLATES.md — QR challenge page](TEMPLATES.md#qr-challenge-page).
 
 ## Events
 

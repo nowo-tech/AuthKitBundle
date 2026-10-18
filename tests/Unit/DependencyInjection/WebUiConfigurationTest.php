@@ -105,9 +105,9 @@ final class WebUiConfigurationTest extends TestCase
     public function testDefaultFormThemesFollowTheRegisteredBundles(): void
     {
         self::assertSame([Configuration::UI_KIT_FORM_THEME], Configuration::defaultFormThemes([]));
-        self::assertSame([Configuration::UI_KIT_FORM_THEME, Configuration::PASSWORD_TOGGLE_FORM_THEME], Configuration::defaultFormThemes(['NowoPasswordToggleBundle' => 'Nowo\\PasswordToggleBundle\\NowoPasswordToggleBundle']));
+        self::assertSame([Configuration::UI_KIT_FORM_THEME, Configuration::AUTH_KIT_PASSWORD_TOGGLE_FORM_THEME], Configuration::defaultFormThemes(['NowoPasswordToggleBundle' => 'Nowo\\PasswordToggleBundle\\NowoPasswordToggleBundle']));
         // without the kernel bundle list: installed = available (dev dependency here)
-        self::assertSame([Configuration::UI_KIT_FORM_THEME, Configuration::PASSWORD_TOGGLE_FORM_THEME], Configuration::defaultFormThemes());
+        self::assertSame([Configuration::UI_KIT_FORM_THEME, Configuration::AUTH_KIT_PASSWORD_TOGGLE_FORM_THEME], Configuration::defaultFormThemes());
     }
 
     public function testExtensionResolvesFormThemesAgainstKernelBundles(): void

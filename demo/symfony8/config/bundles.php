@@ -10,6 +10,7 @@ use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\HotReloadBundle\NowoHotReloadBundle;
 use Nowo\PasswordToggleBundle\NowoPasswordToggleBundle;
 use Nowo\TwigInspectorBundle\NowoTwigInspectorBundle;
+use Nowo\UiKitBundle\NowoUiKitBundle;
 use Symfony\Bundle\DebugBundle\DebugBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -26,6 +27,7 @@ return [
     DoctrineFixturesBundle::class   => ['all' => true],
     SecurityBundle::class           => ['all' => true],
     TwigBundle::class               => ['all' => true],
+    NowoUiKitBundle::class          => ['all' => true],
     NowoAuthKitBundle::class        => ['all' => true],
     UXIconsBundle::class            => ['all' => true],
     NowoHotReloadBundle::class      => ['dev' => true, 'test' => true],

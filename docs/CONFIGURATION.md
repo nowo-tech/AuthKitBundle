@@ -151,21 +151,27 @@ nowo_auth_kit:
         #     type: text
         #     property: fullName
 
-    templates:
-        layout: '@NowoAuthKitBundle/layout.html.twig'
-        login: '@NowoAuthKitBundle/security/login.html.twig'
-        register: '@NowoAuthKitBundle/security/register.html.twig'
-        reset_request: '@NowoAuthKitBundle/security/reset_request.html.twig'
-        reset_password: '@NowoAuthKitBundle/security/reset_password.html.twig'
-        reset_password_code: '@NowoAuthKitBundle/security/reset_password_code.html.twig'
-        magic_login_request: '@NowoAuthKitBundle/security/magic_login_request.html.twig'
-        magic_login_confirm: '@NowoAuthKitBundle/security/magic_login_confirm.html.twig'
-        form_theme:
-            - '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'
+    # Page contract (REQ-UI-003): the auth pages extend @NowoUiKit/page/auth on the UiKit guest layout.
+    web_ui:
+        layout_template: null       # null = nowo_ui_kit.layouts.guest (layout rendering the UiKit canonical blocks)
+        templates:                  # per-page overrides (thin extends of @!NowoAuthKitBundle/security/<page>.html.twig)
+            login: '@NowoAuthKitBundle/security/login.html.twig'
+            register: '@NowoAuthKitBundle/security/register.html.twig'
+            reset_request: '@NowoAuthKitBundle/security/reset_request.html.twig'
+            reset_password: '@NowoAuthKitBundle/security/reset_password.html.twig'
+            reset_password_code: '@NowoAuthKitBundle/security/reset_password_code.html.twig'
+            magic_login_request: '@NowoAuthKitBundle/security/magic_login_request.html.twig'
+            magic_login_confirm: '@NowoAuthKitBundle/security/magic_login_confirm.html.twig'
+            qr_login_show: '@NowoAuthKitBundle/security/qr_login_show.html.twig'
+            qr_login_approve: '@NowoAuthKitBundle/security/qr_login_approve.html.twig'
+        form_themes: null           # null = UiKit form theme (+ AuthKit PasswordToggle theme when that bundle is registered)
+        brand: null                 # plain-text brand line above the panel heading (AuthPage::brand)
+        qr_login:
+            stimulus_controller: null   # e.g. qr-login: Stimulus values/targets on the QR challenge, no bundled poller
 
-    css:
-        button_class: nowo-auth-kit__button
-        secondary_button_class: nowo-auth-kit__social-button
+    # Deprecated since 1.27 (mapped to web_ui / the UiKit theme; see UPGRADING "Template contract (1.27)")
+    # templates: { layout, login, register, …, form_theme }
+    # css: { button_class, secondary_button_class }
 
     embed:
         mode: disabled              # disabled | dropdown
@@ -579,44 +585,53 @@ php bin/console nowo:auth-kit:create-admin admin@example.com [--auth-profile=def
 
 ## Templates
 
-Override bundle templates by copying to:
+The auth pages follow the UiKit page contract (REQ-UI-003): theme them once in `nowo_ui_kit` (layouts.guest, theme
+classes / tokens) — see [TEMPLATES.md](TEMPLATES.md) for pages, data blocks, view-model fields and the QR challenge
+attributes. Per profile:
 
-```
-templates/bundles/NowoAuthKitBundle/security/login.html.twig
-templates/bundles/NowoAuthKitBundle/security/register.html.twig
-templates/bundles/NowoAuthKitBundle/security/reset_request.html.twig
-templates/bundles/NowoAuthKitBundle/security/reset_password.html.twig
-templates/bundles/NowoAuthKitBundle/security/reset_password_code.html.twig
-templates/bundles/NowoAuthKitBundle/layout.html.twig
-templates/bundles/NowoAuthKitBundle/embed/
-```
+| Key | Purpose |
+| --- | --- |
+| `web_ui.layout_template` | layout override (default null = `nowo_ui_kit.layouts.guest`) |
+| `web_ui.templates.<page>` | per-page template (`login`, `register`, `reset_request`, `reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`, `qr_login_approve`) |
+| `web_ui.form_themes` | form themes of the auth forms (default UiKit form theme + AuthKit PasswordToggle theme) |
+| `web_ui.brand` | brand line of the panel |
+| `web_ui.qr_login.stimulus_controller` | Stimulus identifier for the QR challenge (values + targets; the bundled poller is not loaded) |
+| `embed.*` | embedded widget templates (`auth_kit_dropdown()`) |
 
-Or point `templates.*` and `embed.*` to your own Twig paths.
-
-The default full-page templates also expose shared UI globals:
-
-- `nowo_auth_kit_form_themes` → profile `templates.form_theme`
-- `nowo_auth_kit_button_class` → profile `css.button_class`
-- `nowo_auth_kit_secondary_button_class` → profile `css.secondary_button_class`
-- `nowo_auth_kit_outbound_mail_ready()` → outbound mail readiness checker
-
-Example:
+Deprecated aliases (1.27, removed in 2.0): `templates.layout` → `web_ui.layout_template` (the old default
+`@NowoAuthKitBundle/layout.html.twig` means null), `templates.<page>` → `web_ui.templates.<page>`,
+`templates.form_theme` → `web_ui.form_themes`, `css.button_class` / `css.secondary_button_class` →
+`nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary` / `btn_secondary` (bridged automatically).
+`templates.*` stays readable (container parameter `nowo_auth_kit.templates`, profile settings) as a resolved mirror.
 
 ```yaml
 nowo_auth_kit:
     outbound_mail_ready_checker: app.auth_kit.mail_ready_checker
     profiles:
         default:
-            templates:
-                form_theme:
-                    - 'bootstrap_5_layout.html.twig'
-                    - '@NowoPasswordToggleBundle/Form/toggle_password_widget.html.twig'
-            css:
-                button_class: 'btn btn-primary w-100'
-                secondary_button_class: 'btn btn-outline-secondary w-100'
+            web_ui:
+                layout_template: 'layouts/auth.html.twig'
+                form_themes:
+                    - '@NowoUiKit/form/nowo_ui_layout.html.twig'
+                    - '@NowoAuthKitBundle/form/password_toggle_widget.html.twig'
+                brand: 'Acme Cloud'
+
+nowo_ui_kit:
+    css_framework: bootstrap5
+    layouts:
+        guest: 'layouts/guest.html.twig'
+    theme:
+        bundles:
+            NowoAuthKitBundle:
+                classes: { btn_primary: 'w-100' }
 ```
 
-The bundle prepends an asset package named `nowo_auth_kit` with base path `/bundles/nowoauthkit`, so the default layout can load `{{ asset('css/nowo-auth-kit.css', 'nowo_auth_kit') }}`.
+Twig globals (1.x, kept): `nowo_auth_kit_form_themes` (default profile `web_ui.form_themes`),
+`nowo_auth_kit_button_class` / `nowo_auth_kit_secondary_button_class` (deprecated with `css.*`),
+`nowo_auth_kit_outbound_mail_ready()`.
+
+The bundle prepends an asset package named `nowo_auth_kit` with base path `/bundles/nowoauthkit` (`css/nowo-auth-kit.css`,
+`js/nowo-auth-kit-qr-login.js`).
 
 ## Routes
 

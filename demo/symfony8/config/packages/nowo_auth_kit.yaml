@@ -26,6 +26,11 @@ nowo_auth_kit:
         mode: enabled
         lifetime: 600
         max_uses: 1
+    # QR phone login: desktop challenge page (UiKit auth scaffold + bundled poller; endroid/qr-code renders the SVG).
+    qr_login:
+        mode: enabled
+    # REQ-UI-003 page contract: the auth pages render on nowo_ui_kit.layouts.guest (config/packages/nowo_ui_kit.yaml);
+    # per-profile overrides live under web_ui (layout_template, templates.<page>, form_themes, brand, qr_login).
     # Optional: composer require nowo-tech/slide-to-confirm-bundle (PHP 8.2+)
     # slide_to_confirm:
     #     enabled: true

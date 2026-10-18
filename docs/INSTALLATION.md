@@ -24,6 +24,7 @@
 - Doctrine ORM (user entity persistence)
 - `symfony/security-bundle`, `symfony/form`, `symfony/twig-bundle`, `symfony/translation`
 - **FormKitBundle** (`nowo-tech/form-kit-bundle` ^2.0) — auth Symfony forms (`FormOptionsTrait`, profile `auth_kit`). Register `NowoFormKitBundle` in `config/bundles.php` (Flex / demo). Optional host YAML: `config/packages/nowo_form_kit.yaml`.
+- **UiKitBundle** (`nowo-tech/ui-kit-bundle` ^2.2) — the auth pages are the UiKit auth scaffold on `nowo_ui_kit.layouts.guest` (REQ-UI-003). Register `NowoUiKitBundle` in `config/bundles.php` (Flex), run `assets:install`, and point `nowo_ui_kit.layouts.guest` at your guest layout ([TEMPLATES.md](TEMPLATES.md#layout)).
 - **Twig Extra** (`twig/extra-bundle` + `twig/string-extra` ^3.12) — required for shipped Twig templates (REQ-TWIG-004); see [Twig Extra Bundle](#twig-extra-bundle-req-twig-004)
 - **Recommended for password fields** (installed by the Flex recipe):
   - `nowo-tech/password-toggle-bundle` ^1.2.8
@@ -70,6 +71,8 @@ The recipe enables the bundle, creates `config/packages/nowo_auth_kit.yaml`, and
 
 ```php
 // config/bundles.php
+Nowo\FormKitBundle\NowoFormKitBundle::class => ['all' => true],
+Nowo\UiKitBundle\NowoUiKitBundle::class => ['all' => true],
 Nowo\AuthKitBundle\NowoAuthKitBundle::class => ['all' => true],
 ```
 

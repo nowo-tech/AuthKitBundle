@@ -134,6 +134,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * @psalm-type NowoFormKitConfig = array{
  *     type_map?: array<string, scalar|Param|null>,
  *     default_profile?: scalar|Param|null, // Name of the profile to use when no profile is specified (key in profiles) // Default: "default"
+ *     convention_requires_translation?: bool|Param, // Global default for profiles.<name>.convention_requires_translation: only apply auto help / placeholder convention keys that exist in the translator catalogue. Requires a translator implementing TranslatorBagInterface (no effect otherwise). Default: false. // Default: false
  *     css_framework?: scalar|Param|null, // CSS framework for CssClassUtilities (column merge + class ordering): bootstrap, tailwind, foundation, none. // Default: "bootstrap"
  *     stateless_csrf?: array{ // Give selected (usually anonymous/public) form types a stateless CSRF token id so rendering them does not start a session. Off by default.
  *         enabled?: bool|Param, // Default: false
@@ -144,11 +145,15 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     accessibility?: array{ // Accessibility helpers applied by kit form type extensions.
  *         unlabelled_choice_aria_label?: bool|Param, // When true (default), non-expanded ChoiceType fields (and subtypes such as EntityType) rendered with label: false and no aria-label/aria-labelledby get aria-label from their translated help, else their placeholder. // Default: true
  *     },
+ *     twig?: array{ // Twig helpers shipped by the bundle (registered only when twig/twig is installed).
+ *         csrf_action_form?: bool|Param, // When true (default), registers the csrf_action_form() Twig function (CSRF-only single-action POST forms). Set false if the host keeps its own function with that name. // Default: true
+ *     },
  *     profiles?: array<string, array{ // Default: []
  *         alias?: scalar|Param|null, // Alias for this profile (e.g. for reference in form types)
  *         translation_domain?: scalar|Param|null, // Default: "messages"
  *         auto_placeholder?: bool|Param, // When true (default), unset placeholders become {form}.{field}.placeholder translation keys. Set false for kits that only set explicit labels. // Default: true
  *         auto_help?: bool|Param, // When true (default), unset help becomes {form}.{field}.help translation keys. Set false to avoid raw missing-help keys in the UI. // Default: true
+ *         convention_requires_translation?: bool|Param|null, // When true, the auto help / placeholder convention keys are only applied if the key exists in the translator catalogue (current locale + fallbacks) for the field's translation domain. Never affects labels. Null (default) inherits the root convention_requires_translation. // Default: null
  *         required_label_suffix?: scalar|Param|null, // Appended to the label when the field is required (e.g. " *"). Empty or null to disable. // Default: null
  *         help_modal?: array{ // Default help modal configuration (used when the field option "help_modal" is enabled).
  *             framework?: scalar|Param|null, // Modal framework to use when opening from frontend. // Default: "bootstrap5"
@@ -1258,7 +1263,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             token_handler?: Param|string|array{
  *                 id?: scalar|Param|null,
  *                 oidc_user_info?: Param|string|array{
- *                     base_uri?: scalar|Param|null, // Base URI of the userinfo endpoint on the OIDC server, or the OIDC server URI to use the discovery (require "discovery" to be configured).
+ *                     base_uri?: scalar|Param|null, // Base URI of the userinfo endpoint on the OIDC server, or the OIDC server URI to use the discovery (require "discovery" to be configured). The latter must end with a slash when it has a path, as the discovery path is resolved against it as a relative URL.
  *                     discovery?: array{ // Enable the OIDC discovery.
  *                         cache?: array{
  *                             id?: scalar|Param|null, // Cache service id to use to cache the OIDC discovery configuration.
@@ -1381,6 +1386,107 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         html_to_text_converter?: scalar|Param|null, // A service implementing the "Symfony\Component\Mime\HtmlToTextConverter\HtmlToTextConverterInterface". // Default: null
  *     },
  * }
+ * @psalm-type NowoUiKitConfig = array{
+ *     css_framework?: "bootstrap"|"bootstrap5"|"bootstrap4"|"tailwind"|"foundation"|"custom"|"tabler"|"none"|Param, // Host CSS stack: bootstrap5|bootstrap4|tailwind|foundation|custom|none|tabler (bootstrap alias → bootstrap5). // Default: "bootstrap5"
+ *     icon_set?: "bootstrap-icons"|"tabler-icons"|"ux_icon"|"svg_inline"|"none"|Param, // Icon rendering: bootstrap-icons|tabler-icons|ux_icon|svg_inline|none. // Default: "bootstrap-icons"
+ *     row_actions_display?: "icon"|"text"|"icon_text"|Param, // Table/list row actions: icon (glyph only) | text (label only) | icon_text (both). // Default: "icon"
+ *     panel_path_rewrites?: array<string, scalar|Param|null>,
+ *     release_check?: array{ // Optional GitHub release-version checker (footer dialog + JSON endpoint). Off by default.
+ *         enabled?: bool|Param, // Register the checker service + controller. Also import @NowoUiKitBundle/Resources/config/routes/release_check.yaml. // Default: false
+ *         github_repo?: scalar|Param|null, // Public GitHub repository "owner/name" whose releases are compared (e.g. nowo-tech/my-app). // Default: ""
+ *         current_version?: scalar|Param|null, // Installed version label, clean semver x.y.z with optional "v" (e.g. "%app.version%"). Non-semver values skip the check. // Default: ""
+ *         cache_ttl?: int|Param, // Seconds to cache the GitHub answer (cache.app). Default 12h. // Default: 43200
+ *         default_branch?: scalar|Param|null, // Branch used as compare target when the installed version is already the latest. // Default: "main"
+ *         user_agent?: scalar|Param|null, // User-Agent sent to api.github.com. // Default: "nowo-ui-kit-release-check"
+ *     },
+ *     route_links?: array{ // Route (or route prefix) → link map read by nowo_ui_route_link(), e.g. for the page-edge "manual" tab (partials/_edge_tab.html.twig). A prefix matches the route itself or any route starting with "<prefix>_"; the longest prefix wins.
+ *         base_url?: scalar|Param|null, // Prepended to every relative path (paths starting with "/", "//", "http://" or "https://" are used as is). // Default: ""
+ *         default_testid?: scalar|Param|null, // testid returned for entries without their own. // Default: null
+ *         routes?: array<string, Param|string|array{ // Default: []
+ *             path?: scalar|Param|null,
+ *             testid?: scalar|Param|null, // Default: null
+ *         }>,
+ *     },
+ *     appearance?: array{ // Optional site appearance SPI (presets, --nowo-ui-* token emitter, Twig functions). Off by default.
+ *         enabled?: bool|Param, // Default: false
+ *         provider?: scalar|Param|null, // Service id implementing AppearanceProviderInterface (host storage). Null = the config defaults below. // Default: null
+ *         defaults?: array{
+ *             brand_name?: scalar|Param|null, // Default: ""
+ *             brand_eyebrow?: scalar|Param|null, // Default: ""
+ *             preset?: scalar|Param|null, // Preset whose light colours are the default. // Default: "slate"
+ *             preset_dark?: scalar|Param|null, // Preset whose dark colours are the default. // Default: "midnight"
+ *             corner_style?: "sharp"|"soft"|"rounded"|Param, // Default: "soft"
+ *             border_strength?: "subtle"|"medium"|"strong"|Param, // Default: "medium"
+ *             footer_fixed?: bool|Param, // Default: false
+ *         },
+ *         presets?: array<string, array{ // Default: []
+ *             mode?: "light"|"dark"|Param, // Default: "light"
+ *             light?: array{
+ *                 accent?: scalar|Param|null,
+ *                 accent_deep?: scalar|Param|null,
+ *                 danger?: scalar|Param|null,
+ *                 warn?: scalar|Param|null,
+ *                 paper?: scalar|Param|null,
+ *                 ink?: scalar|Param|null,
+ *                 surface?: scalar|Param|null,
+ *             },
+ *             dark?: array{
+ *                 accent?: scalar|Param|null,
+ *                 accent_deep?: scalar|Param|null,
+ *                 danger?: scalar|Param|null,
+ *                 warn?: scalar|Param|null,
+ *                 paper?: scalar|Param|null,
+ *                 ink?: scalar|Param|null,
+ *                 surface?: scalar|Param|null,
+ *             },
+ *         }>,
+ *         builtin_presets?: list<scalar|Param|null>,
+ *         kit_tokens?: bool|Param, // Emit the --nowo-ui-* tokens. False = only the token_aliases are written. // Default: true
+ *         token_aliases?: array<string, list<scalar|Param|null>>,
+ *         selectors?: array{ // Selectors of the three emitted blocks.
+ *             root?: scalar|Param|null, // Default: ":root"
+ *             light?: scalar|Param|null, // Default: ":root, [data-theme=\"light\"]"
+ *             dark?: scalar|Param|null, // Default: "[data-theme=\"dark\"]"
+ *         },
+ *         shadow_rgb_fallback?: scalar|Param|null, // --nowo-ui-shadow-rgb when the light ink colour is not hex ("r g b"). // Default: "15 23 42"
+ *     },
+ *     layouts?: array{ // Layouts the page scaffolds extend (Twig global nowo_ui_layout). Host layouts or one-file bridges must render the canonical nowo_ui_* blocks.
+ *         admin?: scalar|Param|null, // Default: "@NowoUiKit/layout/admin.html.twig"
+ *         guest?: scalar|Param|null, // Default: "@NowoUiKit/layout/guest.html.twig"
+ *     },
+ *     breadcrumbs?: array{ // Page header breadcrumbs: BreadcrumbKit (breadcrumb_render) when installed and enabled here, else the plain trail from PageHeader::breadcrumbs.
+ *         breadcrumb_kit?: bool|Param, // Use BreadcrumbKit when its breadcrumb_render() Twig function exists. // Default: true
+ *         collection?: scalar|Param|null, // BreadcrumbKit collection code (null = its default collection). PageHeader::breadcrumbCollection overrides it. // Default: null
+ *     },
+ *     theme?: array{ // Global theme (REQ-UI-003): semantic slot classes / attributes, partial overrides and --nowo-ui-* tokens, configured once for every bundle.
+ *         framework_defaults?: bool|Param, // false = slots print the semantic nowo-ui-* class and the host classes only (no UiKit framework defaults such as btn / badge / card). Per slot: classes.<slot>: {value: …, framework_defaults: false}. // Default: true
+ *         classes?: array<string, mixed>,
+ *         attributes?: array<string, array<string, mixed>>,
+ *         partials?: array<string, scalar|Param|null>,
+ *         tokens?: array<string, mixed>,
+ *         tokens_dark?: array<string, mixed>,
+ *         confirm_message_in_header?: bool|Param, // Confirm dialogs and the full-page confirm render the message inside the header, under the title (hosts whose dialog header is title + message). View\Confirm::messageInHeader wins when set. // Default: false
+ *         bundles?: array<string, array{ // Default: []
+ *             framework_defaults?: bool|Param, // Override of theme.framework_defaults for this bundle (unset = inherit).
+ *             classes?: array<string, mixed>,
+ *             attributes?: array<string, array<string, mixed>>,
+ *             partials?: array<string, scalar|Param|null>,
+ *             tokens?: array<string, mixed>,
+ *             tokens_dark?: array<string, mixed>,
+ *             pages?: array<string, array{ // Default: []
+ *                 framework_defaults?: bool|Param, // Override of theme.framework_defaults for this page type (unset = inherit).
+ *                 classes?: array<string, mixed>,
+ *                 attributes?: array<string, array<string, mixed>>,
+ *             }>,
+ *         }>,
+ *         pages?: array<string, array{ // Default: []
+ *             framework_defaults?: bool|Param, // Override of theme.framework_defaults for this page type (unset = inherit).
+ *             classes?: array<string, mixed>,
+ *             attributes?: array<string, array<string, mixed>>,
+ *             header_actions_in_filters?: bool|Param, // list only: render the page-header actions at the end of the filter row instead of the page header (ListPage::headerActionsInFilters wins when set; unset = false).
+ *         }>,
+ *     },
+ * }
  * @psalm-type NowoAuthKitConfig = array{
  *     default_profile?: scalar|Param|null, // Profile name used when no profile is specified explicitly (default: first profile). // Default: null
  *     outbound_mail_ready_checker?: scalar|Param|null, // Optional service id implementing OutboundMailReadyCheckerInterface for password-reset and magic-login UI hints. // Default: null
@@ -1439,20 +1545,41 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             password_reset_code?: bool|Param, // Replace the reset OTP TextType with OtpType (length/charset from password_reset). // Default: true
  *         },
  *         registration_fields?: list<mixed>,
- *         templates?: array{
- *             layout?: scalar|Param|null, // Default: "@NowoAuthKitBundle/layout.html.twig"
- *             login?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/login.html.twig"
- *             register?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/register.html.twig"
- *             reset_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_request.html.twig"
- *             reset_password?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password.html.twig"
- *             reset_password_code?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password_code.html.twig"
- *             magic_login_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/magic_login_request.html.twig"
- *             magic_login_confirm?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/magic_login_confirm.html.twig"
- *             form_theme?: list<scalar|Param|null>,
+ *         web_ui?: array{ // Page contract (REQ-UI-003): the auth pages extend @NowoUiKit/page/auth.html.twig on the UiKit guest layout.
+ *             layout_template?: scalar|Param|null, // Per-profile layout override; null (default) uses nowo_ui_kit.layouts.guest. The layout must render the UiKit canonical blocks. // Default: null
+ *             templates?: array{ // Per-page template overrides (REQ-UI-003 web_ui.templates.<page>): a host template that extends "@!NowoAuthKitBundle/security/<page>.html.twig" and overrides a data block.
+ *                 login?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/login.html.twig"
+ *                 register?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/register.html.twig"
+ *                 reset_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_request.html.twig"
+ *                 reset_password?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password.html.twig"
+ *                 reset_password_code?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_password_code.html.twig"
+ *                 magic_login_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/magic_login_request.html.twig"
+ *                 magic_login_confirm?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/magic_login_confirm.html.twig"
+ *                 qr_login_show?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/qr_login_show.html.twig"
+ *                 qr_login_approve?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/qr_login_approve.html.twig"
+ *             },
+ *             form_themes?: Param|null|string|list<scalar|Param|null>,
+ *             brand?: scalar|Param|null, // Brand line printed above the panel heading (AuthPage::brand; plain text, null = none). // Default: null
+ *             qr_login?: array{
+ *                 stimulus_controller?: scalar|Param|null, // Stimulus controller identifier for the QR challenge (data-controller + <id>-*-value / <id>-target attributes). null = the bundled nowo-auth-kit-qr-login.js poller. // Default: null
+ *             },
  *         },
- *         css?: array{
- *             button_class?: scalar|Param|null, // Default: "nowo-auth-kit__button"
- *             secondary_button_class?: scalar|Param|null, // Default: "nowo-auth-kit__social-button"
+ *         templates?: array{ // Deprecated since 1.27: use web_ui.layout_template, web_ui.templates.<page> and web_ui.form_themes.
+ *             layout?: scalar|Param|null, // Deprecated: The "layout" option at "nowo_auth_kit.profiles..templates.layout" is deprecated, use "web_ui.layout_template" (null = UiKit guest layout).
+ *             login?: scalar|Param|null, // Deprecated: The "login" option at "nowo_auth_kit.profiles..templates.login" is deprecated, use "web_ui.templates.login".
+ *             register?: scalar|Param|null, // Deprecated: The "register" option at "nowo_auth_kit.profiles..templates.register" is deprecated, use "web_ui.templates.register".
+ *             reset_request?: scalar|Param|null, // Deprecated: The "reset_request" option at "nowo_auth_kit.profiles..templates.reset_request" is deprecated, use "web_ui.templates.reset_request".
+ *             reset_password?: scalar|Param|null, // Deprecated: The "reset_password" option at "nowo_auth_kit.profiles..templates.reset_password" is deprecated, use "web_ui.templates.reset_password".
+ *             reset_password_code?: scalar|Param|null, // Deprecated: The "reset_password_code" option at "nowo_auth_kit.profiles..templates.reset_password_code" is deprecated, use "web_ui.templates.reset_password_code".
+ *             magic_login_request?: scalar|Param|null, // Deprecated: The "magic_login_request" option at "nowo_auth_kit.profiles..templates.magic_login_request" is deprecated, use "web_ui.templates.magic_login_request".
+ *             magic_login_confirm?: scalar|Param|null, // Deprecated: The "magic_login_confirm" option at "nowo_auth_kit.profiles..templates.magic_login_confirm" is deprecated, use "web_ui.templates.magic_login_confirm".
+ *             qr_login_show?: scalar|Param|null, // Deprecated: The "qr_login_show" option at "nowo_auth_kit.profiles..templates.qr_login_show" is deprecated, use "web_ui.templates.qr_login_show".
+ *             qr_login_approve?: scalar|Param|null, // Deprecated: The "qr_login_approve" option at "nowo_auth_kit.profiles..templates.qr_login_approve" is deprecated, use "web_ui.templates.qr_login_approve".
+ *             form_theme?: Param|string|list<scalar|Param|null>,
+ *         },
+ *         css?: array{ // Deprecated since 1.27: buttons use the UiKit btn_primary / btn_secondary slots (nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes).
+ *             button_class?: scalar|Param|null, // Deprecated: The "button_class" option at "nowo_auth_kit.profiles..css.button_class" is deprecated, use "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary". // Default: "nowo-auth-kit__button"
+ *             secondary_button_class?: scalar|Param|null, // Deprecated: The "secondary_button_class" option at "nowo_auth_kit.profiles..css.secondary_button_class" is deprecated, use "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_secondary". // Default: "nowo-auth-kit__social-button"
  *         },
  *         embed?: array{
  *             mode?: "disabled"|"dropdown"|Param, // disabled: full-page routes only. dropdown: embed login/register via auth_kit_dropdown(). // Default: "disabled"
@@ -1665,6 +1792,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     use_toggle_form_theme?: bool|Param, // Use the bundle's form theme for rendering (default) // Default: true
  *     always_empty?: bool|Param, // Always render empty value (default) // Default: true
  *     trim?: bool|Param, // Trim whitespace (default) // Default: false
+ *     javascript?: "web_component"|"stimulus"|"none"|Param, // How the toggle behaviour is attached (all CSP-safe, no inline handlers): "web_component" = widget emits one <script src> for nowo-password-toggle.js (with the CSP nonce); "stimulus" = no script tag, renders data-controller/data-action for the shipped Stimulus controller; "none" = no script tag, the host loads nowo-password-toggle.js itself. // Default: "web_component"
+ *     stimulus_controller?: scalar|Param|null, // Stimulus controller identifier used when javascript is "stimulus". // Default: "nowo-password-toggle"
+ *     csp_nonce_attribute?: scalar|Param|null, // Request attribute holding the CSP nonce; added as nonce="..." to the <script> the widget emits. Empty string disables. // Default: "csp_nonce"
  *     invalid_message?: scalar|Param|null, // Invalid message (default) // Default: "The password is invalid."
  * }
  * @psalm-type TwigExtraConfig = array{
@@ -1724,6 +1854,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     doctrine_migrations?: DoctrineMigrationsConfig,
  *     security?: SecurityConfig,
  *     twig?: TwigConfig,
+ *     nowo_ui_kit?: NowoUiKitConfig,
  *     nowo_auth_kit?: NowoAuthKitConfig,
  *     ux_icons?: UxIconsConfig,
  *     nowo_password_toggle?: NowoPasswordToggleConfig,
@@ -1738,6 +1869,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         doctrine_migrations?: DoctrineMigrationsConfig,
  *         security?: SecurityConfig,
  *         twig?: TwigConfig,
+ *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_auth_kit?: NowoAuthKitConfig,
  *         ux_icons?: UxIconsConfig,
  *         nowo_hot_reload?: NowoHotReloadConfig,
@@ -1757,6 +1889,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         doctrine_migrations?: DoctrineMigrationsConfig,
  *         security?: SecurityConfig,
  *         twig?: TwigConfig,
+ *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_auth_kit?: NowoAuthKitConfig,
  *         ux_icons?: UxIconsConfig,
  *         nowo_password_toggle?: NowoPasswordToggleConfig,
@@ -1772,6 +1905,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         doctrine_migrations?: DoctrineMigrationsConfig,
  *         security?: SecurityConfig,
  *         twig?: TwigConfig,
+ *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_auth_kit?: NowoAuthKitConfig,
  *         ux_icons?: UxIconsConfig,
  *         nowo_hot_reload?: NowoHotReloadConfig,
