@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\ResetPasswordRequestFormType;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
@@ -75,9 +76,13 @@ final class ResetPasswordRequestController
         }
 
         $formView = $form->createView();
-        $page     = $this->pages->create('reset_request', $profile, $formView, [
-            $this->pages->link('reset.request.back_to_login', $this->urlGenerator->generate($profile->routes['login']['name'])),
-        ]);
+        $links    = [];
+        // delivery code|both: the code-entry page is reachable from here (the user may already hold a code).
+        if (($profile->passwordReset['delivery'] ?? 'link') !== PasswordResetDeliveryMode::Link->value) {
+            $links[] = $this->pages->link('reset.request.enter_code', $this->urlGenerator->generate($profile->routes['reset_password_code']['name']));
+        }
+        $links[] = $this->pages->link('reset.request.back_to_login', $this->urlGenerator->generate($profile->routes['login']['name']));
+        $page    = $this->pages->create('reset_request', $profile, $formView, $links);
 
         $content = $this->twig->render($profile->template('reset_request'), $this->pages->context('reset_request', $page, $profile, [
             'reset_request_form' => $formView,

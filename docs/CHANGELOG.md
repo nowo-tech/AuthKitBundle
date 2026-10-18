@@ -77,6 +77,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Override namespace in the docs**: `docs/TEMPLATES.md`, `USAGE.md`, `CONFIGURATION.md`, `UPGRADING.md`, the README
+  and the `web_ui.templates` config info documented `{% extends '@!NowoAuthKitBundle/...' %}`, which fails with "There
+  are no registered paths for namespace "!NowoAuthKitBundle"". The bundle-original namespace is `@!NowoAuthKit/...`
+  (Symfony's "!" namespace of the bundle); every snippet now uses it. `AuthPagesKernelTest` asserts the documented
+  namespace resolves and that no doc mentions the wrong one.
+- **QR challenge with a Stimulus controller**: with `web_ui.qr_login.stimulus_controller` set, `data-controller` and
+  the `data-<id>-*-value` attributes were on the challenge root while the `continue` and `retry` targets render in the
+  form actions, outside it, so Stimulus never found them. The controller attributes now sit on the auth panel
+  (`AuthPage::attributes`, built by the new `AuthPageFactory::stimulusAttributes()`), the common ancestor of the
+  challenge and of the actions. `PageContractTest` asserts every `data-<id>-target` is a descendant of the controller
+  element.
+- **Password reset request links the code page**: with `password_reset.delivery: code` or `both` the reset request
+  page now links the code-entry page ("I already have a code", `reset.request.enter_code`, all 7 locales) before "Back
+  to sign in". `delivery: link` is unchanged.
+- **QR approve link always offered**: "Open approve link on your phone" was rendered only without a QR image. It is
+  now also rendered next to the image (`[data-nowo-auth-kit-qr-region="link"]`, Stimulus target `link`) for the
+  same-device flow and screen readers; without an image it stays the `image` region as before.
+
 ## [1.27.1] - 2026-10-18
 
 Root form errors shown once with UiKit 2.3 (and 2.2). See [UPGRADING](UPGRADING.md#to-1271).

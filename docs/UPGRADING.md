@@ -84,6 +84,19 @@
 
 ## Unreleased
 
+- **Per-page overrides**: extend the bundle original with `{% extends '@!NowoAuthKit/security/<page>.html.twig' %}`.
+  The `@!NowoAuthKitBundle` namespace shown in earlier docs is not registered; replace it if you copied it.
+- **QR challenge + Stimulus** (`web_ui.qr_login.stimulus_controller`): `data-controller="<id>"` and the
+  `data-<id>-{status-url,complete-url,start-url,poll-interval,expires-at}-value` attributes moved from the challenge
+  root `[data-nowo-auth-kit-qr]` to the auth panel (`section[data-testid="auth-kit-qr_login_show"]`), so the
+  `continue` / `retry` targets are now found. A controller that read `this.element.dataset.nowoAuthKitQrState` or
+  other challenge-root attributes should read them from the root, e.g. a `data-<id>-target` region's
+  `closest('[data-nowo-auth-kit-qr]')`, or through its values. The bundled script (no controller) is unchanged.
+- **QR approve link**: the "Open approve link on your phone" link is now also rendered when a QR image is shown
+  (`[data-nowo-auth-kit-qr-region="link"]`); hide `.nowo-auth-kit-qr__link` in host CSS to keep the old look.
+- **Password reset request**: with `delivery: code` or `both` the page shows an "I already have a code" link to the
+  code page (`reset.request.enter_code`).
+
 ## To 1.27.1
 
 From **1.27.0**:
@@ -124,7 +137,7 @@ that only configured `nowo_auth_kit` need no template work; check the points bel
    - reset password forks that only moved the confirmation field before the button — fixed upstream;
    - `qr_login_show` forks for Stimulus values / countdown / retry — use `web_ui.qr_login.stimulus_controller`
      (values + targets on the challenge) or a thin `web_ui.templates.qr_login_show` extending
-     `@!NowoAuthKitBundle/security/qr_login_show.html.twig` (blocks `nowo_auth_kit_qr_*`);
+     `@!NowoAuthKit/security/qr_login_show.html.twig` (blocks `nowo_auth_kit_qr_*`);
    - `layout.html.twig` forks that changed the base layout — set `nowo_ui_kit.layouts.guest`;
    - `_device_intelligence_assets.html.twig` forks for the CSP nonce — not needed (nonce on every script since 1.22.3,
      external scripts too now).

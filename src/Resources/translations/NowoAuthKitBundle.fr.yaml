@@ -77,6 +77,7 @@ reset:
         help: Saisissez votre identifiant. S'il existe un compte, nous enverrons les instructions.
         submit: Envoyer les instructions
         back_to_login: Retour à la connexion
+        enter_code: "J'ai déjà un code"
         flash_sent: Si un compte correspond, les instructions ont été envoyées.
         identifier_required: Veuillez saisir votre identifiant.
         field:

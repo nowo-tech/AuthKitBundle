@@ -99,13 +99,14 @@ final class AuthPageFixtures
     /**
      * @return array<string, mixed>
      */
-    public static function resetRequest(): array
+    public static function resetRequest(string $delivery = 'link'): array
     {
-        $overrides = [];
+        $overrides = ['password_reset' => ['mode' => 'enabled', 'delivery' => $delivery]];
         $profile   = self::profile($overrides);
         $view      = self::formFactory($overrides)->create(ResetPasswordRequestFormType::class, null, ['profile' => 'default'])->createView();
         $pages     = new AuthPageFactory();
-        $page      = $pages->create('reset_request', $profile, $view, [$pages->link('reset.request.back_to_login', '/login')]);
+        $links     = $delivery !== 'link' ? [$pages->link('reset.request.enter_code', '/reset-password/code')] : [];
+        $page      = $pages->create('reset_request', $profile, $view, [...$links, $pages->link('reset.request.back_to_login', '/login')]);
 
         return ['form_themes' => self::FORM_THEMES] + $pages->context('reset_request', $page, $profile, ['reset_request_form' => $view]);
     }
@@ -192,8 +193,14 @@ final class AuthPageFixtures
         $profile   = self::profile($overrides);
         $view      = self::formFactory($overrides)->createNamed('', QrLoginRetryType::class, null, ['action' => '/login/qr/start'])->createView();
         $pages     = new AuthPageFactory();
-        $page      = $pages->create('qr_login_show', $profile, $view, [$pages->link('qr_login.show.back_to_login', '/login')]);
         $id        = '0b1c2d3e-4f50-4a61-8b72-93a4b5c6d7e8';
+        $page      = $pages->create('qr_login_show', $profile, $view, [$pages->link('qr_login.show.back_to_login', '/login')], attributes: $pages->stimulusAttributes($stimulusController, [
+            'status-url'    => '/login/qr/' . $id . '/status',
+            'complete-url'  => '/login/qr/' . $id . '/complete',
+            'start-url'     => '/login/qr/start',
+            'poll-interval' => 1500,
+            'expires-at'    => 1760000090,
+        ]));
 
         return ['form_themes' => self::FORM_THEMES] + $pages->context('qr_login_show', $page, $profile, [
             'status_url'             => '/login/qr/' . $id . '/status',

@@ -37,7 +37,7 @@ one with `@!` and overrides a data block:
 
 ```twig
 {# templates/auth/login.html.twig #}
-{% extends '@!NowoAuthKitBundle/security/login.html.twig' %}
+{% extends '@!NowoAuthKit/security/login.html.twig' %}
 
 {% block auth_footer_extra %}
     <p class="{{ nowo_ui_class('muted', page.bundle) }}"><a href="{{ path('app_help') }}">Need help?</a></p>

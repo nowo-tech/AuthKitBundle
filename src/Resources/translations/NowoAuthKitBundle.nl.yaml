@@ -77,6 +77,7 @@ reset:
         help: Voer je identificatie in. Als er een account bestaat, sturen we instructies.
         submit: Instructies versturen
         back_to_login: Terug naar inloggen
+        enter_code: Ik heb al een code
         flash_sent: Als er een overeenkomend account is, zijn de instructies verzonden.
         identifier_required: Voer je identificatie in.
         field:

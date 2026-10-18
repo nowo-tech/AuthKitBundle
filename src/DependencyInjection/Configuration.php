@@ -523,7 +523,7 @@ final class Configuration implements ConfigurationInterface
         $node      = (new TreeBuilder('web_ui'))->getRootNode();
         $templates = (new TreeBuilder('templates'))->getRootNode();
         $templates
-            ->info('Per-page template overrides (REQ-UI-003 web_ui.templates.<page>): a host template that extends "@!NowoAuthKitBundle/security/<page>.html.twig" and overrides a data block.')
+            ->info('Per-page template overrides (REQ-UI-003 web_ui.templates.<page>): a host template that extends "@!NowoAuthKit/security/<page>.html.twig" and overrides a data block.')
             ->addDefaultsIfNotSet();
         $children = $templates->children();
         foreach (self::PAGE_TEMPLATES as $page => $template) {

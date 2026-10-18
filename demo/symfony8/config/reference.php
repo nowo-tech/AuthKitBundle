@@ -1547,7 +1547,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         registration_fields?: list<mixed>,
  *         web_ui?: array{ // Page contract (REQ-UI-003): the auth pages extend @NowoUiKit/page/auth.html.twig on the UiKit guest layout.
  *             layout_template?: scalar|Param|null, // Per-profile layout override; null (default) uses nowo_ui_kit.layouts.guest. The layout must render the UiKit canonical blocks. // Default: null
- *             templates?: array{ // Per-page template overrides (REQ-UI-003 web_ui.templates.<page>): a host template that extends "@!NowoAuthKitBundle/security/<page>.html.twig" and overrides a data block.
+ *             templates?: array{ // Per-page template overrides (REQ-UI-003 web_ui.templates.<page>): a host template that extends "@!NowoAuthKit/security/<page>.html.twig" and overrides a data block.
  *                 login?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/login.html.twig"
  *                 register?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/register.html.twig"
  *                 reset_request?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/reset_request.html.twig"

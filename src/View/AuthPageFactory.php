@@ -103,6 +103,30 @@ final class AuthPageFactory
     }
 
     /**
+     * Stimulus controller attributes for the scaffold root (`attributes` of {@see self::create()}): `data-controller`
+     * plus one `data-<controller>-<name>-value` per value. Put on the auth panel, the common ancestor of the page's
+     * fields and actions, so every `data-<controller>-target` of the page is a descendant of the controller element.
+     * Empty when no controller is configured.
+     *
+     * @param array<string, bool|float|int|string|null> $values value name (kebab-case) => value
+     *
+     * @return array<string, bool|float|int|string|null>
+     */
+    public function stimulusAttributes(?string $controller, array $values = []): array
+    {
+        if ($controller === null || $controller === '') {
+            return [];
+        }
+
+        $attributes = ['data-controller' => $controller];
+        foreach ($values as $name => $value) {
+            $attributes['data-' . $controller . '-' . $name . '-value'] = $value;
+        }
+
+        return $attributes;
+    }
+
+    /**
      * Security error of the last login attempt as a label of the `security` domain (as Symfony's login templates).
      */
     public function authenticationError(?AuthenticationException $exception): ?Label

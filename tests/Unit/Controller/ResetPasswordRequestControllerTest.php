@@ -20,6 +20,8 @@ use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
+use Nowo\UiKitBundle\View\Link;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
@@ -32,6 +34,8 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Validator\Validation;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Twig\Environment;
+
+use function array_map;
 
 final class ResetPasswordRequestControllerTest extends TestCase
 {
@@ -75,11 +79,60 @@ final class ResetPasswordRequestControllerTest extends TestCase
         self::assertSame('<html>reset</html>', $response->getContent());
     }
 
+    /**
+     * delivery code|both: the request page links the code-entry page (before "Back to sign in"); link: it does not.
+     *
+     * @return iterable<string, array{string, list<string>}>
+     */
+    public static function deliveryLinks(): iterable
+    {
+        yield 'link' => ['link', ['/nowo_auth_kit_login']];
+        yield 'code' => ['code', ['/nowo_auth_kit_reset_password_code', '/nowo_auth_kit_login']];
+        yield 'both' => ['both', ['/nowo_auth_kit_reset_password_code', '/nowo_auth_kit_login']];
+    }
+
+    /**
+     * @param list<string> $expected
+     */
+    #[DataProvider('deliveryLinks')]
+    public function testLinksTheCodePageWhenCodeDeliveryIsEnabled(string $delivery, array $expected): void
+    {
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturnCallback(static fn (string $route): string => '/' . $route);
+
+        $links = null;
+        $twig  = $this->createMock(Environment::class);
+        $twig->expects(self::once())->method('render')->willReturnCallback(static function (string $template, array $context) use (&$links): string {
+            $links = array_map(static fn (Link $link): string => $link->href, [...$context['page']->links]);
+
+            return '<html>reset</html>';
+        });
+
+        $overrides       = ['password_reset' => ['mode' => 'enabled', 'delivery' => $delivery]];
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, $overrides);
+
+        $controller = $this->controller(
+            new PasswordResetGate($profileRegistry),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            $twig,
+            $profileRegistry,
+            $overrides,
+        );
+
+        $controller->request(new Request());
+
+        self::assertSame($expected, $links);
+    }
+
+    /**
+     * @param array<string, mixed>|null $resolverOverrides
+     */
     private function controller(
         PasswordResetGate $gate,
         AuthKitUrlGenerator $urlGenerator,
         ?Environment $twig = null,
         ?ProfileRegistry $profileRegistry = null,
+        ?array $resolverOverrides = null,
     ): ResetPasswordRequestController {
         $profileRegistry ??= ProfileRegistryFactory::single(TestUser::class, [
             'password_reset' => ['mode' => 'enabled', 'delivery' => 'link'],
@@ -112,7 +165,7 @@ final class ResetPasswordRequestControllerTest extends TestCase
             $handler,
             new TokenStorage(),
             $urlGenerator,
-            ProfileRegistryFactory::requestResolver(TestUser::class, [
+            ProfileRegistryFactory::requestResolver(TestUser::class, $resolverOverrides ?? [
                 'password_reset' => ['mode' => 'enabled'],
             ]),
         );

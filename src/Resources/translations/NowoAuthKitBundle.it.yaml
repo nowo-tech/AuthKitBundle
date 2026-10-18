@@ -77,6 +77,7 @@ reset:
         help: Inserisci il tuo identificativo. Se esiste un account, invieremo le istruzioni.
         submit: Invia istruzioni
         back_to_login: Torna all'accesso
+        enter_code: Ho già un codice
         flash_sent: Se esiste un account corrispondente, le istruzioni sono state inviate.
         identifier_required: Inserisci il tuo identificativo.
         field:

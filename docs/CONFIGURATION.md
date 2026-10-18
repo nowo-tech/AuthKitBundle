@@ -154,7 +154,7 @@ nowo_auth_kit:
     # Page contract (REQ-UI-003): the auth pages extend @NowoUiKit/page/auth on the UiKit guest layout.
     web_ui:
         layout_template: null       # null = nowo_ui_kit.layouts.guest (layout rendering the UiKit canonical blocks)
-        templates:                  # per-page overrides (thin extends of @!NowoAuthKitBundle/security/<page>.html.twig)
+        templates:                  # per-page overrides (thin extends of @!NowoAuthKit/security/<page>.html.twig)
             login: '@NowoAuthKitBundle/security/login.html.twig'
             register: '@NowoAuthKitBundle/security/register.html.twig'
             reset_request: '@NowoAuthKitBundle/security/reset_request.html.twig'

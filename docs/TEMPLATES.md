@@ -30,7 +30,7 @@ the host's own pages, not a page: it uses theme slots only (see [Widgets](#widge
 | --- | --- | --- | --- | --- |
 | Sign in (`login`) | `security/login.html.twig` | `page/auth` | `AuthPage` (title `login.heading`, security error of the last attempt as `error`, form = form_login form, submit `login.submit`, links: magic link, QR, forgot password, register — each only when enabled) | `nowo_ui_auth_fields` (`_auth_page`: form errors + UiKit loop), `nowo_ui_auth_footer` (social / SSO providers before the links: `nowo_auth_kit_providers`) |
 | Register (`register`) | `security/register.html.twig` | `page/auth` | `AuthPage` (`register.*`, link back to sign in) | `nowo_ui_auth_fields`, `nowo_ui_auth_actions` (`_registration_submit.html.twig`: disabled until the SlideToConfirm consent in `gate` mode) |
-| Reset request (`reset_request`) | `security/reset_request.html.twig` | `page/auth` | `AuthPage` (`reset.request.*`, intro = help) | `nowo_ui_auth_fields` |
+| Reset request (`reset_request`) | `security/reset_request.html.twig` | `page/auth` | `AuthPage` (`reset.request.*`, intro = help; links: "I already have a code" when `password_reset.delivery` is `code` or `both`, back to sign in) | `nowo_ui_auth_fields` |
 | New password (`reset_password`) | `security/reset_password.html.twig` | `page/auth` | `AuthPage` (`reset.password.*`) | `nowo_ui_auth_fields` — password **and confirmation** (and CSRF) render before the submit button |
 | Reset with code (`reset_password_code`) | `security/reset_password_code.html.twig` | `page/auth` | `AuthPage` (`reset.code.*`, links: request a new code, sign in) | `nowo_ui_auth_fields` (identifier, code / OtpType, password + confirmation) |
 | Magic link request (`magic_login_request`) | `security/magic_login_request.html.twig` | `page/auth` | `AuthPage` (`magic_login.request.*`) | `nowo_ui_auth_fields` |
@@ -82,8 +82,8 @@ Stimulus:
 | `data-nowo-auth-kit-qr-state` | `pending` → `approved` / `denied` / `expired` / `error` (CSS hooks) |
 | `data-status-url`, `data-complete-url`, `data-start-url`, `data-poll-interval`, `data-expires-at` | URLs and timing (1.x names kept) |
 | `data-label-<state>` | translated status texts (`qr_login.show.state.*`) |
-| `[data-nowo-auth-kit-qr-region="image|code|status|countdown|continue|retry"]` | the parts (countdown server-rendered as `m:ss`) |
-| `web_ui.qr_login.stimulus_controller: <id>` | adds `data-controller="<id>"`, `data-<id>-{status-url,complete-url,start-url,poll-interval,expires-at}-value` and `data-<id>-target="<region>"`, and drops the bundled script |
+| `[data-nowo-auth-kit-qr-region="image|link|code|status|countdown|continue|retry"]` | the parts (countdown server-rendered as `m:ss`; `link` = the approve link next to the QR image — without an image the link is the `image` region) |
+| `web_ui.qr_login.stimulus_controller: <id>` | adds `data-controller="<id>"` and `data-<id>-{status-url,complete-url,start-url,poll-interval,expires-at}-value` on the **auth panel** (`section[data-testid="auth-kit-qr_login_show"]`, the common ancestor of the challenge and of the Continue / retry actions) and `data-<id>-target="<region>"` on every part, and drops the bundled script |
 
 Without a Stimulus controller the bundled `js/nowo-auth-kit-qr-login.js` (asset package `nowo_auth_kit`, CSP nonce,
 no inline code) polls the status URL, updates the status text and the countdown, navigates to the complete URL on
@@ -116,7 +116,7 @@ controller on the QR challenge:
 
 ```twig
 {# templates/auth/qr_login_show.html.twig #}
-{% extends '@!NowoAuthKitBundle/security/qr_login_show.html.twig' %}
+{% extends '@!NowoAuthKit/security/qr_login_show.html.twig' %}
 {% block nowo_auth_kit_qr_attributes %} data-action="nowo-auth-kit:qr-state->analytics#track"{% endblock %}
 ```
 

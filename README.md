@@ -52,7 +52,7 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 - **Named profiles** — separate auth config per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
 - **UiKit page contract** (REQ-UI-003): every auth page is the UiKit auth scaffold on your guest layout — theme it once in `nowo_ui_kit`, no page overrides ([TEMPLATES.md](docs/TEMPLATES.md))
-- Per-page template overrides via `web_ui.templates.<page>` (thin `{% extends '@!NowoAuthKitBundle/…' %}` + data block)
+- Per-page template overrides via `web_ui.templates.<page>` (thin `{% extends '@!NowoAuthKit/…' %}` + data block)
 - Translation domain `NowoAuthKitBundle` with app overrides (`de`, `en`, `es`, `fr`, `it`, `nl`, `pt`)
 
 ## Installation

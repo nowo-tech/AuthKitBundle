@@ -10,6 +10,12 @@ use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Twig\Environment;
+
+use function dirname;
+use function file_get_contents;
+use function glob;
+use function str_ends_with;
 
 /**
  * Auth pages through the real kernel (REQ-UI-003): UiKit auth scaffold on the guest layout, form_login CSRF and
@@ -172,6 +178,31 @@ final class AuthPagesKernelTest extends WebTestCase
         self::assertSame('Waiting for approval…', trim($root->filter('[data-nowo-auth-kit-qr-region="status"]')->text()));
         self::assertSame('/login/qr', $crawler->filter('[data-testid="auth-kit-qr_login_show"] form')->attr('action'));
         self::assertSelectorExists('script[src$="/bundles/nowoauthkit/js/nowo-auth-kit-qr-login.js"]');
+    }
+
+    /**
+     * Per-page overrides extend the bundle original through Symfony's "!" namespace of the bundle, "@!NowoAuthKit"
+     * (the "@NowoAuthKitBundle" alias registered by TwigPathsPass has no "!" variant): the documented snippets must
+     * use the namespace that resolves.
+     */
+    public function testDocumentedOverrideNamespaceResolves(): void
+    {
+        $twig = self::getContainer()->get('twig');
+        self::assertInstanceOf(Environment::class, $twig);
+        $loader = $twig->getLoader();
+
+        self::assertTrue($loader->exists('@!NowoAuthKit/security/qr_login_show.html.twig'));
+        self::assertFalse($loader->exists('@!NowoAuthKitBundle/security/qr_login_show.html.twig'));
+
+        $root  = dirname(__DIR__, 3);
+        $files = [$root . '/README.md', ...(glob($root . '/docs/*.md') ?: []), $root . '/src/DependencyInjection/Configuration.php'];
+        foreach ($files as $file) {
+            if (str_ends_with($file, '/CHANGELOG.md')) {
+                continue; // history: names the wrong namespace in the entry that fixed it
+            }
+            self::assertStringNotContainsString('@!NowoAuthKitBundle/', (string) file_get_contents($file), $file);
+        }
+        self::assertStringContainsString("{% extends '@!NowoAuthKit/security/qr_login_show.html.twig' %}", (string) file_get_contents($root . '/docs/TEMPLATES.md'));
     }
 
     private function entityManager(): EntityManagerInterface

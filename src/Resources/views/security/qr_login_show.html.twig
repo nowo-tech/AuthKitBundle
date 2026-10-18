@@ -6,12 +6,14 @@
 
   Challenge root `[data-nowo-auth-kit-qr]` (state in data-nowo-auth-kit-qr-state: pending | approved | denied |
   expired | error), URLs and timing as data attributes (1.x: data-status-url, data-complete-url, data-poll-interval,
-  data-expires-at), state texts as data-label-<state>, parts as [data-nowo-auth-kit-qr-region="image|code|status|
+  data-expires-at), state texts as data-label-<state>, parts as [data-nowo-auth-kit-qr-region="image|link|code|status|
   countdown|continue|retry"]. The bundled nowo-auth-kit-qr-login.js polls the status URL, updates the status text and
   the countdown, redirects on approval and dispatches `nowo-auth-kit:qr-state`. With
-  web_ui.qr_login.stimulus_controller set (`qr_stimulus_controller`), the root also gets data-controller="<id>",
-  data-<id>-{status-url,complete-url,start-url,poll-interval,expires-at}-value and every part data-<id>-target, and
-  the bundled script is not loaded. Blocks: nowo_auth_kit_qr_attributes (extra root attributes),
+  web_ui.qr_login.stimulus_controller set (`qr_stimulus_controller`), the auth panel (page.attributes, the common
+  ancestor of the challenge and of the continue/retry actions) gets data-controller="<id>" and
+  data-<id>-{status-url,complete-url,start-url,poll-interval,expires-at}-value, every part data-<id>-target, and the
+  bundled script is not loaded. The approve link ("Open approve link on your phone") is always rendered: as the
+  "image" region without a QR image, else as the "link" region next to it. Blocks: nowo_auth_kit_qr_attributes (extra root attributes),
   nowo_auth_kit_qr_code, nowo_auth_kit_qr_status, nowo_auth_kit_qr_countdown, nowo_auth_kit_qr_continue,
   nowo_auth_kit_qr_retry.
 #}
@@ -28,11 +30,14 @@
         data-status-url="{{ status_url }}" data-complete-url="{{ complete_url }}" data-start-url="{{ start_url }}"
         data-poll-interval="{{ poll_interval_ms }}" data-expires-at="{{ expires_at }}"
         {%- for _state in ['pending', 'approved', 'denied', 'expired', 'error'] %} data-label-{{ _state }}="{{ ('qr_login.show.state.' ~ _state)|trans({}, 'NowoAuthKitBundle') }}"{% endfor %}
-        {%- if _qr_ctrl %} data-controller="{{ _qr_ctrl }}" data-{{ _qr_ctrl }}-status-url-value="{{ status_url }}" data-{{ _qr_ctrl }}-complete-url-value="{{ complete_url }}" data-{{ _qr_ctrl }}-start-url-value="{{ start_url }}" data-{{ _qr_ctrl }}-poll-interval-value="{{ poll_interval_ms }}" data-{{ _qr_ctrl }}-expires-at-value="{{ expires_at }}"{% endif %}
         {%- block nowo_auth_kit_qr_attributes %}{% endblock %}>
         {% block nowo_auth_kit_qr_code %}
             {% if qr_data_uri %}
                 <img class="nowo-auth-kit-qr__image" src="{{ qr_data_uri }}" alt="{{ 'qr_login.show.qr_alt'|trans({}, 'NowoAuthKitBundle') }}" width="200" height="200" data-nowo-auth-kit-qr-region="image"{{ _self.target(_qr_ctrl, 'image') }}>
+                {#- Same-device flow and screen readers: the approve link is offered next to the QR image too. -#}
+                <p class="nowo-auth-kit-qr__link" data-nowo-auth-kit-qr-region="link"{{ _self.target(_qr_ctrl, 'link') }}>
+                    <a href="{{ qr_payload }}" rel="noopener">{{ 'qr_login.show.open_on_phone'|trans({}, 'NowoAuthKitBundle') }}</a>
+                </p>
             {% else %}
                 <p class="nowo-auth-kit-qr__link" data-nowo-auth-kit-qr-region="image"{{ _self.target(_qr_ctrl, 'image') }}>
                     <a href="{{ qr_payload }}" rel="noopener">{{ 'qr_login.show.open_on_phone'|trans({}, 'NowoAuthKitBundle') }}</a>

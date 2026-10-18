@@ -220,4 +220,52 @@ final class QrLoginShowControllerTest extends TestCase
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
         self::assertSame('<html>qr</html>', $response->getContent());
     }
+
+    /**
+     * web_ui.qr_login.stimulus_controller: data-controller and the values go to the auth panel (page.attributes), the
+     * common ancestor of the challenge and of the continue/retry actions.
+     */
+    public function testStimulusControllerAttributesGoToTheAuthPanel(): void
+    {
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturnCallback(static fn (string $route, array $params = []): string => '/' . $route . (isset($params['id']) ? '/' . $params['id'] : ''));
+
+        $challenge = $this->challenge();
+        $manager   = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($challenge);
+        $manager->method('verifyDesktopCookie')->willReturn(true);
+        $manager->method('isExpiredOrInvalid')->willReturn(false);
+
+        $context = null;
+        $twig    = $this->createMock(Environment::class);
+        $twig->expects(self::once())->method('render')->willReturnCallback(static function (string $template, array $ctx) use (&$context): string {
+            $context = $ctx;
+
+            return '<html>qr</html>';
+        });
+
+        $overrides  = $this->enabledOverrides() + ['web_ui' => ['qr_login' => ['stimulus_controller' => 'qr-login']]];
+        $controller = new QrLoginShowController(
+            $twig,
+            new QrLoginGate(ProfileRegistryFactory::single(TestUser::class, $overrides)),
+            $manager,
+            new NullQrCodeGenerator(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $overrides),
+        );
+
+        $controller->show($this->requestWithSession(), 'show-id');
+
+        self::assertIsArray($context);
+        self::assertSame('qr-login', $context['qr_stimulus_controller']);
+        $attributes = $context['page']->attributes;
+        self::assertSame('qr-login', $attributes['data-controller']);
+        self::assertSame('/nowo_auth_kit_qr_login_status/show-id', $attributes['data-qr-login-status-url-value']);
+        self::assertSame('/nowo_auth_kit_qr_login_complete/show-id', $attributes['data-qr-login-complete-url-value']);
+        self::assertSame('/nowo_auth_kit_qr_login_start', $attributes['data-qr-login-start-url-value']);
+        self::assertSame(1500, $attributes['data-qr-login-poll-interval-value']);
+        self::assertSame($challenge->getExpiresAt()->getTimestamp(), $attributes['data-qr-login-expires-at-value']);
+        self::assertSame('/nowo_auth_kit_qr_login_status/show-id', $context['status_url']);
+        self::assertSame(1500, $context['poll_interval_ms']);
+    }
 }

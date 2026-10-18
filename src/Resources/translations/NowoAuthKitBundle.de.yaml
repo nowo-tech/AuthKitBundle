@@ -77,6 +77,7 @@ reset:
         help: Geben Sie Ihren Identifikator ein. Wenn ein Konto existiert, senden wir Anweisungen.
         submit: Anweisungen senden
         back_to_login: Zurück zur Anmeldung
+        enter_code: Ich habe bereits einen Code
         flash_sent: Wenn ein passendes Konto existiert, wurden Anweisungen gesendet.
         identifier_required: Bitte geben Sie Ihren Identifikator ein.
         field:

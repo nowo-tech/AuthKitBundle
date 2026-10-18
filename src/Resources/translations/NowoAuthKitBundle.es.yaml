@@ -87,6 +87,7 @@ reset:
         help: Introduce tu identificador. Si existe una cuenta, enviaremos instrucciones.
         submit: Enviar instrucciones
         back_to_login: Volver al inicio de sesión
+        enter_code: Ya tengo un código
         flash_sent: Si existe una cuenta coincidente, se han enviado las instrucciones.
         identifier_required: Introduce tu identificador.
         field:

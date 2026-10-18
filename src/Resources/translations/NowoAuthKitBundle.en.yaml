@@ -87,6 +87,7 @@ reset:
         help: Enter your account identifier. If it exists, we will send reset instructions.
         submit: Send reset instructions
         back_to_login: Back to sign in
+        enter_code: I already have a code
         flash_sent: If an account matches, reset instructions have been sent.
         identifier_required: Please enter your identifier.
         field:

@@ -83,19 +83,31 @@ final class QrLoginShowController
         $qrPayload = $approveUrl;
         $qrDataUri = $this->qrCodeGenerator->generateDataUri($qrPayload);
 
-        $startUrl  = $this->urlGenerator->generate($profile->routes['qr_login_start']['name']);
-        $retryForm = ($this->formFactory ?? Forms::createFormFactory())
+        $startUrl     = $this->urlGenerator->generate($profile->routes['qr_login_start']['name']);
+        $statusUrl    = $this->urlGenerator->generate($profile->routes['qr_login_status']['name'], ['id' => $challenge->getId()]);
+        $completeUrl  = $this->urlGenerator->generate($profile->routes['qr_login_complete']['name'], ['id' => $challenge->getId()]);
+        $pollInterval = (int) ($profile->qrLogin['poll_interval_ms'] ?? 1500);
+        $controller   = $profile->webUi['qr_login']['stimulus_controller'] ?? null;
+        $retryForm    = ($this->formFactory ?? Forms::createFormFactory())
             ->createNamed('', QrLoginRetryType::class, null, ['action' => $startUrl])
             ->createView();
+        // The Stimulus controller sits on the auth panel: the challenge (fields) and the continue/retry targets
+        // (actions) are both its descendants.
         $page = $this->pages->create('qr_login_show', $profile, $retryForm, [
             $this->pages->link('qr_login.show.back_to_login', $this->urlGenerator->generate($profile->routes['login']['name'])),
-        ]);
+        ], attributes: $this->pages->stimulusAttributes($controller, [
+            'status-url'    => $statusUrl,
+            'complete-url'  => $completeUrl,
+            'start-url'     => $startUrl,
+            'poll-interval' => $pollInterval,
+            'expires-at'    => $challenge->getExpiresAt()->getTimestamp(),
+        ]));
 
         $content = $this->twig->render($profile->template('qr_login_show'), $this->pages->context('qr_login_show', $page, $profile, [
-            'status_url'             => $this->urlGenerator->generate($profile->routes['qr_login_status']['name'], ['id' => $challenge->getId()]),
-            'complete_url'           => $this->urlGenerator->generate($profile->routes['qr_login_complete']['name'], ['id' => $challenge->getId()]),
+            'status_url'             => $statusUrl,
+            'complete_url'           => $completeUrl,
             'start_url'              => $startUrl,
-            'qr_stimulus_controller' => $profile->webUi['qr_login']['stimulus_controller'] ?? null,
+            'qr_stimulus_controller' => $controller,
             'challenge_id'           => $challenge->getId(),
             'public_code'            => $challenge->getPublicCode(),
             'qr_data_uri'            => $qrDataUri,
@@ -104,7 +116,7 @@ final class QrLoginShowController
             'expires_in'             => max(0, $challenge->getExpiresAt()->getTimestamp() - time()),
             'status_route'           => $profile->routes['qr_login_status']['name'],
             'complete_route'         => $profile->routes['qr_login_complete']['name'],
-            'poll_interval_ms'       => (int) ($profile->qrLogin['poll_interval_ms'] ?? 1500),
+            'poll_interval_ms'       => $pollInterval,
             'login_route'            => $profile->routes['login']['name'],
         ]));
 
