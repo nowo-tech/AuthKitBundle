@@ -181,7 +181,7 @@ When `mode` is `disabled`, `auth_kit_dropdown()` returns an empty string.
 The widget is a native `<details>` disclosure painted with UiKit theme slots (`btn_secondary` toggle, `tabs` /
 `tab` / `tab_active`, `flash_error`, `btn_primary`) and `nowo-auth-kit.css` (`nowo-auth-kit-embed*`); no Bootstrap
 dropdown JavaScript. Load on the host pages that show it: `nowo-ui.css`, `{{ asset('css/nowo-auth-kit.css',
-'nowo_auth_kit') }}` and the UiKit scripts partial (`{{ include(nowo_ui_partial('scripts')) }}`, tab switching between
+'nowo_auth_kit') }}` (plus the PasswordToggle stylesheet when installed) and the UiKit scripts partial (`{{ include(nowo_ui_partial('scripts')) }}`, tab switching between
 login and register).
 
 Forms POST to the same routes as full-page login/register (`form_login` on the firewall). After a failed login, Symfony redirects to the login page by default.
