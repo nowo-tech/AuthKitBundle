@@ -12,6 +12,10 @@
 #}
 {% extends '@NowoUiKit/page/auth.html.twig' %}
 
+{#- AuthKit prints the root form errors itself (nowo_ui_auth_fields below; UiKit 2.2 does not), so the UiKit >= 2.3
+    scaffold must skip its own copy: they are shown exactly once on 2.2 and 2.3. Ignored by UiKit 2.2. -#}
+{% set nowo_ui_auth_root_errors = false %}
+
 {% block nowo_ui_document_title %}{{ document_title|default(page.title)|nowo_ui_trans }}{% endblock %}
 
 {% block nowo_ui_styles %}
@@ -31,8 +35,8 @@
     {{ parent() }}
 {% endblock %}
 
-{#- Form-level errors (invalid CSRF token, errors bubbled to the root) before the fields: the UiKit auth scaffold
-    only renders the child rows. -#}
+{#- Form-level errors (invalid CSRF token, errors bubbled to the root) before the fields: the UiKit 2.2 auth scaffold
+    only renders the child rows (2.3 would too, but is opted out above). -#}
 {% block nowo_ui_auth_fields %}
     {{ form_errors(form) }}
     {{ parent() }}

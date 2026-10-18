@@ -73,6 +73,7 @@ final class AuthPagesKernelTest extends WebTestCase
 
         $crawler = $this->client->followRedirect();
         self::assertSame('Invalid CSRF token.', trim($crawler->filter('[data-nowo-ui-page="auth"] [role="alert"]')->text()));
+        self::assertSame(1, substr_count((string) $this->client->getResponse()->getContent(), 'Invalid CSRF token.'), 'The login error is shown exactly once.');
         self::assertSame('ada@example.com', $crawler->filter('input[name="login_form[_username]"]')->attr('value'));
     }
 
@@ -125,6 +126,7 @@ final class AuthPagesKernelTest extends WebTestCase
         ]));
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-testid="auth-kit-reset_password"] form', 'The CSRF token is invalid');
+        self::assertSame(1, substr_count((string) $this->client->getResponse()->getContent(), 'The CSRF token is invalid'), 'The root form error is shown exactly once (AuthKit prints it; the UiKit >= 2.3 scaffold copy is opted out).');
 
         $this->client->submit($crawler->filter('[data-testid="auth-kit-reset_password"] form')->form([
             'reset_password_form[password][first]'  => 'new-password-456',

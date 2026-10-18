@@ -75,6 +75,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Root form errors shown once with UiKit 2.3**: the UiKit 2.3 `page/auth` scaffold prints the root form errors
+  (`form_errors(form)`) itself, and AuthKit already prints them in `nowo_ui_auth_fields`, so the invalid-CSRF and other
+  form-level errors appeared twice. `security/_auth_page.html.twig` now sets `nowo_ui_auth_root_errors = false` (the
+  UiKit 2.3 opt-out; ignored by 2.2) and keeps its own `form_errors(form)` call, so the errors are shown exactly once on
+  UiKit 2.2 and 2.3. Covered by `AuthPagesKernelTest` (error text counted once in the response).
+
 ## [1.27.0] - 2026-10-18
 
 Auth pages on the UiKit 2.2 page contract (REQ-UI-003): every security page on the auth scaffold and guest layout, reset-password field order fixed, override-friendly QR login page, translated validation messages; deprecated `templates.*` / `css.*` keys mapped to `web_ui.*` / UiKit theme. See [UPGRADING](UPGRADING.md#to-1270).
