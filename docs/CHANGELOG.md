@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.27.3] - 2026-10-19](#1273---2026-10-19)
 - [[1.27.2] - 2026-10-18](#1272---2026-10-18)
 - [[1.27.1] - 2026-10-18](#1271---2026-10-18)
 - [[1.27.0] - 2026-10-18](#1270---2026-10-18)
@@ -78,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.27.3] - 2026-10-19
+
+flash_trans translates TranslatableMessage / TranslatableInterface flashes instead of returning the object (500 in host toast templates); optional locale argument. See [UPGRADING](UPGRADING.md#to-1273).
+
 ### Fixed
 
 - **`flash_trans` with `TranslatableInterface` flashes**: a `TranslatableMessage` (or any `TranslatableInterface`) flash
@@ -85,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   string" (HTTP 500). The filter now calls `->trans($translator, $locale)`, with the message's own domain and
   parameters. It also takes an optional locale (`message|flash_trans({}, 'es')`), used for string keys too.
   `AuthKitFlashExtensionTest` covers both shapes.
+
+[1.27.3]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.27.3
 
 ## [1.27.2] - 2026-10-18
 

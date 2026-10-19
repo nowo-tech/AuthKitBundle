@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.27.3](#to-1273)
 - [To 1.27.2](#to-1272)
 - [To 1.27.1](#to-1271)
 - [To 1.27.0](#to-1270)
@@ -84,6 +85,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.27.3
+
+From **1.27.2**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 - **`flash_trans`** now translates `TranslatableInterface` flashes instead of returning the object. Host templates
   that worked around it (`message.message is defined ? message|trans : message|flash_trans`) can go back to
