@@ -85,6 +85,10 @@
 
 ## Unreleased
 
+- **`flash_trans`** now translates `TranslatableInterface` flashes instead of returning the object. Host templates
+  that worked around it (`message.message is defined ? message|trans : message|flash_trans`) can go back to
+  `message|flash_trans`; the workaround keeps working.
+
 ## To 1.27.2
 
 From **1.27.1**:

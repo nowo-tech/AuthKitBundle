@@ -560,7 +560,7 @@ nowo_auth_kit:
 ```
 
 - `translate: true` — AuthKit controllers translate their flash keys from the `NowoAuthKitBundle` domain in the request locale before adding them, so any flash template (`{{ message }}`, `{{ message|trans }}`, UiKitBundle `partials/_toasts.html.twig`) shows text. `false` keeps the raw keys (pre-1.23).
-- `flash_trans` — for hosts whose own controllers flash keys from several domains: `{{ message|flash_trans }}` uses the first domain of `twig_filter_domains` whose catalogue (current locale + fallbacks) has the key; anything else goes through `messages` (already translated text is returned unchanged). Non-string (structured) flashes pass through.
+- `flash_trans` — for hosts whose own controllers flash keys from several domains: `{{ message|flash_trans }}` uses the first domain of `twig_filter_domains` whose catalogue (current locale + fallbacks) has the key; anything else goes through `messages` (already translated text is returned unchanged). `TranslatableInterface` flashes (`TranslatableMessage`) are translated with their own domain and parameters (since 1.27.3); other non-string (structured) flashes pass through. Optional locale: `message|flash_trans({}, 'es')`.
 
 ## Admin CLI (create-admin)
 

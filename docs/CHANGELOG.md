@@ -78,6 +78,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`flash_trans` with `TranslatableInterface` flashes**: a `TranslatableMessage` (or any `TranslatableInterface`) flash
+  was returned unchanged, so `{{ message|flash_trans }}` failed with "Object of class ... could not be converted to
+  string" (HTTP 500). The filter now calls `->trans($translator, $locale)`, with the message's own domain and
+  parameters. It also takes an optional locale (`message|flash_trans({}, 'es')`), used for string keys too.
+  `AuthKitFlashExtensionTest` covers both shapes.
+
 ## [1.27.2] - 2026-10-18
 
 QR login Stimulus targets resolved, approve link always shown, reset request links the code page, override namespace fixed in the docs. See [UPGRADING](UPGRADING.md#to-1272).
