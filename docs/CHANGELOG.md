@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.28.0] - 2026-10-20](#1280---2026-10-20)
 - [[1.27.3] - 2026-10-19](#1273---2026-10-19)
 - [[1.27.2] - 2026-10-18](#1272---2026-10-18)
 - [[1.27.1] - 2026-10-18](#1271---2026-10-18)
@@ -79,6 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-10-20
+
+Wave-2 REQ compliance: configurable OAuth2 timeouts, Doctrine table prefix, QR deny form type, injectable clock, CI and tooling. See [UPGRADING](UPGRADING.md#to-1280).
+
 ### Added
 
 - `http_client.timeout` / `http_client.max_duration` root config (defaults 10 s / 20 s, `max_duration >= timeout` validated) for the OAuth2 token and userinfo calls of social login, documented with the PHP / Caddy / FrankenPHP timeout hierarchy (REQ-RUNTIME-001).
@@ -101,6 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Documentation: wave-1 REQ compliance — README documentation list order (PSR/Templates moved to Additional documentation), CONTRIBUTING Cursor Agent queue settings (REQ-IDE-006), TOCs on long docs, SDD scope (social login / SSO in scope) and ENGRAM link, demo `.env.test` comment, Spec Kit inventory refresh (181/181).
+
+[1.28.0]: https://github.com/nowo-tech/AuthKitBundle/releases/tag/v1.28.0
 
 ## [1.27.3] - 2026-10-19
 

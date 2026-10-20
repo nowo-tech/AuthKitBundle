@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.28.0](#to-1280)
 - [To 1.27.3](#to-1273)
 - [To 1.27.2](#to-1272)
 - [To 1.27.1](#to-1271)
@@ -85,6 +86,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.28.0
+
+From **1.27.3**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ```bash
 composer update nowo-tech/auth-kit-bundle
