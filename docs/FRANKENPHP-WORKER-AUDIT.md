@@ -121,7 +121,7 @@ Entities (`QrLoginChallenge`, `SocialLoginAccount`, `SocialLoginCredential`), en
 - **Where:** `src/SocialLogin/OAuth2Client.php:49` (token endpoint) and `:83` (userinfo endpoint) call `HttpClientInterface::request()` without `timeout` or `max_duration`.
 - **Worker impact:** Symfony HttpClient then falls back to `default_socket_timeout` (60 s by default) for idle time and has no total limit. A slow identity provider pins one of the limited worker threads during the social login callback. No state leaks.
 - **Recommendation:** set `framework.http_client.default_options.timeout` / `max_duration`, or use a scoped client for OAuth, and cap queueing with FrankenPHP `max_wait_time`.
-- **Status:** Resolved — `OAuth2Client` passes `timeout` (default 10 s) and `max_duration` (default 20 s) on both calls; both are constructor arguments (`$timeout`, `$maxDuration`) that can be overridden in service configuration. Test: `OAuth2ClientTest::testTokenAndUserinfoCallsUseExplicitTimeouts`.
+- **Status:** Resolved — `OAuth2Client` passes `timeout` (default 10 s) and `max_duration` (default 20 s) on both calls; both come from `nowo_auth_kit.http_client.timeout` / `max_duration` (since 1.28; previously only overridable as the `$timeout` / `$maxDuration` service arguments). Test: `OAuth2ClientTest::testTokenAndUserinfoCallsUseExplicitTimeouts`.
 
 ### Info
 
@@ -135,7 +135,7 @@ Entities (`QrLoginChallenge`, `SocialLoginAccount`, `SocialLoginCredential`), en
 - Keeping `services_resetter` enabled (default in the Symfony FrankenPHP runtime) is still recommended, but the bundle no longer depends on it: its services are stateless and its security decisions re-read the database.
 - Under scenario B, clearing the application's EntityManager identity map between requests remains useful for *application* entities Auth Kit does not touch; Auth Kit security paths re-read their own rows.- Keep all Auth Kit routes behind a stateful firewall. `auth_kit_dropdown` is safe on public pages (it shows the guest panel there).
 - Use a shared `cache.app` backend (filesystem on a single host, Redis/Memcached across hosts) so rate limits apply to all workers.
-- Adjust the `OAuth2Client` `$timeout` / `$maxDuration` arguments if your identity provider is slow, and set FrankenPHP `max_wait_time`.
+- Adjust `nowo_auth_kit.http_client.timeout` / `max_duration` if your identity provider is slow, keep PHP `max_execution_time` and the Caddy write timeout above them, and set FrankenPHP `max_wait_time` (see [CONFIGURATION.md](CONFIGURATION.md#http-timeouts-social-login)).
 - Add a `UniqueEntity` constraint on the user identifier field to avoid EntityManager-closing flush errors.
 - Custom `PasswordResetNotifierInterface`, `MagicLoginNotifierInterface`, `NewDeviceLoginNotifierInterface`, `QrLoginStepUpInterface` and `OutboundMailReadyCheckerInterface` implementations must stay stateless or implement `ResetInterface`. Listeners on `QrLogin*Event` and `PasswordResetRequestedEvent` receive entities and must not keep them in properties.
 

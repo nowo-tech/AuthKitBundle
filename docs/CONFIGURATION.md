@@ -18,6 +18,8 @@
 - [Password reset](#password-reset)
 - [Magic login (passwordless)](#magic-login-passwordless)
 - [Social login (OAuth)](#social-login-oauth)
+  - [HTTP timeouts (social login)](#http-timeouts-social-login)
+- [Doctrine table prefix](#doctrine-table-prefix)
 - [Embedded auth UI](#embedded-auth-ui)
 - [Locale in paths](#locale-in-paths)
 - [Recipient locale (notifications)](#recipient-locale-notifications)
@@ -460,6 +462,46 @@ When `social_login.mode` is `enabled` **and** at least one enabled `SocialLoginC
 
 See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md).
 
+### HTTP timeouts (social login)
+
+Since 1.28 (REQ-RUNTIME-001). The OAuth2 / OIDC token and userinfo calls made by `OAuth2Client` carry explicit deadlines, so a slow identity provider cannot pin a PHP thread (FrankenPHP worker or PHP-FPM):
+
+```yaml
+nowo_auth_kit:
+    http_client:
+        timeout: 10        # seconds without receiving data (Symfony HttpClient "timeout"), default 10
+        max_duration: 20   # total seconds per request (Symfony HttpClient "max_duration"), default 20; must be >= timeout
+```
+
+Root-level keys (shared by every profile). On expiry Symfony HttpClient throws a transport exception and the social callback fails with the usual error flash; nothing is retried. Keep the layers ordered so the innermost deadline fires first:
+
+| Layer | Demo value | Rule |
+|-------|------------|------|
+| `http_client.max_duration` | 20 s | Fires first |
+| PHP `max_execution_time` / `max_input_time` | 30 s | Greater than `max_duration` |
+| Caddy `servers.timeouts.write` (FrankenPHP) | 40 s | Greater than PHP |
+| FrankenPHP `max_wait_time` | 30 s | Caps the wait for a free PHP thread (504 instead of an endless queue) |
+
+When you raise `max_duration`, raise the PHP and HTTP write deadlines in the same change (see [DEMO-FRANKENPHP.md](DEMO-FRANKENPHP.md#timeouts)).
+
+## Doctrine table prefix
+
+Since 1.28 (REQ-ORM-002). Namespace the bundle-owned tables when several applications or bundles share one database:
+
+```yaml
+nowo_auth_kit:
+    doctrine:
+        table_prefix: 'app_'   # default '' (no prefix); letters, digits and underscores only
+```
+
+| Entity | Default table | With `table_prefix: 'app_'` |
+|--------|---------------|-----------------------------|
+| `QrLoginChallenge` | `auth_kit_qr_login_challenge` | `app_auth_kit_qr_login_challenge` |
+| `SocialLoginCredential` | `auth_kit_social_credential` | `app_auth_kit_social_credential` |
+| `SocialLoginAccount` | `auth_kit_social_account` | `app_auth_kit_social_account` |
+
+`Nowo\AuthKitBundle\Doctrine\TablePrefixListener` (Doctrine `loadClassMetadata`, registered only when the prefix is not empty) rewrites the AuthKit entities only — host and third-party mappings are never touched — and also prefixes their explicitly named indexes / unique constraints (`idx_qr_challenge_status_expires`, `uniq_auth_kit_social_*`), which stay unique on databases with schema-wide index names. Changing the prefix of an existing install renames the tables: generate a migration (`doctrine:migrations:diff`) and rename instead of dropping.
+
 ## Embedded auth UI
 
 When `embed.mode` is `dropdown`, render `{{ auth_kit_dropdown() }}` in Twig. Forms POST to the same routes as full-page login/register.
@@ -642,6 +684,8 @@ The bundle prepends an asset package named `nowo_auth_kit` with base path `/bund
 Route **names** must stay in sync with `security.yaml` (`login_path`, `check_path`, `logout.path`). Paths are customizable for URL structure and `access_control` regexes.
 
 When `locale.in_path` is `always` or `both`, localized paths are `/{_locale}/login`, etc.; canonical route **names** stay the same. Bare aliases use the `_unlocalized` suffix when `both`.
+
+Routes are generated per profile by the `nowo_auth_kit` route loader (`@NowoAuthKitBundle/Resources/config/routing.yaml`, `type: nowo_auth_kit`) instead of `#[Route]` attributes on the controllers: every route name, path and locale variant comes from configuration (`profiles.*.routes`, `locale.in_path`), and one controller serves several profiles under different paths, which static attributes cannot express. The import file only points at the loader; it declares no routes itself.
 
 ## Security.yaml checklist
 

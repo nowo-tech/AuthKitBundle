@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Nowo\AuthKitBundle\Controller\QrLoginApproveController;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
+use Nowo\AuthKitBundle\Form\QrLoginDenyType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
@@ -317,12 +318,18 @@ final class QrLoginApproveControllerTest extends TestCase
 
         $formFactory = $this->createMock(FormFactoryInterface::class);
         $formFactory->expects(self::once())->method('create')->willReturn($form);
+        $denyView = $this->createMock(FormView::class);
+        $denyForm = $this->createMock(FormInterface::class);
+        $denyForm->method('createView')->willReturn($denyView);
+        $formFactory->expects(self::once())->method('createNamed')->with('', QrLoginDenyType::class)->willReturn($denyForm);
 
         $twig = $this->createMock(Environment::class);
         $twig->expects(self::once())->method('render')->with(
             '@NowoAuthKitBundle/security/qr_login_approve.html.twig',
-            self::callback(static function (array $vars) use ($formView): bool {
-                return $vars['approve_form'] === $formView && $vars['slide_to_confirm_mode'] === 'danger';
+            self::callback(static function (array $vars) use ($formView, $denyView): bool {
+                return $vars['approve_form'] === $formView
+                    && $vars['deny_form'] === $denyView
+                    && $vars['slide_to_confirm_mode'] === 'danger';
             }),
         )->willReturn('<form>slide</form>');
 

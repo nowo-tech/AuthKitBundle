@@ -37,7 +37,7 @@ final class QrLoginStatusController
 
         $this->challengeManager->isExpiredOrInvalid($challenge);
 
-        $expiresIn = max(0, $challenge->getExpiresAt()->getTimestamp() - time());
+        $expiresIn = $this->challengeManager->expiresIn($challenge);
 
         return new JsonResponse([
             'status'     => $challenge->getStatus()->value,

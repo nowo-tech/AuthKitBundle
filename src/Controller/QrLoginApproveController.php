@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginApproveMode;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Form\QrLoginApproveType;
+use Nowo\AuthKitBundle\Form\QrLoginDenyType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -165,6 +166,8 @@ final class QrLoginApproveController
         FormView $formView,
     ): Response {
         $denyRoute = $profile->routes['qr_login_deny']['name'];
+        $denyUrl   = $this->urlGenerator?->generate($denyRoute, ['id' => $challenge->getId(), 't' => $token]);
+        $denyForm  = $this->formFactory->createNamed('', QrLoginDenyType::class);
         $page      = $this->pages->create('qr_login_approve', $profile, $formView);
         $details   = [new DetailItem(AuthPageFactory::label('qr_login.approve.device_label'), $challenge->getDesktopUaLabel())];
         if ($phoneHint !== null && $phoneHint !== '') {
@@ -177,7 +180,8 @@ final class QrLoginApproveController
             'phone_hint'            => $phoneHint,
             'approve_token'         => $token,
             'deny_route'            => $denyRoute,
-            'deny_url'              => $this->urlGenerator?->generate($denyRoute, ['id' => $challenge->getId(), 't' => $token]),
+            'deny_url'              => $denyUrl,
+            'deny_form'             => $denyForm->createView(),
             'approve_form'          => $formView,
             'approve_details'       => $details,
             'slide_to_confirm_mode' => $slideProfile,

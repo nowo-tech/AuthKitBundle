@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver;
 use Nowo\AuthKitBundle\Form\PasswordFieldTypeResolver;
 use Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder;
 use Nowo\AuthKitBundle\Form\QrLoginApproveType;
+use Nowo\AuthKitBundle\Form\QrLoginDenyType;
 use Nowo\AuthKitBundle\Form\QrLoginRetryType;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType;
@@ -241,6 +242,7 @@ final class AuthPageFixtures
             'approve_token'   => 'approve-token',
             'deny_route'      => 'nowo_auth_kit_qr_login_deny',
             'deny_url'        => '/login/qr/0b1c2d3e-4f50-4a61-8b72-93a4b5c6d7e8/deny?t=approve-token',
+            'deny_form'       => Forms::createFormFactory()->createNamed('', QrLoginDenyType::class)->createView(),
             'approve_form'    => $view,
             'approve_details' => [
                 new DetailItem(AuthPageFactory::label('qr_login.approve.device_label'), 'Firefox · Linux'),

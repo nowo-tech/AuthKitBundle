@@ -8,6 +8,7 @@
 - [Quick start](#quick-start)
 - [Switching classic vs worker (`FRANKENPHP_MODE`)](#switching-classic-vs-worker-frankenphp_mode)
 - [Symfony `APP_ENV=prod`](#symfony-app_envprod)
+- [Timeouts](#timeouts)
 - [Troubleshooting](#troubleshooting)
 - [Related](#related)
 
@@ -68,6 +69,19 @@ docker compose up -d --build
 docker compose exec -T php composer install --no-dev --no-interaction
 docker compose exec -T php php bin/console doctrine:migrations:migrate --no-interaction --env=prod
 ```
+
+## Timeouts
+
+REQ-RUNTIME-001. The only blocking outbound I/O of the bundle is the social login OAuth2 token / userinfo exchange. Both Caddyfiles (worker and classic) and `docker/php-dev.ini` keep this hierarchy, innermost first:
+
+| Layer | Demo value | Where |
+|-------|------------|-------|
+| `nowo_auth_kit.http_client.max_duration` (`timeout` 10 s idle) | 20 s | bundle default ([CONFIGURATION.md](CONFIGURATION.md#http-timeouts-social-login)) |
+| PHP `max_execution_time` / `max_input_time` | 30 s | `frankenphp { php_ini … }` in `Caddyfile` / `Caddyfile.dev`; `docker/php-dev.ini` for CLI |
+| Caddy `servers.timeouts.write` | 40 s | global `servers { timeouts { write 40s } }` |
+| FrankenPHP `max_wait_time` | 30 s | global `frankenphp { max_wait_time 30s }` — a request waiting longer for a free PHP thread gets a 504 |
+
+Raise the outer layers in the same change when you raise `max_duration`.
 
 ## Troubleshooting
 

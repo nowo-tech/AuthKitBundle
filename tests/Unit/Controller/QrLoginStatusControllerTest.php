@@ -73,6 +73,7 @@ final class QrLoginStatusControllerTest extends TestCase
         $challengeManager->method('find')->willReturn($challenge);
         $challengeManager->method('verifyDesktopCookie')->willReturn(true);
         $challengeManager->method('isExpiredOrInvalid')->willReturn(false);
+        $challengeManager->method('expiresIn')->with($challenge)->willReturn(60);
 
         $controller = new QrLoginStatusController(
             $challengeManager,
@@ -90,7 +91,7 @@ final class QrLoginStatusControllerTest extends TestCase
         $data = json_decode($content, true);
         self::assertSame('pending', $data['status']);
         self::assertArrayHasKey('expires_in', $data);
-        self::assertGreaterThan(0, $data['expires_in']);
+        self::assertSame(60, $data['expires_in']);
         self::assertArrayNotHasKey('user_id', $data);
         self::assertArrayNotHasKey('phone', $data);
     }

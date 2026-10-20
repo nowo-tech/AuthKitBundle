@@ -13,8 +13,10 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\Repository\QrLoginChallengeRepository;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -398,9 +400,36 @@ final class QrLoginChallengeManagerTest extends TestCase
         self::assertTrue($this->manager->isExpiredOrInvalid($challenge));
     }
 
-    /**
-     * @dataProvider provideUserAgents
-     */
+    public function testInjectedClockDrivesExpiryCookieAndRemainingSeconds(): void
+    {
+        $clock   = new MockClock('2026-10-20 12:00:00');
+        $manager = new QrLoginChallengeManager(
+            $this->repository,
+            ProfileRegistryFactory::single(TestUser::class, ['qr_login' => ['mode' => 'enabled', 'challenge_ttl' => 90]]),
+            $this->dispatcher,
+            'test_kernel_secret_for_hmac',
+            clock: $clock,
+        );
+
+        $challenge = $manager->create(Request::create('/login/qr'))['challenge'];
+        self::assertSame('2026-10-20 12:01:30', $challenge->getExpiresAt()->format('Y-m-d H:i:s'));
+        self::assertSame(90, $manager->expiresIn($challenge));
+        self::assertSame(
+            (new DateTimeImmutable('2026-10-20 12:01:00'))->getTimestamp(),
+            $manager->createDesktopCookie('value', 60)->getExpiresTime(),
+        );
+
+        $clock->sleep(30);
+        self::assertSame(60, $manager->expiresIn($challenge));
+        self::assertFalse($manager->isExpiredOrInvalid($challenge));
+
+        $clock->sleep(120);
+        self::assertSame(0, $manager->expiresIn($challenge));
+        $this->repository->method('transitionStatus')->willReturn(true);
+        self::assertTrue($manager->isExpiredOrInvalid($challenge));
+    }
+
+    #[DataProvider('provideUserAgents')]
     public function testBuildUaLabelFromUserAgent(string $ua, string $expectedSubstring): void
     {
         $this->repository->method('save');

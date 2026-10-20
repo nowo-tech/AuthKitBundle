@@ -11,14 +11,17 @@ use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
+use Psr\Clock\ClockInterface;
 
 /**
  * @extends EntityRepository<QrLoginChallenge>
  */
 class QrLoginChallengeRepository extends EntityRepository
 {
-    public function __construct(EntityManagerInterface $em)
-    {
+    public function __construct(
+        EntityManagerInterface $em,
+        private readonly ?ClockInterface $clock = null,
+    ) {
         parent::__construct($em, $em->getClassMetadata(QrLoginChallenge::class));
     }
 
@@ -53,7 +56,7 @@ class QrLoginChallengeRepository extends EntityRepository
         $affected = $this->getEntityManager()
             ->createQuery('UPDATE ' . QrLoginChallenge::class . ' c SET c.status = :to, c.updatedAt = :now WHERE c.id = :id AND c.status = :from')
             ->setParameter('to', $to->value)
-            ->setParameter('now', new DateTimeImmutable(), Types::DATETIME_IMMUTABLE)
+            ->setParameter('now', $this->clock?->now() ?? new DateTimeImmutable(), Types::DATETIME_IMMUTABLE)
             ->setParameter('id', $challenge->getId())
             ->setParameter('from', $from->value)
             ->execute();

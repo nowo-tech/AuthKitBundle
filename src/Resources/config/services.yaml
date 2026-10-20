@@ -34,6 +34,19 @@ services:
 
     Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder: ~
 
+    # REQ-ORM-002: removed by the extension when nowo_auth_kit.doctrine.table_prefix is empty.
+    Nowo\AuthKitBundle\Doctrine\TablePrefixListener:
+        arguments:
+            $tablePrefix: '%nowo_auth_kit.doctrine.table_prefix%'
+        tags:
+            - { name: doctrine.event_listener, event: loadClassMetadata }
+
+    # REQ-RUNTIME-001: OAuth2 token / userinfo deadlines (nowo_auth_kit.http_client).
+    Nowo\AuthKitBundle\SocialLogin\OAuth2Client:
+        arguments:
+            $timeout: '%nowo_auth_kit.http_client.timeout%'
+            $maxDuration: '%nowo_auth_kit.http_client.max_duration%'
+
     Nowo\AuthKitBundle\Profile\ProfileRegistry:
         arguments:
             $profiles: '%nowo_auth_kit.profiles%'

@@ -59,6 +59,8 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - Social login: one-time OAuth `state` plus PKCE (`S256`) by default for built-in providers (`social_login.pkce`)
 - Require verified IdP email before social auto-link/create (configurable)
 - Validate custom OAuth endpoint URLs (HTTPS, no private/loopback hosts)
+- Bound outbound OAuth2 token / userinfo calls with configurable deadlines (`http_client.timeout` 10 s, `http_client.max_duration` 20 s) so a slow or hostile identity provider cannot pin PHP threads (resource-exhaustion mitigation, REQ-RUNTIME-001)
+- QR deny is a POST form (`QrLoginDenyType`) authorised by the per-challenge approve token in the action URL plus the authenticated phone session
 - No automatic modification of `security.yaml` without explicit CLI command
 - Optional slide-to-confirm is confirmation UX only; QR approve always uses Form CSRF (`QrLoginApproveType` / `qr_login_approve`)
 - Optional device intelligence never authenticates by Device ID; `new_device_notify` is a notice only; QR `approve_require_trusted` requires explicit trust, not auto-trust on login

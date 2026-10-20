@@ -3,7 +3,7 @@
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
 **Last audited**: 2026-10-20  
-**Units**: **181** (`141` PHP under `src/` + `40` Resources)
+**Units**: **183** (`143` PHP under `src/` + `40` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -124,6 +124,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `QrLogin/QrLoginUserResolver.php` | production | FR-QR-001 | Mapped |
 | `Repository/QrLoginChallengeRepository.php` | production | FR-QR-001 | Mapped |
 | `Form/QrLoginRetryType.php` | production | FR-QR-001 | Mapped |
+| `Form/QrLoginDenyType.php` | production | FR-QR-001 | Mapped |
 | `Resources/public/js/nowo-auth-kit-qr-login.js` | production | FR-QR-003 | Mapped |
 
 ## Social / enterprise SSO
@@ -237,6 +238,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Security/RegistrationGate.php` | production | FR-SEC-001 | Mapped |
 | `Security/UserRegistrar.php` | production | FR-SEC-001 | Mapped |
 | `Doctrine/EntityManagerRecovery.php` | production | FR-SEC-001 | Mapped |
+| `Doctrine/TablePrefixListener.php` | production | FR-ORM-001 | Mapped |
 
 ## Symfony config
 
@@ -307,10 +309,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 141 |
+| PHP under `src/` | 143 |
 | Resources (config/translations/views/public) | 40 |
-| **Total production sources** | **181** |
-| Audit command | `git ls-files src \| wc -l` → 181 |
+| **Total production sources** | **183** |
+| Audit command | `git ls-files src \| wc -l` → 183 |
 
 ## Coverage gate
 

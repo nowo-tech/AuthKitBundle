@@ -1,6 +1,17 @@
 {
 	order mercure after encode
-	frankenphp
+	# REQ-RUNTIME-001 timeout hierarchy: OAuth2 calls (nowo_auth_kit.http_client.max_duration 20s)
+	# < PHP max_execution_time 30s < Caddy write 40s; max_wait_time caps the wait for a free PHP thread.
+	servers {
+		timeouts {
+			write 40s
+		}
+	}
+	frankenphp {
+		php_ini max_execution_time 30
+		php_ini max_input_time 30
+		max_wait_time 30s
+	}
 }
 
 :80 {

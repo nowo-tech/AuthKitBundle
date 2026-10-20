@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Admin\AdminUserCreator;
 use Nowo\AuthKitBundle\Command\CreateAdminCommand;
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
+use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Locale\PreferredLocaleAwareRecipientLocaleResolver;
 use Nowo\AuthKitBundle\Locale\RecipientLocale;
@@ -18,8 +19,10 @@ use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\Routing\PublicUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -431,6 +434,71 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertSame('app.recipient_locale_resolver', (string) $this->container->getAlias(RecipientLocaleResolverInterface::class));
         self::assertSame(16, $this->container->getParameter('nowo_auth_kit.create_admin.min_password_length'));
         self::assertSame(['ROLE_SUPER_ADMIN'], $this->container->getParameter('nowo_auth_kit.create_admin.roles'));
+    }
+
+    public function testHttpClientTimeoutsDefaultAndWireOAuth2Client(): void
+    {
+        $this->extension->load([['user_class' => 'App\\Entity\\User']], $this->container);
+
+        self::assertSame(10.0, $this->container->getParameter('nowo_auth_kit.http_client.timeout'));
+        self::assertSame(20.0, $this->container->getParameter('nowo_auth_kit.http_client.max_duration'));
+        $client = $this->container->getDefinition(OAuth2Client::class);
+        self::assertSame('%nowo_auth_kit.http_client.timeout%', $client->getArgument('$timeout'));
+        self::assertSame('%nowo_auth_kit.http_client.max_duration%', $client->getArgument('$maxDuration'));
+    }
+
+    public function testHttpClientTimeoutsCanBeConfigured(): void
+    {
+        $this->extension->load([[
+            'user_class'  => 'App\\Entity\\User',
+            'http_client' => ['timeout' => 3, 'max_duration' => 8.5],
+        ]], $this->container);
+
+        self::assertSame(3.0, $this->container->getParameter('nowo_auth_kit.http_client.timeout'));
+        self::assertSame(8.5, $this->container->getParameter('nowo_auth_kit.http_client.max_duration'));
+    }
+
+    public function testHttpClientRejectsMaxDurationBelowTimeout(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('max_duration (5) must be greater than or equal to timeout (10)');
+
+        $this->extension->load([[
+            'user_class'  => 'App\\Entity\\User',
+            'http_client' => ['timeout' => 10, 'max_duration' => 5],
+        ]], $this->container);
+    }
+
+    public function testTablePrefixListenerIsRemovedWhenPrefixIsEmpty(): void
+    {
+        $this->extension->load([['user_class' => 'App\\Entity\\User']], $this->container);
+
+        self::assertSame('', $this->container->getParameter('nowo_auth_kit.doctrine.table_prefix'));
+        self::assertFalse($this->container->hasDefinition(TablePrefixListener::class));
+    }
+
+    public function testTablePrefixListenerIsRegisteredWhenPrefixIsSet(): void
+    {
+        $this->extension->load([[
+            'user_class' => 'App\\Entity\\User',
+            'doctrine'   => ['table_prefix' => 'app_'],
+        ]], $this->container);
+
+        self::assertSame('app_', $this->container->getParameter('nowo_auth_kit.doctrine.table_prefix'));
+        $listener = $this->container->getDefinition(TablePrefixListener::class);
+        self::assertSame('%nowo_auth_kit.doctrine.table_prefix%', $listener->getArgument('$tablePrefix'));
+        self::assertSame([['event' => 'loadClassMetadata']], $listener->getTag('doctrine.event_listener'));
+    }
+
+    public function testTablePrefixRejectsInvalidCharacters(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('use letters, digits and underscores only');
+
+        $this->extension->load([[
+            'user_class' => 'App\\Entity\\User',
+            'doctrine'   => ['table_prefix' => 'app-'],
+        ]], $this->container);
     }
 
     public function testAbsoluteUrlBaseUriDefaultsToNullAndRegistersGenerator(): void

@@ -3,7 +3,8 @@
   _auth_page.html.twig. Intro = the warning; nowo_ui_auth_fields renders the request details (approve_details:
   list<View\DetailItem>, UiKit detail_list partial) then the approve form fields (hidden token, CSRF, the
   SlideToConfirm control when slide_to_confirm.qr_login_approve is set); nowo_ui_auth_actions the Approve button
-  (absent with the slide, which submits the form); the footer the separate Deny form (POST to the deny route).
+  (absent with the slide, which submits the form); the footer the separate Deny form (deny_form, QrLoginDenyType:
+  POST to the deny route).
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
 
@@ -26,7 +27,7 @@
 {% endblock %}
 
 {% block nowo_auth_kit_footer_before %}
-    <form method="post" action="{{ deny_url|default(null) ?: path(deny_route, {id: challenge_id, t: approve_token}) }}" class="nowo-auth-kit-qr-deny" data-nowo-auth-kit-region="deny">
+    {{ form_start(deny_form, {action: deny_url|default(null) ?: path(deny_route, {id: challenge_id, t: approve_token}), attr: {class: 'nowo-auth-kit-qr-deny', 'data-nowo-auth-kit-region': 'deny'}}) }}
         <button type="submit" class="{{ nowo_ui_class('btn_danger', page.bundle) }}">{{ 'qr_login.approve.deny'|trans({}, 'NowoAuthKitBundle') }}</button>
-    </form>
+    {{ form_end(deny_form) }}
 {% endblock %}

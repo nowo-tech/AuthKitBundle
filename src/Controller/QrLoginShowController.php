@@ -113,7 +113,7 @@ final class QrLoginShowController
             'qr_data_uri'            => $qrDataUri,
             'qr_payload'             => $qrPayload,
             'expires_at'             => $challenge->getExpiresAt()->getTimestamp(),
-            'expires_in'             => max(0, $challenge->getExpiresAt()->getTimestamp() - time()),
+            'expires_in'             => $this->challengeManager->expiresIn($challenge),
             'status_route'           => $profile->routes['qr_login_status']['name'],
             'complete_route'         => $profile->routes['qr_login_complete']['name'],
             'poll_interval_ms'       => $pollInterval,

@@ -79,10 +79,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `http_client.timeout` / `http_client.max_duration` root config (defaults 10 s / 20 s, `max_duration >= timeout` validated) for the OAuth2 token and userinfo calls of social login, documented with the PHP / Caddy / FrankenPHP timeout hierarchy (REQ-RUNTIME-001).
+- `doctrine.table_prefix` root config and `Doctrine\TablePrefixListener`: prefixes the AuthKit tables and their named indexes / unique constraints, never host entities (REQ-ORM-002).
+- `QrLoginDenyType`: the QR approve page renders the Deny button through `form_start` / `form_end` (`deny_form` template variable) instead of a raw `<form>` (REQ-TWIG-005).
+- `QrLoginChallengeManager::expiresIn()`; the manager and `QrLoginChallengeRepository` accept an optional `Psr\Clock\ClockInterface` (autowired when available) for expiry, cookie lifetime and status timestamps (REQ-DI-001).
+- `make check-no-raw-html-form` (in `release-check`), `make assets` (no-op) and `.scripts/validate-translations.php` (key parity across locales for `NowoAuthKitBundle` and `validators`, run by `make validate-translations` and CI) (REQ-MAKE-001/002/004).
+
 ### Changed
 
 - Dependencies refreshed (Composer and pnpm/npm lock files of the bundle and its demos, campaign 2026-10-19).
 - `.php-cs-fixer.dist.php`: `new ParallelConfig(2)` (REQ-CS-001).
+- The password-toggle stylesheet is loaded through the `nowo_password_toggle` asset package; `conflict` with `nowo-tech/password-toggle-bundle` < 2.0.3 (the first release registering that package) (REQ-ASSETS-004).
+- CI: every `symfony/*` package is pinned to the matrix minor (`7.4.*`, `8.1.*`) so a 7.4 cell no longer resolves Symfony 8; the Symfony 8.0 cell is dropped (end of maintenance, every 8.0.x release has security advisories; `composer.json` still allows `^8.0`). The quality job (cs-check, PHPStan, Igor, translation parity) now also runs on pushes (REQ-SF-002, REQ-CS-005/006/008).
+- Makefile `help` follows the canonical block order and lists `igor`; `release-check` runs in REQ-MAKE-002 order (REQ-MAKE-001/002).
+- Demo: Caddyfiles and `php-dev.ini` set PHP `max_execution_time` 30 s, Caddy write timeout 40 s and FrankenPHP `max_wait_time` 30 s (REQ-RUNTIME-001); `.env.test` `DATABASE_URL` points at the Compose `mysql` service (REQ-DEMO-011).
+- Tests use `#[DataProvider]` attributes instead of `@dataProvider` docblocks (REQ-TEST-010).
+- `.scripts/check-no-cursor-coauthor.sh` accepts git worktrees (`.git` file) (REQ-GIT-001).
 
 ### Documentation
 

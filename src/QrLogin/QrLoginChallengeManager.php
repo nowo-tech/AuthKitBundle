@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\QrLogin;
 
+use DateInterval;
 use DateTimeImmutable;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
@@ -16,6 +17,7 @@ use Nowo\AuthKitBundle\QrLogin\Event\QrLoginChallengeCreatedEvent;
 use Nowo\AuthKitBundle\QrLogin\Event\QrLoginCompletedEvent;
 use Nowo\AuthKitBundle\QrLogin\Event\QrLoginDeniedEvent;
 use Nowo\AuthKitBundle\Repository\QrLoginChallengeRepository;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -26,6 +28,7 @@ use function chr;
 use function hash;
 use function hash_equals;
 use function is_string;
+use function max;
 use function ord;
 use function random_bytes;
 use function strtoupper;
@@ -44,6 +47,7 @@ class QrLoginChallengeManager
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly string $kernelSecret,
         private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        private readonly ?ClockInterface $clock = null,
     ) {
     }
 
@@ -67,7 +71,7 @@ class QrLoginChallengeManager
             desktopUaHash: $this->hashHmac($request->headers->get('User-Agent') ?? ''),
             desktopUaLabel: $this->buildUaLabel($request->headers->get('User-Agent') ?? ''),
             approveTokenHash: $this->hashValue($approveToken),
-            expiresAt: new DateTimeImmutable("+{$ttl} seconds"),
+            expiresAt: $this->now()->add(new DateInterval("PT{$ttl}S")),
         );
 
         $this->save($challenge);
@@ -92,7 +96,7 @@ class QrLoginChallengeManager
     {
         return Cookie::create(self::DESKTOP_COOKIE_NAME)
             ->withValue($cookieValue)
-            ->withExpires(new DateTimeImmutable("+{$ttl} seconds"))
+            ->withExpires($this->now()->add(new DateInterval("PT{$ttl}S")))
             ->withPath('/')
             ->withHttpOnly(true)
             ->withSecure(true)
@@ -191,7 +195,7 @@ class QrLoginChallengeManager
 
     public function isExpiredOrInvalid(QrLoginChallenge $challenge): bool
     {
-        if ($challenge->isExpired() && $challenge->getStatus() === QrLoginChallengeStatus::Pending) {
+        if ($challenge->isExpired($this->now()) && $challenge->getStatus() === QrLoginChallengeStatus::Pending) {
             if ($this->transition($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Expired)) {
                 $challenge->markExpired();
                 $this->save($challenge);
@@ -203,6 +207,19 @@ class QrLoginChallengeManager
         }
 
         return $challenge->getStatus() === QrLoginChallengeStatus::Expired;
+    }
+
+    /**
+     * Seconds left before the challenge expires (0 once expired), measured on the injected clock.
+     */
+    public function expiresIn(QrLoginChallenge $challenge): int
+    {
+        return max(0, $challenge->getExpiresAt()->getTimestamp() - $this->now()->getTimestamp());
+    }
+
+    private function now(): DateTimeImmutable
+    {
+        return $this->clock?->now() ?? new DateTimeImmutable();
     }
 
     private function claim(QrLoginChallenge $challenge, QrLoginChallengeStatus $from, QrLoginChallengeStatus $to): void

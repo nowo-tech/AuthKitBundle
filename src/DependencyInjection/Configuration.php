@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Enum\QrLoginMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
+use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -205,6 +206,42 @@ final class Configuration implements ConfigurationInterface
                                 ->then(static function (mixed $value): never {
                                     throw new InvalidArgumentException(sprintf('Invalid "nowo_auth_kit.absolute_url.base_uri": %s', (string) self::baseUriError($value)));
                                 })
+                            ->end()
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('http_client')
+                    ->info('Deadlines of the outbound OAuth2 / OIDC calls (token + userinfo) made by social login (REQ-RUNTIME-001). Keep them below PHP max_execution_time.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->floatNode('timeout')
+                            ->info('Idle timeout in seconds (no data received) for each token / userinfo request.')
+                            ->defaultValue(OAuth2Client::DEFAULT_TIMEOUT)
+                            ->min(0.1)
+                        ->end()
+                        ->floatNode('max_duration')
+                            ->info('Total time limit in seconds for each token / userinfo request (must be >= timeout).')
+                            ->defaultValue(OAuth2Client::DEFAULT_MAX_DURATION)
+                            ->min(0.1)
+                        ->end()
+                    ->end()
+                    ->validate()
+                        ->ifTrue(static fn (array $http): bool => $http['max_duration'] < $http['timeout'])
+                        ->then(static function (array $http): never {
+                            throw new InvalidArgumentException(sprintf('Invalid "nowo_auth_kit.http_client": max_duration (%s) must be greater than or equal to timeout (%s).', $http['max_duration'], $http['timeout']));
+                        })
+                    ->end()
+                ->end()
+                ->arrayNode('doctrine')
+                    ->info('Doctrine mapping of the bundle-owned tables (QR login challenges, social login credentials / accounts).')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->scalarNode('table_prefix')
+                            ->info('Prefix prepended to every AuthKit table name (e.g. "app_" yields app_auth_kit_qr_login_challenge). Empty: unprefixed names.')
+                            ->defaultValue('')
+                            ->validate()
+                                ->ifTrue(static fn (mixed $value): bool => !is_string($value) || preg_match('/^[A-Za-z0-9_]*$/', $value) !== 1)
+                                ->thenInvalid('Invalid "nowo_auth_kit.doctrine.table_prefix" %s: use letters, digits and underscores only.')
                             ->end()
                         ->end()
                     ->end()

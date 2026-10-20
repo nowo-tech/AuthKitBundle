@@ -205,9 +205,12 @@ class QrLoginChallenge
         return $this->expiresAt;
     }
 
-    public function isExpired(): bool
+    /**
+     * @param DateTimeImmutable|null $now reference time (e.g. from an injected clock); null means the system time
+     */
+    public function isExpired(?DateTimeImmutable $now = null): bool
     {
-        return new DateTimeImmutable() > $this->expiresAt;
+        return ($now ?? new DateTimeImmutable()) > $this->expiresAt;
     }
 
     public function getApprovedAt(): ?DateTimeImmutable

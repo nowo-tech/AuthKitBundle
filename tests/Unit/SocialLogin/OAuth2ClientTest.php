@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\SocialLogin;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\ProviderEndpointCatalog;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -217,9 +218,7 @@ final class OAuth2ClientTest extends TestCase
         self::assertStringContainsString('foo=1&', $url);
     }
 
-    /**
-     * @dataProvider emailVerifiedProvider
-     */
+    #[DataProvider('emailVerifiedProvider')]
     public function testParsesEmailVerifiedVariants(mixed $raw, ?bool $expected): void
     {
         $payload = ['sub' => '1', 'email' => 'a@b.c', 'email_verified' => $raw];

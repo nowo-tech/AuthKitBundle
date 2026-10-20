@@ -11,6 +11,7 @@
   - [Password field type without password-toggle bundle](#password-field-type-without-password-toggle-bundle)
 - [Translation overrides (REQ-I18N-001)](#translation-overrides-req-i18n-001)
   - [Override in the application](#override-in-the-application-1)
+  - [Constraint messages (`validators` domain)](#constraint-messages-validators-domain)
 - [Registration flow](#registration-flow)
 - [Login flow](#login-flow)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
@@ -138,6 +139,10 @@ register:
 ```
 
 Symfony uses app translations first; missing keys fall back to the bundle.
+
+### Constraint messages (`validators` domain)
+
+Form constraint messages raised by AuthKit forms (`register.password.mismatch`, `reset.code.code_length`, …) are translated by the Symfony validator, which always looks them up in the **`validators`** domain (`framework.validation.translation_domain`, global for the whole application). The bundle therefore also ships `validators.<locale>.yaml` with exactly those keys, mirroring the `NowoAuthKitBundle` catalogue; `make validate-translations` checks key parity for both domains. Override them in `translations/validators.<locale>.yaml`. Every other AuthKit string uses `NowoAuthKitBundle` only.
 
 ## Registration flow
 

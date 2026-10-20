@@ -109,13 +109,13 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ### QR login subsystem
 
-- **FR-QR-001**: Gate, challenge manager, user resolver, rate limiter, QR code generators (Endroid + null), step-up interface/null, entities/repos, compiler pass, enums, and controllers (start/show/status/approve/deny/complete) + approve Twig + optional `QrLoginApproveType`.
+- **FR-QR-001**: Gate, challenge manager, user resolver, rate limiter, QR code generators (Endroid + null), step-up interface/null, entities/repos, compiler pass, enums, and controllers (start/show/status/approve/deny/complete) + approve Twig + optional `QrLoginApproveType` + `QrLoginDenyType` (field-less POST deny form, no raw `<form>`). Expiry, cookie lifetime and remaining seconds (`expiresIn()`) use the optional injected `Psr\Clock\ClockInterface`.
 - **FR-QR-002**: Domain events — challenge created, approved, denied, completed.
 - **FR-QR-003**: `Resources/public/js/nowo-auth-kit-qr-login.js` — CSP-safe progressive-enhancement poller of the desktop challenge page (status polling, countdown, state attribute); `QrLoginRetryType` is the field-less GET retry form of that page.
 
 ### Social / enterprise SSO
 
-- **FR-SOCIAL-001**: `SocialLoginGate`, `OAuth2Client`, endpoint catalog + URL validator, state store, account linker, profile DTO, credential/account entities + repos, start/check controllers, `SocialLoginMode` enum. Enterprise SSO reuses the same pipeline with `enterpriseSso` on credentials (no separate SAML stack). Authorization-code requests use PKCE S256 (`Pkce`).
+- **FR-SOCIAL-001**: `SocialLoginGate`, `OAuth2Client`, endpoint catalog + URL validator, state store, account linker, profile DTO, credential/account entities + repos, start/check controllers, `SocialLoginMode` enum. Enterprise SSO reuses the same pipeline with `enterpriseSso` on credentials (no separate SAML stack). Authorization-code requests use PKCE S256 (`Pkce`). Token / userinfo calls are bounded by `http_client.timeout` / `http_client.max_duration` (REQ-RUNTIME-001).
 
 ### Profiles & locale
 
@@ -153,6 +153,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### DI / i18n / assets
 
 - **FR-DI-001**: `Resources/config/routing.yaml` + `services.yaml`.
+- **FR-ORM-001**: `Doctrine\TablePrefixListener` prepends `doctrine.table_prefix` to AuthKit entity tables and their named indexes / unique constraints only; registered only when the prefix is not empty (REQ-ORM-002).
 - **FR-I18N-001**: `NowoAuthKitBundle.{de,en,es,fr,it,nl,pt}.yaml`.
 - **FR-I18N-002**: `validators.{de,en,es,fr,it,nl,pt}.yaml` — form constraint messages in the Symfony `validators` domain (kept in sync with the bundle domain).
 - **FR-ASSET-001**: Public CSS under `Resources/public/`.
@@ -196,7 +197,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**181/181** units under `src/` as of 2026-10-20: 141 PHP + 40 Resources).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**183/183** units under `src/` as of 2026-10-20: 143 PHP + 40 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.

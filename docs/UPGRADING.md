@@ -86,6 +86,28 @@
 
 ## Unreleased
 
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+- **Password toggle:** `nowo-tech/password-toggle-bundle` older than **2.0.3** is now a Composer conflict (the auth
+  pages load its stylesheet through the `nowo_password_toggle` asset package it registers). Update it to `^2.0.3`.
+- **Social login timeouts:** if you overrode the `$timeout` / `$maxDuration` arguments of
+  `Nowo\AuthKitBundle\SocialLogin\OAuth2Client` in your service configuration, move them to config:
+
+  ```yaml
+  nowo_auth_kit:
+      http_client:
+          timeout: 10
+          max_duration: 20
+  ```
+
+- **Table prefix (optional):** `nowo_auth_kit.doctrine.table_prefix` renames the AuthKit tables
+  (`app_auth_kit_qr_login_challenge`, …). Setting it on an existing install needs a migration that renames the tables.
+- **Overridden `security/qr_login_approve.html.twig`:** the Deny button now uses the `deny_form` variable
+  (`QrLoginDenyType`, rendered with `form_start(deny_form, {action: …})` / `form_end(deny_form)`). Old overrides that
+  still print a raw `<form>` keep working (`deny_url`, `deny_route`, `approve_token` are unchanged).
+
 ## To 1.27.3
 
 From **1.27.2**:

@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\DependencyInjection;
 use InvalidArgumentException;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
+use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
@@ -113,9 +114,16 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.create_admin.min_password_length', $config['create_admin']['min_password_length']);
         $container->setParameter('nowo_auth_kit.create_admin.roles', array_values($config['create_admin']['roles']));
         $container->setParameter('nowo_auth_kit.absolute_url.base_uri', $config['absolute_url']['base_uri']);
+        $container->setParameter('nowo_auth_kit.http_client.timeout', (float) $config['http_client']['timeout']);
+        $container->setParameter('nowo_auth_kit.http_client.max_duration', (float) $config['http_client']['max_duration']);
+        $container->setParameter('nowo_auth_kit.doctrine.table_prefix', $config['doctrine']['table_prefix']);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
+
+        if ($config['doctrine']['table_prefix'] === '') {
+            $container->removeDefinition(TablePrefixListener::class);
+        }
 
         if ($config['flash']['twig_filter'] !== true) {
             $container->removeDefinition(AuthKitFlashExtension::class);
