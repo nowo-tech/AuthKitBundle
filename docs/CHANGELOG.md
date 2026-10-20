@@ -79,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Documentation: wave-1 REQ compliance — README documentation list order (PSR/Templates moved to Additional documentation), CONTRIBUTING Cursor Agent queue settings (REQ-IDE-006), TOCs on long docs, SDD scope (social login / SSO in scope) and ENGRAM link, demo `.env.test` comment, Spec Kit inventory refresh (181/181).
+
 ## [1.27.3] - 2026-10-19
 
 flash_trans translates TranslatableMessage / TranslatableInterface flashes instead of returning the object (500 in host toast templates); optional locale argument. See [UPGRADING](UPGRADING.md#to-1273).

@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-10-13  
-**Units**: **165** (`137` PHP under `src/` + `28` Resources)
+**Last audited**: 2026-10-20  
+**Units**: **181** (`141` PHP under `src/` + `40` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -123,6 +123,8 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `QrLogin/QrLoginStepUpInterface.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/QrLoginUserResolver.php` | production | FR-QR-001 | Mapped |
 | `Repository/QrLoginChallengeRepository.php` | production | FR-QR-001 | Mapped |
+| `Form/QrLoginRetryType.php` | production | FR-QR-001 | Mapped |
+| `Resources/public/js/nowo-auth-kit-qr-login.js` | production | FR-QR-003 | Mapped |
 
 ## Social / enterprise SSO
 
@@ -142,6 +144,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `SocialLogin/SocialLoginGate.php` | production | FR-SOCIAL-001 | Mapped |
 | `SocialLogin/SocialLoginStateStore.php` | production | FR-SOCIAL-001 | Mapped |
 | `SocialLogin/SocialUserProfile.php` | production | FR-SOCIAL-001 | Mapped |
+| `SocialLogin/Pkce.php` | production | FR-SOCIAL-001 | Mapped |
 
 ## Profiles & locale
 
@@ -223,6 +226,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Twig/AuthEmbedExtension.php` | production | FR-TWIG-001 | Mapped |
 | `Twig/AuthKitRoutingExtension.php` | production | FR-TWIG-001 | Mapped |
 | `Twig/AuthKitUiExtension.php` | production | FR-TWIG-002, FR-OTP-001 | Mapped |
+| `Routing/PublicUrlGenerator.php` | production | FR-ROUT-002 | Mapped |
 
 ## Security integration
 
@@ -258,6 +262,13 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Resources/translations/NowoAuthKitBundle.it.yaml` | production | FR-I18N-001 | Mapped |
 | `Resources/translations/NowoAuthKitBundle.nl.yaml` | production | FR-I18N-001 | Mapped |
 | `Resources/translations/NowoAuthKitBundle.pt.yaml` | production | FR-I18N-001 | Mapped |
+| `Resources/translations/validators.de.yaml` | production | FR-I18N-002 | Mapped |
+| `Resources/translations/validators.en.yaml` | production | FR-I18N-002 | Mapped |
+| `Resources/translations/validators.es.yaml` | production | FR-I18N-002 | Mapped |
+| `Resources/translations/validators.fr.yaml` | production | FR-I18N-002 | Mapped |
+| `Resources/translations/validators.it.yaml` | production | FR-I18N-002 | Mapped |
+| `Resources/translations/validators.nl.yaml` | production | FR-I18N-002 | Mapped |
+| `Resources/translations/validators.pt.yaml` | production | FR-I18N-002 | Mapped |
 
 ## Twig templates
 
@@ -282,13 +293,24 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Resources/views/security/reset_password_code.html.twig` | production | FR-TWIG-001 | Mapped |
 | `Resources/views/security/reset_request.html.twig` | production | FR-TWIG-001 | Mapped |
 
+## UiKit page contract
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `View/AuthPageFactory.php` | production | FR-UI-001 | Mapped |
+| `Resources/views/security/_auth_page.html.twig` | production | FR-UI-001 | Mapped |
+| `Resources/views/_auth_kit_styles.html.twig` | production | FR-UI-001, FR-ASSET-001 | Mapped |
+| `Resources/views/_auth_kit_scripts.html.twig` | production | FR-UI-001, FR-TWIG-003 | Mapped |
+| `Resources/views/form/password_toggle_widget.html.twig` | production | FR-UI-001 | Mapped |
+
 ## Summary
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 137 |
-| Resources (config/translations/views/public) | 28 |
-| **Total production sources** | **165** |
+| PHP under `src/` | 141 |
+| Resources (config/translations/views/public) | 40 |
+| **Total production sources** | **181** |
+| Audit command | `git ls-files src \| wc -l` → 181 |
 
 ## Coverage gate
 

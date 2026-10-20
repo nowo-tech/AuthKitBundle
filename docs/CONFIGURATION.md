@@ -2,10 +2,14 @@
 
 ## Table of contents
 
-- [Reference](#reference)
+- [Profiles](#profiles)
+  - [Resolving profiles at runtime](#resolving-profiles-at-runtime)
+- [Legacy flat configuration](#legacy-flat-configuration)
+- [Reference (per profile)](#reference-per-profile)
 - [Registration modes](#registration-modes)
 - [Field configuration](#field-configuration)
   - [Login](#login)
+  - [Remember me](#remember-me)
   - [Registration](#registration)
   - [Password strength (optional)](#password-strength-optional)
   - [Slide to confirm (optional)](#slide-to-confirm-optional)

@@ -1,5 +1,12 @@
 # Release process
 
+## Table of contents
+
+- [Preconditions](#preconditions)
+- [Steps](#steps)
+- [Versioning](#versioning)
+- [Sync missing releases](#sync-missing-releases)
+
 ## Preconditions
 
 1. `make release-check` passes locally (`ensure-up` → `check-no-cursor-coauthor` → `check-open-prs` → QA → demos).

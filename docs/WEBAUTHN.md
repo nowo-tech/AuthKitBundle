@@ -4,6 +4,15 @@ Passwordless authentication with platform or roaming authenticators (WebAuthn Le
 
 **Status (v1.12.0):** Design only — **not implemented**. This document locks the intended AuthKit surface so host apps (for example Symfony Beacon) do not invent parallel controllers. Runtime work is planned for a later minor.
 
+## Table of contents
+
+- [Goals](#goals)
+- [Proposed configuration](#proposed-configuration)
+- [Proposed routes](#proposed-routes)
+- [Proposed storage](#proposed-storage)
+- [Security checklist (when implementing)](#security-checklist-when-implementing)
+- [Host integration (Beacon and others)](#host-integration-beacon-and-others)
+
 ## Goals
 
 - Register and assert credentials bound to the local user (`user_identifier_field`).

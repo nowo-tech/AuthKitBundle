@@ -111,10 +111,11 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 - **FR-QR-001**: Gate, challenge manager, user resolver, rate limiter, QR code generators (Endroid + null), step-up interface/null, entities/repos, compiler pass, enums, and controllers (start/show/status/approve/deny/complete) + approve Twig + optional `QrLoginApproveType`.
 - **FR-QR-002**: Domain events — challenge created, approved, denied, completed.
+- **FR-QR-003**: `Resources/public/js/nowo-auth-kit-qr-login.js` — CSP-safe progressive-enhancement poller of the desktop challenge page (status polling, countdown, state attribute); `QrLoginRetryType` is the field-less GET retry form of that page.
 
 ### Social / enterprise SSO
 
-- **FR-SOCIAL-001**: `SocialLoginGate`, `OAuth2Client`, endpoint catalog + URL validator, state store, account linker, profile DTO, credential/account entities + repos, start/check controllers, `SocialLoginMode` enum. Enterprise SSO reuses the same pipeline with `enterpriseSso` on credentials (no separate SAML stack).
+- **FR-SOCIAL-001**: `SocialLoginGate`, `OAuth2Client`, endpoint catalog + URL validator, state store, account linker, profile DTO, credential/account entities + repos, start/check controllers, `SocialLoginMode` enum. Enterprise SSO reuses the same pipeline with `enterpriseSso` on credentials (no separate SAML stack). Authorization-code requests use PKCE S256 (`Pkce`).
 
 ### Profiles & locale
 
@@ -135,7 +136,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Routing & Twig
 
 - **FR-ROUT-001**: `AuthKitRouteLoader`, locale parameters, custom URL generator.
-- **FR-ROUT-002**: `AbsoluteUrlGenerator` — optional `absolute_url.base_uri` origin for out-of-band absolute URLs (reset / magic / QR / OAuth `redirect_uri`); router context restored in `finally` (v1.24.0, [spec 002](../002-absolute-url-base-uri/spec.md)).
+- **FR-ROUT-002**: `AbsoluteUrlGenerator` — optional `absolute_url.base_uri` origin for out-of-band absolute URLs (reset / magic / QR / OAuth `redirect_uri`); router context restored in `finally` (v1.24.0, [spec 002](../002-absolute-url-base-uri/spec.md)). `PublicUrlGenerator` (service `nowo_auth_kit.public_url_generator`) exposes the same origin to host code building out-of-band links, never trusting the request `Host`.
 - **FR-TWIG-001**: Routing + embed Twig extensions and security/embed templates.
 - **FR-TWIG-002**: `AuthKitUiExtension` for shared UI helpers (buttons/providers chrome).
 - **FR-TWIG-003**: CSP — inline `<script>`/`<style>` in bundle templates emit `nonce` from request attribute `csp_nonce` when set; no inline event handlers (enforced by `InlineBlocksDeclareNonceTest`).
@@ -153,7 +154,12 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 - **FR-DI-001**: `Resources/config/routing.yaml` + `services.yaml`.
 - **FR-I18N-001**: `NowoAuthKitBundle.{de,en,es,fr,it,nl,pt}.yaml`.
+- **FR-I18N-002**: `validators.{de,en,es,fr,it,nl,pt}.yaml` — form constraint messages in the Symfony `validators` domain (kept in sync with the bundle domain).
 - **FR-ASSET-001**: Public CSS under `Resources/public/`.
+
+### UiKit page contract
+
+- **FR-UI-001**: `View\AuthPageFactory` builds the UiKit `AuthPage` view models (REQ-UI-003) — translation-key labels, per-profile layout override, bundle name for theme exceptions; `security/_auth_page.html.twig` extends the UiKit auth scaffold; `_auth_kit_styles.html.twig` / `_auth_kit_scripts.html.twig` feed `nowo_ui_styles` / `nowo_ui_scripts` (CSP nonce on every tag); `form/password_toggle_widget.html.twig` maps the optional PasswordToggle widget onto the UiKit theme slots.
 
 ### Optional slide-to-confirm
 
@@ -190,7 +196,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**164** units as of 2026-10-12).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**181/181** units under `src/` as of 2026-10-20: 141 PHP + 40 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.

@@ -6,6 +6,8 @@
 - [Functional scope](#functional-scope)
 - [Validation](#validation)
 - [Requirement identifiers (`REQ-*`)](#requirement-identifiers-req-)
+- [Suggested workflow for contributors](#suggested-workflow-for-contributors)
+- [GitHub Spec Kit (summary)](#github-spec-kit-summary)
 - [See also](#see-also)
 
 This repository uses **spec-driven development** with three layers that stay in sync:
@@ -31,9 +33,9 @@ PHPUnit and PHPStan enforce contracts in CI. There is no separate executable spe
 
 ## Functional scope
 
-**In scope:** configurable user entity/fields, registration modes, login/logout/register routes, password reset (request/code/complete), remember-me, auth embed, locale-aware routing, Twig templates, i18n, `ConfigureSecurityCommand`, optional slide-to-confirm (registration consent + QR approve), optional device intelligence (collect, new-device notify, device rate limit, QR trusted-device step-up), optional OTP input on password-reset code entry. The full product surface is [`specs/001-baseline/spec.md`](../specs/001-baseline/spec.md).
+**In scope:** configurable user entity/fields, registration modes, login/logout/register routes, password reset (request/code/complete), magic login (request/confirm/check), QR login (desktop↔mobile challenge), OAuth2/OIDC social login including enterprise SSO via `enterpriseSso` credentials ([`SOCIAL-LOGIN.md`](SOCIAL-LOGIN.md), [`SSO.md`](SSO.md)), remember-me, auth embed, locale-aware routing, Twig templates, i18n, `ConfigureSecurityCommand`, optional slide-to-confirm (registration consent + QR approve), optional device intelligence (collect, new-device notify, device rate limit, QR trusted-device step-up), optional OTP input on password-reset code entry. The full product surface is [`specs/001-baseline/spec.md`](../specs/001-baseline/spec.md).
 
-**Out of scope:** OAuth/OIDC social login, email verification beyond password reset, authorization rules beyond registration role assignment.
+**Out of scope (non-goals):** native SAML 2.0 (enterprise SSO is OIDC via social login only), WebAuthn / passkeys (design-only in [`WEBAUTHN.md`](WEBAUTHN.md)), email verification beyond password reset, authorization rules beyond registration role assignment. Demos under `demo/` are illustrative and not part of the Packagist API.
 
 ## Validation
 

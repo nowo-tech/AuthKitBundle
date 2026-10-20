@@ -14,8 +14,14 @@
 - [Registration flow](#registration-flow)
 - [Login flow](#login-flow)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
+  - [Enable](#enable)
+  - [Render in Twig](#render-in-twig)
+  - [Authenticated state](#authenticated-state)
+  - [Demo reference](#demo-reference)
 - [Locale in URL paths](#locale-in-url-paths)
-- [Disabling registration link on login page](#disabling-registration-link-on-login-page)
+  - [Twig links](#twig-links)
+  - [access_control](#access_control)
+- [Registration link on login page](#registration-link-on-login-page)
 
 ## Twig template overrides (REQ-TWIG-001)
 

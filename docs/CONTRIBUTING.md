@@ -8,11 +8,13 @@ This project follows the [Contributor Covenant Code of Conduct](../CODE_OF_CONDU
 
 ## Table of contents
 
+- [Code of Conduct](#code-of-conduct)
 - [Development setup](#development-setup)
 - [Quality gates](#quality-gates)
 - [Standards](#standards)
 - [Pull requests](#pull-requests)
 - [Security](#security)
+- [Cursor Agent](#cursor-agent)
 - [Git hooks (REQ-GIT-001)](#git-hooks-req-git-001)
 
 ## Development setup
@@ -52,6 +54,21 @@ This runs git hygiene (REQ-GIT-001), code style, PHPStan, PHPUnit with **100% co
 ## Security
 
 Report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
+
+## Cursor Agent
+
+Contributors using Cursor Agent on this repository should enable these user-level settings (REQ-IDE-006):
+
+1. **Submit with Ctrl + Enter** (macOS: **⌘ + Enter**) — Cursor Settings → Agents / Chat → Submit with Ctrl + Enter. Enter inserts a newline; Ctrl/⌘+Enter submits the prompt.
+2. **Queue follow-ups while the agent is running** — in your user `settings.json` (Linux `~/.config/Cursor/User/settings.json`, Windows `%APPDATA%\Cursor\User\settings.json`, macOS `~/Library/Application Support/Cursor/User/settings.json`):
+
+```json
+{
+  "cursor.composer.queueMessageDefaultBehavior": "queue"
+}
+```
+
+Do not use `"steer"` as the default: it interrupts the running agent turn as soon as the follow-up is sent.
 
 ## Git hooks (REQ-GIT-001)
 

@@ -2,6 +2,14 @@
 
 AuthKit can expose **Continue with …** buttons on the login page. Provider **client id / client secret** and per-user **access/refresh tokens** are stored in Doctrine tables owned by the bundle.
 
+## Table of contents
+
+- [Tables](#tables)
+- [Configuration](#configuration)
+- [Seed credentials (example)](#seed-credentials-example)
+- [Security / routes](#security--routes)
+- [Login template variables](#login-template-variables)
+
 ## Tables
 
 | Entity | Table | Purpose |

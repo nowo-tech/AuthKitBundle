@@ -9,6 +9,21 @@
 | **Verdict** | ✅ **100% compatible for bundle-owned security decisions under scenario B** — shared services keep no per-request state; QR / reset / social credentials / link lookups re-read rows (`HINT_REFRESH` / `refresh()`); closed EntityManagers are recovered after failed flushes; embed ignores tokens outside a security-enabled firewall. The application remains responsible for a global EntityManager `clear()`/`reset` if it needs freshness for *its own* entities outside Auth Kit paths, and for a shared `cache.app` |
 | Remediation (2026-09-23) | W-01 … W-04 resolved: `QrLoginChallengeRepository::findFresh()` / `transitionStatus()`, `QrLoginChallengeConflictException`, `Doctrine\EntityManagerRecovery`, refresh in `PasswordResetTokenManager`, firewall guard in `AuthEmbedContextFactory`, OAuth timeouts. Regression tests: `QrLoginChallengeManagerWorkerTest`, `PasswordResetTokenManagerWorkerTest`, `EntityManagerRecoveryTest`, worker cases in `AuthEmbedContextFactoryTest`, `UserRegistrarTest`, `OAuth2ClientTest` and the QR controller tests |
 | Hardening (2026-09-24) | Residual identity-map reads closed: `SocialLoginCredentialRepository` / `SocialLoginAccountRepository` use `HINT_REFRESH`; `SocialAccountLinker`, `MagicLoginUserResolver`, `PasswordResetUserResolver` refresh managed users after lookup |
+
+## Table of contents
+
+- [Execution model assumed](#execution-model-assumed)
+- [Summary](#summary)
+- [Services reviewed](#services-reviewed)
+- [Findings](#findings)
+  - [W-01 — Stale Doctrine identity map drives QR login and reset-code decisions (Medium)](#w-01--stale-doctrine-identity-map-drives-qr-login-and-reset-code-decisions-medium)
+  - [W-02 — EntityManager closed after a failed flush is never reopened (Medium)](#w-02--entitymanager-closed-after-a-failed-flush-is-never-reopened-medium)
+  - [W-03 — Security token is read from `security.token_storage`, which only `kernel.reset` clears (Medium)](#w-03--security-token-is-read-from-securitytoken_storage-which-only-kernelreset-clears-medium)
+  - [W-04 — OAuth HTTP calls have no bundle-level timeout (Low)](#w-04--oauth-http-calls-have-no-bundle-level-timeout-low)
+  - [Info](#info)
+- [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
+- [Re-audit triggers](#re-audit-triggers)
+
 ## Execution model assumed
 
 FrankenPHP worker mode boots the Symfony kernel once per worker and serves many requests with the same container. This audit assumes the **strict** variant: the kernel is **not** rebooted between requests, so every shared service, static property and PHP global survives from one request to the next. Two scenarios are evaluated:

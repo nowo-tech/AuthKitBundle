@@ -2,6 +2,13 @@
 
 Project memory for AI assistants working on **Auth Kit Bundle**.
 
+## Table of contents
+
+- [Identity](#identity)
+- [Architecture](#architecture)
+- [Demo](#demo)
+- [Standards](#standards)
+
 ## Identity
 
 - Package: `nowo-tech/auth-kit-bundle`
@@ -27,3 +34,5 @@ Project memory for AI assistants working on **Auth Kit Bundle**.
 ## Standards
 
 Follow `BUNDLES_FULL_SPECS_DETAILS.md` in the parent `bundles` repo.
+
+Product behavior, user stories and local `REQ-*` traceability anchors live in [SPEC-DRIVEN-DEVELOPMENT.md](SPEC-DRIVEN-DEVELOPMENT.md) (with the Spec Kit baseline in [`specs/001-baseline/`](../specs/001-baseline/)); this file only holds assistant memory and does not replace that functional contract.
