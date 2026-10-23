@@ -88,6 +88,17 @@
 
 ## Unreleased
 
+- No breaking change: every new option is opt-in (see [CHANGELOG](CHANGELOG.md#unreleased)).
+- `PasswordResetRequestHandler::handle()` now returns `PasswordResetRequestOutcome` instead of `void`; callers that
+  ignore the return value are unaffected.
+- `ResetPasswordController::reset()` takes `?string $token = null` (null only with `password_reset.token_in_session`).
+- Custom `_authenticated.html.twig` embed overrides: render `logout_form` (when not null) if you set
+  `routes.logout.methods: [POST]`; the GET link would answer 405.
+- Hosts that previously aliased the bare routes (e.g. `<route>.default` → `<route>_unlocalized`) can drop the aliases
+  with `locale.unlocalized_route_suffix: .default`; hosts that kept an app-side POST logout route can use
+  `routes.logout.methods: [POST]`; hosts with an additive migration for the `auth_kit_*` tables can set
+  `doctrine.register_mapping: auto` and drop those tables in a migration.
+
 ## To 1.29.0
 
 - No breaking change. To issue support sign-in links from an administration screen, inject

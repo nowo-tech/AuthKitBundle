@@ -20,11 +20,16 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Twig\Environment;
 
+use function is_string;
+
 /**
  * Completes password reset via link token (email, magic link, deep link).
  */
 final class ResetPasswordController
 {
+    /** Session key prefix of the link token when password_reset.token_in_session is true (suffix: profile name). */
+    public const SESSION_TOKEN_KEY = '_nowo_auth_kit.password_reset.token.';
+
     public function __construct(
         private readonly Environment $twig,
         private readonly FormFactoryInterface $formFactory,
@@ -39,7 +44,7 @@ final class ResetPasswordController
     ) {
     }
 
-    public function reset(Request $request, string $token): Response
+    public function reset(Request $request, ?string $token = null): Response
     {
         $profile = $this->profileResolver->resolve($request);
 
@@ -57,9 +62,32 @@ final class ResetPasswordController
             ]);
         }
 
-        $user = $this->tokenManager->resolveUserByLinkToken($token, $profile->name);
+        $tokenInSession = ($profile->passwordReset['token_in_session'] ?? false) === true && $request->hasSession();
+        $sessionKey     = self::SESSION_TOKEN_KEY . $profile->name;
+
+        if ($tokenInSession && $token !== null && $token !== '') {
+            // Keep the token out of the address bar, browser history and Referer: store it, reload without it.
+            $request->getSession()->set($sessionKey, $token);
+
+            return new Response('', Response::HTTP_FOUND, [
+                'Location' => $this->urlGenerator->generate($profile->routes['reset_password']['name'], ['token' => null]),
+            ]);
+        }
+
+        if ($tokenInSession) {
+            $stored = $request->getSession()->get($sessionKey);
+            $token  = is_string($stored) ? $stored : null;
+        }
+
+        $user = $token !== null && $token !== ''
+            ? $this->tokenManager->resolveUserByLinkToken($token, $profile->name)
+            : null;
 
         if ($user === null) {
+            if ($tokenInSession) {
+                $request->getSession()->remove($sessionKey);
+            }
+
             $this->flashMessenger->flash($request, 'error', 'reset.password.flash_invalid_token');
 
             return new Response('', Response::HTTP_FOUND, [
@@ -79,6 +107,10 @@ final class ResetPasswordController
 
             if ($user instanceof PasswordAuthenticatedUserInterface) {
                 $this->passwordResetCompleter->complete($user, $data['password']);
+            }
+
+            if ($tokenInSession) {
+                $request->getSession()->remove($sessionKey);
             }
 
             $this->flashMessenger->flash($request, 'success', 'reset.password.flash_success');

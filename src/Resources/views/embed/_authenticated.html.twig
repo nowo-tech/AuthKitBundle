@@ -1,8 +1,15 @@
-{#- Signed-in state of the embedded widget: the user identifier as a disclosure with the sign-out link (theme slots of NowoAuthKitBundle). -#}
+{#- Signed-in state of the embedded widget: the user identifier as a disclosure with the sign-out link (theme slots of NowoAuthKitBundle).
+  logout_form (routes.logout.methods without GET): POST sign-out form carrying the "logout" CSRF token. -#}
 {% set _b = 'NowoAuthKitBundle' %}
 <details class="nowo-auth-kit-embed nowo-auth-kit-embed--authenticated" data-nowo-auth-kit-embed>
     <summary class="{{ nowo_ui_class('btn_secondary', _b) }} nowo-auth-kit-embed__toggle">{{ user_identifier }}</summary>
     <div class="nowo-auth-kit-embed__menu">
-        <a class="nowo-auth-kit-embed__item" href="{{ path(logout_route, auth_kit_route_params()|merge({_csrf_token: csrf_token('logout')})) }}">{{ 'embed.authenticated.logout'|trans({}, 'NowoAuthKitBundle') }}</a>
+        {% if logout_form|default(null) %}
+            {{ form_start(logout_form, {attr: {class: 'nowo-auth-kit-embed__logout'}}) }}
+                <button type="submit" class="nowo-auth-kit-embed__item">{{ 'embed.authenticated.logout'|trans({}, 'NowoAuthKitBundle') }}</button>
+            {{ form_end(logout_form) }}
+        {% else %}
+            <a class="nowo-auth-kit-embed__item" href="{{ path(logout_route, auth_kit_route_params()|merge({_csrf_token: csrf_token('logout')})) }}">{{ 'embed.authenticated.logout'|trans({}, 'NowoAuthKitBundle') }}</a>
+        {% endif %}
     </div>
 </details>

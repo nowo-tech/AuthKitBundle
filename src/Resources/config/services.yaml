@@ -90,6 +90,7 @@ services:
         arguments:
             $defaultLocale: '%nowo_auth_kit.locale.default%'
             $unlocalizedMode: '%nowo_auth_kit.locale.unlocalized%'
+            $unlocalizedRouteSuffix: '%nowo_auth_kit.locale.unlocalized_route_suffix%'
 
     Nowo\AuthKitBundle\Routing\AuthKitRouteLoader:
         arguments:
@@ -98,6 +99,8 @@ services:
             $defaultLocale: '%nowo_auth_kit.locale.default%'
             $enabledLocales: '%nowo_auth_kit.locale.enabled%'
             $unlocalizedMode: '%nowo_auth_kit.locale.unlocalized%'
+            $unlocalizedRouteSuffix: '%nowo_auth_kit.locale.unlocalized_route_suffix%'
+            $skipDisabledFeatures: '%nowo_auth_kit.routing.skip_disabled_features%'
         tags:
             - { name: routing.loader }
 

@@ -31,6 +31,8 @@ class NowoAuthKitBundle extends Bundle
             $container->addCompilerPass(DoctrineOrmMappingsPass::createAttributeMappingDriver(
                 ['Nowo\\AuthKitBundle\\Entity'],
                 [$entityDir],
+                [],
+                NowoAuthKitExtension::MAPPING_ENABLED_PARAMETER,
             ));
         }
     }

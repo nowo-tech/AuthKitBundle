@@ -33,6 +33,7 @@ final readonly class AuthEmbedContext
         public string $authenticatedTemplate,
         public AuthEmbedOptions $options = new AuthEmbedOptions(),
         public ?string $slideToConfirmMode = null,
+        public ?FormView $logoutForm = null,
     ) {
     }
 
@@ -61,6 +62,7 @@ final readonly class AuthEmbedContext
             'authenticated_template'  => $this->authenticatedTemplate,
             'form_theme'              => $this->options->formTheme,
             'slide_to_confirm_mode'   => $this->slideToConfirmMode,
+            'logout_form'             => $this->logoutForm,
         ];
     }
 }

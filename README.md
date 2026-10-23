@@ -51,6 +51,7 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 - **Translated flash messages** — AuthKit flashes are stored as text (any host flash template works) plus a `flash_trans` Twig filter with a configurable domain chain
 - **Named profiles** — separate auth config per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable `user_class`, identifier field, login/register fields, role, routes, templates
+- **Legacy-host opt-ins** (1.30+): bare route name suffix (`.default`), POST + CSRF logout, reset check-email page and token in session, throttled reset signal from a custom token manager, unmapped `auth_kit_*` entities and no routes for disabled features ([CONFIGURATION.md](docs/CONFIGURATION.md), [PASSWORD-RESET.md](docs/PASSWORD-RESET.md))
 - **UiKit page contract** (REQ-UI-003): every auth page is the UiKit auth scaffold on your guest layout — theme it once in `nowo_ui_kit`, no page overrides ([TEMPLATES.md](docs/TEMPLATES.md))
 - Per-page template overrides via `web_ui.templates.<page>` (thin `{% extends '@!NowoAuthKit/…' %}` + data block)
 - Translation domain `NowoAuthKitBundle` with app overrides (`de`, `en`, `es`, `fr`, `it`, `nl`, `pt`)

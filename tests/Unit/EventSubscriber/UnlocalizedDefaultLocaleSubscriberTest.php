@@ -44,6 +44,26 @@ final class UnlocalizedDefaultLocaleSubscriberTest extends TestCase
         self::assertSame('es', $translator->locale);
     }
 
+    public function testUsesTheConfiguredUnlocalizedRouteSuffix(): void
+    {
+        $translator = new RecordingTranslator();
+        $request    = Request::create('/login');
+        $request->attributes->set('_route', 'web.security.login.default');
+        $request->attributes->set(RequestProfileResolver::REQUEST_ATTRIBUTE, 'operator');
+        $request->setLocale('en');
+
+        (new UnlocalizedDefaultLocaleSubscriber($translator, 'es', 'serve', '.default'))->onKernelRequest($this->mainEvent($request));
+        self::assertSame('es', $request->getLocale());
+
+        $other = Request::create('/login');
+        $other->attributes->set('_route', 'web.security.login_unlocalized');
+        $other->attributes->set(RequestProfileResolver::REQUEST_ATTRIBUTE, 'operator');
+        $other->setLocale('en');
+
+        (new UnlocalizedDefaultLocaleSubscriber($translator, 'es', 'serve', '.default'))->onKernelRequest($this->mainEvent($other));
+        self::assertSame('en', $other->getLocale());
+    }
+
     public function testIgnoresWhenUnlocalizedModeIsRedirect(): void
     {
         $translator = new RecordingTranslator();

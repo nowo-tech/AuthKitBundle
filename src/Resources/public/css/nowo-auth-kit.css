@@ -181,6 +181,20 @@
   text-decoration: none;
 }
 
+/* POST sign-out (routes.logout.methods without GET): the button looks like the menu link. */
+.nowo-auth-kit-embed__logout {
+  margin: 0;
+}
+
+button.nowo-auth-kit-embed__item {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
 .nowo-auth-kit-embed__item:hover,
 .nowo-auth-kit-embed__item:focus-visible {
   background: var(--nowo-ui-surface-muted, #f1f5f9);

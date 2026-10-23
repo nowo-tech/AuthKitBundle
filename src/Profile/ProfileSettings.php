@@ -32,7 +32,7 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $magicLogin
      * @param array<string, mixed> $socialLogin
      * @param array<string, mixed> $qrLogin
-     * @param array<string, array{path: string, name: string}> $routes
+     * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
      * @param array{layout_template?: ?string, templates?: array<string, string>, form_themes?: list<string>, brand?: ?string, qr_login?: array{stimulus_controller?: ?string}} $webUi page contract settings (REQ-UI-003)
      */
     public function __construct(

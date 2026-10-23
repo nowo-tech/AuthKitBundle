@@ -6,6 +6,8 @@ Auth Kit exposes a **request → deliver credential → complete** flow aligned 
 
 - [Configuration](#configuration)
 - [OTP input (optional)](#otp-input-optional)
+- [Check-email page and token in session (optional)](#check-email-page-and-token-in-session-optional)
+- [Custom token storage and throttling](#custom-token-storage-and-throttling)
 - [User entity](#user-entity)
 - [Implement delivery (`PasswordResetNotifierInterface`)](#implement-delivery-passwordresetnotifierinterface)
   - [Bundled samples](#bundled-samples)
@@ -37,6 +39,58 @@ already holds a code can enter it directly.
 ### OTP input (optional)
 
 When `otp_input.enabled` is true, `otp_input.password_reset_code` is true, and `nowo-tech/otp-input-bundle` is installed, the code-completion form (`ResetPasswordCodeFormType`) uses `OtpType` instead of a single text field. Length and charset still come from `password_reset.code_length` / `code_charset`. The widget is UX only — hashed comparison and `max_code_attempts` are unchanged. See [CONFIGURATION.md](CONFIGURATION.md#otp-input-optional).
+
+## Check-email page and token in session (optional)
+
+Since 1.30. Both options are off by default.
+
+```yaml
+nowo_auth_kit:
+    password_reset:
+        after_request_route: app_check_email   # default null: back to the login page with a flash
+        token_in_session: true                 # default false
+```
+
+- `after_request_route`: after a valid submit the request page redirects to this host route (generated with the
+  request `_locale` when `locale.in_path` uses prefixes, like `login_success_route`) instead of the login page, and
+  stores a `Nowo\AuthKitBundle\PasswordReset\PasswordResetCheckEmail` in the session. The payload is the same for
+  every submit, whether or not the identifier exists (`profile`, `tokenTtl` in seconds), plus `throttled` /
+  `availableAt` (see below). The host page reads it:
+
+  ```php
+  $checkEmail = PasswordResetCheckEmail::fromRequest($request); // null when the page is opened directly
+  // e.g. "The link expires in {{ checkEmail.tokenTtl / 60 }} minutes."
+  ```
+
+- `token_in_session` (link delivery): opening `/reset-password/reset/{token}` stores the token in the session
+  (`ResetPasswordController::SESSION_TOKEN_KEY` + profile name) and redirects to `/reset-password/reset` (the route's
+  `token` becomes optional), so the token never stays in the address bar, history or `Referer`. The form is rendered
+  and submitted on the token-less URL; the session token is removed after a successful reset or when it is invalid.
+
+## Custom token storage and throttling
+
+`PasswordResetTokenManagerInterface` is an extension point: alias it to your own service to keep reset credentials
+elsewhere (e.g. a `reset_password_request` table managed by symfonycasts/reset-password-bundle).
+
+When your `createForUser()` refuses to issue a new credential because one was requested too recently, throw
+`Nowo\AuthKitBundle\PasswordReset\PasswordResetThrottledException` (optionally with the `DateTimeImmutable` of the
+next accepted request). `PasswordResetRequestHandler::handle()` catches it, sends no notification and returns a
+`PasswordResetRequestOutcome` with `throttled: true`. The request page still answers as for any other submit (no user
+enumeration); with `after_request_route` the check-email payload carries `throttled` and `availableAt`, so the host page
+can choose to mention it.
+
+```php
+public function createForUser(object $user): PasswordResetTokenResult
+{
+    try {
+        $token = $this->resetPasswordHelper->generateResetToken($user);
+    } catch (TooManyPasswordRequestsException $e) {
+        throw new PasswordResetThrottledException(\DateTimeImmutable::createFromInterface($e->getAvailableAt()), previous: $e);
+    }
+
+    return new PasswordResetTokenResult($user, $token->getToken(), $token->getExpiresAt(), PasswordResetDeliveryMode::Link);
+}
+```
 
 ## User entity
 

@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\Embed\AuthEmbedContextFactory;
 use Nowo\AuthKitBundle\Embed\AuthEmbedOptions;
 use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
+use Nowo\AuthKitBundle\Form\LogoutFormType;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
@@ -31,6 +32,8 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Exception\BadCredentialsException;
+use Symfony\Component\Security\Csrf\CsrfToken;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 use Symfony\Component\Validator\Validation;
 
@@ -48,11 +51,13 @@ final class AuthEmbedContextFactoryTest extends TestCase
         ?TokenStorageInterface $tokenStorage = null,
         ?RequestStack $requestStack = null,
         ?Security $security = null,
+        ?CsrfTokenManagerInterface $csrfTokenManager = null,
     ): AuthEmbedContextFactory {
         $profileRegistry = ProfileRegistryFactory::single(TestUser::class, $profileOverrides);
 
         $formFactory = Forms::createFormFactoryBuilder()
             ->addExtension(new ValidatorExtension(Validation::createValidator()))
+            ->addType(new LogoutFormType())
             ->addType(FormKitTestSupport::withMerger(new LoginFormType($profileRegistry, PasswordFieldResolvers::typeResolver())))
             ->addType(FormKitTestSupport::withMerger(new RegistrationFormType(
                 $profileRegistry,
@@ -74,6 +79,7 @@ final class AuthEmbedContextFactoryTest extends TestCase
             $profileRegistry,
             requestStack: $requestStack,
             security: $security,
+            csrfTokenManager: $csrfTokenManager,
         );
     }
 
@@ -164,6 +170,44 @@ final class AuthEmbedContextFactoryTest extends TestCase
         self::assertSame('alice@example.com', $context->userIdentifier);
         self::assertNull($context->loginForm);
         self::assertNull($context->registrationForm);
+    }
+
+    public function testPostOnlyLogoutBuildsACsrfLogoutForm(): void
+    {
+        $tokenStorage = $this->createMock(TokenStorageInterface::class);
+        $tokenStorage->method('getToken')->willReturn(new UsernamePasswordToken(new TestUser(), 'main', ['ROLE_USER']));
+
+        $csrf = $this->createMock(CsrfTokenManagerInterface::class);
+        $csrf->method('getToken')->with('logout')->willReturn(new CsrfToken('logout', 'tok123'));
+
+        $config                                = $this->embedConfig();
+        $config['routes']['logout']['methods'] = ['POST'];
+
+        $context = $this->createFactory($config, $this->registrationGate(), tokenStorage: $tokenStorage, csrfTokenManager: $csrf)->create();
+
+        self::assertNotNull($context);
+        $form = $context->logoutForm;
+        self::assertNotNull($form);
+        self::assertSame('/logout', $form->vars['action']);
+        self::assertSame('POST', $form->vars['method']);
+        self::assertSame('tok123', $form->children['_csrf_token']->vars['value']);
+        self::assertSame('_csrf_token', $form->children['_csrf_token']->vars['full_name']);
+        self::assertSame($form, $context->toArray()['logout_form']);
+
+        $noCsrf = $this->createFactory($config, $this->registrationGate(), tokenStorage: $tokenStorage)->create();
+        self::assertSame('', $noCsrf?->logoutForm?->children['_csrf_token']->vars['value']);
+    }
+
+    public function testGetLogoutKeepsTheLink(): void
+    {
+        $tokenStorage = $this->createMock(TokenStorageInterface::class);
+        $tokenStorage->method('getToken')->willReturn(new UsernamePasswordToken(new TestUser(), 'main', ['ROLE_USER']));
+
+        $config                                = $this->embedConfig();
+        $config['routes']['logout']['methods'] = ['GET', 'POST'];
+
+        self::assertNull($this->createFactory($config, $this->registrationGate(), tokenStorage: $tokenStorage)->create()?->logoutForm);
+        self::assertNull($this->createFactory($this->embedConfig(), $this->registrationGate())->create()?->logoutForm);
     }
 
     public function testStaleTokenIsIgnoredOnNextRequestOutsideFirewallWithoutReset(): void
@@ -422,6 +466,7 @@ final class AuthEmbedContextFactoryTest extends TestCase
             'authenticated_template'  => 'auth_tpl',
             'form_theme'              => 'theme',
             'slide_to_confirm_mode'   => null,
+            'logout_form'             => null,
         ], $context->toArray());
     }
 }

@@ -10,8 +10,10 @@ use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Controller\ResetPasswordRequestController;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\PasswordReset\NullPasswordResetNotifier;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetCheckEmail;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetThrottledException;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenResult;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
@@ -102,6 +104,67 @@ final class ResetPasswordRequestControllerCoverageTest extends TestCase
         $response = $controller->request($request);
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+    }
+
+    public function testAfterRequestRouteStoresTheCheckEmailPayload(): void
+    {
+        $user       = new TestUser();
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $availableAt  = new DateTimeImmutable('@1792760000');
+        $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
+        $tokenManager->method('createForUser')->willThrowException(new PasswordResetThrottledException($availableAt));
+
+        $overrides       = ['password_reset' => ['mode' => 'enabled', 'token_ttl' => 1800, 'after_request_route' => 'app_check_email']];
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, $overrides);
+        $handler         = new PasswordResetRequestHandler(
+            new PasswordResetUserResolver($entityManager, $profileRegistry),
+            $tokenManager,
+            new NullPasswordResetNotifier(),
+            AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
+            $this->createMock(EventDispatcherInterface::class),
+            $profileRegistry,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
+        );
+
+        $form = $this->createMock(FormInterface::class);
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('getData')->willReturn(['identifier' => 'user@example.com']);
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->expects(self::once())->method('generate')->with('app_check_email')->willReturn('/check-email');
+
+        $request = Request::create('/reset-password', 'POST');
+        $request->setSession(new Session(new MockArraySessionStorage()));
+
+        $controller = new ResetPasswordRequestController(
+            $this->createMock(Environment::class),
+            $formFactory,
+            new PasswordResetGate($profileRegistry),
+            $handler,
+            new TokenStorage(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $overrides),
+        );
+
+        $response = $controller->request($request);
+
+        self::assertSame('/check-email', $response->headers->get('Location'));
+        $session = $request->getSession();
+        self::assertInstanceOf(Session::class, $session);
+        self::assertSame([], $session->getFlashBag()->peekAll());
+        $checkEmail = PasswordResetCheckEmail::fromRequest($request);
+        self::assertNotNull($checkEmail);
+        self::assertSame(1800, $checkEmail->tokenTtl);
+        self::assertTrue($checkEmail->throttled);
+        self::assertSame(1792760000, $checkEmail->availableAt?->getTimestamp());
     }
 
     public function testRedirectsWhenAuthenticated(): void

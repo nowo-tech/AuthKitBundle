@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotificationContext;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestedEvent;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetThrottledException;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenResult;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
@@ -286,6 +287,55 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $handler->handle('a@b.c');
         $handler->handle('a@b.c');
         $this->addToAssertionCount(1);
+    }
+
+    public function testThrottledTokenManagerYieldsAThrottledOutcomeWithoutNotifying(): void
+    {
+        $user       = new TestUser();
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn($user);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $availableAt  = new DateTimeImmutable('2026-10-23 12:00:00');
+        $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
+        $tokenManager->method('createForUser')->willThrowException(new PasswordResetThrottledException($availableAt));
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->expects(self::never())->method('dispatch');
+
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class);
+        $handler         = new PasswordResetRequestHandler(
+            new PasswordResetUserResolver($entityManager, $profileRegistry),
+            $tokenManager,
+            new NullPasswordResetNotifier(),
+            $this->authKitUrlGenerator(),
+            $dispatcher,
+            $profileRegistry,
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            new RequestStack(),
+        );
+
+        $outcome = $handler->handle('user@example.com');
+
+        self::assertTrue($outcome->throttled);
+        self::assertSame($availableAt, $outcome->availableAt);
+    }
+
+    public function testUnknownIdentifierAndRateLimitAreReportedAsAccepted(): void
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findOneBy')->willReturn(null);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $handler = $this->handler(
+            new PasswordResetUserResolver($entityManager, ProfileRegistryFactory::single(TestUser::class)),
+            $this->createMock(PasswordResetTokenManagerInterface::class),
+            'link',
+        );
+
+        self::assertFalse($handler->handle('missing@example.com')->throttled);
     }
 
     private function handler(

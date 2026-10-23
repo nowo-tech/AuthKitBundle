@@ -81,6 +81,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Opt-in options for hosts on legacy schemas and route names (harvested from core-nowo-v2 spec 003, upstream items U1–U5). Defaults are unchanged. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- `locale.unlocalized_route_suffix` (default `_unlocalized`): name suffix of the bare route twins when `locale.in_path: both`, e.g. `.default` for applications whose bare routes are already named `<route>.default`. `UnlocalizedDefaultLocaleSubscriber` follows it.
+- `routes.logout.methods` (default `[GET]`): `[POST]` makes the sign-out a CSRF-protected POST with the firewall `logout.enable_csrf`; the embed widget then renders `Form\LogoutFormType` (hidden `_csrf_token`) instead of the GET link.
+- `password_reset.after_request_route` (default null): redirect after a valid reset request to a host "check your email" page; `PasswordReset\PasswordResetCheckEmail` (session payload: profile, `tokenTtl`, `throttled`, `availableAt`) is stored for it.
+- `password_reset.token_in_session` (default false): the link token moves into the session and the form is served on the token-less URL (`/reset-password/reset`).
+- `PasswordReset\PasswordResetThrottledException`: a custom `PasswordResetTokenManagerInterface::createForUser()` throws it when a credential was requested too recently; `PasswordResetRequestHandler::handle()` now returns a `PasswordResetRequestOutcome` (`throttled`, `availableAt`) and sends nothing in that case, without revealing it on the request page.
+- `doctrine.register_mapping` (`true` default | `false` | `auto`): leave the `auth_kit_*` entities unmapped when social and QR login are disabled, including under Doctrine `auto_mapping`.
+- `routing.skip_disabled_features` (default false): do not register the routes of disabled registration, password reset, magic, social and QR login.
+
 ## [1.29.0] - 2026-10-23
 
 Administrator-issued magic links (harvested from Symfony Beacon spec 159). See [UPGRADING](UPGRADING.md#to-1290).

@@ -1510,6 +1510,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     doctrine?: array{ // Doctrine mapping of the bundle-owned tables (QR login challenges, social login credentials / accounts).
  *         table_prefix?: scalar|Param|null, // Prefix prepended to every AuthKit table name (e.g. "app_" yields app_auth_kit_qr_login_challenge). Empty: unprefixed names. // Default: ""
+ *         register_mapping?: true|false|"auto"|Param, // Map the bundle-owned entities (auth_kit_* tables). true: always (default). false: never (social and QR login must stay disabled; also opts the bundle out of Doctrine auto_mapping). auto: only when a profile enables social_login or qr_login. // Default: true
+ *     },
+ *     routing?: array{ // Route registration of the auth_kit route loader.
+ *         skip_disabled_features?: bool|Param, // Do not register the routes of disabled features (registration_mode, password_reset.mode, magic_login.mode, social_login.mode, qr_login.mode = disabled). false keeps registering them; their controllers redirect to the login page. // Default: false
  *     },
  *     flash?: array{ // Flash messages added by AuthKit controllers.
  *         translate?: bool|Param, // Store flashes already translated (NowoAuthKitBundle domain, request locale) so any host flash template shows text. false keeps raw keys (pre-1.23). // Default: true
@@ -1619,6 +1623,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             request_rate_window?: int|Param, // Seconds for request_rate_limit window. // Default: 900
  *             token_field?: scalar|Param|null, // User entity property storing the hashed reset credential. // Default: "passwordResetToken"
  *             token_expires_field?: scalar|Param|null, // User entity property storing credential expiry. // Default: "passwordResetExpiresAt"
+ *             after_request_route?: scalar|Param|null, // Route the reset request page redirects to after a valid submit (e.g. a host "check your email" page that reads PasswordResetCheckEmail from the session). null: back to the login page with a flash. // Default: null
+ *             token_in_session?: bool|Param, // Link delivery: move the token from the reset URL into the session and redirect to the token-less URL before rendering the form (keeps the token out of the address bar, history and Referer). // Default: false
  *         },
  *         magic_login?: array{
  *             mode?: "disabled"|"enabled"|Param, // disabled: hide magic login. enabled: request form + Symfony login_link check route. // Default: "disabled"
@@ -1658,6 +1664,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             logout?: array{
  *                 path?: scalar|Param|null, // Default: "/logout"
  *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_logout"
+ *                 methods?: list<scalar|Param|null>,
  *             },
  *             register?: array{
  *                 path?: scalar|Param|null, // Default: "/register"
@@ -1728,6 +1735,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         default?: scalar|Param|null, // Default locale for prefixed routes and bare serve/redirect. // Default: "en"
  *         enabled?: list<scalar|Param|null>,
  *         unlocalized?: "serve"|"redirect"|Param, // When in_path=both: serve bare URLs with default locale, or redirect to /{default}/… // Default: "redirect"
+ *         unlocalized_route_suffix?: scalar|Param|null, // When in_path=both: suffix appended to each route name for its bare (unlocalized) twin, e.g. ".default" names it "<route>.default". // Default: "_unlocalized"
  *     },
  *     default_locale?: scalar|Param|null, // Deprecated: use locale.default. // Default: "en"
  *     enabled_locales?: list<scalar|Param|null>,

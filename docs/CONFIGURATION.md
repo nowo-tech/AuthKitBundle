@@ -20,6 +20,8 @@
 - [Social login (OAuth)](#social-login-oauth)
   - [HTTP timeouts (social login)](#http-timeouts-social-login)
 - [Doctrine table prefix](#doctrine-table-prefix)
+- [Doctrine mapping of the bundle entities](#doctrine-mapping-of-the-bundle-entities)
+- [Routes of disabled features](#routes-of-disabled-features)
 - [Embedded auth UI](#embedded-auth-ui)
 - [Locale in paths](#locale-in-paths)
 - [Recipient locale (notifications)](#recipient-locale-notifications)
@@ -28,6 +30,7 @@
 - [Admin CLI (create-admin)](#admin-cli-create-admin)
 - [Templates](#templates)
 - [Routes](#routes)
+  - [Logout HTTP methods](#logout-http-methods)
 - [Security.yaml checklist](#securityyaml-checklist)
 
 All options live under the `nowo_auth_kit` root key in `config/packages/nowo_auth_kit.yaml`.
@@ -197,6 +200,8 @@ nowo_auth_kit:
         request_rate_window: 900
         token_field: passwordResetToken
         token_expires_field: passwordResetExpiresAt
+        after_request_route: null   # 1.30+: host "check your email" route (see PASSWORD-RESET.md)
+        token_in_session: false     # 1.30+: link token moved from the URL into the session
 
     magic_login:
         mode: disabled              # disabled | enabled
@@ -222,6 +227,7 @@ nowo_auth_kit:
         logout:
             path: /logout
             name: nowo_auth_kit_logout
+            methods: [GET]           # 1.30+: [POST] for a CSRF POST sign-out
         register:
             path: /register
             name: nowo_auth_kit_register
@@ -261,6 +267,13 @@ nowo_auth_kit:
         default: en
         enabled: [en, es]
         unlocalized: redirect   # serve | redirect (only when in_path: both)
+        unlocalized_route_suffix: _unlocalized   # 1.30+
+
+    # Root-level, 1.30+
+    doctrine:
+        register_mapping: true  # true | false | auto
+    routing:
+        skip_disabled_features: false
 ```
 
 ## Registration modes
@@ -502,6 +515,44 @@ nowo_auth_kit:
 
 `Nowo\AuthKitBundle\Doctrine\TablePrefixListener` (Doctrine `loadClassMetadata`, registered only when the prefix is not empty) rewrites the AuthKit entities only — host and third-party mappings are never touched — and also prefixes their explicitly named indexes / unique constraints (`idx_qr_challenge_status_expires`, `uniq_auth_kit_social_*`), which stay unique on databases with schema-wide index names. Changing the prefix of an existing install renames the tables: generate a migration (`doctrine:migrations:diff`) and rename instead of dropping.
 
+## Doctrine mapping of the bundle entities
+
+Since 1.30. The bundle maps `QrLoginChallenge`, `SocialLoginCredential` and `SocialLoginAccount` (`auth_kit_*` tables)
+by default. Hosts that never enable social or QR login can leave them out of their schema:
+
+```yaml
+nowo_auth_kit:
+    doctrine:
+        register_mapping: auto   # true (default) | false | auto
+```
+
+| Value | Effect |
+|-------|--------|
+| `true` | Always mapped (previous behaviour) |
+| `false` | Never mapped; container compilation fails when a profile enables `social_login` or `qr_login` |
+| `auto` | Mapped only when a profile enables `social_login` or `qr_login` |
+
+When the entities are not mapped the bundle also prepends `doctrine.orm.entity_managers.<auto-mapped manager>.mappings.NowoAuthKitBundle.mapping: false`,
+so Doctrine `auto_mapping: true` does not pick up `src/Entity` either (skipped when your own Doctrine config already
+declares a `NowoAuthKitBundle` mapping). `doctrine:schema:validate` / `doctrine:migrations:diff` then ignore the
+`auth_kit_*` tables.
+
+## Routes of disabled features
+
+Since 1.30. By default every route is registered and the controllers of a disabled feature redirect to the login page.
+To register only what is enabled:
+
+```yaml
+nowo_auth_kit:
+    routing:
+        skip_disabled_features: true   # default false
+```
+
+Then `registration_mode: disabled` drops the register route, and `password_reset.mode`, `magic_login.mode`,
+`social_login.mode` or `qr_login.mode` set to `disabled` drop the routes of that flow (their URLs answer 404). Login and
+logout are always registered. The bundle pages only link enabled flows; check your own templates for `path()` calls to
+the dropped route names.
+
 ## Embedded auth UI
 
 When `embed.mode` is `dropdown`, render `{{ auth_kit_dropdown() }}` in Twig. Forms POST to the same routes as full-page login/register.
@@ -517,18 +568,23 @@ nowo_auth_kit:
         default: en
         enabled: [en, es]
         unlocalized: redirect    # serve | redirect (when in_path: both)
+        unlocalized_route_suffix: _unlocalized   # 1.30+: name suffix of the bare twins (e.g. ".default")
 ```
 
 | `in_path` | Behaviour |
 |-----------|-----------|
 | `never` | Only `/login`, `/register`, … |
 | `always` | Only `/{_locale}/login`, … |
-| `both` | Localized routes (canonical names) **and** bare `/login` as `{name}_unlocalized` |
+| `both` | Localized routes (canonical names) **and** bare `/login` as `{name}{unlocalized_route_suffix}` (default `{name}_unlocalized`) |
 
 When `in_path: both`:
 
 - `unlocalized: redirect` — bare URL redirects to `/{default}/…` (or current request locale via `auth_kit_route_params()`).
 - `unlocalized: serve` — bare URL renders with `_locale = locale.default`. `UnlocalizedDefaultLocaleSubscriber` (priority `14`) re-applies `locale.default` on each request so a stale warmed route cache cannot stick a wrong locale on `/login` (image build vs runtime `DEFAULT_LOCALE`).
+
+`unlocalized_route_suffix` (1.30+) names the bare twins: an application whose routes are already called
+`web.security.login` (localized) and `web.security.login.default` (bare) sets `.default` and keeps its route names
+without aliases. Letters, digits, `_`, `.` and `-`.
 
 Legacy keys `default_locale`, `enabled_locales`, and `locale_in_path` (bool) still work and map into `locale.*`.
 
@@ -683,9 +739,39 @@ The bundle prepends an asset package named `nowo_auth_kit` with base path `/bund
 
 Route **names** must stay in sync with `security.yaml` (`login_path`, `check_path`, `logout.path`). Paths are customizable for URL structure and `access_control` regexes.
 
-When `locale.in_path` is `always` or `both`, localized paths are `/{_locale}/login`, etc.; canonical route **names** stay the same. Bare aliases use the `_unlocalized` suffix when `both`.
+When `locale.in_path` is `always` or `both`, localized paths are `/{_locale}/login`, etc.; canonical route **names** stay the same. Bare aliases use the `locale.unlocalized_route_suffix` suffix (default `_unlocalized`) when `both`.
 
 Routes are generated per profile by the `nowo_auth_kit` route loader (`@NowoAuthKitBundle/Resources/config/routing.yaml`, `type: nowo_auth_kit`) instead of `#[Route]` attributes on the controllers: every route name, path and locale variant comes from configuration (`profiles.*.routes`, `locale.in_path`), and one controller serves several profiles under different paths, which static attributes cannot express. The import file only points at the loader; it declares no routes itself.
+
+### Logout HTTP methods
+
+Since 1.30. The logout route accepts `GET` by default. For a CSRF-protected POST sign-out:
+
+```yaml
+nowo_auth_kit:
+    routes:
+        logout:
+            methods: [POST]   # default [GET]; GET and/or POST
+```
+
+```yaml
+# security.yaml
+firewalls:
+    main:
+        logout:
+            path: nowo_auth_kit_logout
+            enable_csrf: true          # token id "logout", parameter "_csrf_token"
+```
+
+A GET then answers 405. The embed widget (`auth_kit_dropdown()`) renders the sign-out as a POST form
+(`Form\LogoutFormType`, hidden `_csrf_token` from the `logout` token id) instead of a link; in your own layout:
+
+```twig
+{{ form_start(logout_form) }}<button type="submit">{{ 'Sign out'|trans }}</button>{{ form_end(logout_form) }}
+```
+
+where `logout_form` is `formFactory.createNamed('', LogoutFormType::class, null, {action: path('nowo_auth_kit_logout'), logout_csrf_token: csrf_token('logout')})`.
+With `locale.in_path: both` the firewall `logout.path` (a route name) only matches the localized route; post to it.
 
 ## Security.yaml checklist
 

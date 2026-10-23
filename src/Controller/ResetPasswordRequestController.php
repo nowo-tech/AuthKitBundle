@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Controller;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\ResetPasswordRequestFormType;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetCheckEmail;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -18,6 +19,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Twig\Environment;
+
+use function is_string;
 
 /**
  * Renders the password reset request page (identifier / email).
@@ -65,8 +68,23 @@ final class ResetPasswordRequestController
 
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var array{identifier: string} $data */
-            $data = $form->getData();
-            $this->requestHandler->handle($data['identifier'], $profile->name);
+            $data    = $form->getData();
+            $outcome = $this->requestHandler->handle($data['identifier'], $profile->name);
+
+            $afterRequestRoute = $profile->passwordReset['after_request_route'] ?? null;
+            if (is_string($afterRequestRoute) && $afterRequestRoute !== '') {
+                // Host "check your email" page: same payload for every submit (no user enumeration) except "throttled".
+                (new PasswordResetCheckEmail(
+                    $profile->name,
+                    (int) ($profile->passwordReset['token_ttl'] ?? 3600),
+                    $outcome->throttled,
+                    $outcome->availableAt,
+                ))->store($request);
+
+                return new Response('', Response::HTTP_FOUND, [
+                    'Location' => $this->urlGenerator->generate($afterRequestRoute),
+                ]);
+            }
 
             $this->flashMessenger->flash($request, 'success', 'reset.request.flash_sent');
 

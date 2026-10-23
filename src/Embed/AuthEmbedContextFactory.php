@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Embed;
 use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
+use Nowo\AuthKitBundle\Form\LogoutFormType;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
@@ -15,12 +16,16 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
+
+use function in_array;
 
 /**
  * Builds login/register form views for embedded auth UI (dropdown, etc.).
@@ -37,6 +42,7 @@ final class AuthEmbedContextFactory
         private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
         private readonly ?RequestStack $requestStack = null,
         private readonly ?Security $security = null,
+        private readonly ?CsrfTokenManagerInterface $csrfTokenManager = null,
     ) {
     }
 
@@ -121,7 +127,25 @@ final class AuthEmbedContextFactory
                 $profile->registrationFields,
                 $profile->slideToConfirm,
             ),
+            logoutForm: $isAuthenticated ? $this->createLogoutForm($profile) : null,
         );
+    }
+
+    /**
+     * routes.logout.methods without GET: the sign-out is a POST form carrying the "logout" CSRF token (null keeps the
+     * GET link).
+     */
+    private function createLogoutForm(ProfileSettings $profile): ?FormView
+    {
+        $methods = $profile->routes['logout']['methods'] ?? ['GET'];
+        if (in_array('GET', $methods, true)) {
+            return null;
+        }
+
+        return $this->formFactory->createNamed('', LogoutFormType::class, null, [
+            'action'            => $this->urlGenerator->generate($profile->routes['logout']['name']),
+            'logout_csrf_token' => $this->csrfTokenManager?->getToken(LogoutFormType::CSRF_TOKEN_ID)->getValue() ?? '',
+        ])->createView();
     }
 
     /**

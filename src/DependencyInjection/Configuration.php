@@ -57,6 +57,13 @@ final class Configuration implements ConfigurationInterface
 
     public const DEFAULT_SECONDARY_BUTTON_CLASS = 'nowo-auth-kit__social-button';
 
+    public const DEFAULT_UNLOCALIZED_ROUTE_SUFFIX = '_unlocalized';
+
+    public const REGISTER_MAPPING_AUTO = 'auto';
+
+    /** @var list<string> */
+    public const LOGOUT_METHODS = ['GET', 'POST'];
+
     /** Auth pages => default template (web_ui.templates.<page>). */
     public const PAGE_TEMPLATES = [
         'login'               => '@NowoAuthKitBundle/security/login.html.twig',
@@ -244,6 +251,21 @@ final class Configuration implements ConfigurationInterface
                                 ->thenInvalid('Invalid "nowo_auth_kit.doctrine.table_prefix" %s: use letters, digits and underscores only.')
                             ->end()
                         ->end()
+                        ->enumNode('register_mapping')
+                            ->values([true, false, self::REGISTER_MAPPING_AUTO])
+                            ->info('Map the bundle-owned entities (auth_kit_* tables). true: always (default). false: never (social and QR login must stay disabled; also opts the bundle out of Doctrine auto_mapping). auto: only when a profile enables social_login or qr_login.')
+                            ->defaultTrue()
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('routing')
+                    ->info('Route registration of the auth_kit route loader.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('skip_disabled_features')
+                            ->info('Do not register the routes of disabled features (registration_mode, password_reset.mode, magic_login.mode, social_login.mode, qr_login.mode = disabled). false keeps registering them; their controllers redirect to the login page.')
+                            ->defaultFalse()
+                        ->end()
                     ->end()
                 ->end()
                 ->arrayNode('flash')
@@ -392,6 +414,14 @@ final class Configuration implements ConfigurationInterface
                             ->values(['serve', 'redirect'])
                             ->info('When in_path=both: serve bare URLs with default locale, or redirect to /{default}/…')
                             ->defaultValue('redirect')
+                        ->end()
+                        ->scalarNode('unlocalized_route_suffix')
+                            ->info('When in_path=both: suffix appended to each route name for its bare (unlocalized) twin, e.g. ".default" names it "<route>.default".')
+                            ->defaultValue(self::DEFAULT_UNLOCALIZED_ROUTE_SUFFIX)
+                            ->validate()
+                                ->ifTrue(static fn (mixed $value): bool => !is_string($value) || preg_match('/^[A-Za-z0-9_.\-]+$/', $value) !== 1)
+                                ->thenInvalid('Invalid "nowo_auth_kit.locale.unlocalized_route_suffix" %s: use a non-empty value with letters, digits, "_", "." or "-".')
+                            ->end()
                         ->end()
                     ->end()
                 ->end()
@@ -828,6 +858,14 @@ final class Configuration implements ConfigurationInterface
                     ->info('User entity property storing credential expiry.')
                     ->defaultValue('passwordResetExpiresAt')
                 ->end()
+                ->scalarNode('after_request_route')
+                    ->info('Route the reset request page redirects to after a valid submit (e.g. a host "check your email" page that reads PasswordResetCheckEmail from the session). null: back to the login page with a flash.')
+                    ->defaultNull()
+                ->end()
+                ->booleanNode('token_in_session')
+                    ->info('Link delivery: move the token from the reset URL into the session and redirect to the token-less URL before rendering the form (keeps the token out of the address bar, history and Referer).')
+                    ->defaultFalse()
+                ->end()
             ->end();
 
         return $node;
@@ -1000,6 +1038,18 @@ final class Configuration implements ConfigurationInterface
                     ->children()
                         ->scalarNode('path')->defaultValue('/logout')->end()
                         ->scalarNode('name')->defaultValue('nowo_auth_kit_logout')->end()
+                        ->arrayNode('methods')
+                            ->info('HTTP methods of the logout route. [POST] (with the firewall logout.enable_csrf) makes the sign-out a CSRF-protected POST; the embed widget then renders a POST form.')
+                            ->beforeNormalization()->castToArray()->end()
+                            ->scalarPrototype()
+                                ->validate()
+                                    ->ifNotInArray(self::LOGOUT_METHODS)
+                                    ->thenInvalid('Invalid logout method %s: use GET and/or POST.')
+                                ->end()
+                            ->end()
+                            ->requiresAtLeastOneElement()
+                            ->defaultValue(['GET'])
+                        ->end()
                     ->end()
                 ->end()
                 ->arrayNode('register')

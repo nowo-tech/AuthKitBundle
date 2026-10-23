@@ -118,6 +118,86 @@ final class AuthKitRouteLoaderTest extends TestCase
         self::assertSame(MagicLoginConfirmController::class . '::confirm', $confirm->getDefault('_controller'));
     }
 
+    public function testBothModeUsesTheConfiguredUnlocalizedSuffix(): void
+    {
+        $loader     = new AuthKitRouteLoader($this->profiles('link'), 'both', 'es', ['es', 'en'], 'serve', '.default');
+        $collection = $loader->load('.', 'nowo_auth_kit');
+
+        self::assertNotNull($collection->get('nowo_auth_kit_login'));
+        self::assertNull($collection->get('nowo_auth_kit_login_unlocalized'));
+        $bare = $collection->get('nowo_auth_kit_login.default');
+        self::assertNotNull($bare);
+        self::assertSame('/login', $bare->getPath());
+        self::assertSame('es', $bare->getDefault('_locale'));
+    }
+
+    public function testLogoutIsGetOnlyByDefaultAndFollowsConfiguredMethods(): void
+    {
+        $default = (new AuthKitRouteLoader($this->profiles('link'), false, 'en', ['en']))->load('.', 'nowo_auth_kit');
+        self::assertSame(['GET'], $default->get('nowo_auth_kit_logout')?->getMethods());
+
+        $profiles                                           = $this->profiles('link');
+        $profiles['default']['routes']['logout']['methods'] = ['post'];
+        $post                                               = (new AuthKitRouteLoader($profiles, 'both', 'en', ['en'], 'serve'))->load('.', 'nowo_auth_kit');
+        self::assertSame(['POST'], $post->get('nowo_auth_kit_logout')?->getMethods());
+        self::assertSame(['POST'], $post->get('nowo_auth_kit_logout_unlocalized')?->getMethods());
+
+        $profiles['default']['routes']['logout']['methods'] = [];
+        $fallback                                           = (new AuthKitRouteLoader($profiles, false, 'en', ['en']))->load('.', 'nowo_auth_kit');
+        self::assertSame(['GET'], $fallback->get('nowo_auth_kit_logout')?->getMethods());
+    }
+
+    public function testTokenInSessionMakesTheResetTokenOptional(): void
+    {
+        $profiles                                                  = $this->profiles('link');
+        $profiles['default']['password_reset']['token_in_session'] = true;
+
+        $route = (new AuthKitRouteLoader($profiles, false, 'en', ['en']))->load('.', 'nowo_auth_kit')->get('nowo_auth_kit_reset_password');
+
+        self::assertNotNull($route);
+        self::assertTrue($route->hasDefault('token'));
+        self::assertNull($route->getDefault('token'));
+
+        $default = (new AuthKitRouteLoader($this->profiles('link'), false, 'en', ['en']))->load('.', 'nowo_auth_kit')->get('nowo_auth_kit_reset_password');
+        self::assertNotNull($default);
+        self::assertFalse($default->hasDefault('token'));
+    }
+
+    public function testDisabledFeaturesKeepTheirRoutesUnlessSkipped(): void
+    {
+        $profiles                                 = $this->profiles('link');
+        $profiles['default']['registration_mode'] = 'disabled';
+
+        $kept = (new AuthKitRouteLoader($profiles, false, 'en', ['en']))->load('.', 'nowo_auth_kit');
+        self::assertNotNull($kept->get('nowo_auth_kit_register'));
+        self::assertNotNull($kept->get('nowo_auth_kit_reset_password_request'));
+        self::assertNotNull($kept->get('nowo_auth_kit_magic_login_check'));
+        self::assertNotNull($kept->get('nowo_auth_kit_social_login_start'));
+        self::assertNotNull($kept->get('nowo_auth_kit_qr_login_start'));
+
+        $skipped = (new AuthKitRouteLoader($profiles, 'both', 'en', ['en'], 'serve', '.default', true))->load('.', 'nowo_auth_kit');
+        self::assertSame(
+            ['nowo_auth_kit_login', 'nowo_auth_kit_login.default', 'nowo_auth_kit_logout', 'nowo_auth_kit_logout.default'],
+            array_keys($skipped->all()),
+        );
+    }
+
+    public function testSkipKeepsEnabledFeatures(): void
+    {
+        $profiles                                      = $this->profiles('link');
+        $profiles['default']['registration_mode']      = 'always';
+        $profiles['default']['password_reset']['mode'] = 'enabled';
+        $profiles['default']['magic_login']['mode']    = 'enabled';
+        $profiles['default']['social_login']['mode']   = 'enabled';
+        $profiles['default']['qr_login']['mode']       = 'enabled';
+
+        $collection = (new AuthKitRouteLoader($profiles, false, 'en', ['en'], 'redirect', '_unlocalized', true))->load('.', 'nowo_auth_kit');
+
+        foreach (['register', 'reset_password_request', 'reset_password', 'magic_login_request', 'magic_login_check', 'social_login_start', 'social_login_check', 'qr_login_start', 'qr_login_deny'] as $route) {
+            self::assertNotNull($collection->get('nowo_auth_kit_' . $route), $route);
+        }
+    }
+
     /**
      * @return array<string, array<string, mixed>>
      */

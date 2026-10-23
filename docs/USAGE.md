@@ -219,7 +219,7 @@ nowo_auth_kit:
 | Mode | Example URLs |
 |------|----------------|
 | `always` | `/en/login`, `/es/register` |
-| `both` | `/en/login` **and** `/login` (`nowo_auth_kit_login_unlocalized`) |
+| `both` | `/en/login` **and** `/login` (`nowo_auth_kit_login_unlocalized`; suffix configurable with `locale.unlocalized_route_suffix`, 1.30+) |
 | `never` | `/login` only |
 
 Symfony `form_login` should keep using the **canonical** route names (`nowo_auth_kit_login`, …). With `both` + `redirect`, bare URLs 302 to the localized path. With `both` + `serve`, bare URLs render using `locale.default`.

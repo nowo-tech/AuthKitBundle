@@ -30,6 +30,11 @@ use function sprintf;
  */
 final class NowoAuthKitExtension extends Extension implements PrependExtensionInterface
 {
+    /** Present only when the bundle entities are mapped (doctrine.register_mapping). */
+    public const MAPPING_ENABLED_PARAMETER = 'nowo_auth_kit.doctrine.mapping_enabled';
+
+    public const BUNDLE_NAME = 'NowoAuthKitBundle';
+
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
@@ -119,6 +124,15 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.http_client.timeout', (float) $config['http_client']['timeout']);
         $container->setParameter('nowo_auth_kit.http_client.max_duration', (float) $config['http_client']['max_duration']);
         $container->setParameter('nowo_auth_kit.doctrine.table_prefix', $config['doctrine']['table_prefix']);
+        $container->setParameter('nowo_auth_kit.locale.unlocalized_route_suffix', $config['locale']['unlocalized_route_suffix']);
+        $container->setParameter('nowo_auth_kit.routing.skip_disabled_features', $config['routing']['skip_disabled_features']);
+
+        $registerMapping = $this->resolveRegisterMapping($config['doctrine']['register_mapping'], $profiles);
+        $container->setParameter('nowo_auth_kit.doctrine.register_mapping', $registerMapping);
+        if ($registerMapping) {
+            // Read by the DoctrineOrmMappingsPass of NowoAuthKitBundle::build() (enabled when the parameter exists).
+            $container->setParameter(self::MAPPING_ENABLED_PARAMETER, true);
+        }
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
@@ -155,6 +169,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     {
         $this->prependFormKitDefaults($container);
         $this->prependUiKitThemeBridge($container);
+        $this->prependDoctrineMappingOptOut($container);
         if (!$container->hasExtension('framework')) {
             return;
         }
@@ -227,7 +242,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $seen = [];
 
         foreach ($profiles as $profileName => $profile) {
-            /** @var array<string, array{path: string, name: string}> $routes */
+            /** @var array<string, array{path: string, name: string, methods?: list<string>}> $routes */
             $routes = $profile['routes'];
 
             foreach ($routes as $routeKey => $route) {
@@ -320,6 +335,115 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         if ($classes !== []) {
             $container->prependExtensionConfig('nowo_ui_kit', ['theme' => ['bundles' => [AuthPageFactory::BUNDLE => ['classes' => $classes]]]]);
         }
+    }
+
+    /**
+     * doctrine.register_mapping: true / false / "auto" (mapped only when a profile enables social or QR login).
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function resolveRegisterMapping(bool|string $registerMapping, array $profiles): bool
+    {
+        $needed = $this->profilesNeedEntities($profiles);
+
+        if ($registerMapping === Configuration::REGISTER_MAPPING_AUTO) {
+            return $needed;
+        }
+
+        if ($registerMapping === false && $needed) {
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode and qr_login.mode to be "disabled" in every profile (their entities would not be mapped).');
+        }
+
+        return (bool) $registerMapping;
+    }
+
+    /**
+     * @param array<array-key, mixed> $profiles
+     */
+    private function profilesNeedEntities(array $profiles): bool
+    {
+        foreach ($profiles as $profile) {
+            if (!is_array($profile)) {
+                continue;
+            }
+            foreach (['social_login', 'qr_login'] as $feature) {
+                $settings = $profile[$feature] ?? null;
+                if (is_array($settings) && ($settings['mode'] ?? null) === 'enabled') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Doctrine auto_mapping would map src/Entity of every bundle: when doctrine.register_mapping resolves to false,
+     * prepend `mappings.NowoAuthKitBundle.mapping: false` on the auto-mapped entity manager (unless the host already
+     * configures a NowoAuthKitBundle mapping).
+     */
+    private function prependDoctrineMappingOptOut(ContainerBuilder $container): void
+    {
+        if (!$container->hasExtension('doctrine')) {
+            return;
+        }
+
+        $registerMapping = true;
+        $profiles        = [];
+        foreach ($container->getExtensionConfig($this->getAlias()) as $config) {
+            /** @var array<string, mixed> $config */
+            $doctrine = $config['doctrine'] ?? null;
+            if (is_array($doctrine) && array_key_exists('register_mapping', $doctrine)) {
+                $registerMapping = $doctrine['register_mapping'];
+            }
+            $profiles[] = $config;
+            foreach (is_array($config['profiles'] ?? null) ? $config['profiles'] : [] as $profile) {
+                $profiles[] = $profile;
+            }
+        }
+
+        $mapped = $registerMapping === Configuration::REGISTER_MAPPING_AUTO
+            ? $this->profilesNeedEntities($profiles)
+            : $registerMapping !== false;
+        if ($mapped) {
+            return;
+        }
+
+        $manager = null;
+        $hasOrm  = false;
+        foreach ($container->getExtensionConfig('doctrine') as $config) {
+            /** @var array<string, mixed> $config */
+            if (!is_array($config['orm'] ?? null)) {
+                continue;
+            }
+            $hasOrm = true;
+            $orm    = $config['orm'];
+            if (is_array($orm['mappings'] ?? null) && array_key_exists(self::BUNDLE_NAME, $orm['mappings'])) {
+                return;
+            }
+            if (is_string($orm['default_entity_manager'] ?? null)) {
+                $manager ??= $orm['default_entity_manager'];
+            }
+            foreach (is_array($orm['entity_managers'] ?? null) ? $orm['entity_managers'] : [] as $name => $entityManager) {
+                if (!is_array($entityManager)) {
+                    continue;
+                }
+                if (is_array($entityManager['mappings'] ?? null) && array_key_exists(self::BUNDLE_NAME, $entityManager['mappings'])) {
+                    return;
+                }
+                if (($entityManager['auto_mapping'] ?? false) === true) {
+                    $manager = (string) $name;
+                }
+            }
+        }
+
+        if (!$hasOrm) {
+            return;
+        }
+
+        $container->prependExtensionConfig('doctrine', [
+            'orm' => ['entity_managers' => [$manager ?? 'default' => ['mappings' => [self::BUNDLE_NAME => ['mapping' => false]]]]],
+        ]);
     }
 
     /**

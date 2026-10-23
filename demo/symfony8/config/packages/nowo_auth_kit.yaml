@@ -47,3 +47,9 @@ nowo_auth_kit:
     # otp_input:
     #     enabled: true
     #     password_reset_code: true
+    # Legacy-host opt-ins (1.30+), all off by default:
+    # locale: { unlocalized_route_suffix: .default }      # bare twins named <route>.default
+    # routes: { logout: { methods: [POST] } }              # with security.yaml logout.enable_csrf: true
+    # password_reset: { after_request_route: app_check_email, token_in_session: true }
+    # doctrine: { register_mapping: auto }                 # auth_kit_* entities only with social/QR login
+    # routing: { skip_disabled_features: true }            # no routes for disabled flows

@@ -18,7 +18,8 @@ use function str_ends_with;
 use function strtolower;
 
 /**
- * Forces {@code locale.default} on AuthKit {@code *_unlocalized} twins when {@code unlocalized: serve}.
+ * Forces {@code locale.default} on AuthKit bare twins ({@code *<locale.unlocalized_route_suffix>}, default
+ * {@code *_unlocalized}) when {@code unlocalized: serve}.
  *
  * Bare {@code /login} (etc.) must render the configured default even when the compiled route
  * {@code _locale} default was warmed with a different value (image build vs runtime env).
@@ -31,6 +32,7 @@ final readonly class UnlocalizedDefaultLocaleSubscriber implements EventSubscrib
         private TranslatorInterface $translator,
         private string $defaultLocale,
         string $unlocalizedMode = 'redirect',
+        private string $unlocalizedRouteSuffix = AuthKitRouteLoader::UNLOCALIZED_ROUTE_SUFFIX,
     ) {
         $this->unlocalizedMode = UnlocalizedLocaleMode::from($unlocalizedMode);
     }
@@ -58,7 +60,7 @@ final readonly class UnlocalizedDefaultLocaleSubscriber implements EventSubscrib
         }
 
         $route = $request->attributes->get('_route');
-        if (!is_string($route) || !str_ends_with($route, AuthKitRouteLoader::UNLOCALIZED_ROUTE_SUFFIX)) {
+        if (!is_string($route) || !str_ends_with($route, $this->unlocalizedRouteSuffix)) {
             return;
         }
 

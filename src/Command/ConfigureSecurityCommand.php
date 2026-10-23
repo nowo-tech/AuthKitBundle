@@ -28,7 +28,7 @@ use function sprintf;
 final class ConfigureSecurityCommand extends Command
 {
     /**
-     * @param array<string, array{path: string, name: string}> $routes
+     * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
      * @param list<array{name: string, type: string, property: ?string, hash: bool, required: bool, security_name: ?string}> $loginFields
      * @param array{enabled: bool, lifetime: int, path: string} $rememberMe
      * @param array{mode: string, lifetime: int, max_uses: int, confirm_interstitial?: bool} $magicLogin

@@ -30,13 +30,18 @@ use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
+use function array_map;
+use function array_unique;
+use function array_values;
 use function is_bool;
+use function strtoupper;
 
 /**
  * Loads login, logout, register, password reset, and magic login routes from bundle configuration.
  */
 final class AuthKitRouteLoader extends Loader
 {
+    /** Default suffix of the bare twin (locale.unlocalized_route_suffix). */
     public const UNLOCALIZED_ROUTE_SUFFIX = '_unlocalized';
 
     private readonly LocaleInPathMode $localeInPathMode;
@@ -53,6 +58,8 @@ final class AuthKitRouteLoader extends Loader
         private readonly string $defaultLocale,
         private readonly array $enabledLocales,
         string $unlocalizedMode = 'redirect',
+        private readonly string $unlocalizedRouteSuffix = self::UNLOCALIZED_ROUTE_SUFFIX,
+        private readonly bool $skipDisabledFeatures = false,
     ) {
         $this->localeInPathMode = $this->normalizeInPathMode($localeInPath);
         $this->unlocalizedMode  = UnlocalizedLocaleMode::from($unlocalizedMode);
@@ -84,12 +91,13 @@ final class AuthKitRouteLoader extends Loader
      */
     private function loadProfileRoutes(RouteCollection $collection, string $profileName, array $profile): void
     {
-        /** @var array<string, array{path: string, name: string}> $routes */
+        /** @var array<string, array{path: string, name: string, methods?: list<string>}> $routes */
         $routes            = $profile['routes'];
         $passwordReset     = $profile['password_reset'];
         $profileDefaults   = [RequestProfileResolver::REQUEST_ATTRIBUTE => $profileName];
         $passwordResetMode = $passwordReset['delivery'] ?? 'link';
         $delivery          = PasswordResetDeliveryMode::from($passwordResetMode);
+        $tokenInSession    = (bool) ($passwordReset['token_in_session'] ?? false);
 
         $this->addAuthRoute(
             $collection,
@@ -104,17 +112,47 @@ final class AuthKitRouteLoader extends Loader
             $routes['logout']['name'],
             $routes['logout']['path'],
             ['_controller' => LogoutController::class . '::logout'] + $profileDefaults,
-            ['GET'],
+            $this->logoutMethods($routes['logout']),
         );
 
-        $this->addAuthRoute(
-            $collection,
-            $routes['register']['name'],
-            $routes['register']['path'],
-            ['_controller' => RegisterController::class . '::register'] + $profileDefaults,
-            ['GET', 'POST'],
-        );
+        if ($this->featureRoutesEnabled($profile, 'registration_mode')) {
+            $this->addAuthRoute(
+                $collection,
+                $routes['register']['name'],
+                $routes['register']['path'],
+                ['_controller' => RegisterController::class . '::register'] + $profileDefaults,
+                ['GET', 'POST'],
+            );
+        }
 
+        if ($this->featureRoutesEnabled($profile, 'password_reset')) {
+            $this->loadPasswordResetRoutes($collection, $routes, $profileDefaults, $delivery, $tokenInSession);
+        }
+
+        if ($this->featureRoutesEnabled($profile, 'magic_login')) {
+            $this->loadMagicLoginRoutes($collection, $routes, $profileDefaults, (bool) ($profile['magic_login']['confirm_interstitial'] ?? false));
+        }
+
+        if ($this->featureRoutesEnabled($profile, 'social_login')) {
+            $this->loadSocialLoginRoutes($collection, $routes, $profileDefaults);
+        }
+
+        if ($this->featureRoutesEnabled($profile, 'qr_login')) {
+            $this->loadQrLoginRoutes($collection, $routes, $profileDefaults);
+        }
+    }
+
+    /**
+     * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
+     * @param array<string, mixed> $profileDefaults
+     */
+    private function loadPasswordResetRoutes(
+        RouteCollection $collection,
+        array $routes,
+        array $profileDefaults,
+        PasswordResetDeliveryMode $delivery,
+        bool $tokenInSession,
+    ): void {
         $this->addAuthRoute(
             $collection,
             $routes['reset_request']['name'],
@@ -128,7 +166,8 @@ final class AuthKitRouteLoader extends Loader
                 $collection,
                 $routes['reset_password']['name'],
                 $routes['reset_password']['path'],
-                ['_controller' => ResetPasswordController::class . '::reset'] + $profileDefaults,
+                // token_in_session: the token-less URL (token = null) renders the form with the session token.
+                ['_controller' => ResetPasswordController::class . '::reset'] + ($tokenInSession ? ['token' => null] : []) + $profileDefaults,
                 ['GET', 'POST'],
             );
         }
@@ -142,7 +181,14 @@ final class AuthKitRouteLoader extends Loader
                 ['GET', 'POST'],
             );
         }
+    }
 
+    /**
+     * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
+     * @param array<string, mixed> $profileDefaults
+     */
+    private function loadMagicLoginRoutes(RouteCollection $collection, array $routes, array $profileDefaults, bool $confirmInterstitial): void
+    {
         $this->addAuthRoute(
             $collection,
             $routes['magic_login_request']['name'],
@@ -151,7 +197,6 @@ final class AuthKitRouteLoader extends Loader
             ['GET', 'POST'],
         );
 
-        $confirmInterstitial = (bool) ($profile['magic_login']['confirm_interstitial'] ?? false);
         $this->addAuthRoute(
             $collection,
             $routes['magic_login_check']['name'],
@@ -173,7 +218,14 @@ final class AuthKitRouteLoader extends Loader
                 ['POST'],
             );
         }
+    }
 
+    /**
+     * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
+     * @param array<string, mixed> $profileDefaults
+     */
+    private function loadSocialLoginRoutes(RouteCollection $collection, array $routes, array $profileDefaults): void
+    {
         $this->addAuthRoute(
             $collection,
             $routes['social_login_start']['name'],
@@ -191,7 +243,14 @@ final class AuthKitRouteLoader extends Loader
             ['GET'],
             ['provider' => '[a-z0-9_\\-]+'],
         );
+    }
 
+    /**
+     * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
+     * @param array<string, mixed> $profileDefaults
+     */
+    private function loadQrLoginRoutes(RouteCollection $collection, array $routes, array $profileDefaults): void
+    {
         $this->addAuthRoute(
             $collection,
             $routes['qr_login_start']['name'],
@@ -273,7 +332,7 @@ final class AuthKitRouteLoader extends Loader
             return;
         }
 
-        $bareName = $name . self::UNLOCALIZED_ROUTE_SUFFIX;
+        $bareName = $name . $this->unlocalizedRouteSuffix;
 
         if ($this->unlocalizedMode === UnlocalizedLocaleMode::Redirect) {
             $collection->add($bareName, $this->createBareRoute(
@@ -323,6 +382,36 @@ final class AuthKitRouteLoader extends Loader
             [],
             $methods,
         );
+    }
+
+    /**
+     * routing.skip_disabled_features: a feature whose mode is "disabled" registers no route.
+     *
+     * @param array<string, mixed> $profile
+     */
+    private function featureRoutesEnabled(array $profile, string $feature): bool
+    {
+        if (!$this->skipDisabledFeatures) {
+            return true;
+        }
+
+        $mode = $feature === 'registration_mode'
+            ? ($profile['registration_mode'] ?? null)
+            : ($profile[$feature]['mode'] ?? null);
+
+        return $mode !== 'disabled';
+    }
+
+    /**
+     * @param array{path: string, name: string, methods?: list<string>} $route
+     *
+     * @return list<string>
+     */
+    private function logoutMethods(array $route): array
+    {
+        $methods = $route['methods'] ?? [];
+
+        return $methods === [] ? ['GET'] : array_values(array_unique(array_map(strtoupper(...), $methods)));
     }
 
     private function normalizeInPathMode(string|bool $localeInPath): LocaleInPathMode

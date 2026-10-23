@@ -9,6 +9,10 @@ namespace Nowo\AuthKitBundle\PasswordReset;
  */
 interface PasswordResetTokenManagerInterface
 {
+    /**
+     * @throws PasswordResetThrottledException when a credential was issued too recently; the request handler then
+     *                                         sends nothing and reports a throttled outcome
+     */
     public function createForUser(object $user): PasswordResetTokenResult;
 
     public function resolveUserByLinkToken(string $linkToken, ?string $profileName = null): ?object;

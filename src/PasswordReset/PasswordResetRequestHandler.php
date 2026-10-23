@@ -35,7 +35,10 @@ final class PasswordResetRequestHandler
     ) {
     }
 
-    public function handle(string $identifier, ?string $profileName = null): void
+    /**
+     * Returns the outcome (throttled or not); callers that ignore it keep the pre-1.30 behaviour.
+     */
+    public function handle(string $identifier, ?string $profileName = null): PasswordResetRequestOutcome
     {
         $profile = $profileName !== null
             ? $this->profileRegistry->getByName($profileName)
@@ -58,17 +61,21 @@ final class PasswordResetRequestHandler
                 $window,
             )
         ) {
-            return;
+            return PasswordResetRequestOutcome::accepted();
         }
 
         $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
 
         if ($user === null) {
-            return;
+            return PasswordResetRequestOutcome::accepted();
         }
 
-        $tokenResult = $this->tokenManager->createForUser($user);
-        $delivery    = PasswordResetDeliveryMode::from($profile->passwordReset['delivery']);
+        try {
+            $tokenResult = $this->tokenManager->createForUser($user);
+        } catch (PasswordResetThrottledException $exception) {
+            return PasswordResetRequestOutcome::throttled($exception);
+        }
+        $delivery = PasswordResetDeliveryMode::from($profile->passwordReset['delivery']);
 
         $locale    = $this->recipientLocale->resolve($user);
         $linkToken = $tokenResult->linkToken();
@@ -94,6 +101,8 @@ final class PasswordResetRequestHandler
         );
 
         $this->recipientLocale->run($locale, $this->dispatchAndNotify(...), $tokenResult, $context);
+
+        return PasswordResetRequestOutcome::accepted();
     }
 
     private function dispatchAndNotify(PasswordResetTokenResult $tokenResult, PasswordResetNotificationContext $context): void
