@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.29.0] - 2026-10-23](#1290---2026-10-23)
 - [[1.28.0] - 2026-10-20](#1280---2026-10-20)
 - [[1.27.3] - 2026-10-19](#1273---2026-10-19)
 - [[1.27.2] - 2026-10-18](#1272---2026-10-18)
@@ -79,6 +80,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.29.0] - 2026-10-23
+
+Administrator-issued magic links (harvested from Symfony Beacon spec 159). See [UPGRADING](UPGRADING.md#to-1290).
+
+### Added
+
+- `MagicLogin\AdminMagicLinkIssuer`: support sign-in links an administrator issues for another account — `issue()` (show once), `send()` (e-mail through `MagicLoginNotifierInterface` in the recipient's locale), `canIssue()`. Never for the issuer's own account nor for protected roles (`AdminMagicLinkRefusedException`), and `AdminMagicLinkIssuedEvent` for the host's audit trail. Documented in [MAGIC-LOGIN.md](MAGIC-LOGIN.md#administrator-issued-links).
+- Config `profiles.*.magic_login.admin_link.lifetime` (default 3600) and `admin_link.protected_roles` (default `ROLE_ADMIN`, `ROLE_SUPER_ADMIN`); parameters `nowo_auth_kit.magic_login.admin_link.*`.
+
+### Changed
+
+- `MagicLogin\MagicLinkFactory` builds the login link (recipient locale, `absolute_url.base_uri`) for both the sign-in page and administrator-issued links; `MagicLoginRequestHandler` behaves as before.
 
 ## [1.28.0] - 2026-10-20
 

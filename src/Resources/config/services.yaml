@@ -227,6 +227,14 @@ services:
             $enabled: '%nowo_auth_kit.recipient_locale.enabled%'
             $allowedLocales: '%nowo_auth_kit.locale.enabled%'
 
+    # Support sign-in links issued from an administration screen (shown once or e-mailed through the host notifier).
+    Nowo\AuthKitBundle\MagicLogin\AdminMagicLinkIssuer:
+        arguments:
+            $loginLinkHandler: '@?security.authenticator.login_link_handler.main'
+            $eventDispatcher: '@?event_dispatcher'
+            $lifetime: '%nowo_auth_kit.magic_login.admin_link.lifetime%'
+            $protectedRoles: '%nowo_auth_kit.magic_login.admin_link.protected_roles%'
+
     Nowo\AuthKitBundle\Admin\AdminUserCreator:
         arguments:
             $eventDispatcher: '@?event_dispatcher'

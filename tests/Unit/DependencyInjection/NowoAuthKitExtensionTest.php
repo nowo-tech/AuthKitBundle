@@ -61,6 +61,8 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertSame('App\\Entity\\User', $this->container->getParameter('nowo_auth_kit.user_class'));
         self::assertSame('always', $this->container->getParameter('nowo_auth_kit.registration_mode'));
         self::assertSame('ROLE_ADMIN', $this->container->getParameter('nowo_auth_kit.registration_role'));
+        self::assertSame(3600, $this->container->getParameter('nowo_auth_kit.magic_login.admin_link.lifetime'));
+        self::assertSame(['ROLE_ADMIN', 'ROLE_SUPER_ADMIN'], $this->container->getParameter('nowo_auth_kit.magic_login.admin_link.protected_roles'));
         $embed     = $this->container->getParameter('nowo_auth_kit.embed');
         $templates = $this->container->getParameter('nowo_auth_kit.templates');
         $css       = $this->container->getParameter('nowo_auth_kit.css');

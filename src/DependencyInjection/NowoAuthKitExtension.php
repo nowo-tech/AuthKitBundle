@@ -90,6 +90,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.magic_login.mode', $defaultProfile['magic_login']['mode']);
         $container->setParameter('nowo_auth_kit.magic_login.lifetime', $defaultProfile['magic_login']['lifetime']);
         $container->setParameter('nowo_auth_kit.magic_login.max_uses', $defaultProfile['magic_login']['max_uses']);
+        $container->setParameter('nowo_auth_kit.magic_login.admin_link.lifetime', $defaultProfile['magic_login']['admin_link']['lifetime']);
+        $container->setParameter('nowo_auth_kit.magic_login.admin_link.protected_roles', $defaultProfile['magic_login']['admin_link']['protected_roles']);
         $container->setParameter('nowo_auth_kit.social_login', $defaultProfile['social_login']);
         $container->setParameter('nowo_auth_kit.social_login.mode', $defaultProfile['social_login']['mode']);
         $container->setParameter('nowo_auth_kit.social_login.create_user_if_missing', $defaultProfile['social_login']['create_user_if_missing']);

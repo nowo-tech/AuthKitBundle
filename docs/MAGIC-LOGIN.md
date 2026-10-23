@@ -10,6 +10,7 @@ This is **not** the same as password-reset delivery links.
 - [Security (`login_link`)](#security-login_link)
 - [Delivery (`MagicLoginNotifierInterface`)](#delivery-magicloginnotifierinterface)
 - [Events](#events)
+- [Administrator-issued links](#administrator-issued-links)
 - [Security notes](#security-notes)
 - [Templates](#templates)
 
@@ -95,6 +96,39 @@ Bundled samples: `NullMagicLoginNotifier` (default), `LoggingMagicLoginNotifier`
 ## Events
 
 Subscribe to `MagicLoginRequestedEvent` for audit or rate limiting.
+
+## Administrator-issued links
+
+1.29+: `Nowo\AuthKitBundle\MagicLogin\AdminMagicLinkIssuer` lets an administration screen issue a sign-in link for
+another account (support sign-in) — the same signed `login_link`, in the recipient's locale, against
+`absolute_url.base_uri`:
+
+```php
+$link = $issuer->issue($admin, $member);              // LoginLinkDetails: show it once, never store it
+$expires = $issuer->send($admin, $member);            // e-mailed through MagicLoginNotifierInterface
+$issuer->canIssue($admin, $member);                   // hide the action when false
+```
+
+- **Never for the issuer's own account** nor for an account with a protected role
+  (`magic_login.admin_link.protected_roles`, default `ROLE_ADMIN`, `ROLE_SUPER_ADMIN`): `issue()` / `send()` throw
+  `AdminMagicLinkRefusedException` (`reason()`: `own_account`, `protected_role`, or `not_configured` without a firewall
+  `login_link`).
+- **Lifetime** `magic_login.admin_link.lifetime` (default 3600 s). **Set the firewall `login_link.lifetime` to at least
+  this value**: Symfony remembers a used link only for its own `lifetime`, so a shorter firewall lifetime lets a used
+  admin link be replayed until the link expires. Add `password` to `signature_properties` so a password change voids
+  pending links.
+- **Audit:** every link dispatches `AdminMagicLinkIssuedEvent` (`issuer`, `target`, `delivery` `shown` | `email`,
+  `expiresAt`; never the URL). Rate-limit the action in the host (e.g. per administrator).
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            magic_login:
+                admin_link:
+                    lifetime: 3600
+                    protected_roles: [ROLE_ADMIN, ROLE_SUPER_ADMIN]
+```
 
 ## Security notes
 

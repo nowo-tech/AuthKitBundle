@@ -868,6 +868,22 @@ final class Configuration implements ConfigurationInterface
                     ->info('When true, magic_login_check GET renders a CSRF confirm form; POST goes to magic_login_confirm (consume login link after Form CSRF). Pair with login_link.check_post_only.')
                     ->defaultFalse()
                 ->end()
+                ->arrayNode('admin_link')
+                    ->info('Links an administrator issues for another account (AdminMagicLinkIssuer). Keep the firewall login_link.lifetime >= this lifetime so a used link cannot be replayed.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->integerNode('lifetime')
+                            ->info('Seconds until an administrator-issued link expires.')
+                            ->defaultValue(3600)
+                            ->min(60)
+                        ->end()
+                        ->arrayNode('protected_roles')
+                            ->info('Accounts holding any of these roles never get an administrator-issued link.')
+                            ->scalarPrototype()->end()
+                            ->defaultValue(['ROLE_ADMIN', 'ROLE_SUPER_ADMIN'])
+                        ->end()
+                    ->end()
+                ->end()
             ->end();
 
         return $node;

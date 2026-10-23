@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.29.0](#to-1290)
 - [To 1.28.0](#to-1280)
 - [To 1.27.3](#to-1273)
 - [To 1.27.2](#to-1272)
@@ -86,6 +87,13 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.29.0
+
+- No breaking change. To issue support sign-in links from an administration screen, inject
+  `Nowo\AuthKitBundle\MagicLogin\AdminMagicLinkIssuer` (see [MAGIC-LOGIN.md](MAGIC-LOGIN.md#administrator-issued-links)).
+- When you use it, set the firewall `login_link.lifetime` to at least `magic_login.admin_link.lifetime` (default 3600)
+  and add `password` to `signature_properties`.
 
 ## To 1.28.0
 
