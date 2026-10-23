@@ -1627,6 +1627,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             request_rate_limit?: int|Param, // Max magic-login requests per client IP per window (0 = disabled). // Default: 5
  *             request_rate_window?: int|Param, // Seconds for request_rate_limit window. // Default: 900
  *             confirm_interstitial?: bool|Param, // When true, magic_login_check GET renders a CSRF confirm form; POST goes to magic_login_confirm (consume login link after Form CSRF). Pair with login_link.check_post_only. // Default: false
+ *             admin_link?: array{ // Links an administrator issues for another account (AdminMagicLinkIssuer). Keep the firewall login_link.lifetime >= this lifetime so a used link cannot be replayed.
+ *                 lifetime?: int|Param, // Seconds until an administrator-issued link expires. // Default: 3600
+ *                 protected_roles?: list<scalar|Param|null>,
+ *             },
  *         },
  *         social_login?: array{
  *             mode?: "disabled"|"enabled"|Param, // disabled: hide social login. enabled: OAuth buttons when provider credentials exist in the database. // Default: "disabled"
