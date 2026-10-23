@@ -97,7 +97,7 @@ From **1.29.0**:
 composer update nowo-tech/auth-kit-bundle
 ```
 
-- No breaking change: every new option is opt-in (see [CHANGELOG](CHANGELOG.md#unreleased)).
+- No breaking change: every new option is opt-in (see [CHANGELOG](CHANGELOG.md#1300---2026-10-23)).
 - `PasswordResetRequestHandler::handle()` now returns `PasswordResetRequestOutcome` instead of `void`; callers that
   ignore the return value are unaffected.
 - `ResetPasswordController::reset()` takes `?string $token = null` (null only with `password_reset.token_in_session`).

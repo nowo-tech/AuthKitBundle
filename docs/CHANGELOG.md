@@ -86,8 +86,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Opt-in options for legacy hosts: unlocalized route suffix, POST logout, reset check-email page and session token, throttled reset signal, optional entity mapping, no routes for disabled features. See [UPGRADING](UPGRADING.md#to-1300).
 
-Opt-in options for hosts on legacy schemas and route names (harvested from core-nowo-v2 spec 003, upstream items U1–U5). Defaults are unchanged. See [UPGRADING](UPGRADING.md#unreleased).
-
 ### Added
 
 - `locale.unlocalized_route_suffix` (default `_unlocalized`): name suffix of the bare route twins when `locale.in_path: both`, e.g. `.default` for applications whose bare routes are already named `<route>.default`. `UnlocalizedDefaultLocaleSubscriber` follows it.
