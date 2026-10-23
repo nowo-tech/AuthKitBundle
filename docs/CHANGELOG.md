@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.30.0] - 2026-10-23](#1300---2026-10-23)
 - [[1.29.0] - 2026-10-23](#1290---2026-10-23)
 - [[1.28.0] - 2026-10-20](#1280---2026-10-20)
 - [[1.27.3] - 2026-10-19](#1273---2026-10-19)
@@ -80,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.30.0] - 2026-10-23
+
+Opt-in options for legacy hosts: unlocalized route suffix, POST logout, reset check-email page and session token, throttled reset signal, optional entity mapping, no routes for disabled features. See [UPGRADING](UPGRADING.md#to-1300).
 
 Opt-in options for hosts on legacy schemas and route names (harvested from core-nowo-v2 spec 003, upstream items U1–U5). Defaults are unchanged. See [UPGRADING](UPGRADING.md#unreleased).
 

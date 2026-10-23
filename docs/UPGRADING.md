@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.30.0](#to-1300)
 - [To 1.29.0](#to-1290)
 - [To 1.28.0](#to-1280)
 - [To 1.27.3](#to-1273)
@@ -87,6 +88,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.30.0
+
+From **1.29.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 - No breaking change: every new option is opt-in (see [CHANGELOG](CHANGELOG.md#unreleased)).
 - `PasswordResetRequestHandler::handle()` now returns `PasswordResetRequestOutcome` instead of `void`; callers that
