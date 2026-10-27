@@ -2,9 +2,9 @@
 
 **Feature Branch**: `001-baseline`  
 **Status**: Active  
-**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.23.0+**)  
+**Package**: `nowo-tech/auth-kit-bundle` (tag **v1.30.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **165** units (137 PHP + 28 Resources), audited **2026-10-13**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **186** units (153 PHP + 33 Resources), audited **2026-10-27**
 
 ---
 
@@ -84,11 +84,12 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 - **FR-BUNDLE-001**: `NowoAuthKitBundle` alias `nowo_auth_kit`.
 - **FR-CFG-001**: `Configuration` — `user_class`, identifier field, registration mode/role, login fields, remember_me, password reset, magic login, QR login, social login, embed, routes, templates, profiles, optional `slide_to_confirm`, optional `device_intelligence`, optional `otp_input`. `beforeNormalization` only maps keys present in each block (legacy flat keys → `profiles.default`, legacy locale keys → `locale`); `default_profile` and legacy locale mirrors are derived in `validate()` after the multi-block merge, so a partial env block never resets `locale` / `default_profile` (v1.23.1).
-- **FR-CFG-002**: `NowoAuthKitExtension` + `FieldConfigNormalizer`, `RememberMeConfigResolver`; `TwigPathsPass` registers bundle Twig paths.
+- **FR-CFG-002**: `NowoAuthKitExtension` + `FieldConfigNormalizer`, `RememberMeConfigResolver`; `TwigPathsPass` registers bundle Twig paths. `doctrine.register_mapping` (`true` | `false` | `auto`) leaves the `auth_kit_*` entities unmapped when social and QR login are disabled (v1.30.0).
 
 ### HTTP controllers
 
-- **FR-CTRL-001**: Login, logout, register controllers.
+- **FR-CTRL-001**: Login, logout, register controllers. `routes.logout.methods` (default `[GET]`; `[POST]` = CSRF-protected sign-out with the firewall `logout.enable_csrf`, the embed widget then renders `LogoutFormType`).
+- **FR-CTRL-003**: Every action declares `#[Route]` (default path and name = `routes.<key>` defaults, HTTP methods, requirements); `AuthKitRouteLoader` copies it per profile and `ControllerRouteAttributesPass` removes the autoconfigured `routing.controller` tag so a host `routing.controllers` import never registers un-profiled duplicates (REQ-SF-004). `UnlocalizedLocaleRedirectController` has no route of its own (it serves the bare twins).
 - **FR-CTRL-002**: Password reset request, code entry, completion controllers.
 
 ### Forms & validation
@@ -96,16 +97,20 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-FORM-001**: Login, registration, reset form types.
 - **FR-FORM-002**: `PasswordFieldConstraintResolver`, `PasswordFieldTypeResolver`, `PasswordRepeatedFieldBuilder`.
 - **FR-FORM-003**: Registration field `mapped` / `slide_to_confirm`; `UserRegistrar` MUST skip `mapped: false`.
+- **FR-FORM-004**: `LogoutFormType` — unnamed, field-less POST sign-out form of the embed widget (hidden firewall `csrf_parameter`, token id `logout`; own CSRF off) when `routes.logout.methods` excludes GET (REQ-TWIG-005).
+- **FR-FORM-005**: `Form\Extension\ConstraintMessageTranslationExtension` — after validation of the root AuthKit form (registration, reset request/password/code, magic-login request), rebuilds the AuthKit constraint errors from their message template in the form translation domain (`NowoAuthKitBundle`); a key defined in the application `validators` catalogue keeps the validator translation (BC); other errors untouched (REQ-I18N-003).
 
 ### Password reset subsystem
 
 - **FR-RESET-001**: Token manager (+ interface) + user resolver + gate + completer + result DTO.
 - **FR-RESET-002**: Notifier interface with logging/null implementations; `PasswordResetRequestedEvent` + notification context.
 - **FR-RESET-003**: Delivery modes and enums (`PasswordResetMode`, `PasswordResetDeliveryMode`).
+- **FR-RESET-004**: Legacy-host options (v1.30.0): `password_reset.after_request_route` + `PasswordResetCheckEmail` session payload (profile, `tokenTtl`, `throttled`, `availableAt`); `password_reset.token_in_session` (token-less reset URL); `PasswordResetThrottledException` thrown by a custom token manager → `PasswordResetRequestHandler::handle()` returns `PasswordResetRequestOutcome` and sends nothing, without revealing it on the request page (no enumeration).
 
 ### Magic login subsystem
 
-- **FR-MAGIC-001**: Gate, request handler, user resolver, notifiers (null/logging), notification context, event, controllers/forms for request/**confirm**/check (`MagicLoginConfirmController` / `MagicLoginConfirmType`). Logging sample must not log magic URLs or tokens (REQ-OBS-001).
+- **FR-MAGIC-001**: Gate, request handler, user resolver, notifiers (null/logging), notification context, event, controllers/forms for request/**confirm**/check (`MagicLoginConfirmController` / `MagicLoginConfirmType`). Logging sample must not log magic URLs or tokens (REQ-OBS-001). `MagicLinkFactory` builds the login link (recipient locale, `absolute_url.base_uri`) for the sign-in page and administrator-issued links.
+- **FR-MAGIC-002**: `AdminMagicLinkIssuer` (v1.29.0) — support sign-in links an administrator issues for another account: `issue()` (show once), `send()` (through `MagicLoginNotifierInterface`, recipient locale), `canIssue()`; refused for the issuer's own account, protected roles or missing configuration (`AdminMagicLinkRefusedException` reason codes); `AdminMagicLinkIssuedEvent` for the host audit trail (link never included). Config `magic_login.admin_link.lifetime` / `protected_roles`.
 
 ### QR login subsystem
 
@@ -135,7 +140,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ### Routing & Twig
 
-- **FR-ROUT-001**: `AuthKitRouteLoader`, locale parameters, custom URL generator.
+- **FR-ROUT-001**: `AuthKitRouteLoader` (attribute-driven per-profile copies, FR-CTRL-003), locale parameters, custom URL generator. `locale.unlocalized_route_suffix` (default `_unlocalized`) names the bare twins; `routing.skip_disabled_features` registers no route for disabled features (v1.30.0).
 - **FR-ROUT-002**: `AbsoluteUrlGenerator` — optional `absolute_url.base_uri` origin for out-of-band absolute URLs (reset / magic / QR / OAuth `redirect_uri`); router context restored in `finally` (v1.24.0, [spec 002](../002-absolute-url-base-uri/spec.md)). `PublicUrlGenerator` (service `nowo_auth_kit.public_url_generator`) exposes the same origin to host code building out-of-band links, never trusting the request `Host`.
 - **FR-TWIG-001**: Routing + embed Twig extensions and security/embed templates.
 - **FR-TWIG-002**: `AuthKitUiExtension` for shared UI helpers (buttons/providers chrome).
@@ -155,7 +160,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-DI-001**: `Resources/config/routing.yaml` + `services.yaml`.
 - **FR-ORM-001**: `Doctrine\TablePrefixListener` prepends `doctrine.table_prefix` to AuthKit entity tables and their named indexes / unique constraints only; registered only when the prefix is not empty (REQ-ORM-002).
 - **FR-I18N-001**: `NowoAuthKitBundle.{de,en,es,fr,it,nl,pt}.yaml`.
-- **FR-I18N-002**: `validators.{de,en,es,fr,it,nl,pt}.yaml` — form constraint messages in the Symfony `validators` domain (kept in sync with the bundle domain).
+- **FR-I18N-002**: Single translation domain `NowoAuthKitBundle` (REQ-I18N-003): form constraint messages live in the bundle catalogues too (FR-FORM-005); no `validators.*` catalogue is shipped (removed after v1.30.0; application overrides in `validators.<locale>.yaml` keep working).
 - **FR-ASSET-001**: Public CSS under `Resources/public/`.
 
 ### UiKit page contract
@@ -197,7 +202,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**183/183** units under `src/` as of 2026-10-20: 143 PHP + 40 Resources).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**186/186** units under `src/` as of 2026-10-27: 153 PHP + 33 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.
