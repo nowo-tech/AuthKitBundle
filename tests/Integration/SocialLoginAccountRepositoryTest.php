@@ -35,9 +35,12 @@ final class SocialLoginAccountRepositoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $config = ORMSetup::createAttributeMetadataConfig([dirname(__DIR__, 2) . '/src/Entity'], true, sys_get_temp_dir() . '/nowo-auth-kit-tests/proxies');
+        $config = ORMSetup::createAttributeMetadataConfig([dirname(__DIR__, 2) . '/src/Entity'], true);
         if (PHP_VERSION_ID >= 80400) {
             $config->enableNativeLazyObjects(true);
+        } else {
+            $config->setProxyDir(sys_get_temp_dir() . '/nowo-auth-kit-tests/proxies');
+            $config->setProxyNamespace('NowoAuthKitTestProxies');
         }
         $this->entityManager = new EntityManager(DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $config), $config);
         (new SchemaTool($this->entityManager))->createSchema([$this->entityManager->getClassMetadata(SocialLoginAccount::class)]);
