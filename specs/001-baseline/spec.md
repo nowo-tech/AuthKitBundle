@@ -4,7 +4,7 @@
 **Status**: Active  
 **Package**: `nowo-tech/auth-kit-bundle` (tag **v1.30.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **186** units (153 PHP + 33 Resources), audited **2026-10-27**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **193** units (160 PHP + 33 Resources), audited **2026-10-27**
 
 ---
 
@@ -132,6 +132,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-SEC-001**: `RegistrationGate`, `UserRegistrar`, `AuthKitFormLoginParameters`.
 - **FR-SEC-002**: No ApiStudio-style access checker — registration gating only via `RegistrationGate`.
 - **FR-SEC-003**: `AuthKitAttemptLimiter` for pre-auth HTTP throttling hooks (pairs with host LoginThrottle / REQ-THROTTLE patterns).
+- **FR-SEC-005**: SEC-004 2026-10-27 hardening (1.31): `UserIdentifierMatcher` (anonymous lookups accept only the account whose stored identifier equals the input after NFC + lower-casing; notification contexts carry the stored identifier and the `user`); `IdentifierConstraints` (plain ASCII e-mail on request forms); social links scoped to the user class + `create_user_if_missing` default false gated by `RegistrationGate` + `link_existing_account`; reset-code attempts keyed by account + per-IP `code_rate_limit`; `LoginLinkHandlerLocator` / `LoginLinkHandlerLocatorPass` (per-firewall login link handler); QR desktop cookie bound to the profile and approving class checked; enabled-locale whitelist in generated paths; `password_policy`; registration via `Security::login()`; `PasswordResetTokenInvalidationListener`; CSRF fails closed (`CsrfProtectionPass`, `FormCsrf`).
 - **FR-SEC-004**: `LoginThrottleRequiredPass` fails container compilation when `login_throttle_required` is true and LoginThrottleBundle is not registered.
 
 ### Outbound mail gate
@@ -202,7 +203,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**186/186** units under `src/` as of 2026-10-27: 153 PHP + 33 Resources).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**193/193** units under `src/` as of 2026-10-27: 160 PHP + 33 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.

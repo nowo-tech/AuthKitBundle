@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Security hardening (behaviour changes)](#security-hardening-behaviour-changes)
+  - [Translation domain and routes](#translation-domain-and-routes)
 - [To 1.30.0](#to-1300)
 - [To 1.29.0](#to-1290)
 - [To 1.28.0](#to-1280)
@@ -89,7 +91,82 @@
 
 ## Unreleased
 
-No configuration change is required. Two behaviours change for hosts (e.g. core-nowo-v2, which pins 1.30.0):
+Security release (SEC-004 2026-10-27). Hosts pinned to 1.30.0 (e.g. core-nowo-v2) should read every item.
+
+### Security hardening (behaviour changes)
+
+1. **Notifiers get the stored identifier.** `MagicLoginNotificationContext::$identifier` and
+   `PasswordResetNotificationContext::$identifier` now hold the identifier **stored on the account**, not the value typed
+   in the form (they could differ in case or accents), and both contexts expose the account as `$user`. A notifier that
+   mails `$context->identifier` needs no change and is now safe; a notifier that read the address from the request must
+   switch to `$context->identifier` or to the e-mail of `$context->user`. Never mail a value taken from the request.
+2. **Identifier lookups are exact.** Reset, magic login, social e-mail matching and QR completion accept an account only
+   when its stored identifier equals the input after Unicode NFC and lower-casing. With an `email` identifier the
+   request forms reject non-ASCII addresses (`validation.identifier_email`). Hosts storing identifiers with leading or
+   trailing spaces must clean them up.
+3. **Social login: `create_user_if_missing` defaults to `false`** and, when `true`, follows `registration_mode` (no
+   sign-up while registration is disabled or `first_user_only` is used up). Set it explicitly to keep social sign-up:
+
+   ```yaml
+   nowo_auth_kit:
+       social_login:
+           create_user_if_missing: true
+   ```
+4. **Social login: linking to an existing account** (`social_login.link_existing_account`, default `reset_password`).
+   The first social sign-in whose verified e-mail matches an existing local account now replaces that account's
+   password with a random one (other sessions end, pending reset credentials are cleared): someone who registered the
+   address before its owner loses access. The user keeps signing in with the provider, or resets the password. Use
+   `deny` to refuse the link (sign in locally), or `keep` for the pre-1.31 behaviour only if the application verifies
+   e-mail ownership at registration.
+5. **Social login schema change (several profiles).** Links are scoped to the user class. Update the unique index of
+   `auth_kit_social_account` (prefix the table name with `doctrine.table_prefix` if you use one):
+
+   ```sql
+   -- MySQL / MariaDB
+   DROP INDEX uniq_auth_kit_social_account_provider_subject ON auth_kit_social_account;
+   CREATE UNIQUE INDEX uniq_auth_kit_social_account_provider_subject_class ON auth_kit_social_account (provider, provider_user_id, user_class);
+   -- PostgreSQL / SQLite
+   DROP INDEX uniq_auth_kit_social_account_provider_subject;
+   CREATE UNIQUE INDEX uniq_auth_kit_social_account_provider_subject_class ON auth_kit_social_account (provider, provider_user_id, user_class);
+   ```
+
+   or generate it: `php bin/console doctrine:migrations:diff` (or `doctrine:schema:update --dump-sql` to review).
+   Existing rows stay valid. Single-profile hosts keep working without the migration (one user class); with several
+   profiles, a provider subject already linked for another user class can only be linked for a second class after the
+   migration (until then the insert fails instead of signing into the wrong account). `findOneByProviderSubject()`
+   keeps its 1.30 behaviour when called without the new `$userClass` argument.
+6. **Minimum password length 12** (was 6) on registration and password reset when `password_strength` is off. Keep
+   the old floor only if your policy requires it (minimum 8):
+
+   ```yaml
+   nowo_auth_kit:
+       password_policy:
+           min_length: 8
+           not_compromised: true   # optional, Have I Been Pwned range API
+   ```
+7. **Reset codes:** the `max_code_attempts` budget belongs to the account (spelling variants share it) and a client IP
+   may submit `password_reset.code_rate_limit` codes (default 10) per `code_rate_window` (900 s).
+8. **`configure-security` output:** `login_link.signature_properties` is `[<identifier>, password]` (a password change
+   voids pending links) and `login_link.lifetime` is `max(magic_login.lifetime, magic_login.admin_link.lifetime)`
+   (3600 with defaults). Re-run `php bin/console nowo:auth-kit:configure-security` or edit `security.yaml` by hand.
+   Links mailed before the change stop working once.
+9. **Per-firewall login links and QR profile binding.** Magic links are signed and consumed by the login link handler
+   of the profile's firewall (`security.authenticator.login_link_handler.<firewall>`), no longer always `main`; each
+   firewall serving a profile with magic login needs its own `login_link`. A QR challenge completes only through the
+   profile that created it and for an account of that profile's user class.
+10. **CSRF is mandatory for QR login and the magic-login confirm interstitial.** The container no longer compiles when
+    one of them is enabled without `framework.csrf_protection` / `framework.form.csrf_protection`;
+    `symfony/security-csrf` is now a dependency.
+11. **Registration auto-login** uses `Security::login($user, 'form_login', <firewall>)`: the user checker,
+    `LoginSuccessEvent` listeners (e.g. login throttling) and the session strategy run. The firewall of the profile
+    must declare `form_login`. A user checker that rejects the new account sends it to the login page.
+12. **Pending reset credentials** are cleared when the identifier or password changes outside the reset flow (Doctrine
+    `onFlush` listener on the profile user classes).
+13. **Locales in generated paths** are restricted to `locale.enabled`; other request locales fall back to the default.
+
+### Translation domain and routes
+
+No configuration change is required for these two:
 
 1. **Constraint messages use the `NowoAuthKitBundle` domain** (REQ-I18N-003). The bundle no longer ships
    `validators.<locale>.yaml`; the AuthKit form constraint messages (`register.password.*`, `reset.*.*_required`,

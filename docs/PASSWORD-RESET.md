@@ -114,6 +114,8 @@ final class AppPasswordResetNotifier implements PasswordResetNotifierInterface
 {
     public function notify(PasswordResetTokenResult $token, PasswordResetNotificationContext $context): void
     {
+        // Send ONLY to $context->identifier (the identifier STORED on the account, 1.31+) or to a channel read from
+        // $context->user (the account) — never to a value taken from the request (SEC-004 H1).
         // $context->resetUrl — absolute URL (link / both)
         // $token->linkToken() — path segment for link delivery
         // $token->code() — OTP for code / both

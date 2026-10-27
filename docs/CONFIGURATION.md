@@ -131,6 +131,11 @@ nowo_auth_kit:
         level: medium
         policy_mode: level
 
+    # New-password rules when password_strength is off (1.31+)
+    password_policy:
+        min_length: 12              # minimum 8 (was a fixed 6)
+        not_compromised: false      # true = Symfony NotCompromisedPassword (Have I Been Pwned range API)
+
     # Optional: nowo-tech/slide-to-confirm-bundle (registration consent + QR approve)
     slide_to_confirm:
         enabled: false
@@ -195,7 +200,9 @@ nowo_auth_kit:
         mode: disabled              # disabled | enabled
         delivery: link              # link | code | both
         token_ttl: 3600
-        max_code_attempts: 5        # 0 = disabled; clears reset credential when exceeded
+        max_code_attempts: 5        # 0 = disabled; per account; clears reset credential when exceeded
+        code_rate_limit: 10         # 1.31+: code submissions per client IP and window
+        code_rate_window: 900
         request_rate_limit: 5       # 0 = disabled
         request_rate_window: 900
         token_field: passwordResetToken
@@ -213,8 +220,9 @@ nowo_auth_kit:
 
     social_login:
         mode: disabled              # disabled | enabled
-        create_user_if_missing: true
+        create_user_if_missing: false     # 1.31+ default false; when true, registration_mode still applies
         require_verified_email: true
+        link_existing_account: reset_password  # 1.31+: reset_password | deny | keep
         pkce: {}                    # provider → bool; unset = on for google/github/microsoft, off for custom IdPs
 
     registration_rate_limit: 5      # 0 = disabled

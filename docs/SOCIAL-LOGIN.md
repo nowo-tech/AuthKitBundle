@@ -27,15 +27,18 @@ nowo_auth_kit:
         default:
             social_login:
                 mode: enabled
-                create_user_if_missing: true
+                create_user_if_missing: true      # default false since 1.31
                 require_verified_email: true
+                link_existing_account: reset_password
                 pkce:                       # optional per-provider overrides (keys = credential provider)
                     google: true
                     my_idp: false
 ```
 
 - **`mode: enabled`** alone is not enough: the login UI only shows buttons when at least one **enabled** row exists in `auth_kit_social_credential` (start/check handlers redirect to login otherwise).
-- **`create_user_if_missing`**: create a local user from the social email when no account matches; otherwise require a pre-existing user (matched by `user_identifier_field`).
+- **`create_user_if_missing`** (default `false` since 1.31): create a local user from the social email when no account matches, only while `registration_mode` allows registration; otherwise require a pre-existing user (matched by `user_identifier_field`, exact stored value).
+- **`link_existing_account`** (1.31): first social sign-in whose verified e-mail matches an existing local account. `reset_password` (default) links it and replaces the local password with a random one (a password set by whoever registered the address, and its sessions, stop working); `deny` refuses (sign in locally); `keep` links and keeps the password (pre-1.31; only when the application verifies e-mail ownership at registration).
+- **Profiles:** a link belongs to the user class of the profile that made it (unique `provider + provider_user_id + user_class`); see UPGRADING for the 1.31 index change.
 - **`require_verified_email`**: when true (default), linking or creating a local user requires the IdP to assert a verified email (`email_verified` / GitHub `verified`). Prevents account takeover via unverified provider emails.
 - **`pkce`**: map of provider → bool for [PKCE](https://datatracker.ietf.org/doc/html/rfc7636) (`S256`). When enabled, the start handler generates a `code_verifier`, keeps it in the session next to the OAuth `state`, sends `code_challenge` + `code_challenge_method=S256` to the authorize endpoint, and sends `code_verifier` in the token exchange (the client secret is still sent). Providers without an entry default to **enabled** for the built-in `google`, `github` and `microsoft` (all accept PKCE for confidential web clients) and **disabled** for custom providers, so an IdP that rejects unknown parameters keeps working until you opt in with `pkce: { my_idp: true }`. Keys are matched case-insensitively.
 
