@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use PHPUnit\Framework\TestCase;
 
 use function dirname;
+use function sys_get_temp_dir;
 
 use const PHP_VERSION_ID;
 
@@ -34,7 +35,7 @@ final class SocialLoginAccountRepositoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $config = ORMSetup::createAttributeMetadataConfig([dirname(__DIR__, 2) . '/src/Entity'], true);
+        $config = ORMSetup::createAttributeMetadataConfig([dirname(__DIR__, 2) . '/src/Entity'], true, sys_get_temp_dir() . '/nowo-auth-kit-tests/proxies');
         if (PHP_VERSION_ID >= 80400) {
             $config->enableNativeLazyObjects(true);
         }
