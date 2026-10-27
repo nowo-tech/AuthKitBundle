@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\MagicLogin;
 
 use DateTimeImmutable;
+use Deprecated;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Locale\RecipientLocale;
@@ -250,6 +251,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
                 return ['ROLE_USER'];
             }
 
+            #[Deprecated]
             public function eraseCredentials(): void
             {
             }

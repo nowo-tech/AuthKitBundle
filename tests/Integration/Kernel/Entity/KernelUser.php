@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity;
 
 use DateTimeImmutable;
+use Deprecated;
 use Doctrine\ORM\Mapping as ORM;
 use LogicException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -80,6 +81,7 @@ class KernelUser implements UserInterface, PasswordAuthenticatedUserInterface
         return $this;
     }
 
+    #[Deprecated]
     public function eraseCredentials(): void
     {
     }

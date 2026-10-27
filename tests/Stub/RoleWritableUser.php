@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Stub;
 
+use Deprecated;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -35,6 +36,7 @@ final class RoleWritableUser implements UserInterface, PasswordAuthenticatedUser
         return $this->roles;
     }
 
+    #[Deprecated]
     public function eraseCredentials(): void
     {
     }
