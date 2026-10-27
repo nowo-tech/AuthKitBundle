@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.31.0](#to-1310)
   - [Security hardening (behaviour changes)](#security-hardening-behaviour-changes)
   - [Translation domain and routes](#translation-domain-and-routes)
 - [To 1.30.0](#to-1300)
@@ -90,6 +91,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.31.0
+
+From **1.30.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 Security release (SEC-004 2026-10-27). Hosts pinned to 1.30.0 (e.g. core-nowo-v2) should read every item.
 

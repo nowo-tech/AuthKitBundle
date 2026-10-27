@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.31.0] - 2026-10-27](#1310---2026-10-27)
 - [[1.30.0] - 2026-10-23](#1300---2026-10-23)
 - [[1.29.0] - 2026-10-23](#1290---2026-10-23)
 - [[1.28.0] - 2026-10-20](#1280---2026-10-20)
@@ -81,6 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.31.0] - 2026-10-27
+
+Security release: look-alike identifier account takeover (H1), cross-profile social sign-in (H2), social sign-up/linking, reset-code lockout, link lifetimes, CSRF fail-closed; attribute routes, NowoAuthKitBundle validator domain, real deprecation gate See [UPGRADING](UPGRADING.md#to-1310).
 
 Security hardening (SEC-004 2026-10-27), single translation domain and attribute-declared routes. Several defaults and behaviours change: read [UPGRADING](UPGRADING.md#unreleased) before updating.
 
