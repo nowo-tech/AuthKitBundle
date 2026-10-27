@@ -25,6 +25,7 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -53,6 +54,7 @@ final class QrLoginApproveController
     ) {
     }
 
+    #[Route(path: '/login/qr/{id}/approve', name: 'nowo_auth_kit_qr_login_approve', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['GET', 'POST'])]
     public function approve(Request $request, string $id): Response
     {
         $profile = $this->profileResolver->resolve($request);

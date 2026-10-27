@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginRateLimiter;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Creates a new QR login challenge and redirects to the show page.
@@ -26,6 +27,7 @@ final class QrLoginStartController
     ) {
     }
 
+    #[Route(path: '/login/qr', name: 'nowo_auth_kit_qr_login_start', methods: ['GET'])]
     public function start(Request $request): Response
     {
         $profile = $this->profileResolver->resolve($request);

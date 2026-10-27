@@ -19,6 +19,7 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -45,6 +46,7 @@ final class ResetPasswordCodeController
     ) {
     }
 
+    #[Route(path: '/reset-password/complete', name: 'nowo_auth_kit_reset_password_code', methods: ['GET', 'POST'])]
     public function complete(Request $request): Response
     {
         $profile = $this->profileResolver->resolve($request);

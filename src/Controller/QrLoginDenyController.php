@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -28,6 +29,7 @@ final class QrLoginDenyController
     ) {
     }
 
+    #[Route(path: '/login/qr/{id}/deny', name: 'nowo_auth_kit_qr_login_deny', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['POST'])]
     public function deny(Request $request, string $id): Response
     {
         $profile = $this->profileResolver->resolve($request);

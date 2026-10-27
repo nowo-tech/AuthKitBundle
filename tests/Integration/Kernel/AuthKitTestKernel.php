@@ -139,6 +139,8 @@ final class AuthKitTestKernel extends Kernel
     protected function configureRoutes(RoutingConfigurator $routes): void
     {
         $routes->import('@NowoAuthKitBundle/Resources/config/routing.yaml');
+        // REQ-SF-004: the Symfony 7.3+ recipe import must not register the AuthKit controller attributes again.
+        $routes->import('routing.controllers');
         $routes->add('kernel_home', '/home')
             ->controller(RedirectController::class . '::urlRedirectAction')
             ->defaults(['path' => '/login', 'permanent' => false]);

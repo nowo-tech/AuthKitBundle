@@ -17,6 +17,7 @@ use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -37,6 +38,7 @@ final class SocialLoginCheckController
     ) {
     }
 
+    #[Route(path: '/login/social/{provider}/check', name: 'nowo_auth_kit_social_login_check', requirements: ['provider' => '[a-z0-9_\\-]+'], methods: ['GET'])]
     public function check(Request $request, string $provider): RedirectResponse
     {
         $profile  = $this->profileResolver->resolve($request);

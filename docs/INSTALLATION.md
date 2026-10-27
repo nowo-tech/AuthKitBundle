@@ -86,6 +86,8 @@ nowo_auth_kit:
 
 This registers login (`/login`), logout (`/logout`), and register (`/register`) with configurable paths and route names.
 
+The controllers declare `#[Route]` attributes (defaults), but their routes come from this import only: it creates one copy per profile with the configured paths, names and locale variants. Do not import the bundle `Controller/` directory as `type: attribute`; the Symfony recipe import `resource: routing.controllers` is safe (see [CONFIGURATION.md](CONFIGURATION.md#routes)).
+
 ## Security configuration (required)
 
 AuthKit provides controllers and forms, but **Symfony Security** still owns authentication. You must configure `config/packages/security.yaml`.

@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -32,6 +33,7 @@ final class QrLoginCompleteController
     ) {
     }
 
+    #[Route(path: '/login/qr/{id}/complete', name: 'nowo_auth_kit_qr_login_complete', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['GET'])]
     public function complete(Request $request, string $id): Response
     {
         $profile = $this->profileResolver->resolve($request);

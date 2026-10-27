@@ -1,2 +1,4 @@
+# AuthKit controllers declare #[Route]; this loader copies them once per profile (configured paths, names, locale
+# variants). Do not import the bundle Controller/ directory as type: attribute.
 nowo_auth_kit:
     resource: '@NowoAuthKitBundle/Resources/config/routing.yaml'
