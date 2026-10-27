@@ -31,8 +31,10 @@ security:
                 enable_csrf: true
             login_link:
                 check_route: nowo_auth_kit_magic_login_check
-                signature_properties: [email]
-                lifetime: 600
+                # The password hash voids pending links on a password change; the lifetime covers admin-issued links
+                # (magic_login.admin_link.lifetime, 3600 s) - what bin/console nowo:auth-kit:configure-security writes.
+                signature_properties: [email, password]
+                lifetime: 3600
                 max_uses: 1
                 default_target_path: demo_home
 

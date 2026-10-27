@@ -59,6 +59,8 @@ final class Configuration implements ConfigurationInterface
 
     public const DEFAULT_UNLOCALIZED_ROUTE_SUFFIX = '_unlocalized';
 
+    public const DEFAULT_PASSWORD_MIN_LENGTH = 12;
+
     public const REGISTER_MAPPING_AUTO = 'auto';
 
     /** @var list<string> */
@@ -88,6 +90,7 @@ final class Configuration implements ConfigurationInterface
         'login_fields',
         'remember_me',
         'password_strength',
+        'password_policy',
         'slide_to_confirm',
         'device_intelligence',
         'otp_input',
@@ -365,6 +368,7 @@ final class Configuration implements ConfigurationInterface
                             ->end()
                             ->append($this->createRememberMeNode())
                             ->append($this->createPasswordStrengthNode())
+                            ->append($this->createPasswordPolicyNode())
                             ->append($this->createSlideToConfirmNode())
                             ->append($this->createDeviceIntelligenceNode())
                             ->append($this->createOtpInputNode())
@@ -488,6 +492,28 @@ final class Configuration implements ConfigurationInterface
                 ->enumNode('policy_mode')
                     ->values(['level', 'conditions'])
                     ->defaultValue('level')
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private function createPasswordPolicyNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('password_policy'))->getRootNode();
+        $node
+            ->addDefaultsIfNotSet()
+            ->info('New-password rules of registration and password reset when password_strength is off (since 1.31).')
+            ->children()
+                ->integerNode('min_length')
+                    ->info('Minimum length of a new password (was a fixed 6 before 1.31).')
+                    ->defaultValue(self::DEFAULT_PASSWORD_MIN_LENGTH)
+                    ->min(8)
+                    ->max(4096)
+                ->end()
+                ->booleanNode('not_compromised')
+                    ->info('Also reject passwords found in data breaches (Symfony NotCompromisedPassword, calls the Have I Been Pwned range API).')
+                    ->defaultFalse()
                 ->end()
             ->end();
 
@@ -840,6 +866,16 @@ final class Configuration implements ConfigurationInterface
                     ->min(0)
                     ->max(50)
                 ->end()
+                ->integerNode('code_rate_limit')
+                    ->info('Code submissions allowed per client IP and code_rate_window on the reset code page (since 1.31).')
+                    ->defaultValue(10)
+                    ->min(1)
+                ->end()
+                ->integerNode('code_rate_window')
+                    ->info('Window in seconds of code_rate_limit.')
+                    ->defaultValue(900)
+                    ->min(60)
+                ->end()
                 ->integerNode('request_rate_limit')
                     ->info('Max password-reset requests per client IP per window (0 = disabled).')
                     ->defaultValue(5)
@@ -939,8 +975,13 @@ final class Configuration implements ConfigurationInterface
                     ->defaultValue(SocialLoginMode::Disabled->value)
                 ->end()
                 ->booleanNode('create_user_if_missing')
-                    ->info('When true, creates a local user from the social profile email if none exists.')
-                    ->defaultTrue()
+                    ->info('When true, creates a local user from the social profile email if none exists, only while registration_mode allows registration. Default false since 1.31 (was true).')
+                    ->defaultFalse()
+                ->end()
+                ->enumNode('link_existing_account')
+                    ->info('First social sign-in whose verified email matches an existing local account: reset_password (link, then replace the local password with a random one so a password set by whoever registered the address, and its sessions, stop working), deny (refuse; the user signs in locally), keep (pre-1.31: link and keep the password; only when the application verifies e-mail ownership at registration).')
+                    ->values(['reset_password', 'deny', 'keep'])
+                    ->defaultValue('reset_password')
                 ->end()
                 ->booleanNode('require_verified_email')
                     ->info('When true, linking or creating a local user requires the IdP to assert email_verified (or GitHub verified).')

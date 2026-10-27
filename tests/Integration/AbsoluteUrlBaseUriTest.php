@@ -139,7 +139,7 @@ final class AbsoluteUrlBaseUriTest extends TestCase
     {
         $user       = new PreferredLocaleTestUser('user@example.com');
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
@@ -179,7 +179,7 @@ final class AbsoluteUrlBaseUriTest extends TestCase
     {
         $user       = new PreferredLocaleTestUser('user@example.com', $preferredLocale);
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 

@@ -139,7 +139,7 @@ final class ResetPasswordRequestControllerTest extends TestCase
         ]);
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(null);
+        $repository->method('findBy')->willReturn([]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);

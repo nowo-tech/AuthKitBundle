@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Controller;
 
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
+use Nowo\AuthKitBundle\Form\FormCsrf;
 use Nowo\AuthKitBundle\Form\MagicLoginConfirmType;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -44,6 +46,7 @@ final class MagicLoginConfirmController
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
+        private readonly ?LoginLinkHandlerLocator $loginLinkHandlers = null,
     ) {
     }
 
@@ -78,6 +81,12 @@ final class MagicLoginConfirmController
         $form = $this->formFactory->create(MagicLoginConfirmType::class, null, [
             'action' => $this->urlGenerator->generate($profile->routes['magic_login_confirm']['name']),
         ]);
+        // SEC-004 P2: never consume a login link through a form without CSRF protection (fails closed).
+        if (!FormCsrf::isProtected($form)) {
+            $this->logger->warning('Magic login confirm refused: form CSRF protection is not available.');
+
+            return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
+        }
         $form->handleRequest($request);
 
         /** @var array{user?: string, expires?: string, hash?: string} $data */
@@ -99,14 +108,19 @@ final class MagicLoginConfirmController
             );
         }
 
-        if (!$this->loginLinkHandler instanceof LoginLinkHandlerInterface) {
+        // SEC-004 L2: consume with the login link handler of the profile's firewall (the one logged into below).
+        $loginLinkHandler = $this->loginLinkHandlers instanceof LoginLinkHandlerLocator
+            ? $this->loginLinkHandlers->get($profile->firewall)
+            : $this->loginLinkHandler;
+
+        if (!$loginLinkHandler instanceof LoginLinkHandlerInterface) {
             $this->logger->warning('Magic login confirm skipped: firewall login_link handler is not configured.');
 
             return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
         }
 
         try {
-            $user = $this->loginLinkHandler->consumeLoginLink($request);
+            $user = $loginLinkHandler->consumeLoginLink($request);
         } catch (InvalidLoginLinkException|ExpiredLoginLinkException) {
             $this->flashMessenger->flash($request, 'error', 'magic_login.confirm.flash_invalid');
 

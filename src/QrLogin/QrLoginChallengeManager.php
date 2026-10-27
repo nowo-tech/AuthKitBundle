@@ -66,7 +66,7 @@ class QrLoginChallengeManager
         $challenge = new QrLoginChallenge(
             id: $id,
             publicCode: $publicCode,
-            desktopCookieHash: $this->hashValue($cookieValue),
+            desktopCookieHash: $this->desktopCookieHash($cookieValue, $profile->name),
             desktopIpHash: $this->hashHmac($request->getClientIp() ?? 'unknown'),
             desktopUaHash: $this->hashHmac($request->headers->get('User-Agent') ?? ''),
             desktopUaLabel: $this->buildUaLabel($request->headers->get('User-Agent') ?? ''),
@@ -103,14 +103,23 @@ class QrLoginChallengeManager
             ->withSameSite('strict');
     }
 
-    public function verifyDesktopCookie(QrLoginChallenge $challenge, Request $request): bool
+    /**
+     * The desktop cookie is bound to the profile that created the challenge (SEC-004 L2): a challenge started on one
+     * profile cannot be completed (logged in) through another profile's routes and firewall.
+     */
+    public function verifyDesktopCookie(QrLoginChallenge $challenge, Request $request, ?string $profileName = null): bool
     {
         $cookie = $request->cookies->get(self::DESKTOP_COOKIE_NAME);
         if (!is_string($cookie) || $cookie === '') {
             return false;
         }
 
-        return hash_equals($challenge->getDesktopCookieHash(), $this->hashValue($cookie));
+        return hash_equals($challenge->getDesktopCookieHash(), $this->desktopCookieHash($cookie, $this->resolveProfile($profileName)->name));
+    }
+
+    private function desktopCookieHash(string $cookieValue, string $profileName): string
+    {
+        return $this->hashValue($profileName . "\0" . $cookieValue);
     }
 
     public function verifyDesktopBinding(QrLoginChallenge $challenge, Request $request, ?string $profileName = null): bool

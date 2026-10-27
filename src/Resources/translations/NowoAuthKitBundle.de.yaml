@@ -140,3 +140,6 @@ magic_login:
         submit: Weiter
         back_to_login: Zurück zur Anmeldung
         flash_invalid: Dieser Anmeldelink ist ungültig oder abgelaufen. Fordern Sie einen neuen an.
+validation:
+    identifier_email: 'Bitte geben Sie eine gültige E-Mail-Adresse ein.'
+    password_compromised: "Dieses Passwort ist in einem Datenleck aufgetaucht. Bitte wählen Sie ein anderes."

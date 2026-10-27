@@ -31,6 +31,36 @@ final class AuthKitRouteLocaleParametersTest extends TestCase
         self::assertSame(['_locale' => 'es'], $parameters);
     }
 
+    /**
+     * SEC-004 L3: a request locale from input (`/evil.example`) never reaches a generated path, which would make
+     * `/{_locale}/login` the protocol-relative `//evil.example/login`.
+     */
+    public function testMergeIgnoresALocaleThatIsNotEnabled(): void
+    {
+        $request = Request::create('/login');
+        $request->attributes->set('_locale', '/evil.example');
+        $request->setLocale('xx');
+        $stack = new RequestStack();
+        $stack->push($request);
+
+        $parameters = new AuthKitRouteLocaleParameters($stack, true, 'en', ['en', 'es']);
+
+        self::assertSame(['_locale' => 'en'], $parameters->merge());
+        self::assertSame(['_locale' => 'en'], $parameters->merge([], '/evil.example'));
+        self::assertSame(['_locale' => 'es'], $parameters->merge([], 'es'));
+    }
+
+    public function testWithoutEnabledLocalesOnlyLocaleShapedValuesAreAccepted(): void
+    {
+        $request = Request::create('/login');
+        $request->attributes->set('_locale', '/evil.example');
+        $request->setLocale('pt_BR');
+        $stack = new RequestStack();
+        $stack->push($request);
+
+        self::assertSame(['_locale' => 'pt_BR'], (new AuthKitRouteLocaleParameters($stack, true, 'en', []))->merge());
+    }
+
     public function testMergeUsesDefaultLocaleWhenNoRequest(): void
     {
         $parameters = $this->createParameters(true)->merge();

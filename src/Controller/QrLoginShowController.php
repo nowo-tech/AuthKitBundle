@@ -57,7 +57,7 @@ final class QrLoginShowController
             ]);
         }
 
-        if (!$this->challengeManager->verifyDesktopCookie($challenge, $request)) {
+        if (!$this->challengeManager->verifyDesktopCookie($challenge, $request, $profile->name)) {
             return new Response('', Response::HTTP_FOUND, [
                 'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
             ]);

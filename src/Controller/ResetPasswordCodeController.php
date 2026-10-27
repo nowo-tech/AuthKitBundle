@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -43,6 +44,7 @@ final class ResetPasswordCodeController
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
         private readonly ?TranslatorInterface $translator = null,
+        private readonly ?AuthKitAttemptLimiter $attemptLimiter = null,
     ) {
     }
 
@@ -76,7 +78,15 @@ final class ResetPasswordCodeController
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var array{identifier: string, code: string, password: string} $data */
             $data = $form->getData();
-            $user = $this->tokenManager->resolveUserByIdentifierAndCode($data['identifier'], $data['code'], $profile->name);
+            // SEC-004 M3: a per-IP budget on top of the per-account max_code_attempts.
+            $ipKey = 'reset_code_ip:' . $profile->name . ':' . ($request->getClientIp() ?? 'unknown');
+            $user  = $this->attemptLimiter instanceof AuthKitAttemptLimiter && !$this->attemptLimiter->consume(
+                $ipKey,
+                (int) ($profile->passwordReset['code_rate_limit'] ?? 10),
+                (int) ($profile->passwordReset['code_rate_window'] ?? 900),
+            )
+                ? null
+                : $this->tokenManager->resolveUserByIdentifierAndCode($data['identifier'], $data['code'], $profile->name);
 
             if ($user === null) {
                 $form->get('code')->addError(new FormError(

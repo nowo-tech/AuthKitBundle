@@ -15,12 +15,14 @@ use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use RuntimeException;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Event\InteractiveLoginEvent;
 use Symfony\Component\Security\Http\SecurityEvents;
@@ -46,6 +48,7 @@ final class RegisterController
         private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
+        private readonly ?Security $security = null,
     ) {
     }
 
@@ -107,6 +110,24 @@ final class RegisterController
                 ]);
             }
 
+            $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
+
+            // SEC-004 L6: a regular authentication (user checker, LoginSuccessEvent, session fixation strategy,
+            // login throttling listeners) instead of a hand-built token.
+            if ($this->security instanceof Security) {
+                try {
+                    $response = $this->security->login($user, 'form_login', $profile->firewall);
+                } catch (AuthenticationException) {
+                    return new Response('', Response::HTTP_FOUND, [
+                        'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
+                    ]);
+                }
+
+                return $response ?? new Response('', Response::HTTP_FOUND, [
+                    'Location' => $this->urlGenerator->generate($target),
+                ]);
+            }
+
             $session = $request->getSession();
             $session->migrate(true);
 
@@ -116,8 +137,6 @@ final class RegisterController
 
             $loginEvent = new InteractiveLoginEvent($request, $token);
             $this->eventDispatcher->dispatch($loginEvent, SecurityEvents::INTERACTIVE_LOGIN);
-
-            $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
             return new Response('', Response::HTTP_FOUND, [
                 'Location' => $this->urlGenerator->generate($target),

@@ -29,12 +29,16 @@ services:
             - '../../Form/OtpInputTypeResolver.php'
             - '../../Form/DataTransformer/'
             - '../../Form/Extension/'
+            - '../../Form/IdentifierConstraints.php'
+            - '../../Form/FormCsrf.php'
         tags: ['form.type']
 
     # REQ-I18N-003: AuthKit constraint messages are translated in the NowoAuthKitBundle domain.
     Nowo\AuthKitBundle\Form\Extension\ConstraintMessageTranslationExtension: ~
 
-    Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver: ~
+    Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver:
+        arguments:
+            $passwordPolicy: '%nowo_auth_kit.password_policy%'
 
     Nowo\AuthKitBundle\Form\PasswordRepeatedFieldBuilder: ~
 
@@ -44,6 +48,11 @@ services:
             $tablePrefix: '%nowo_auth_kit.doctrine.table_prefix%'
         tags:
             - { name: doctrine.event_listener, event: loadClassMetadata }
+
+    # SEC-004 L6: clear a pending reset credential when the identifier or password changes outside the reset flow.
+    Nowo\AuthKitBundle\Doctrine\PasswordResetTokenInvalidationListener:
+        tags:
+            - { name: doctrine.event_listener, event: onFlush }
 
     # REQ-RUNTIME-001: OAuth2 token / userinfo deadlines (nowo_auth_kit.http_client).
     Nowo\AuthKitBundle\SocialLogin\OAuth2Client:

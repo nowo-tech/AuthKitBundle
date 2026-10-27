@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Form\MagicLoginConfirmType;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
@@ -17,6 +18,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\Form\Extension\Csrf\CsrfExtension;
 use Symfony\Component\Form\Extension\HttpFoundation\HttpFoundationExtension;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
@@ -243,6 +245,70 @@ final class MagicLoginConfirmControllerTest extends TestCase
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/dashboard', $response->headers->get('Location'));
+    }
+
+    /** SEC-004 P2: without the form CSRF extension the login link is never consumed. */
+    public function testConfirmFailsClosedWithoutTheFormCsrfExtension(): void
+    {
+        $loginLinkHandler = $this->createMock(LoginLinkHandlerInterface::class);
+        $loginLinkHandler->expects(self::never())->method('consumeLoginLink');
+        $security = $this->createMock(Security::class);
+        $security->expects(self::never())->method('login');
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/magic-login');
+        $registry = ProfileRegistryFactory::single(TestUser::class, ['magic_login' => ['mode' => 'enabled', 'confirm_interstitial' => true]]);
+
+        $controller = new MagicLoginConfirmController(
+            $this->createMock(Environment::class),
+            Forms::createFormFactoryBuilder()
+                ->addExtension(new HttpFoundationExtension())
+                ->addExtension(new ValidatorExtension(Validation::createValidator()))
+                ->addType(FormKitTestSupport::withMerger(new MagicLoginConfirmType()))
+                ->getFormFactory(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            new RequestProfileResolver($registry),
+            $security,
+            $loginLinkHandler,
+        );
+
+        $response = $controller->confirm(Request::create('/magic-login/confirm', 'POST', ['user' => 'a@b.c', 'expires' => '99', 'hash' => 'abc']));
+
+        self::assertSame('/magic-login', $response->headers->get('Location'));
+    }
+
+    /** SEC-004 L2: the link is consumed by the handler of the profile's firewall, not by a default one. */
+    public function testConfirmUsesTheLoginLinkHandlerOfTheProfileFirewall(): void
+    {
+        $default = $this->createMock(LoginLinkHandlerInterface::class);
+        $default->expects(self::never())->method('consumeLoginLink');
+        $members = $this->createMock(LoginLinkHandlerInterface::class);
+        $members->expects(self::once())->method('consumeLoginLink')->willReturn(new TestUser('a@b.c'));
+
+        $security = $this->createMock(Security::class);
+        $security->expects(self::once())->method('login')->with(self::isInstanceOf(TestUser::class), 'login_link', 'members')
+            ->willReturn(new Response('', Response::HTTP_FOUND, ['Location' => '/home']));
+
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'firewall'    => 'members',
+            'magic_login' => ['mode' => 'enabled', 'confirm_interstitial' => true],
+        ]);
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/magic-login/confirm');
+
+        $controller = new MagicLoginConfirmController(
+            $this->createMock(Environment::class),
+            $this->formFactory(true),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            new RequestProfileResolver($registry),
+            $security,
+            $default,
+            loginLinkHandlers: new LoginLinkHandlerLocator(new ServiceLocator(['members' => static fn (): LoginLinkHandlerInterface => $members])),
+        );
+
+        $response = $controller->confirm(Request::create('/magic-login/confirm', 'POST', ['user' => 'a@b.c', 'expires' => '99', 'hash' => 'abc', '_csrf_token' => 'ok']));
+
+        self::assertSame('/home', $response->headers->get('Location'));
     }
 
     public function testConfirmRedirectsWhenLoginLinkInvalid(): void

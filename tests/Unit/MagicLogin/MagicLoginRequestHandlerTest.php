@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\MagicLogin\MagicLoginRequestHandler;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginUserResolver;
 use Nowo\AuthKitBundle\MagicLogin\NullMagicLoginNotifier;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
 use Nowo\AuthKitBundle\Tests\Stub\PreferredLocaleTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
@@ -24,6 +25,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use stdClass;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -40,7 +42,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
     public function testDoesNothingWhenUserMissing(): void
     {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(null);
+        $repository->method('findBy')->willReturn([]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -58,13 +60,44 @@ final class MagicLoginRequestHandlerTest extends TestCase
         )->handle('missing@example.com');
     }
 
+    /** SEC-004 L2: no link is signed when the profile's firewall has no login_link handler. */
+    public function testUsesOnlyTheLoginLinkHandlerOfTheProfileFirewall(): void
+    {
+        $user       = new TestUser('user@example.com');
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findBy')->willReturn([$user]);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $mainHandler = $this->createMock(LoginLinkHandlerInterface::class);
+        $mainHandler->expects(self::never())->method('createLoginLink');
+        $notifier = $this->createMock(MagicLoginNotifierInterface::class);
+        $notifier->expects(self::never())->method('notify');
+
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'firewall'    => 'members',
+            'magic_login' => ['mode' => 'enabled', 'lifetime' => 600, 'max_uses' => 1],
+        ]);
+
+        (new MagicLoginRequestHandler(
+            new MagicLoginUserResolver($entityManager, $registry),
+            $notifier,
+            $this->createMock(EventDispatcherInterface::class),
+            $registry,
+            new RequestStack(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            $mainHandler,
+            loginLinkHandlers: new LoginLinkHandlerLocator(new ServiceLocator(['main' => static fn (): LoginLinkHandlerInterface => $mainHandler])),
+        ))->handle('user@example.com');
+    }
+
     public function testNotifiesWhenUserExists(): void
     {
         $user = new TestUser();
         $user->setEmail('user@example.com');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -117,7 +150,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
         $user->setEmail('user@example.com');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -160,8 +193,10 @@ final class MagicLoginRequestHandlerTest extends TestCase
 
     public function testIgnoresNonUserInterface(): void
     {
-        $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(new stdClass());
+        $repository      = $this->createMock(EntityRepository::class);
+        $notAUser        = new stdClass();
+        $notAUser->email = 'user@example.com';
+        $repository->method('findBy')->willReturn([$notAUser]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -173,7 +208,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
             new MagicLoginUserResolver($entityManager, ProfileRegistryFactory::single(TestUser::class)),
             new NullMagicLoginNotifier(),
             $loginLinkHandler,
-        )->handle('x');
+        )->handle('user@example.com');
     }
 
     public function testLoggingNotifierLogs(): void
@@ -222,7 +257,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
         $user->setEmail('ab');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -260,10 +295,15 @@ final class MagicLoginRequestHandlerTest extends TestCase
             {
                 return 'username';
             }
+
+            public function getEmail(): string
+            {
+                return 'username';
+            }
         };
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -290,7 +330,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
         $user->setEmail('a@b.c');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -315,7 +355,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
         $user->setEmail('a@b.c');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -343,7 +383,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
         $user->setEmail('a@b.c');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -398,7 +438,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
         $user = new PreferredLocaleTestUser('user@example.com', 'es');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
@@ -461,7 +501,7 @@ final class MagicLoginRequestHandlerTest extends TestCase
         $user = new PreferredLocaleTestUser('user@example.com', 'es');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 

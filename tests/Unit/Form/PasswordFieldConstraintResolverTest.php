@@ -11,6 +11,7 @@ use Nowo\PasswordStrengthBundle\Validator\PasswordStrength;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\NotCompromisedPassword;
 
 final class PasswordFieldConstraintResolverTest extends TestCase
 {
@@ -25,6 +26,9 @@ final class PasswordFieldConstraintResolverTest extends TestCase
         self::assertSame('required.message', $constraints[0]->message);
         self::assertInstanceOf(Length::class, $constraints[1]);
         self::assertSame('min.message', $constraints[1]->minMessage);
+        // SEC-004 L5: 12 characters by default (was 6).
+        self::assertSame(12, $constraints[1]->min);
+        self::assertCount(2, $constraints);
     }
 
     public function testUsesPasswordStrengthConstraintWhenEnabled(): void
@@ -42,5 +46,16 @@ final class PasswordFieldConstraintResolverTest extends TestCase
         self::assertInstanceOf(PasswordStrength::class, $constraints[1]);
         self::assertSame('level', $constraints[1]->policyMode);
         self::assertSame('strong', $constraints[1]->level);
+    }
+
+    public function testPasswordPolicyMinLengthAndBreachCheck(): void
+    {
+        $constraints = (new PasswordFieldConstraintResolver(new PasswordFieldTypeResolver(), ['min_length' => 16, 'not_compromised' => true]))
+            ->newPasswordConstraints('required.message', 'min.message');
+
+        self::assertInstanceOf(Length::class, $constraints[1]);
+        self::assertSame(16, $constraints[1]->min);
+        self::assertInstanceOf(NotCompromisedPassword::class, $constraints[2]);
+        self::assertSame(PasswordFieldConstraintResolver::COMPROMISED_MESSAGE, $constraints[2]->message);
     }
 }

@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Routing;
 use Nowo\AuthKitBundle\Enum\LocaleInPathMode;
 use Symfony\Component\HttpFoundation\RequestStack;
 
+use function in_array;
 use function is_bool;
 use function is_string;
 
@@ -43,16 +44,16 @@ final class AuthKitRouteLocaleParameters
             return $parameters;
         }
 
-        if ($locale !== null && $locale !== '') {
+        if ($locale !== null && $this->isEnabledLocale($locale)) {
             return ['_locale' => $locale] + $parameters;
         }
 
         $request = $this->requestStack->getCurrentRequest();
         $locale  = $request?->attributes->get('_locale');
-        if (!is_string($locale) || $locale === '') {
+        if (!is_string($locale) || !$this->isEnabledLocale($locale)) {
             $locale = $request?->getLocale();
         }
-        if (!is_string($locale) || $locale === '') {
+        if (!is_string($locale) || !$this->isEnabledLocale($locale)) {
             $locale = $this->defaultLocale;
         }
 
@@ -87,6 +88,20 @@ final class AuthKitRouteLocaleParameters
                 '^' . $pathPattern,
             ],
         };
+    }
+
+    /**
+     * SEC-004 L3: only an enabled locale goes into a generated path. A request locale taken from input (header,
+     * query, host listener) such as `/evil.example` would otherwise turn `/{_locale}/login` into the protocol-relative
+     * `//evil.example/login` when the router does not enforce requirements.
+     */
+    private function isEnabledLocale(string $locale): bool
+    {
+        if ($locale === '') {
+            return false;
+        }
+
+        return $this->enabledLocales === [] ? preg_match('/^[A-Za-z]{2,3}([_-][A-Za-z0-9]{2,8})*$/', $locale) === 1 : in_array($locale, $this->enabledLocales, true);
     }
 
     private function localeAlternation(): string

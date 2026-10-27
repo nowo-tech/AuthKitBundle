@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Controller;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginApproveMode;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
+use Nowo\AuthKitBundle\Form\FormCsrf;
 use Nowo\AuthKitBundle\Form\QrLoginApproveType;
 use Nowo\AuthKitBundle\Form\QrLoginDenyType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
@@ -112,6 +113,11 @@ final class QrLoginApproveController
                 $useSlide ? $slideProfile : null,
                 $form->createView(),
             );
+        }
+
+        // SEC-004 P2: never approve through a form without CSRF protection (fails closed).
+        if (!FormCsrf::isProtected($form)) {
+            return new Response('CSRF protection is not available', Response::HTTP_FORBIDDEN);
         }
 
         $form->handleRequest($request);

@@ -112,7 +112,7 @@ final class MagicLoginRequestControllerTest extends TestCase
         $user->setEmail('user@example.com');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -186,7 +186,7 @@ final class MagicLoginRequestControllerTest extends TestCase
         ]);
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(null);
+        $repository->method('findBy')->willReturn([]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);

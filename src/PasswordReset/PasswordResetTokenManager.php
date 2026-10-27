@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
@@ -24,7 +25,6 @@ use function random_bytes;
 use function random_int;
 use function sprintf;
 use function strlen;
-use function strtolower;
 
 /**
  * Stores hashed reset credentials on configurable user entity properties.
@@ -78,10 +78,10 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $profile     = $this->resolveProfile($profileName);
         $maxAttempts = (int) ($profile->passwordReset['max_code_attempts'] ?? 5);
         $window      = max(60, (int) ($profile->passwordReset['token_ttl'] ?? 3600));
-        $attemptKey  = 'reset_code:' . $profile->name . ':' . hash('sha256', strtolower($identifier));
+        $user        = $this->userResolver->findByIdentifier($identifier, $profile->name);
+        $attemptKey  = $this->codeAttemptKey($profile, $user, $identifier);
 
         if (!$this->attemptLimiter->isAllowed($attemptKey, $maxAttempts)) {
-            $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
             if ($user !== null) {
                 $this->clearForUser($user);
             }
@@ -89,8 +89,6 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
 
             return null;
         }
-
-        $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
 
         if ($user === null) {
             $this->attemptLimiter->hit($attemptKey, $window);
@@ -138,6 +136,20 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $this->attemptLimiter->reset($attemptKey);
 
         return $valid;
+    }
+
+    /**
+     * SEC-004 M3: the code attempt counter belongs to the resolved account (its stored identifier), so spelling
+     * variants of one identifier (case, Unicode composition) share a single max_code_attempts budget.
+     */
+    private function codeAttemptKey(ProfileSettings $profile, ?object $user, string $identifier): string
+    {
+        $stored = $user !== null
+            ? $this->propertyAccessor->getValue($user, $profile->userIdentifierField)
+            : null;
+        $key = is_string($stored) && $stored !== '' ? $stored : $identifier;
+
+        return 'reset_code:' . $profile->name . ':' . hash('sha256', UserIdentifierMatcher::normalize($key));
     }
 
     public function clearForUser(object $user): void

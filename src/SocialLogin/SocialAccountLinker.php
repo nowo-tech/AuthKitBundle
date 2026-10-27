@@ -11,6 +11,8 @@ use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
+use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Psr\Clock\ClockInterface;
 use RuntimeException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -35,6 +37,8 @@ final class SocialAccountLinker
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly ClockInterface $clock,
         private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        private readonly ?RegistrationGate $registrationGate = null,
+        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
     ) {
     }
 
@@ -47,7 +51,8 @@ final class SocialAccountLinker
         SocialUserProfile $socialProfile,
         array $tokens,
     ): UserInterface {
-        $account = $this->accountRepository->findOneByProviderSubject($provider, $socialProfile->id);
+        // SEC-004 H2: only a link made for this profile's user class signs in here.
+        $account = $this->accountRepository->findOneByProviderSubject($provider, $socialProfile->id, $profile->userClass);
         if ($account instanceof SocialLoginAccount) {
             $user = $this->loadUser($profile->userClass, $account->getUserId());
             $this->refreshAccountTokens($account, $socialProfile, $tokens);
@@ -65,14 +70,18 @@ final class SocialAccountLinker
                 if ($requireVerified && $socialProfile->emailVerified !== true) {
                     throw new RuntimeException('Cannot link social identity to an existing account: the provider did not assert a verified email.');
                 }
-                $user = $candidate;
+                $user = $this->linkExistingAccount($profile, $candidate);
             }
         }
 
-        $createIfMissing = (bool) ($profile->socialLogin['create_user_if_missing'] ?? true);
+        $createIfMissing = (bool) ($profile->socialLogin['create_user_if_missing'] ?? false);
         if (!$user instanceof UserInterface) {
             if (!$createIfMissing) {
                 throw new RuntimeException('No local account matches this social identity and create_user_if_missing is false.');
+            }
+            // SEC-004 M1: social sign-up follows registration_mode like the registration page.
+            if ($this->registrationGate instanceof RegistrationGate && !$this->registrationGate->isRegistrationAllowed($profile->name)) {
+                throw new RuntimeException('No local account matches this social identity and registration is not allowed for this profile.');
             }
             if ($socialProfile->email === null || $socialProfile->email === '') {
                 throw new RuntimeException('Social provider did not return an email address; cannot create a local user.');
@@ -124,11 +133,41 @@ final class SocialAccountLinker
         }
     }
 
+    /**
+     * SEC-004 M2: the local account may have been registered by someone else with this (unverified) address. Unless
+     * the application verifies e-mail ownership (`keep`), the first link either is refused (`deny`) or replaces the
+     * local password with a random one (`reset_password`): a password chosen by a pre-registering attacker, and the
+     * sessions authenticated with it, stop working.
+     */
+    private function linkExistingAccount(ProfileSettings $profile, UserInterface $user): UserInterface
+    {
+        $policy = $profile->socialLogin['link_existing_account'] ?? 'reset_password';
+
+        if ($policy === 'deny') {
+            throw new RuntimeException('A local account already uses this email address: sign in with it (link_existing_account is deny).');
+        }
+
+        if ($policy === 'reset_password' && $user instanceof PasswordAuthenticatedUserInterface) {
+            $this->propertyAccessor->setValue($user, 'password', $this->passwordHasher->hashPassword($user, bin2hex(random_bytes(32))));
+            foreach (['token_field', 'token_expires_field'] as $key) {
+                $field = $profile->passwordReset[$key] ?? null;
+                if (is_string($field) && $field !== '' && $this->propertyAccessor->isWritable($user, $field)) {
+                    $this->propertyAccessor->setValue($user, $field, null);
+                }
+            }
+        }
+
+        return $user;
+    }
+
     private function findUserByIdentifier(ProfileSettings $profile, string $identifier): ?UserInterface
     {
-        $user = $this->entityManager->getRepository($profile->userClass)->findOneBy([
-            $profile->userIdentifierField => $identifier,
-        ]);
+        // SEC-004 H1: the stored identifier must equal the IdP address (no collation look-alike match).
+        $user = $this->identifierMatcher->find(
+            $this->entityManager->getRepository($profile->userClass),
+            $profile->userIdentifierField,
+            $identifier,
+        );
 
         if (!$user instanceof UserInterface) {
             return null;
@@ -176,7 +215,7 @@ final class SocialAccountLinker
         }
 
         $user = $this->entityManager->find($userClass, is_numeric($userId) ? (int) $userId : $userId);
-        if (!$user instanceof UserInterface) {
+        if (!$user instanceof UserInterface || !$user instanceof $userClass) {
             throw new RuntimeException(sprintf('Linked social user "%s" (%s) was not found.', $userId, $userClass));
         }
 

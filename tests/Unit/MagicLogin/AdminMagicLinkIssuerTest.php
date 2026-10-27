@@ -12,9 +12,12 @@ use Nowo\AuthKitBundle\MagicLogin\AdminMagicLinkRefusedException;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginNotificationContext;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginNotifierInterface;
 use Nowo\AuthKitBundle\MagicLogin\NullMagicLoginNotifier;
+use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
 use Nowo\AuthKitBundle\Tests\Stub\PreferredLocaleTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkDetails;
@@ -55,6 +58,21 @@ final class AdminMagicLinkIssuerTest extends TestCase
 
         (new AdminMagicLinkIssuer(new NullMagicLoginNotifier(), new RequestStack()))
             ->issue($this->user('admin@example.com', ['ROLE_ADMIN']), $this->user('member@example.com', ['ROLE_USER']));
+    }
+
+    /** SEC-004 L2: the link is signed by the login link handler of the target profile's firewall. */
+    public function testUsesTheLoginLinkHandlerOfTheTargetProfileFirewall(): void
+    {
+        $registry = ProfileRegistryFactory::single(TestUser::class, ['firewall' => 'members']);
+        $locator  = new LoginLinkHandlerLocator(new ServiceLocator(['members' => fn (): LoginLinkHandlerInterface => $this->handler(3600)]));
+        $admin    = $this->user('admin@example.com', ['ROLE_ADMIN']);
+        $member   = $this->user('member@example.com', ['ROLE_USER']);
+
+        $issuer = new AdminMagicLinkIssuer(new NullMagicLoginNotifier(), new RequestStack(), loginLinkHandlers: $locator, profileRegistry: $registry);
+        self::assertStringStartsWith('https://example.test/', $issuer->issue($admin, $member)->getUrl());
+
+        $this->expectExceptionObject(new AdminMagicLinkRefusedException(AdminMagicLinkRefusedException::NOT_CONFIGURED));
+        (new AdminMagicLinkIssuer(new NullMagicLoginNotifier(), new RequestStack(), $this->handler(3600), loginLinkHandlers: $locator))->issue($admin, $member);
     }
 
     public function testIssueReturnsTheLinkWithItsLifetimeAndDispatchesTheAuditEvent(): void

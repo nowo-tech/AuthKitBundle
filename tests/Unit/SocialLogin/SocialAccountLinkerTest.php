@@ -30,7 +30,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -77,7 +77,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn($existing);
+        $userRepo->method('findBy')->willReturn([$existing]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -184,7 +184,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -219,7 +219,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -254,7 +254,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -295,7 +295,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn($existing);
+        $userRepo->method('findBy')->willReturn([$existing]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -330,7 +330,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn($existing);
+        $userRepo->method('findBy')->willReturn([$existing]);
 
         $persisted = null;
         $em        = $this->createMock(EntityManagerInterface::class);
@@ -405,7 +405,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -435,7 +435,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -498,7 +498,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn($existing);
+        $userRepo->method('findBy')->willReturn([$existing]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
@@ -528,7 +528,7 @@ final class SocialAccountLinkerTest extends TestCase
         $accountRepo->method('findOneByProviderSubject')->willReturn(null);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);

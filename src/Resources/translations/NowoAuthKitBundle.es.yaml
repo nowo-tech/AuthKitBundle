@@ -138,3 +138,6 @@ magic_login:
         submit: Continuar
         back_to_login: Volver al inicio de sesión
         flash_invalid: Este enlace de acceso no es válido o ha caducado. Solicita uno nuevo.
+validation:
+    identifier_email: 'Introduce una dirección de correo electrónico válida.'
+    password_compromised: "Esta contraseña aparece en una filtración de datos. Elige otra."

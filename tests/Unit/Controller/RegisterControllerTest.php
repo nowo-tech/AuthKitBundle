@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
 use PHPUnit\Framework\TestCase;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -34,6 +35,7 @@ use Symfony\Component\PropertyAccess\PropertyAccessor;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Exception\DisabledException;
 use Symfony\Component\Security\Http\Event\InteractiveLoginEvent;
 use Symfony\Component\Validator\Validation;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -279,6 +281,78 @@ final class RegisterControllerTest extends TestCase
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/login', $response->headers->get('Location'));
+    }
+
+    /**
+     * SEC-004 L6: the new account signs in through Security::login() (user checker, LoginSuccessEvent, session
+     * strategy, throttling listeners), not through a hand-built token.
+     */
+    public function testRegisteredUserSignsInThroughSecurityLogin(): void
+    {
+        $security = $this->createMock(Security::class);
+        $security->expects(self::once())->method('login')
+            ->with(self::isInstanceOf(TestUser::class), 'form_login', 'main')
+            ->willReturn(null);
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->expects(self::never())->method('dispatch');
+
+        $response = $this->submitRegistration($security, $dispatcher);
+
+        self::assertSame('/home', $response->headers->get('Location'));
+    }
+
+    public function testASecurityLoginResponseIsReturned(): void
+    {
+        $security = $this->createMock(Security::class);
+        $security->method('login')->willReturn(new Response('', Response::HTTP_FOUND, ['Location' => '/welcome']));
+
+        self::assertSame('/welcome', $this->submitRegistration($security)->headers->get('Location'));
+    }
+
+    public function testARefusedAuthenticationRedirectsToTheLoginPage(): void
+    {
+        $security = $this->createMock(Security::class);
+        $security->method('login')->willThrowException(new DisabledException('disabled'));
+
+        self::assertSame('/home', $this->submitRegistration($security)->headers->get('Location'));
+    }
+
+    private function submitRegistration(Security $security, ?EventDispatcherInterface $dispatcher = null): Response
+    {
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('count')->willReturn(0);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->method('hashPassword')->willReturn('hashed');
+
+        $form = $this->createMock(FormInterface::class);
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('getData')->willReturn(['email' => 'new@example.com', 'password' => 'a-long-secret-12']);
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/home');
+
+        $controller = new RegisterController(
+            $this->createMock(Environment::class),
+            $formFactory,
+            $this->registrationGateAllowed(),
+            new UserRegistrar(ProfileRegistryFactory::single(TestUser::class), $entityManager, $hasher, new PropertyAccessor()),
+            new TokenStorage(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            $dispatcher ?? $this->createMock(EventDispatcherInterface::class),
+            ProfileRegistryFactory::requestResolver(TestUser::class),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+            security: $security,
+        );
+
+        $request = Request::create('/register', 'POST');
+        $request->setSession(new Session(new MockArraySessionStorage()));
+
+        return $controller->register($request);
     }
 
     private function registrationGateAllowed(): RegistrationGate

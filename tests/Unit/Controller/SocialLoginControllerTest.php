@@ -203,7 +203,7 @@ final class SocialLoginControllerTest extends TestCase
         ]);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
         $em->expects(self::exactly(2))->method('persist');
@@ -425,7 +425,7 @@ final class SocialLoginControllerTest extends TestCase
         ]);
 
         $userRepo = $this->createMock(EntityRepository::class);
-        $userRepo->method('findOneBy')->willReturn(null);
+        $userRepo->method('findBy')->willReturn([]);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
 

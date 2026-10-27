@@ -20,9 +20,9 @@ final class MagicLoginUserResolverTest extends TestCase
 
         $repository = $this->createMock(EntityRepository::class);
         $repository->expects(self::once())
-            ->method('findOneBy')
+            ->method('findBy')
             ->with(['email' => 'a@b.c'])
-            ->willReturn($user);
+            ->willReturn([$user]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->with(TestUser::class)->willReturn($repository);
@@ -37,7 +37,7 @@ final class MagicLoginUserResolverTest extends TestCase
     public function testUsesNamedProfile(): void
     {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(null);
+        $repository->method('findBy')->willReturn([]);
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repository);

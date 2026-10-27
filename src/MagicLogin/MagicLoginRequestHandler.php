@@ -10,6 +10,8 @@ use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -39,6 +41,8 @@ final class MagicLoginRequestHandler
         private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
         private readonly RecipientLocale $recipientLocale = new RecipientLocale(),
         private readonly ?AbsoluteUrlGenerator $absoluteUrlGenerator = null,
+        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
+        private readonly ?LoginLinkHandlerLocator $loginLinkHandlers = null,
     ) {
     }
 
@@ -78,7 +82,12 @@ final class MagicLoginRequestHandler
             return;
         }
 
-        if (!$this->loginLinkHandler instanceof LoginLinkHandlerInterface) {
+        // SEC-004 L2: sign with the login link handler of the profile's firewall.
+        $loginLinkHandler = $this->loginLinkHandlers instanceof LoginLinkHandlerLocator
+            ? $this->loginLinkHandlers->get($profile->firewall)
+            : $this->loginLinkHandler;
+
+        if (!$loginLinkHandler instanceof LoginLinkHandlerInterface) {
             // Avoid user-existence oracle (500 vs 302) when login_link is misconfigured.
             $this->logger->warning('Magic login skipped: firewall login_link is not configured.');
 
@@ -90,15 +99,18 @@ final class MagicLoginRequestHandler
             : null;
 
         $locale  = $this->recipientLocale->resolve($user);
-        $details = (new MagicLinkFactory($this->absoluteUrlGenerator))->create($this->loginLinkHandler, $user, $request, $locale, $lifetime);
+        $details = (new MagicLinkFactory($this->absoluteUrlGenerator))->create($loginLinkHandler, $user, $request, $locale, $lifetime);
         $expires = DateTimeImmutable::createFromInterface($details->getExpiresAt());
 
-        $context = new MagicLoginNotificationContext(
-            identifier: $identifier,
+        // SEC-004 H1: notifiers get the identifier stored on the account, never the typed input.
+        $recipient = $this->identifierMatcher->storedIdentifier($user, $profile->userIdentifierField) ?? $user->getUserIdentifier();
+        $context   = new MagicLoginNotificationContext(
+            identifier: $recipient,
             loginUrl: $details->getUrl(),
             expiresAt: $expires,
-            maskedIdentifier: $this->maskIdentifier($identifier),
+            maskedIdentifier: $this->maskIdentifier($recipient),
             recipientLocale: $locale,
+            user: $user,
         );
 
         $this->recipientLocale->run($locale, $this->dispatchAndNotify(...), $context);
