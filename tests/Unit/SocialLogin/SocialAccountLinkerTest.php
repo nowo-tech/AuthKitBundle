@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\SocialLogin;
 
+use Deprecated;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
@@ -580,6 +581,7 @@ final class DisplayNameUser implements UserInterface, PasswordAuthenticatedUserI
         return $this->password;
     }
 
+    #[Deprecated]
     public function eraseCredentials(): void
     {
     }
@@ -611,6 +613,7 @@ final class NameOnlyUser implements UserInterface, PasswordAuthenticatedUserInte
         return $this->password;
     }
 
+    #[Deprecated]
     public function eraseCredentials(): void
     {
     }
@@ -642,6 +645,7 @@ final class StringIdUser implements UserInterface, PasswordAuthenticatedUserInte
         return $this->password;
     }
 
+    #[Deprecated]
     public function eraseCredentials(): void
     {
     }

@@ -89,6 +89,21 @@
 
 ## Unreleased
 
+No configuration change is required. Two behaviours change for hosts (e.g. core-nowo-v2, which pins 1.30.0):
+
+1. **Constraint messages use the `NowoAuthKitBundle` domain** (REQ-I18N-003). The bundle no longer ships
+   `validators.<locale>.yaml`; the AuthKit form constraint messages (`register.password.*`, `reset.*.*_required`,
+   `reset.code.code_length`, `magic_login.request.identifier_required`, …) are translated from the
+   `NowoAuthKitBundle` catalogues, which always held the same texts. Rendered messages are unchanged.
+   - If you override those keys in `translations/validators.<locale>.yaml`, your override still wins (BC); move it to
+     `translations/NowoAuthKitBundle.<locale>.yaml` when convenient.
+   - Code reading `FormError::getMessage()` of an AuthKit form gets the translated text, as before; the error is
+     rebuilt after validation (same template, parameters, plural, cause and origin).
+2. **Controllers declare `#[Route]`** (REQ-SF-004). Route names, paths, methods and requirements are unchanged; keep
+   importing `@NowoAuthKitBundle/Resources/config/routing.yaml`. Do not import the bundle `src/Controller/`
+   directory as `type: attribute` (those copies would have no profile). `resource: routing.controllers`
+   (Symfony 7.3+ recipe) does not pick them up: the bundle removes the autoconfigured `routing.controller` tag.
+
 ## To 1.30.0
 
 From **1.29.0**:

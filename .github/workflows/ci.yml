@@ -58,6 +58,11 @@ jobs:
           PACKAGES=$(jq -r --arg c "$CONSTRAINT" '(.require + ."require-dev") | keys[] | select(startswith("symfony/")) | . + ":" + $c' composer.json)
           composer require $PACKAGES --no-interaction --no-update
           composer update --with-all-dependencies --no-interaction --prefer-dist
+          # Transitive Symfony components (event-dispatcher, error-handler, ...) must follow the same minor, or a
+          # 7.4 framework-bundle runs on 8.x components and trips their deprecations (REQ-SF-005).
+          EXTRA=$(composer show --format=json | jq -r --arg c "$CONSTRAINT" '.installed[] | select(.name | startswith("symfony/")) | select(.version | test("^v?(7|8)\\.")) | .name + ":" + $c')
+          composer require $EXTRA --no-interaction --no-update
+          composer update --with-all-dependencies --no-interaction --prefer-dist
       - name: Composer audit (Critical/High)
         run: composer audit --locked
 

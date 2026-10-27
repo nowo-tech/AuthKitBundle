@@ -11,7 +11,7 @@
   - [Password field type without password-toggle bundle](#password-field-type-without-password-toggle-bundle)
 - [Translation overrides (REQ-I18N-001)](#translation-overrides-req-i18n-001)
   - [Override in the application](#override-in-the-application-1)
-  - [Constraint messages (`validators` domain)](#constraint-messages-validators-domain)
+  - [Constraint messages](#constraint-messages)
 - [Registration flow](#registration-flow)
 - [Login flow](#login-flow)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
@@ -140,9 +140,11 @@ register:
 
 Symfony uses app translations first; missing keys fall back to the bundle.
 
-### Constraint messages (`validators` domain)
+### Constraint messages
 
-Form constraint messages raised by AuthKit forms (`register.password.mismatch`, `reset.code.code_length`, …) are translated by the Symfony validator, which always looks them up in the **`validators`** domain (`framework.validation.translation_domain`, global for the whole application). The bundle therefore also ships `validators.<locale>.yaml` with exactly those keys, mirroring the `NowoAuthKitBundle` catalogue; `make validate-translations` checks key parity for both domains. Override them in `translations/validators.<locale>.yaml`. Every other AuthKit string uses `NowoAuthKitBundle` only.
+Form constraint messages raised by AuthKit forms (`register.password.mismatch`, `reset.code.code_length`, …) live in the **`NowoAuthKitBundle`** catalogues like every other AuthKit string (REQ-I18N-003: the bundle ships no other domain). The Symfony validator translates violations in the global `validators` domain, so `Form\Extension\ConstraintMessageTranslationExtension` rebuilds the AuthKit errors in the form translation domain once the form is validated. Override them in `translations/NowoAuthKitBundle.<locale>.yaml`.
+
+BC: a key you already override in `translations/validators.<locale>.yaml` (AuthKit <= 1.30) keeps winning; move it to `NowoAuthKitBundle.<locale>.yaml` when convenient.
 
 ## Registration flow
 

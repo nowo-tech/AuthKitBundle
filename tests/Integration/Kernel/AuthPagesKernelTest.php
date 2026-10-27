@@ -6,10 +6,12 @@ namespace Nowo\AuthKitBundle\Tests\Integration\Kernel;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\Routing\RouterInterface;
 use Twig\Environment;
 
 use function dirname;
@@ -45,6 +47,20 @@ final class AuthPagesKernelTest extends WebTestCase
         $em->persist((new KernelUser())->setEmail('ada@example.com')->setPassword('old-password-123'));
         $em->flush();
         $em->clear();
+    }
+
+    /**
+     * REQ-SF-004: the kernel also imports `routing.controllers`; the AuthKit routes still come from the profile
+     * loader only (profile default kept, no un-profiled duplicate of the controller #[Route]).
+     */
+    public function testRoutingControllersImportDoesNotDuplicateTheAuthKitRoutes(): void
+    {
+        $router = self::getContainer()->get('router');
+        self::assertInstanceOf(RouterInterface::class, $router);
+        $login = $router->getRouteCollection()->get('nowo_auth_kit_login');
+
+        self::assertNotNull($login);
+        self::assertSame('default', $login->getDefault(RequestProfileResolver::REQUEST_ATTRIBUTE));
     }
 
     public function testLoginPageRendersTheAuthScaffoldOnTheGuestLayout(): void
@@ -118,7 +134,15 @@ final class AuthPagesKernelTest extends WebTestCase
             ->each(static fn (Crawler $node): string => $node->attr('name') ?? $node->nodeName());
         self::assertSame(['reset_password_form[password][first]', 'reset_password_form[password][second]', 'reset_password_form[_token]', 'button'], $order, 'Every field (confirmation and CSRF included) renders before the submit button.');
 
+        // REQ-I18N-003: constraint messages come from the NowoAuthKitBundle catalogue (no `validators` catalogue shipped).
         $crawler = $this->client->submit($form->form([
+            'reset_password_form[password][first]'  => 'abc',
+            'reset_password_form[password][second]' => 'abc',
+        ]));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-testid="auth-kit-reset_password"] form', 'Your password should be at least 6 characters.');
+
+        $crawler = $this->client->submit($crawler->filter('[data-testid="auth-kit-reset_password"] form')->form([
             'reset_password_form[password][first]'  => 'new-password-456',
             'reset_password_form[password][second]' => 'something-else-789',
         ]));

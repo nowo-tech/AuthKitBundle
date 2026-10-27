@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Routing;
 
+use LogicException;
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\Controller\LogoutController;
 use Nowo\AuthKitBundle\Controller\MagicLoginCheckController;
@@ -26,7 +27,9 @@ use Nowo\AuthKitBundle\Enum\LocaleInPathMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Enum\UnlocalizedLocaleMode;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
+use ReflectionMethod;
 use Symfony\Component\Config\Loader\Loader;
+use Symfony\Component\Routing\Attribute\Route as RouteAttribute;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
 
@@ -34,10 +37,13 @@ use function array_map;
 use function array_unique;
 use function array_values;
 use function is_bool;
+use function sprintf;
 use function strtoupper;
 
 /**
- * Loads login, logout, register, password reset, and magic login routes from bundle configuration.
+ * Loads the AuthKit routes of every profile (REQ-SF-004): each controller action declares its #[Route]
+ * (default path and name, HTTP methods, requirements); the loader copies it once per profile with the
+ * configured routes.<key>.path / .name, the profile default and the locale-in-path variants.
  */
 final class AuthKitRouteLoader extends Loader
 {
@@ -99,30 +105,18 @@ final class AuthKitRouteLoader extends Loader
         $delivery          = PasswordResetDeliveryMode::from($passwordResetMode);
         $tokenInSession    = (bool) ($passwordReset['token_in_session'] ?? false);
 
-        $this->addAuthRoute(
+        $this->addControllerRoute($collection, $routes['login'], LoginController::class, 'login', $profileDefaults);
+        $this->addControllerRoute(
             $collection,
-            $routes['login']['name'],
-            $routes['login']['path'],
-            ['_controller' => LoginController::class . '::login'] + $profileDefaults,
-            ['GET', 'POST'],
-        );
-
-        $this->addAuthRoute(
-            $collection,
-            $routes['logout']['name'],
-            $routes['logout']['path'],
-            ['_controller' => LogoutController::class . '::logout'] + $profileDefaults,
+            $routes['logout'],
+            LogoutController::class,
+            'logout',
+            $profileDefaults,
             $this->logoutMethods($routes['logout']),
         );
 
         if ($this->featureRoutesEnabled($profile, 'registration_mode')) {
-            $this->addAuthRoute(
-                $collection,
-                $routes['register']['name'],
-                $routes['register']['path'],
-                ['_controller' => RegisterController::class . '::register'] + $profileDefaults,
-                ['GET', 'POST'],
-            );
+            $this->addControllerRoute($collection, $routes['register'], RegisterController::class, 'register', $profileDefaults);
         }
 
         if ($this->featureRoutesEnabled($profile, 'password_reset')) {
@@ -134,11 +128,17 @@ final class AuthKitRouteLoader extends Loader
         }
 
         if ($this->featureRoutesEnabled($profile, 'social_login')) {
-            $this->loadSocialLoginRoutes($collection, $routes, $profileDefaults);
+            $this->addControllerRoute($collection, $routes['social_login_start'], SocialLoginStartController::class, 'start', $profileDefaults);
+            $this->addControllerRoute($collection, $routes['social_login_check'], SocialLoginCheckController::class, 'check', $profileDefaults);
         }
 
         if ($this->featureRoutesEnabled($profile, 'qr_login')) {
-            $this->loadQrLoginRoutes($collection, $routes, $profileDefaults);
+            $this->addControllerRoute($collection, $routes['qr_login_start'], QrLoginStartController::class, 'start', $profileDefaults);
+            $this->addControllerRoute($collection, $routes['qr_login_show'], QrLoginShowController::class, 'show', $profileDefaults);
+            $this->addControllerRoute($collection, $routes['qr_login_status'], QrLoginStatusController::class, 'status', $profileDefaults);
+            $this->addControllerRoute($collection, $routes['qr_login_complete'], QrLoginCompleteController::class, 'complete', $profileDefaults);
+            $this->addControllerRoute($collection, $routes['qr_login_approve'], QrLoginApproveController::class, 'approve', $profileDefaults);
+            $this->addControllerRoute($collection, $routes['qr_login_deny'], QrLoginDenyController::class, 'deny', $profileDefaults);
         }
     }
 
@@ -153,33 +153,21 @@ final class AuthKitRouteLoader extends Loader
         PasswordResetDeliveryMode $delivery,
         bool $tokenInSession,
     ): void {
-        $this->addAuthRoute(
-            $collection,
-            $routes['reset_request']['name'],
-            $routes['reset_request']['path'],
-            ['_controller' => ResetPasswordRequestController::class . '::request'] + $profileDefaults,
-            ['GET', 'POST'],
-        );
+        $this->addControllerRoute($collection, $routes['reset_request'], ResetPasswordRequestController::class, 'request', $profileDefaults);
 
         if ($delivery !== PasswordResetDeliveryMode::Code) {
-            $this->addAuthRoute(
+            // token_in_session: the token-less URL (token = null) renders the form with the session token.
+            $this->addControllerRoute(
                 $collection,
-                $routes['reset_password']['name'],
-                $routes['reset_password']['path'],
-                // token_in_session: the token-less URL (token = null) renders the form with the session token.
-                ['_controller' => ResetPasswordController::class . '::reset'] + ($tokenInSession ? ['token' => null] : []) + $profileDefaults,
-                ['GET', 'POST'],
+                $routes['reset_password'],
+                ResetPasswordController::class,
+                'reset',
+                ($tokenInSession ? ['token' => null] : []) + $profileDefaults,
             );
         }
 
         if ($delivery !== PasswordResetDeliveryMode::Link) {
-            $this->addAuthRoute(
-                $collection,
-                $routes['reset_password_code']['name'],
-                $routes['reset_password_code']['path'],
-                ['_controller' => ResetPasswordCodeController::class . '::complete'] + $profileDefaults,
-                ['GET', 'POST'],
-            );
+            $this->addControllerRoute($collection, $routes['reset_password_code'], ResetPasswordCodeController::class, 'complete', $profileDefaults);
         }
     }
 
@@ -189,120 +177,66 @@ final class AuthKitRouteLoader extends Loader
      */
     private function loadMagicLoginRoutes(RouteCollection $collection, array $routes, array $profileDefaults, bool $confirmInterstitial): void
     {
-        $this->addAuthRoute(
+        $this->addControllerRoute($collection, $routes['magic_login_request'], MagicLoginRequestController::class, 'request', $profileDefaults);
+        $this->addControllerRoute(
             $collection,
-            $routes['magic_login_request']['name'],
-            $routes['magic_login_request']['path'],
-            ['_controller' => MagicLoginRequestController::class . '::request'] + $profileDefaults,
-            ['GET', 'POST'],
-        );
-
-        $this->addAuthRoute(
-            $collection,
-            $routes['magic_login_check']['name'],
-            $routes['magic_login_check']['path'],
-            [
-                '_controller' => $confirmInterstitial
-                    ? MagicLoginConfirmController::class . '::check'
-                    : MagicLoginCheckController::class . '::check',
-            ] + $profileDefaults,
-            ['GET'],
+            $routes['magic_login_check'],
+            $confirmInterstitial ? MagicLoginConfirmController::class : MagicLoginCheckController::class,
+            'check',
+            $profileDefaults,
         );
 
         if ($confirmInterstitial) {
-            $this->addAuthRoute(
-                $collection,
-                $routes['magic_login_confirm']['name'],
-                $routes['magic_login_confirm']['path'],
-                ['_controller' => MagicLoginConfirmController::class . '::confirm'] + $profileDefaults,
-                ['POST'],
-            );
+            $this->addControllerRoute($collection, $routes['magic_login_confirm'], MagicLoginConfirmController::class, 'confirm', $profileDefaults);
         }
     }
 
     /**
-     * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
-     * @param array<string, mixed> $profileDefaults
+     * REQ-SF-004: the controller action's #[Route] attribute is the source of the route's HTTP methods and
+     * requirements; the profile configuration (routes.<key>.path / .name, whose defaults equal the attribute)
+     * sets the path and the name of each per-profile copy.
+     *
+     * @param array{path: string, name: string, methods?: list<string>} $route
+     * @param class-string $controller
+     * @param array<string, mixed> $defaults
+     * @param list<string>|null $methods overrides the attribute methods (routes.logout.methods)
      */
-    private function loadSocialLoginRoutes(RouteCollection $collection, array $routes, array $profileDefaults): void
-    {
-        $this->addAuthRoute(
-            $collection,
-            $routes['social_login_start']['name'],
-            $routes['social_login_start']['path'],
-            ['_controller' => SocialLoginStartController::class . '::start'] + $profileDefaults,
-            ['GET'],
-            ['provider' => '[a-z0-9_\\-]+'],
-        );
+    private function addControllerRoute(
+        RouteCollection $collection,
+        array $route,
+        string $controller,
+        string $action,
+        array $defaults,
+        ?array $methods = null,
+    ): void {
+        $attribute    = self::routeAttribute($controller, $action);
+        $requirements = [];
+        foreach ($attribute->requirements as $parameter => $pattern) {
+            $requirements[(string) $parameter] = (string) $pattern;
+        }
 
         $this->addAuthRoute(
             $collection,
-            $routes['social_login_check']['name'],
-            $routes['social_login_check']['path'],
-            ['_controller' => SocialLoginCheckController::class . '::check'] + $profileDefaults,
-            ['GET'],
-            ['provider' => '[a-z0-9_\\-]+'],
+            $route['name'],
+            $route['path'],
+            ['_controller' => $controller . '::' . $action] + $defaults,
+            $methods ?? array_values($attribute->methods),
+            $requirements,
         );
     }
 
     /**
-     * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
-     * @param array<string, mixed> $profileDefaults
+     * @param class-string $controller
      */
-    private function loadQrLoginRoutes(RouteCollection $collection, array $routes, array $profileDefaults): void
+    public static function routeAttribute(string $controller, string $action): RouteAttribute
     {
-        $this->addAuthRoute(
-            $collection,
-            $routes['qr_login_start']['name'],
-            $routes['qr_login_start']['path'],
-            ['_controller' => QrLoginStartController::class . '::start'] + $profileDefaults,
-            ['GET'],
-        );
+        $attributes = (new ReflectionMethod($controller, $action))->getAttributes(RouteAttribute::class);
 
-        $this->addAuthRoute(
-            $collection,
-            $routes['qr_login_show']['name'],
-            $routes['qr_login_show']['path'],
-            ['_controller' => QrLoginShowController::class . '::show'] + $profileDefaults,
-            ['GET'],
-            ['id' => '[0-9a-f\\-]{36}'],
-        );
+        if ($attributes === []) {
+            throw new LogicException(sprintf('%s::%s() must declare a #[Route] attribute.', $controller, $action));
+        }
 
-        $this->addAuthRoute(
-            $collection,
-            $routes['qr_login_status']['name'],
-            $routes['qr_login_status']['path'],
-            ['_controller' => QrLoginStatusController::class . '::status'] + $profileDefaults,
-            ['GET'],
-            ['id' => '[0-9a-f\\-]{36}'],
-        );
-
-        $this->addAuthRoute(
-            $collection,
-            $routes['qr_login_complete']['name'],
-            $routes['qr_login_complete']['path'],
-            ['_controller' => QrLoginCompleteController::class . '::complete'] + $profileDefaults,
-            ['GET'],
-            ['id' => '[0-9a-f\\-]{36}'],
-        );
-
-        $this->addAuthRoute(
-            $collection,
-            $routes['qr_login_approve']['name'],
-            $routes['qr_login_approve']['path'],
-            ['_controller' => QrLoginApproveController::class . '::approve'] + $profileDefaults,
-            ['GET', 'POST'],
-            ['id' => '[0-9a-f\\-]{36}'],
-        );
-
-        $this->addAuthRoute(
-            $collection,
-            $routes['qr_login_deny']['name'],
-            $routes['qr_login_deny']['path'],
-            ['_controller' => QrLoginDenyController::class . '::deny'] + $profileDefaults,
-            ['POST'],
-            ['id' => '[0-9a-f\\-]{36}'],
-        );
+        return $attributes[0]->newInstance();
     }
 
     /**

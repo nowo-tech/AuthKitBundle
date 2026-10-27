@@ -153,7 +153,7 @@ bridge to the UiKit guest layout that maps the 1.x blocks (`title`, `stylesheets
 to `page.form`. The UiKit form theme paints text inputs with the `input` slot and checkboxes (remember me, terms) as
 `<label class="check">` with the `check` / `check_input` slots; the AuthKit PasswordToggle theme adds the `input` slot
 to the toggle widget. The seeded FormKit profile `auth_kit` carries no framework classes. Validation messages are
-translated in the bundle's `validators` catalogues (7 locales).
+translated in the bundle's `NowoAuthKitBundle` catalogues (7 locales).
 
 ## Assets and CSP
 

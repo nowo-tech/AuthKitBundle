@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
@@ -141,6 +142,8 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['locale_in_path']);
     }
 
+    // REQ-SF-005: exercises the deprecated configuration on purpose (BC layer); the deprecation is the expected outcome.
+    #[IgnoreDeprecations]
     public function testLegacyKeysWithLocaleNodeStillProcess(): void
     {
         $processor = new Processor();
@@ -396,6 +399,8 @@ final class ConfigurationTest extends TestCase
         ]]);
     }
 
+    // REQ-SF-005: exercises the deprecated configuration on purpose (BC layer); the deprecation is the expected outcome.
+    #[IgnoreDeprecations]
     public function testSingleFormThemeStringIsNormalizedToList(): void
     {
         $processor = new Processor();

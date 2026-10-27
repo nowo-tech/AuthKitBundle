@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Stub;
 
+use Deprecated;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -32,6 +33,7 @@ final class NoRolesTestUser implements UserInterface, PasswordAuthenticatedUserI
         return ['ROLE_USER'];
     }
 
+    #[Deprecated]
     public function eraseCredentials(): void
     {
     }

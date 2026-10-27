@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-10-20  
-**Units**: **183** (`143` PHP under `src/` + `40` Resources)
+**Last audited**: 2026-10-27  
+**Units**: **186** (`153` PHP under `src/` + `33` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -44,6 +44,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | --- | --- | --- | --- |
 | `Config/FieldConfigNormalizer.php` | production | FR-CFG-002 | Mapped |
 | `Config/RememberMeConfigResolver.php` | production | FR-CFG-002 | Mapped |
+| `DependencyInjection/Compiler/ControllerRouteAttributesPass.php` | production | FR-CTRL-003 | Mapped |
 | `DependencyInjection/Compiler/LoginThrottleRequiredPass.php` | production | FR-SEC-004 | Mapped |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | production | FR-CFG-001 | Mapped |
 | `DependencyInjection/Configuration.php` | production | FR-CFG-001 | Mapped |
@@ -82,7 +83,11 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Enum/MagicLoginMode.php` | production | FR-MAGIC-001 | Mapped |
 | `Form/MagicLoginConfirmType.php` | production | FR-MAGIC-001 | Mapped |
 | `Form/MagicLoginRequestFormType.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/AdminMagicLinkIssuedEvent.php` | production | FR-MAGIC-002 | Mapped |
+| `MagicLogin/AdminMagicLinkIssuer.php` | production | FR-MAGIC-002 | Mapped |
+| `MagicLogin/AdminMagicLinkRefusedException.php` | production | FR-MAGIC-002 | Mapped |
 | `MagicLogin/LoggingMagicLoginNotifier.php` | production | FR-MAGIC-001 | Mapped |
+| `MagicLogin/MagicLinkFactory.php` | production | FR-MAGIC-001, FR-MAGIC-002 | Mapped |
 | `MagicLogin/MagicLoginGate.php` | production | FR-MAGIC-001 | Mapped |
 | `MagicLogin/MagicLoginNotificationContext.php` | production | FR-MAGIC-001 | Mapped |
 | `MagicLogin/MagicLoginNotifierInterface.php` | production | FR-MAGIC-001 | Mapped |
@@ -176,12 +181,15 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Enum/PasswordResetMode.php` | production | FR-RESET-003 | Mapped |
 | `PasswordReset/LoggingPasswordResetNotifier.php` | production | FR-RESET-002 | Mapped |
 | `PasswordReset/NullPasswordResetNotifier.php` | production | FR-RESET-002 | Mapped |
+| `PasswordReset/PasswordResetCheckEmail.php` | production | FR-RESET-004 | Mapped |
 | `PasswordReset/PasswordResetCompleter.php` | production | FR-RESET-001 | Mapped |
 | `PasswordReset/PasswordResetGate.php` | production | FR-RESET-001 | Mapped |
 | `PasswordReset/PasswordResetNotificationContext.php` | production | FR-RESET-002 | Mapped |
 | `PasswordReset/PasswordResetNotifierInterface.php` | production | FR-RESET-002 | Mapped |
 | `PasswordReset/PasswordResetRequestHandler.php` | production | FR-RESET-001 | Mapped |
+| `PasswordReset/PasswordResetRequestOutcome.php` | production | FR-RESET-004 | Mapped |
 | `PasswordReset/PasswordResetRequestedEvent.php` | production | FR-RESET-002 | Mapped |
+| `PasswordReset/PasswordResetThrottledException.php` | production | FR-RESET-004 | Mapped |
 | `PasswordReset/PasswordResetTokenManager.php` | production | FR-RESET-001 | Mapped |
 | `PasswordReset/PasswordResetTokenManagerInterface.php` | production | FR-RESET-001 | Mapped |
 | `PasswordReset/PasswordResetTokenResult.php` | production | FR-RESET-001 | Mapped |
@@ -197,7 +205,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
+| `Form/Extension/ConstraintMessageTranslationExtension.php` | production | FR-FORM-005, FR-I18N-002 | Mapped |
 | `Form/LoginFormType.php` | production | FR-FORM-001 | Mapped |
+| `Form/LogoutFormType.php` | production | FR-FORM-004 | Mapped |
 | `Form/PasswordFieldConstraintResolver.php` | production | FR-FORM-002 | Mapped |
 | `Form/PasswordFieldTypeResolver.php` | production | FR-FORM-002 | Mapped |
 | `Form/PasswordRepeatedFieldBuilder.php` | production | FR-FORM-002 | Mapped |
@@ -264,13 +274,6 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Resources/translations/NowoAuthKitBundle.it.yaml` | production | FR-I18N-001 | Mapped |
 | `Resources/translations/NowoAuthKitBundle.nl.yaml` | production | FR-I18N-001 | Mapped |
 | `Resources/translations/NowoAuthKitBundle.pt.yaml` | production | FR-I18N-001 | Mapped |
-| `Resources/translations/validators.de.yaml` | production | FR-I18N-002 | Mapped |
-| `Resources/translations/validators.en.yaml` | production | FR-I18N-002 | Mapped |
-| `Resources/translations/validators.es.yaml` | production | FR-I18N-002 | Mapped |
-| `Resources/translations/validators.fr.yaml` | production | FR-I18N-002 | Mapped |
-| `Resources/translations/validators.it.yaml` | production | FR-I18N-002 | Mapped |
-| `Resources/translations/validators.nl.yaml` | production | FR-I18N-002 | Mapped |
-| `Resources/translations/validators.pt.yaml` | production | FR-I18N-002 | Mapped |
 
 ## Twig templates
 
@@ -309,10 +312,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 143 |
-| Resources (config/translations/views/public) | 40 |
-| **Total production sources** | **183** |
-| Audit command | `git ls-files src \| wc -l` → 183 |
+| PHP under `src/` | 153 |
+| Resources (config/translations/views/public) | 33 |
+| **Total production sources** | **186** |
+| Audit command | `git ls-files src \| wc -l` → 186 |
 
 ## Coverage gate
 

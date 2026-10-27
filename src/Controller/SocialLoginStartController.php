@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
@@ -31,6 +32,7 @@ final class SocialLoginStartController
     ) {
     }
 
+    #[Route(path: '/login/social/{provider}', name: 'nowo_auth_kit_social_login_start', requirements: ['provider' => '[a-z0-9_\\-]+'], methods: ['GET'])]
     public function start(Request $request, string $provider): RedirectResponse
     {
         $profile = $this->profileResolver->resolve($request);

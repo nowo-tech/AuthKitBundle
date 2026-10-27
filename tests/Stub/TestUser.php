@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Stub;
 
 use DateTimeImmutable;
+use Deprecated;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -99,6 +100,7 @@ final class TestUser implements UserInterface, PasswordAuthenticatedUserInterfac
         $this->roles = $roles;
     }
 
+    #[Deprecated]
     public function eraseCredentials(): void
     {
     }

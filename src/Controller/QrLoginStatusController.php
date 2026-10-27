@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Returns challenge status as JSON for desktop polling ({status, expires_in} only — no PII).
@@ -22,6 +23,7 @@ final class QrLoginStatusController
     ) {
     }
 
+    #[Route(path: '/login/qr/{id}/status', name: 'nowo_auth_kit_qr_login_status', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['GET'])]
     public function status(Request $request, string $id): JsonResponse
     {
         $this->profileResolver->resolve($request);

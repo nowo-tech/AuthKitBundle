@@ -18,6 +18,7 @@ use RuntimeException;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -48,6 +49,7 @@ final class RegisterController
     ) {
     }
 
+    #[Route(path: '/register', name: 'nowo_auth_kit_register', methods: ['GET', 'POST'])]
     public function register(Request $request): Response
     {
         $profile = $this->profileResolver->resolve($request);

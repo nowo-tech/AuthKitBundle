@@ -28,7 +28,11 @@ services:
             - '../../Form/SlideToConfirmTypeResolver.php'
             - '../../Form/OtpInputTypeResolver.php'
             - '../../Form/DataTransformer/'
+            - '../../Form/Extension/'
         tags: ['form.type']
+
+    # REQ-I18N-003: AuthKit constraint messages are translated in the NowoAuthKitBundle domain.
+    Nowo\AuthKitBundle\Form\Extension\ConstraintMessageTranslationExtension: ~
 
     Nowo\AuthKitBundle\Form\PasswordFieldConstraintResolver: ~
 

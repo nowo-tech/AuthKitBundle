@@ -16,6 +16,7 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Twig\Environment;
 
@@ -38,6 +39,7 @@ final class QrLoginShowController
     ) {
     }
 
+    #[Route(path: '/login/qr/{id}', name: 'nowo_auth_kit_qr_login_show', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['GET'])]
     public function show(Request $request, string $id): Response
     {
         $profile = $this->profileResolver->resolve($request);

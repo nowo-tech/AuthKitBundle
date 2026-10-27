@@ -82,6 +82,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Single translation domain and attribute-declared routes. No configuration change; see [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- Every controller action declares its `#[Route]` (default path and name, HTTP methods, requirements); `AuthKitRouteLoader` copies the attribute once per profile with the configured `routes.<key>.path` / `.name` and locale variants, so the generated routes are identical to 1.30.0 (REQ-SF-004).
+- `DependencyInjection\Compiler\ControllerRouteAttributesPass` removes the autoconfigured `routing.controller` tag from the AuthKit controllers, so an application importing `resource: routing.controllers` does not register un-profiled copies.
+- `Form\Extension\ConstraintMessageTranslationExtension`: AuthKit constraint messages are translated in the form translation domain (`NowoAuthKitBundle`) after validation; a key the application defines in its `validators` catalogue keeps its translation (REQ-I18N-003).
+
+### Changed
+
+- The AuthKit form constraint messages live only in the `NowoAuthKitBundle` catalogues; `make validate-translations` fails on any catalogue outside the bundle domain (REQ-I18N-003).
+- PHPUnit fails on any deprecation (`failOnDeprecation`, `ignoreSuppressionOfDeprecations`, `restrictDeprecations="false"`): `SYMFONY_DEPRECATIONS_HELPER` is ignored by PHPUnit >= 10. Tests that exercise deprecated configuration on purpose are marked `#[IgnoreDeprecations]`; `phpunit-baseline.xml` lists the two indirect Twig deprecations raised by the UiKit `PageContractTestCase` (REQ-SF-005).
+- CI pins the transitive Symfony components (event-dispatcher, error-handler, …) to the cell minor too, so the 7.4 cells no longer run 8.x components; the test kernels set `framework.property_info.with_constructor_extractor` on Symfony 7.3/7.4.
+- Spec Kit baseline (`specs/001-baseline`) covers the 1.29/1.30 units: 186/186 production files mapped (REQ-SPECKIT-003).
+- The test bootstrap clears the integration kernels' cache directory, so repeated local runs do not hit the previous run's rate limits.
+
+### Removed
+
+- `src/Resources/translations/validators.<locale>.yaml` (7 locales): same keys and texts as the `NowoAuthKitBundle` catalogues.
+
 ## [1.30.0] - 2026-10-23
 
 Opt-in options for legacy hosts: unlocalized route suffix, POST logout, reset check-email page and session token, throttled reset signal, optional entity mapping, no routes for disabled features. See [UPGRADING](UPGRADING.md#to-1300).

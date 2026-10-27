@@ -17,6 +17,7 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\LoginLink\Exception\ExpiredLoginLinkException;
 use Symfony\Component\Security\Http\LoginLink\Exception\InvalidLoginLinkException;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkHandlerInterface;
@@ -46,6 +47,7 @@ final class MagicLoginConfirmController
     ) {
     }
 
+    #[Route(path: '/magic-login/check', name: 'nowo_auth_kit_magic_login_check', methods: ['GET'])]
     public function check(Request $request): Response
     {
         $profile = $this->profileResolver->resolve($request);
@@ -65,6 +67,7 @@ final class MagicLoginConfirmController
         return $this->renderConfirm($profile->template('magic_login_confirm'), $form->createView(), $profile, $params);
     }
 
+    #[Route(path: '/magic-login/confirm', name: 'nowo_auth_kit_magic_login_confirm', methods: ['POST'])]
     public function confirm(Request $request): Response
     {
         $profile = $this->profileResolver->resolve($request);

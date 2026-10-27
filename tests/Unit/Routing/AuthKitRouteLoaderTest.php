@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Routing;
 
+use LogicException;
 use Nowo\AuthKitBundle\Controller\MagicLoginCheckController;
 use Nowo\AuthKitBundle\Controller\MagicLoginConfirmController;
+use Nowo\AuthKitBundle\Controller\UnlocalizedLocaleRedirectController;
+use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLoader;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Processor;
+
+use function class_exists;
+use function count;
+use function explode;
 
 final class AuthKitRouteLoaderTest extends TestCase
 {
@@ -26,6 +34,49 @@ final class AuthKitRouteLoaderTest extends TestCase
         self::assertNotNull($collection->get('nowo_auth_kit_reset_password_request'));
         self::assertNotNull($collection->get('nowo_auth_kit_reset_password'));
         self::assertNull($collection->get('nowo_auth_kit_reset_password_code'));
+    }
+
+    /**
+     * REQ-SF-004: every route is the per-profile copy of its controller's #[Route]; the attribute path and name
+     * are the routes.<key> configuration defaults, its methods and requirements are those of the loaded route.
+     */
+    public function testEveryRouteComesFromItsControllerRouteAttribute(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => ['user_class' => TestUser::class, 'password_reset' => ['delivery' => 'both'], 'magic_login' => ['confirm_interstitial' => true]]],
+        ]]);
+        $collection = (new AuthKitRouteLoader($config['profiles'], false, 'en', ['en']))->load('.', 'nowo_auth_kit');
+        $routes     = $config['profiles']['default']['routes'];
+
+        self::assertCount(count($routes), $collection);
+
+        foreach ($routes as $key => $route) {
+            $loaded = $collection->get($route['name']);
+            self::assertNotNull($loaded, $key);
+
+            $controller = $loaded->getDefault('_controller');
+            self::assertIsString($controller);
+            [$class, $action] = explode('::', $controller);
+            self::assertTrue(class_exists($class), $class);
+            $attribute = AuthKitRouteLoader::routeAttribute($class, $action);
+
+            self::assertSame($route['path'], $attribute->path, $key);
+            self::assertSame($route['name'], $attribute->name, $key);
+            self::assertSame($attribute->methods, $loaded->getMethods(), $key);
+            self::assertSame($attribute->requirements, $loaded->getRequirements(), $key);
+        }
+
+        $check = AuthKitRouteLoader::routeAttribute(MagicLoginCheckController::class, 'check');
+        self::assertSame($routes['magic_login_check']['path'], $check->path);
+        self::assertSame($routes['magic_login_check']['name'], $check->name);
+    }
+
+    public function testAControllerActionWithoutRouteAttributeIsRejected(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(UnlocalizedLocaleRedirectController::class . '::redirect() must declare a #[Route] attribute.');
+
+        AuthKitRouteLoader::routeAttribute(UnlocalizedLocaleRedirectController::class, 'redirect');
     }
 
     public function testCanLoadTwiceInTheSameProcess(): void

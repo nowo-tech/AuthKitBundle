@@ -4,13 +4,16 @@
          bootstrap="tests/bootstrap.php"
          colors="true"
          cacheDirectory=".phpunit.cache"
+         failOnDeprecation="true"
+         failOnPhpunitDeprecation="true"
+         displayDetailsOnTestsThatTriggerDeprecations="true"
 >
     <testsuites>
         <testsuite name="AuthKitBundle Test Suite">
             <directory>tests</directory>
         </testsuite>
     </testsuites>
-    <source>
+    <source baseline="phpunit-baseline.xml" restrictDeprecations="false" ignoreSuppressionOfDeprecations="true">
         <include>
             <directory>src</directory>
         </include>
@@ -21,7 +24,10 @@
     </source>
 
     <php>
-        <!-- REQ-SF-005: fail on direct deprecations from this package -->
+        <!-- REQ-SF-005: the deprecation gate is PHPUnit's own (failOnDeprecation + ignoreSuppressionOfDeprecations,
+             restrictDeprecations="false"): any deprecation, including Symfony's silenced trigger_deprecation() calls,
+             fails the run. symfony/phpunit-bridge does nothing with PHPUnit >= 10; the setting below is kept for
+             runs that load it. -->
         <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[direct]=0"/>
     </php>
 </phpunit>

@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -44,6 +45,7 @@ final class ResetPasswordController
     ) {
     }
 
+    #[Route(path: '/reset-password/reset/{token}', name: 'nowo_auth_kit_reset_password', methods: ['GET', 'POST'])]
     public function reset(Request $request, ?string $token = null): Response
     {
         $profile = $this->profileResolver->resolve($request);

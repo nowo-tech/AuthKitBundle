@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+  REQ-SF-005: indirect (third-party) deprecations only. Both come from nowo-tech/ui-kit-bundle
+  src/Test/PageContractTestCase.php (Twig\Environment::mergeGlobals() and TemplateWrapper::unwrap() without
+  arguments), which the REQ-UI-003 page contract test extends. Remove these entries once UiKit ships the fix.
+  Never add deprecations triggered by AuthKit code here.
+-->
+<files version="1">
+ <file path="vendor/symfony/deprecation-contracts/function.php">
+  <line number="25" hash="c6af5d66288d0667e424978000f29571e4954b81">
+   <issue><![CDATA[Since twig/twig 3.14: The "Twig\Environment::mergeGlobals" method is deprecated.]]></issue>
+   <issue><![CDATA[Since twig/twig 3.30: Calling "Twig\TemplateWrapper::unwrap()" without arguments is deprecated, pass the Twig environment instead.]]></issue>
+  </line>
+ </file>
+</files>
