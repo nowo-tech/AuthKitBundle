@@ -245,7 +245,17 @@ final class NowoAuthKitExtensionTest extends TestCase
     public function testPrependRegistersAuthKitAssetPackage(): void
     {
         $container = new ContainerBuilder();
-        $container->registerExtension($this->createMock(ExtensionInterface::class));
+        // An unrelated extension: a real one, a mock's null namespace is a deprecated array offset on PHP 8.5.
+        $container->registerExtension(new class extends Extension {
+            public function load(array $configs, ContainerBuilder $container): void
+            {
+            }
+
+            public function getAlias(): string
+            {
+                return 'other';
+            }
+        });
         $container->registerExtension($this->createFrameworkExtensionStub());
 
         $this->extension->prepend($container);
