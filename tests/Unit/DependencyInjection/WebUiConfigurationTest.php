@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\ArrayNode;
 use Symfony\Component\Config\Definition\BaseNode;
@@ -36,6 +37,8 @@ final class WebUiConfigurationTest extends TestCase
         self::assertSame(['layout' => Configuration::LEGACY_LAYOUT] + Configuration::PAGE_TEMPLATES + ['form_theme' => null], $config['profiles']['default']['templates']);
     }
 
+    // REQ-SF-005: exercises the deprecated configuration on purpose (BC layer); the deprecation is the expected outcome.
+    #[IgnoreDeprecations]
     public function testLegacyTemplatesMapToWebUiWithDeprecations(): void
     {
         $config = $this->process([[
@@ -61,6 +64,8 @@ final class WebUiConfigurationTest extends TestCase
         self::assertSame('The "form_theme" option at "nowo_auth_kit.profiles.default.templates" is deprecated, use "web_ui.form_themes".', $this->deprecation(['templates', 'form_theme']));
     }
 
+    // REQ-SF-005: exercises the deprecated configuration on purpose (BC layer); the deprecation is the expected outcome.
+    #[IgnoreDeprecations]
     public function testWebUiWinsOverLegacyTemplates(): void
     {
         $config = $this->process([[
@@ -75,6 +80,8 @@ final class WebUiConfigurationTest extends TestCase
         self::assertSame(['new/form.html.twig'], $webUi['form_themes']);
     }
 
+    // REQ-SF-005: exercises the deprecated configuration on purpose (BC layer); the deprecation is the expected outcome.
+    #[IgnoreDeprecations]
     public function testTheDeprecatedBundleLayoutMeansTheUiKitGuestLayout(): void
     {
         $legacy = $this->process([['user_class' => TestUser::class, 'templates' => ['layout' => Configuration::LEGACY_LAYOUT]]]);
@@ -85,6 +92,8 @@ final class WebUiConfigurationTest extends TestCase
         self::assertSame(Configuration::LEGACY_LAYOUT, $webUi['profiles']['default']['templates']['layout']);
     }
 
+    // REQ-SF-005: exercises the deprecated configuration on purpose (BC layer); the deprecation is the expected outcome.
+    #[IgnoreDeprecations]
     public function testCssButtonClassesAreDeprecated(): void
     {
         $config = $this->process([['user_class' => TestUser::class, 'css' => ['button_class' => 'btn btn-dark']]]);
