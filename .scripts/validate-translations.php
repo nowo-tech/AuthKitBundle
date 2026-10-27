@@ -5,7 +5,8 @@ declare(strict_types=1);
 
 /**
  * REQ-MAKE-004 / REQ-I18N-002 — every translation catalogue must parse and hold exactly the same flattened
- * key set as its `en` reference, per domain (NowoAuthKitBundle and validators).
+ * key set as its `en` reference, for the bundle domain (NowoAuthKitBundle). REQ-I18N-003: no other catalogue may be
+ * shipped (constraint messages are translated in the bundle domain too).
  *
  * Usage: php .scripts/validate-translations.php [translations-dir]
  */
@@ -16,7 +17,7 @@ use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 $translationsDir = $argv[1] ?? dirname(__DIR__) . '/src/Resources/translations';
-$domains         = ['NowoAuthKitBundle', 'validators'];
+$domains         = ['NowoAuthKitBundle'];
 $referenceLocale = 'en';
 
 if (!is_dir($translationsDir)) {
@@ -25,6 +26,14 @@ if (!is_dir($translationsDir)) {
 }
 
 $failed = false;
+
+// REQ-I18N-003: every shipped catalogue belongs to the bundle domain.
+foreach (glob($translationsDir . '/*') ?: [] as $file) {
+    if (!in_array(explode('.', basename($file))[0], $domains, true)) {
+        $failed = true;
+        fwrite(STDERR, "Catalogue outside the bundle domain (REQ-I18N-003): {$file}\n");
+    }
+}
 
 foreach ($domains as $domain) {
     $referenceFile = sprintf('%s/%s.%s.yaml', $translationsDir, $domain, $referenceLocale);
