@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Kernel;
 
+use Composer\InstalledVersions;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
@@ -79,6 +80,12 @@ final class AuthKitTestKernel extends Kernel
             'router'                => ['utf8' => true],
             'php_errors'            => ['log' => false],
         ]);
+        // Installed version, read at runtime: the Symfony minor differs per CI cell.
+        $frameworkVersion = (string) InstalledVersions::getVersion('symfony/framework-bundle');
+        if (version_compare($frameworkVersion, '7.3', '>=') && version_compare($frameworkVersion, '8.0', '<')) {
+            // REQ-SF-005: Symfony 7.3/7.4 deprecate leaving this option implicit (its default changes in 8.0).
+            $container->loadFromExtension('framework', ['property_info' => ['with_constructor_extractor' => true]]);
+        }
         $container->loadFromExtension('twig', ['strict_variables' => true]);
         $container->loadFromExtension('doctrine', [
             'dbal' => ['url' => 'sqlite:///%kernel.cache_dir%/auth_kit.sqlite'],

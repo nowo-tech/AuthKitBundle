@@ -94,6 +94,7 @@ Single translation domain and attribute-declared routes. No configuration change
 
 - The AuthKit form constraint messages live only in the `NowoAuthKitBundle` catalogues; `make validate-translations` fails on any catalogue outside the bundle domain (REQ-I18N-003).
 - PHPUnit fails on any deprecation (`failOnDeprecation`, `ignoreSuppressionOfDeprecations`, `restrictDeprecations="false"`): `SYMFONY_DEPRECATIONS_HELPER` is ignored by PHPUnit >= 10. Tests that exercise deprecated configuration on purpose are marked `#[IgnoreDeprecations]`; `phpunit-baseline.xml` lists the two indirect Twig deprecations raised by the UiKit `PageContractTestCase` (REQ-SF-005).
+- CI pins the transitive Symfony components (event-dispatcher, error-handler, …) to the cell minor too, so the 7.4 cells no longer run 8.x components; the test kernels set `framework.property_info.with_constructor_extractor` on Symfony 7.3/7.4.
 - Spec Kit baseline (`specs/001-baseline`) covers the 1.29/1.30 units: 186/186 production files mapped (REQ-SPECKIT-003).
 - The test bootstrap clears the integration kernels' cache directory, so repeated local runs do not hit the previous run's rate limits.
 
