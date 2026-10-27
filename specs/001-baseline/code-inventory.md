@@ -3,7 +3,7 @@
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
 **Last audited**: 2026-10-27  
-**Units**: **186** (`153` PHP under `src/` + `33` Resources)
+**Units**: **193** (`160` PHP under `src/` + `33` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -45,6 +45,8 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Config/FieldConfigNormalizer.php` | production | FR-CFG-002 | Mapped |
 | `Config/RememberMeConfigResolver.php` | production | FR-CFG-002 | Mapped |
 | `DependencyInjection/Compiler/ControllerRouteAttributesPass.php` | production | FR-CTRL-003 | Mapped |
+| `DependencyInjection/Compiler/CsrfProtectionPass.php` | production | FR-SEC-005 | Mapped |
+| `DependencyInjection/Compiler/LoginLinkHandlerLocatorPass.php` | production | FR-SEC-005 | Mapped |
 | `DependencyInjection/Compiler/LoginThrottleRequiredPass.php` | production | FR-SEC-004 | Mapped |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | production | FR-CFG-001 | Mapped |
 | `DependencyInjection/Configuration.php` | production | FR-CFG-001 | Mapped |
@@ -245,6 +247,11 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | --- | --- | --- | --- |
 | `Security/AuthKitAttemptLimiter.php` | production | FR-SEC-003 | Mapped |
 | `Security/AuthKitFormLoginParameters.php` | production | FR-SEC-001 | Mapped |
+| `Security/LoginLinkHandlerLocator.php` | production | FR-SEC-005 | Mapped |
+| `Security/UserIdentifierMatcher.php` | production | FR-SEC-005 | Mapped |
+| `Doctrine/PasswordResetTokenInvalidationListener.php` | production | FR-SEC-005, FR-RESET-001 | Mapped |
+| `Form/FormCsrf.php` | production | FR-SEC-005 | Mapped |
+| `Form/IdentifierConstraints.php` | production | FR-SEC-005, FR-FORM-001 | Mapped |
 | `Security/RegistrationGate.php` | production | FR-SEC-001 | Mapped |
 | `Security/UserRegistrar.php` | production | FR-SEC-001 | Mapped |
 | `Doctrine/EntityManagerRecovery.php` | production | FR-SEC-001 | Mapped |
@@ -312,10 +319,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 153 |
+| PHP under `src/` | 160 |
 | Resources (config/translations/views/public) | 33 |
-| **Total production sources** | **186** |
-| Audit command | `git ls-files src \| wc -l` → 186 |
+| **Total production sources** | **193** |
+| Audit command | `git ls-files src \| wc -l` → 193 |
 
 ## Coverage gate
 

@@ -82,16 +82,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Single translation domain and attribute-declared routes. No configuration change; see [UPGRADING](UPGRADING.md#unreleased).
+Security hardening (SEC-004 2026-10-27), single translation domain and attribute-declared routes. Several defaults and behaviours change: read [UPGRADING](UPGRADING.md#unreleased) before updating.
+
+### Security
+
+- **High — look-alike identifiers (CWE-178/640), affects password reset >= 1.1.0, magic login >= 1.6.0, social login e-mail linking >= 1.9.0, up to 1.30.0.** With an accent/case-insensitive database collation (MySQL `utf8mb4_0900_ai_ci`, MariaDB `*_unicode_ci`) `victim@exámple.com` resolved to `victim@example.com`, and the typed address was handed to the notifier: the victim's reset / magic link went to an IDN look-alike the attacker owns. Lookups now accept only an account whose stored identifier equals the input after NFC + lower-casing (`Security\UserIdentifierMatcher`); notification contexts carry the **stored** identifier and the `user`; e-mail identifiers must be plain ASCII addresses on the request forms.
+- **High — cross-profile social sign-in (CWE-639), affects 1.9.0 to 1.30.0 with several profiles.** A social link was found by provider subject only and loaded with the current profile's user class: a member's identity signed in to the admin profile as the admin with the same id. Links are now scoped to the user class (unique `provider + provider_user_id + user_class`, schema change) and the loaded row must be of that class.
+- **Medium:** social login created accounts regardless of `registration_mode` (`create_user_if_missing` now defaults to `false` and honours `RegistrationGate`); a social identity was linked to a pre-registered local account and kept its password (`social_login.link_existing_account`, default `reset_password`); the reset-code attempt counter was keyed by the typed identifier, so spelling variants bypassed `max_code_attempts` (now keyed by the account, plus a per-IP `code_rate_limit`).
+- **Low:** `configure-security` wrote a `login_link.lifetime` shorter than administrator links and no password in `signature_properties`; magic links were signed / consumed by the `main` firewall handler and QR challenges were not bound to a profile; a request locale from input could reach generated paths (`//host` redirect); new passwords needed only 6 characters; registration auto-login built the token by hand; a pending reset credential survived an identifier or password change.
+- **CSRF fails closed:** QR approval and the magic-login confirm interstitial refuse to compile (`CsrfProtectionPass`) and to act (`Form\FormCsrf`) without the form CSRF extension; `symfony/security-csrf` is now required.
 
 ### Added
 
+- Config `password_policy.min_length` (default 12) and `password_policy.not_compromised` (default false); `password_reset.code_rate_limit` (10) / `code_rate_window` (900); `social_login.link_existing_account` (`reset_password` | `deny` | `keep`).
+- `MagicLoginNotificationContext::$user` and `PasswordResetNotificationContext::$user`.
+- `Security\LoginLinkHandlerLocator` (+ `LoginLinkHandlerLocatorPass`): the login link handler of each firewall.
+- `Doctrine\PasswordResetTokenInvalidationListener` (Doctrine `onFlush`).
+- Translations `validation.identifier_email` and `validation.password_compromised` (7 locales).
 - Every controller action declares its `#[Route]` (default path and name, HTTP methods, requirements); `AuthKitRouteLoader` copies the attribute once per profile with the configured `routes.<key>.path` / `.name` and locale variants, so the generated routes are identical to 1.30.0 (REQ-SF-004).
 - `DependencyInjection\Compiler\ControllerRouteAttributesPass` removes the autoconfigured `routing.controller` tag from the AuthKit controllers, so an application importing `resource: routing.controllers` does not register un-profiled copies.
 - `Form\Extension\ConstraintMessageTranslationExtension`: AuthKit constraint messages are translated in the form translation domain (`NowoAuthKitBundle`) after validation; a key the application defines in its `validators` catalogue keeps its translation (REQ-I18N-003).
 
 ### Changed
 
+- `social_login.create_user_if_missing` defaults to `false` (was `true`).
+- `MagicLoginNotificationContext::$identifier` / `PasswordResetNotificationContext::$identifier` hold the identifier stored on the account (was the typed input) and `maskedIdentifier` is derived from it.
+- New-password minimum length 12 (was 6) unless `password_policy.min_length` says otherwise.
+- `nowo:auth-kit:configure-security` writes `login_link.signature_properties: [<identifier>, password]` and `lifetime: max(magic_login.lifetime, magic_login.admin_link.lifetime)`.
+- `SocialLoginAccount` unique constraint `uniq_auth_kit_social_account_provider_subject_class` on `provider, provider_user_id, user_class` (was `uniq_auth_kit_social_account_provider_subject` on `provider, provider_user_id`); `SocialLoginAccountRepository::findOneByProviderSubject()` takes an optional user class.
+- The registration page signs the new account in with `Security::login($user, 'form_login', <firewall>)`.
+- `QrLoginChallengeManager::verifyDesktopCookie()` takes the profile name; challenges created before the update stop completing (their 90 s lifetime makes this invisible in practice).
+- Requires `symfony/security-csrf`, `symfony/polyfill-intl-normalizer` and `symfony/polyfill-mbstring`.
 - The AuthKit form constraint messages live only in the `NowoAuthKitBundle` catalogues; `make validate-translations` fails on any catalogue outside the bundle domain (REQ-I18N-003).
 - PHPUnit fails on any deprecation (`failOnDeprecation`, `ignoreSuppressionOfDeprecations`, `restrictDeprecations="false"`): `SYMFONY_DEPRECATIONS_HELPER` is ignored by PHPUnit >= 10. Tests that exercise deprecated configuration on purpose are marked `#[IgnoreDeprecations]`; `phpunit-baseline.xml` lists the two indirect Twig deprecations raised by the UiKit `PageContractTestCase` (REQ-SF-005).
 - CI pins the transitive Symfony components (event-dispatcher, error-handler, …) to the cell minor too, so the 7.4 cells no longer run 8.x components; the test kernels set `framework.property_info.with_constructor_extractor` on Symfony 7.3/7.4.

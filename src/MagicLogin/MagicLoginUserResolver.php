@@ -7,15 +7,17 @@ namespace Nowo\AuthKitBundle\MagicLogin;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 
 /**
- * Resolves users by the configured identifier field for magic login.
+ * Resolves users by the configured identifier field (exact match after NFC + lower-casing, see UserIdentifierMatcher) for magic login.
  */
 final class MagicLoginUserResolver
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ProfileRegistry $profileRegistry,
+        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
     ) {
     }
 
@@ -25,7 +27,9 @@ final class MagicLoginUserResolver
 
         $repository = $this->entityManager->getRepository($profile->userClass);
 
-        $user = $repository->findOneBy([$profile->userIdentifierField => $identifier]);
+        // The stored identifier must equal the input (NFC, case-insensitive): an accent/case-insensitive database
+        // collation must not resolve a look-alike address to another account (SEC-004 H1).
+        $user = $this->identifierMatcher->find($repository, $profile->userIdentifierField, $identifier);
         if ($user === null) {
             return null;
         }

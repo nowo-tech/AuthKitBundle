@@ -1476,6 +1476,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         tokens_dark?: array<string, mixed>,
  *         confirm_message_in_header?: bool|Param, // Confirm dialogs and the full-page confirm render the message inside the header, under the title (hosts whose dialog header is title + message). View\Confirm::messageInHeader wins when set. // Default: false
  *         popover_menus?: bool|Param, // 2.4: menu / kebab / row-action menus render their panel as a native [popover] (browser top layer: never clipped by table scrollers or cards; nowo-ui-popover.js places it). The partial option `popover` wins. // Default: false
+ *         form_errors_after_widget?: bool|Param, // 2.10: the UiKit form theme (form/nowo_ui_layout.html.twig) prints a field's errors after its widget (and before the help), instead of Symfony's order (label, errors, widget, help). // Default: false
  *         bundles?: array<string, array{ // Default: []
  *             framework_defaults?: bool|Param, // Override of theme.framework_defaults for this bundle (unset = inherit).
  *             classes?: array<string, mixed>,
@@ -1495,6 +1496,35 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             attributes?: array<string, array<string, mixed>>,
  *             header_actions_in_filters?: bool|Param, // list only: render the page-header actions at the end of the filter row instead of the page header (ListPage::headerActionsInFilters wins when set; unset = false).
  *         }>,
+ *     },
+ *     error_pages?: array{ // Kit error pages (2.6): templates/bundles/TwigBundle/Exception/error.html.twig = {% extends '@NowoUiKit/error/status.html.twig' %}.
+ *         layout_template?: scalar|Param|null, // Document the status template extends: the kit layout, or a host template extending it (own <head> assets, brand, chat dock…). // Default: "@NowoUiKit/error/layout.html.twig"
+ *         translation_domain?: scalar|Param|null, // Domain of the page texts (e.g. messages). Keys missing there fall back to UiKit's own NowoUiKitBundle error.* texts. // Default: "NowoUiKitBundle"
+ *         translation_prefix?: scalar|Param|null, // Key prefix: <prefix>.<code>.title|lead|hint|image_alt, <prefix>.generic.*, <prefix>.home|retry|back|retry_after|auto_retry|skip_to_content. // Default: "error"
+ *         home_path?: scalar|Param|null, // Href of the "Back to home" button. // Default: "/"
+ *         illustrations?: array<string, Param|string|array{ // Default: []
+ *             path?: scalar|Param|null,
+ *             width?: int|Param, // Default: null
+ *             height?: int|Param, // Default: null
+ *             webp?: bool|Param|null, // Default: null
+ *             extension?: scalar|Param|null, // Default: null
+ *         }>,
+ *         illustration_width?: int|Param, // Default intrinsic width of the illustrations. // Default: 1024
+ *         illustration_height?: int|Param, // Default intrinsic height of the illustrations. // Default: 683
+ *         webp?: bool|Param, // Illustrations ship a .webp next to the fallback image (<source type="image/webp">). // Default: true
+ *         retry_statuses?: list<int|Param>,
+ *         back_link_statuses?: list<int|Param>,
+ *         auto_retry_seconds?: int|Param, // A 5xx on GET reloads itself after this many seconds (REQ-ERROR-001 item 10; 0 = never). Never on POST. // Default: 600
+ *         theme_storage?: scalar|Param|null, // localStorage key of the theme (data-nowo-ui-theme-storage on <html> and the toggle), e.g. the host's beacon-theme. // Default: "nowo-ui-theme"
+ *         theme_toggle?: bool|Param, // Render the light / dark toggle in the top controls. // Default: true
+ *         html_attributes?: array<string, mixed>,
+ *     },
+ *     shell?: array{ // Signed-in app shell (2.6, @NowoUiKit/shell/_open|_close|_shell|_burger.html.twig; Twig global nowo_ui_kit_shell).
+ *         kit_styles?: bool|Param, // Add the kit shell classes (nowo-ui-shell, nowo-ui-header, nowo-ui-aside…) painted by nowo-ui.css and driven by nowo-ui-shell.js. false: only the app_* slot classes (host shell CSS / JS). // Default: true
+ *         sidebar_cookie?: scalar|Param|null, // Cookie holding the desktop aside mode (e.g. beacon_sidebar), read server-side so the first paint is already collapsed / rail; null = expanded unless the template passes collapsed. // Default: null
+ *         sidebar_hidden_value?: scalar|Param|null, // Cookie value of the hidden aside. // Default: "collapsed"
+ *         sidebar_rail_value?: scalar|Param|null, // Cookie value of the icons-only rail. // Default: "rail"
+ *         sidebar_storage?: scalar|Param|null, // localStorage key of the aside mode (data-nowo-ui-sidebar-storage on the shell root; kit_styles + rail only). // Default: null
  *     },
  * }
  * @psalm-type NowoAuthKitConfig = array{
@@ -1545,6 +1575,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             enabled?: bool|Param, // When true, uses PasswordStrengthType on new-password fields if that bundle is installed. // Default: false
  *             level?: scalar|Param|null, // Policy level passed to PasswordStrengthType and PasswordStrength validator. // Default: "medium"
  *             policy_mode?: "level"|"conditions"|Param, // Default: "level"
+ *         },
+ *         password_policy?: array{ // New-password rules of registration and password reset when password_strength is off (since 1.31).
+ *             min_length?: int|Param, // Minimum length of a new password (was a fixed 6 before 1.31). // Default: 12
+ *             not_compromised?: bool|Param, // Also reject passwords found in data breaches (Symfony NotCompromisedPassword, calls the Have I Been Pwned range API). // Default: false
  *         },
  *         slide_to_confirm?: array{ // Optional integration with nowo-tech/slide-to-confirm-bundle for registration consent and QR approve.
  *             enabled?: bool|Param, // When true, uses SlideToConfirmType when that bundle is installed and a field/QR option requests it. // Default: false
@@ -1619,6 +1653,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             code_length?: int|Param, // Default: 6
  *             code_charset?: "numeric"|"alphanumeric"|Param, // Default: "numeric"
  *             max_code_attempts?: int|Param, // Failed OTP verifications before the reset credential is cleared (0 = disabled). // Default: 5
+ *             code_rate_limit?: int|Param, // Code submissions allowed per client IP and code_rate_window on the reset code page (since 1.31). // Default: 10
+ *             code_rate_window?: int|Param, // Window in seconds of code_rate_limit. // Default: 900
  *             request_rate_limit?: int|Param, // Max password-reset requests per client IP per window (0 = disabled). // Default: 5
  *             request_rate_window?: int|Param, // Seconds for request_rate_limit window. // Default: 900
  *             token_field?: scalar|Param|null, // User entity property storing the hashed reset credential. // Default: "passwordResetToken"
@@ -1640,7 +1676,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         },
  *         social_login?: array{
  *             mode?: "disabled"|"enabled"|Param, // disabled: hide social login. enabled: OAuth buttons when provider credentials exist in the database. // Default: "disabled"
- *             create_user_if_missing?: bool|Param, // When true, creates a local user from the social profile email if none exists. // Default: true
+ *             create_user_if_missing?: bool|Param, // When true, creates a local user from the social profile email if none exists, only while registration_mode allows registration. Default false since 1.31 (was true). // Default: false
+ *             link_existing_account?: "reset_password"|"deny"|"keep"|Param, // First social sign-in whose verified email matches an existing local account: reset_password (link, then replace the local password with a random one so a password set by whoever registered the address, and its sessions, stop working), deny (refuse; the user signs in locally), keep (pre-1.31: link and keep the password; only when the application verifies e-mail ownership at registration). // Default: "reset_password"
  *             require_verified_email?: bool|Param, // When true, linking or creating a local user requires the IdP to assert email_verified (or GitHub verified). // Default: true
  *             pkce?: array<string, bool|Param>,
  *         },

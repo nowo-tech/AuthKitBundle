@@ -26,14 +26,14 @@ final class QrLoginStatusController
     #[Route(path: '/login/qr/{id}/status', name: 'nowo_auth_kit_qr_login_status', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['GET'])]
     public function status(Request $request, string $id): JsonResponse
     {
-        $this->profileResolver->resolve($request);
+        $profile = $this->profileResolver->resolve($request);
 
         $challenge = $this->challengeManager->find($id);
         if (!$challenge instanceof QrLoginChallenge) {
             return new JsonResponse(['status' => 'not_found'], Response::HTTP_NOT_FOUND);
         }
 
-        if (!$this->challengeManager->verifyDesktopCookie($challenge, $request)) {
+        if (!$this->challengeManager->verifyDesktopCookie($challenge, $request, $profile->name)) {
             return new JsonResponse(['status' => 'forbidden'], Response::HTTP_FORBIDDEN);
         }
 

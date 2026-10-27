@@ -138,3 +138,6 @@ magic_login:
         submit: Continue
         back_to_login: Back to sign in
         flash_invalid: This sign-in link is invalid or has expired. Request a new one.
+validation:
+    identifier_email: 'Please enter a valid email address.'
+    password_compromised: "This password appeared in a data breach. Choose another one."

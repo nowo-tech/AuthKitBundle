@@ -37,7 +37,7 @@ final class PasswordResetTokenManagerWorkerTest extends TestCase
         ];
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -80,7 +80,7 @@ final class PasswordResetTokenManagerWorkerTest extends TestCase
         $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);

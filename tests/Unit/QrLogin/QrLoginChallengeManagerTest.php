@@ -107,6 +107,24 @@ final class QrLoginChallengeManagerTest extends TestCase
         self::assertTrue($this->manager->verifyDesktopCookie($result['challenge'], $checkRequest));
     }
 
+    /** SEC-004 L2: the desktop cookie only completes the challenge through the profile that created it. */
+    public function testDesktopCookieIsBoundToTheCreatingProfile(): void
+    {
+        $registry = ProfileRegistryFactory::fromProfiles([
+            'default' => ProfileRegistryFactory::defaultProfileConfig(TestUser::class),
+            'admin'   => ProfileRegistryFactory::defaultProfileConfig(TestUser::class),
+        ]);
+        $manager = new QrLoginChallengeManager($this->repository, $registry, $this->dispatcher, 'test_kernel_secret_for_hmac');
+        $this->repository->method('save');
+        $this->dispatcher->method('dispatch');
+
+        $result       = $manager->create(Request::create('/login/qr'), 'default');
+        $checkRequest = Request::create('/status', 'GET', [], [QrLoginChallengeManager::DESKTOP_COOKIE_NAME => $result['cookie_value']]);
+
+        self::assertTrue($manager->verifyDesktopCookie($result['challenge'], $checkRequest, 'default'));
+        self::assertFalse($manager->verifyDesktopCookie($result['challenge'], $checkRequest, 'admin'));
+    }
+
     public function testVerifyDesktopCookieInvalid(): void
     {
         $this->repository->method('save');

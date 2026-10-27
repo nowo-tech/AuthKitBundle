@@ -19,23 +19,40 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Area | Risk | Mitigation |
 | --- | --- | --- |
 | Login form | CSRF, credential stuffing | Symfony `form_login` with CSRF; **require** `nowo-tech/login-throttle-bundle` + `nowo:login-throttle:configure-security` in production |
-| Registration | Mass signup, privilege escalation, session fixation | `registration_mode`; configurable `registration_role`; session ID migrated after auto-login |
-| Password storage | Weak hashing | Uses `UserPasswordHasherInterface` |
-| Password reset / magic login | Token leakage, enumeration, OTP brute-force | Tokens stored hashed; uniform UX messages; built-in request rate limits + OTP `max_code_attempts` lockout; prefer `link` delivery |
+| Registration | Mass signup, privilege escalation, session fixation, pre-registration of someone else's address | `registration_mode`; `registration_rate_*`; race check for `first_user_only`; configurable `registration_role`; auto-login through `Security::login()` (user checker, `LoginSuccessEvent`, session strategy) since 1.31; a later social link resets the local password (`social_login.link_existing_account`) |
+| Identifier lookup | Accent/case-insensitive database collations (`utf8mb4_0900_ai_ci`, `*_unicode_ci`) resolve a look-alike address (`victim@exámple.com`, an IDN the attacker owns) to the victim | Since 1.31 every anonymous lookup (reset, magic login, social e-mail match, QR completion) accepts only an account whose **stored** identifier equals the input after NFC normalisation and lower-casing (`UserIdentifierMatcher`); e-mail identifiers must be plain ASCII addresses on the request forms |
+| Notifiers | A notifier mailing the typed address sends the victim's link to the attacker | Since 1.31 `identifier` in `MagicLoginNotificationContext` / `PasswordResetNotificationContext` is the identifier **stored** on the account, and `user` carries the account. **Send only to it** (or to a channel read from `user`), never to request input |
+| Password storage | Weak hashing, weak passwords | `UserPasswordHasherInterface`; `password_policy.min_length` (12 by default since 1.31) and optional `password_policy.not_compromised` |
+| Password reset / magic login | Token leakage, enumeration, OTP brute-force | Tokens stored hashed; uniform UX messages; request rate limits; OTP `max_code_attempts` per **account** (spelling variants share it, 1.31) plus `code_rate_limit` per client IP; a pending credential is cleared when the identifier or password changes outside the reset flow; prefer `link` delivery |
+| Magic link lifetime / replay | Used admin links replayed after the firewall forgets them; links valid after a password change | `configure-security` writes `login_link.lifetime = max(magic_login.lifetime, magic_login.admin_link.lifetime)` and `signature_properties: [<identifier>, password]` (1.31); links are signed and consumed by the login link handler of the **profile's firewall** |
 | Mailed / QR links | Password-reset poisoning: forged `Host` header puts an attacker origin in the victim's reset / magic link | `absolute_url.base_uri` (1.24+) builds out-of-band links from a fixed origin; otherwise configure `framework.trusted_hosts` |
-| Social login | Account takeover via unverified email; SSRF via custom IdP URLs | `require_verified_email` (default true); HTTPS + public-host checks on custom endpoints |
-| Registration | Mass signup, privilege escalation, session fixation | `registration_mode`; `registration_rate_*`; race check for `first_user_only`; configurable `registration_role`; session ID migrated after auto-login |
-| Logout | CSRF | `logout.enable_csrf: true` from `configure-security`; embed link includes CSRF token |
+| Redirects | A request locale from input turning `/{_locale}/login` into `//evil.example/login` | Generated paths only use locales from `locale.enabled` (1.31); the bare-URL redirect only follows same-origin paths |
+| Social login | Account takeover via unverified or look-alike e-mail; sign-up while registration is closed; cross-profile identity; SSRF via custom IdP URLs | `require_verified_email` (default true); exact stored-identifier match; `create_user_if_missing` default **false** and gated by `registration_mode` (1.31); links scoped per user class (unique `provider + subject + user_class`, 1.31); HTTPS + public-host checks on custom endpoints |
+| QR login | CSRF approval by a signed-in phone; completing a challenge through another profile | QR approve always uses form CSRF and the container refuses to compile without it (1.31); the desktop cookie is bound to the creating profile and the approving account must be of the profile's user class |
+| Logout | CSRF | `logout.enable_csrf: true` from `configure-security`; embed link includes CSRF token (or POST form) |
 | Templates | XSS | Twig auto-escaping; apps must not disable escaping in overrides |
 | Slide to confirm (optional) | Crafted POST can still send `confirm=1` | UX only — CSRF, authn, QR step-up, and business rules remain mandatory |
 | Device intelligence (optional) | Treating Device ID as a login secret; blocking login on `isNew()`; auto-trust | Device ID is **not** a credential. LoginThrottle/CSRF/remember-me unchanged. AuthKit never auto-`trust()`. QR trusted-device step-up is opt-in |
 | OTP input (optional) | Treating the multi-box widget as verification | UX only — `hash_equals` and `max_code_attempts` remain mandatory |
 | Configuration | Wrong entity/field mapping | Validation in `Configuration`; documented `security.yaml` setup |
 
+### Link lifetimes
+
+| Link | Default lifetime | Setting |
+| --- | --- | --- |
+| Password reset link / code | 3600 s | `password_reset.token_ttl` |
+| Magic login (sign-in page) | 600 s | `magic_login.lifetime` |
+| Administrator-issued magic link | 3600 s | `magic_login.admin_link.lifetime` (firewall `login_link.lifetime` must be at least this) |
+| QR challenge | 90 s | `qr_login.challenge_ttl` |
+
 ## Application responsibilities
 
-- Configure `security.yaml` (firewall, provider, `access_control`); re-run `configure-security` after enabling social login
+- Configure `security.yaml` (firewall, provider, `access_control`); re-run `configure-security` after enabling social login or magic login
 - **Require** `nowo-tech/login-throttle-bundle` and run `nowo:login-throttle:configure-security` so login forms are throttled in production
+- **Notifiers:** deliver links and codes only to `$context->identifier` (the stored identifier) or to a channel read from `$context->user`; never to a value taken from the request
+- Keep `framework.csrf_protection` and `framework.form.csrf_protection` enabled (QR login and the magic-login confirm interstitial refuse to run without them)
+- Social login: keep `create_user_if_missing: false` unless public sign-up is intended; keep `link_existing_account: reset_password` (or `deny`) unless the application verifies e-mail ownership at registration; run the 1.31 schema change (see UPGRADING) when several profiles use social login
+- Deliver mails asynchronously (Symfony Messenger) so the request step does not reveal through its timing whether an account exists; do not show the `throttled` flag of `PasswordResetCheckEmail` in a way that differs from the normal answer
 - Protect admin routes with appropriate roles
 - Provide a working Symfony `cache.app` pool (used by Auth Kit attempt limiter and Login Throttle when storage is `cache`)
 - Set `nowo_auth_kit.absolute_url.base_uri` (e.g. `%env(DEFAULT_URI)%`) or `framework.trusted_hosts` in production so mailed links cannot be poisoned through the `Host` header
@@ -43,7 +60,7 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 - Do not alias `LoggingPasswordResetNotifier` / `LoggingMagicLoginNotifier` in production (even redacted, they are sample/dev helpers)
 - Run `composer audit` in the application
 - Do not commit `.env` or secrets
-- **Residual:** OAuth `client_secret` and linked account tokens are stored in cleartext in the DB — encrypt at rest (app/DB) if required by your threat model
+- **At rest:** OAuth `client_secret` (`SocialLoginCredential`) and linked account access / refresh tokens (`SocialLoginAccount`) are encrypted with `#[Encrypted]` (nowo-tech/doctrine-encrypt-bundle; configure its key). The provider `raw_profile`, e-mail and display name of a linked account are stored in cleartext
 
 ## Logging
 
@@ -52,8 +69,10 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 ## Bundle responsibilities
 
 - Hash passwords on registration and password reset completion
-- Use Symfony form CSRF defaults on login forms; logout CSRF when configured via CLI / demo
-- Migrate the session after registration auto-login
+- Use Symfony form CSRF defaults on login forms; logout CSRF when configured via CLI / demo; refuse to compile (`CsrfProtectionPass`) and refuse to act (`FormCsrf`) when QR approval or the magic-login confirm interstitial would run without form CSRF
+- Sign the new account in through `Security::login()` after registration (session migrated by the firewall strategy)
+- Resolve anonymous identifiers by exact stored value (`UserIdentifierMatcher`) and hand notifiers the stored identifier and the account
+- Clear a pending reset credential when the identifier or password changes outside the reset flow (`PasswordResetTokenInvalidationListener`)
 - Compare reset OTP hashes with `hash_equals`; clear reset credentials after too many failed OTP attempts
 - Rate-limit password-reset / magic-login / registration requests via `AuthKitAttemptLimiter` (`cache.app`; serialized per key with `symfony/lock` when `lock.factory` exists, best-effort otherwise)
 - Social login: one-time OAuth `state` plus PKCE (`S256`) by default for built-in providers (`social_login.pkce`)
@@ -99,7 +118,7 @@ See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.
 
 ## Release security checklist (12.4.1)
 
-Last completed for **v1.21.0** (2026-09-24). Re-run before the next tag.
+Last recorded run: **v1.21.0** (2026-09-24). Re-run it before the next tag (the 1.31 hardening changes behaviour: see the threat model above and UPGRADING).
 
 Before each release, confirm:
 

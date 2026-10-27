@@ -9,10 +9,12 @@ use Nowo\AuthKitBundle\Controller\ResetPasswordCodeController;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
@@ -81,6 +83,52 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
         );
 
         self::assertSame('<html>error</html>', $controller->complete(new Request())->getContent());
+    }
+
+    /** SEC-004 M3: a client IP over code_rate_limit gets the invalid-code answer without any code check. */
+    public function testCodeSubmissionsAreLimitedPerClientIp(): void
+    {
+        $tokenManager = $this->createMock(PasswordResetTokenManagerInterface::class);
+        $tokenManager->expects(self::exactly(2))->method('resolveUserByIdentifierAndCode')->willReturn(null);
+
+        $codeField = $this->createMock(FormInterface::class);
+        $codeField->expects(self::exactly(3))->method('addError');
+        $form = $this->createMock(FormInterface::class);
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('getData')->willReturn(['identifier' => 'user@example.com', 'code' => '000000', 'password' => 'secret12']);
+        $form->method('get')->with('code')->willReturn($codeField);
+        $form->method('createView')->willReturn(new FormView());
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $twig = $this->createMock(Environment::class);
+        $twig->method('render')->willReturn('<html>error</html>');
+
+        $config          = ['password_reset' => ['mode' => 'enabled', 'code_rate_limit' => 2, 'code_rate_window' => 900]];
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, $config);
+        $controller      = new ResetPasswordCodeController(
+            $twig,
+            $formFactory,
+            new PasswordResetGate($profileRegistry),
+            $tokenManager,
+            new PasswordResetCompleter(
+                $this->createMock(EntityManagerInterface::class),
+                $this->createMock(UserPasswordHasherInterface::class),
+                new PropertyAccessor(),
+                $tokenManager,
+                $profileRegistry,
+            ),
+            new TokenStorage(),
+            AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $config),
+            attemptLimiter: new AuthKitAttemptLimiter(new ArrayAdapter()),
+        );
+
+        foreach ([1, 2, 3] as $attempt) {
+            $request = Request::create('/reset-password/complete', 'POST', server: ['REMOTE_ADDR' => '203.0.113.9']);
+            self::assertSame('<html>error</html>', $controller->complete($request)->getContent(), (string) $attempt);
+        }
     }
 
     public function testCompletesWhenCodeIsValid(): void

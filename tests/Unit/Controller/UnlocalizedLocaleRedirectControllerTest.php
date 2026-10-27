@@ -48,6 +48,18 @@ final class UnlocalizedLocaleRedirectControllerTest extends TestCase
             ->redirect(Request::create('/login'));
     }
 
+    /** SEC-004 L3: never redirect to another origin. */
+    public function testRefusesAProtocolRelativeTarget(): void
+    {
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('//evil.example/login');
+        $request = Request::create('/login');
+        $request->attributes->set('_auth_kit_canonical_route', 'nowo_auth_kit_login');
+
+        $this->expectException(NotFoundHttpException::class);
+        (new UnlocalizedLocaleRedirectController(AuthKitTestUrlGenerator::fromMock($inner)))->redirect($request);
+    }
+
     public function testIgnoresNonArrayRouteParams(): void
     {
         $inner = $this->createMock(UrlGeneratorInterface::class);

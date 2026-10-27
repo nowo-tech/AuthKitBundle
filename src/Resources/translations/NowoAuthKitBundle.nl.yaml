@@ -140,3 +140,6 @@ magic_login:
         submit: Doorgaan
         back_to_login: Terug naar inloggen
         flash_invalid: Deze inloglink is ongeldig of verlopen. Vraag een nieuwe aan.
+validation:
+    identifier_email: 'Voer een geldig e-mailadres in.'
+    password_compromised: "Dit wachtwoord komt voor in een datalek. Kies een ander wachtwoord."

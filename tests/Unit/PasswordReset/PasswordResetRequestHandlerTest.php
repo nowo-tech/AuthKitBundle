@@ -39,7 +39,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
     public function testHandleDoesNothingWhenUserMissing(): void
     {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(null);
+        $repository->method('findBy')->willReturn([]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -57,7 +57,8 @@ final class PasswordResetRequestHandlerTest extends TestCase
 
     public function testHandleCreatesTokenAndNotifiesForLinkDelivery(): void
     {
-        $user   = new TestUser();
+        $user = new TestUser();
+        $user->setEmail('user@example.com');
         $result = new PasswordResetTokenResult(
             $user,
             'token',
@@ -66,7 +67,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         );
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -114,7 +115,8 @@ final class PasswordResetRequestHandlerTest extends TestCase
 
     public function testHandleMasksIdentifier(): void
     {
-        $user   = new TestUser();
+        $user = new TestUser();
+        $user->setEmail('user@example.com');
         $result = new PasswordResetTokenResult(
             $user,
             '123456',
@@ -123,7 +125,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         );
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -162,7 +164,8 @@ final class PasswordResetRequestHandlerTest extends TestCase
 
     public function testHandleMasksShortUsername(): void
     {
-        $user   = new TestUser();
+        $user = new TestUser();
+        $user->setEmail('ab');
         $result = new PasswordResetTokenResult(
             $user,
             '123456',
@@ -171,7 +174,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         );
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -210,7 +213,8 @@ final class PasswordResetRequestHandlerTest extends TestCase
 
     public function testHandleMasksLongUsername(): void
     {
-        $user   = new TestUser();
+        $user = new TestUser();
+        $user->setEmail('username');
         $result = new PasswordResetTokenResult(
             $user,
             '123456',
@@ -219,7 +223,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         );
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -269,7 +273,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         ]);
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(null);
+        $repository->method('findBy')->willReturn([]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
@@ -291,9 +295,10 @@ final class PasswordResetRequestHandlerTest extends TestCase
 
     public function testThrottledTokenManagerYieldsAThrottledOutcomeWithoutNotifying(): void
     {
-        $user       = new TestUser();
+        $user = new TestUser();
+        $user->setEmail('user@example.com');
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
@@ -325,7 +330,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
     public function testUnknownIdentifierAndRateLimitAreReportedAsAccepted(): void
     {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(null);
+        $repository->method('findBy')->willReturn([]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
@@ -373,7 +378,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $result = new PasswordResetTokenResult($user, 'token', new DateTimeImmutable('+1 hour'), PasswordResetDeliveryMode::Link);
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 
@@ -434,7 +439,7 @@ final class PasswordResetRequestHandlerTest extends TestCase
         $result = new PasswordResetTokenResult($user, '123456', new DateTimeImmutable('+1 hour'), PasswordResetDeliveryMode::Code);
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 

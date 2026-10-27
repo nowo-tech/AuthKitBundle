@@ -84,7 +84,7 @@ final class PasswordResetTokenManagerTest extends TestCase
         $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->with(['email' => 'user@example.com'])->willReturn($user);
+        $repository->method('findBy')->with(['email' => 'user@example.com'])->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->with(TestUser::class)->willReturn($repository);
@@ -161,7 +161,7 @@ final class PasswordResetTokenManagerTest extends TestCase
         $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -185,7 +185,7 @@ final class PasswordResetTokenManagerTest extends TestCase
     public function testResolveByCodeReturnsNullWhenUserNotFound(): void
     {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn(null);
+        $repository->method('findBy')->willReturn([]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -247,7 +247,7 @@ final class PasswordResetTokenManagerTest extends TestCase
         $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->with(['email' => 'user@example.com'])->willReturn($user);
+        $repository->method('findBy')->with(['email' => 'user@example.com'])->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -276,7 +276,7 @@ final class PasswordResetTokenManagerTest extends TestCase
         $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->with(['email' => 'user@example.com'])->willReturn($user);
+        $repository->method('findBy')->with(['email' => 'user@example.com'])->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -295,6 +295,42 @@ final class PasswordResetTokenManagerTest extends TestCase
         );
 
         self::assertNull($manager->resolveUserByIdentifierAndCode('user@example.com', '000000'));
+    }
+
+    /**
+     * SEC-004 M3: spelling variants of one identifier (case, Unicode composition) that resolve to the same account
+     * share one max_code_attempts budget, so they cannot be rotated to brute-force the code.
+     */
+    public function testCodeAttemptBudgetIsSharedBySpellingVariants(): void
+    {
+        $user = new TestUser("jos\u{00E9}@example.com");
+        $user->setPasswordResetToken(hash('sha256', '123456'));
+        $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
+
+        $repository = $this->createMock(EntityRepository::class);
+        $repository->method('findBy')->willReturn([$user]);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($repository);
+
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'password_reset' => ['delivery' => 'code', 'max_code_attempts' => 3],
+        ]);
+        $manager = new PasswordResetTokenManager(
+            $entityManager,
+            new PropertyAccessor(),
+            new PasswordResetUserResolver($entityManager, $registry),
+            $registry,
+            new NativeClock(),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+        );
+
+        foreach (["jos\u{00E9}@example.com", "JOSE\u{0301}@example.com", "Jos\u{00C9}@EXAMPLE.com"] as $variant) {
+            self::assertNull($manager->resolveUserByIdentifierAndCode($variant, '000000'));
+        }
+
+        // The shared budget is exhausted: the credential was cleared, even the right code no longer works.
+        self::assertNull($user->getPasswordResetToken());
+        self::assertNull($manager->resolveUserByIdentifierAndCode("jos\u{00E9}@example.com", '123456'));
     }
 
     public function testCreateForUserThrowsWhenProfileMissing(): void
@@ -345,7 +381,7 @@ final class PasswordResetTokenManagerTest extends TestCase
         $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -370,7 +406,7 @@ final class PasswordResetTokenManagerTest extends TestCase
         $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -410,7 +446,7 @@ final class PasswordResetTokenManagerTest extends TestCase
         $user->setPasswordResetExpiresAt(new DateTimeImmutable('-1 hour'));
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);

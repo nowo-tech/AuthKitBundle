@@ -12,11 +12,14 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\User\UserInterface;
+
+use function is_a;
 
 /**
  * Completes the QR login: authenticates the desktop user after approval.
@@ -30,6 +33,7 @@ final class QrLoginCompleteController
         private readonly Security $security,
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RequestProfileResolver $profileResolver,
+        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
     ) {
     }
 
@@ -47,7 +51,7 @@ final class QrLoginCompleteController
             return $this->redirectToLogin($profile->routes['login']['name']);
         }
 
-        if (!$this->challengeManager->verifyDesktopCookie($challenge, $request)) {
+        if (!$this->challengeManager->verifyDesktopCookie($challenge, $request, $profile->name)) {
             return $this->redirectToLogin($profile->routes['login']['name']);
         }
 
@@ -66,13 +70,17 @@ final class QrLoginCompleteController
 
         $userClass = $challenge->getUserClass();
         $userId    = $challenge->getUserId();
-        if ($userClass === null || $userId === null) {
+        // SEC-004 L2: the approving account must belong to this profile's user class.
+        if ($userClass === null || $userId === null || !is_a($userClass, $profile->userClass, true)) {
             return $this->redirectToLogin($profile->routes['login']['name']);
         }
 
-        /** @var class-string $userClass */
-        $repository = $this->entityManager->getRepository($userClass);
-        $user       = $repository->findOneBy([$profile->userIdentifierField => $userId]);
+        // Exact stored identifier (no collation look-alike), looked up in the profile's user class.
+        $user = $this->identifierMatcher->find(
+            $this->entityManager->getRepository($profile->userClass),
+            $profile->userIdentifierField,
+            $userId,
+        );
 
         if (!$user instanceof UserInterface) {
             return $this->redirectToLogin($profile->routes['login']['name']);

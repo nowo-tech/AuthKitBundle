@@ -180,6 +180,26 @@ final class ConfigureSecurityCommandTest extends TestCase
         self::assertGreaterThanOrEqual(5, count($security['security']['access_control']));
     }
 
+    /**
+     * SEC-004 L1: the firewall lifetime covers administrator-issued links (Symfony remembers used links only for
+     * its own lifetime) and the password hash is signed, so a password change voids pending links.
+     */
+    public function testLoginLinkLifetimeCoversAdminLinks(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+
+        $tester = new CommandTester($this->createCommand('disabled', magicLoginMode: 'enabled', adminLinkLifetime: 3600));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame(3600, $security['security']['firewalls']['main']['login_link']['lifetime']);
+        self::assertContains('password', $security['security']['firewalls']['main']['login_link']['signature_properties']);
+    }
+
     public function testAddsMagicLoginLinkAndAccessControlWhenEnabled(): void
     {
         $this->filesystem->dumpFile(
@@ -193,7 +213,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         /** @var array<string, mixed> $security */
         $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
         self::assertSame('nowo_auth_kit_magic_login_check', $security['security']['firewalls']['main']['login_link']['check_route']);
-        self::assertSame(['email'], $security['security']['firewalls']['main']['login_link']['signature_properties']);
+        self::assertSame(['email', 'password'], $security['security']['firewalls']['main']['login_link']['signature_properties']);
         self::assertSame(600, $security['security']['firewalls']['main']['login_link']['lifetime']);
         self::assertArrayNotHasKey('check_post_only', $security['security']['firewalls']['main']['login_link']);
         $paths = array_column($security['security']['access_control'], 'path');
@@ -395,6 +415,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         string $socialLoginMode = 'disabled',
         bool $magicLoginConfirmInterstitial = false,
         bool $useCwdAsProjectDir = false,
+        ?int $adminLinkLifetime = null,
     ): ConfigureSecurityCommand {
         return new ConfigureSecurityCommand(
             $useCwdAsProjectDir ? null : ($projectDir ?? $this->testDir),
@@ -420,6 +441,7 @@ final class ConfigureSecurityCommandTest extends TestCase
                 'lifetime'             => 600,
                 'max_uses'             => 1,
                 'confirm_interstitial' => $magicLoginConfirmInterstitial,
+                ...($adminLinkLifetime !== null ? ['admin_link' => ['lifetime' => $adminLinkLifetime]] : []),
             ],
             $socialLoginMode,
         );

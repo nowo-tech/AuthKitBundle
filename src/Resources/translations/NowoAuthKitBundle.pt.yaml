@@ -140,3 +140,6 @@ magic_login:
         submit: Continuar
         back_to_login: Voltar ao início de sessão
         flash_invalid: Este link de acesso é inválido ou expirou. Solicite um novo.
+validation:
+    identifier_email: 'Introduza um endereço de e-mail válido.'
+    password_compromised: "Esta palavra-passe consta de uma fuga de dados. Escolha outra."

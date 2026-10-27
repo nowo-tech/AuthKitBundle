@@ -56,8 +56,8 @@ security:
         main:
             login_link:
                 check_route: nowo_auth_kit_magic_login_check
-                signature_properties: [email]  # required; properties that invalidate links when changed
-                lifetime: 600
+                signature_properties: [email, password]  # required; a change of these voids pending links
+                lifetime: 3600                 # >= magic_login.lifetime and magic_login.admin_link.lifetime
                 max_uses: 1
                 check_post_only: true          # pair with magic_login.confirm_interstitial: true
                 default_target_path: homepage   # optional
@@ -65,7 +65,7 @@ security:
 
 Keep `magic_login_check` (and `magic_login_confirm` when using the interstitial) as **public** `access_control` paths.
 
-`signature_properties` is **required** by Symfony (typically your user identifier field, e.g. `email`). `nowo:auth-kit:configure-security` writes it from `user_identifier_field`. When `magic_login.confirm_interstitial` is `true`, the command also sets `check_post_only: true`.
+`signature_properties` is **required** by Symfony. Since 1.31 `nowo:auth-kit:configure-security` writes `[<user_identifier_field>, password]` (a password change voids pending links) and `lifetime: max(magic_login.lifetime, magic_login.admin_link.lifetime)`. Each firewall serving a profile with magic login needs its own `login_link`: links are signed and consumed by the handler of the profile's firewall. When `magic_login.confirm_interstitial` is `true`, the command also sets `check_post_only: true`.
 
 ## Delivery (`MagicLoginNotifierInterface`)
 
@@ -77,6 +77,8 @@ final class AppMagicLoginNotifier implements MagicLoginNotifierInterface
 {
     public function notify(MagicLoginNotificationContext $context): void
     {
+        // Send ONLY to $context->identifier (the identifier STORED on the account, 1.31+) or to an address read from
+        // $context->user — never to a value taken from the request (SEC-004 H1).
         // $context->loginUrl — absolute signed URL
         // $context->expiresAt
         // $context->maskedIdentifier
@@ -115,8 +117,8 @@ $issuer->canIssue($admin, $member);                   // hide the action when fa
   `login_link`).
 - **Lifetime** `magic_login.admin_link.lifetime` (default 3600 s). **Set the firewall `login_link.lifetime` to at least
   this value**: Symfony remembers a used link only for its own `lifetime`, so a shorter firewall lifetime lets a used
-  admin link be replayed until the link expires. Add `password` to `signature_properties` so a password change voids
-  pending links.
+  admin link be replayed until the link expires (`configure-security` does this since 1.31). `password` in
+  `signature_properties` makes a password change void pending links.
 - **Audit:** every link dispatches `AdminMagicLinkIssuedEvent` (`issuer`, `target`, `delivery` `shown` | `email`,
   `expiresAt`; never the URL). Rate-limit the action in the host (e.g. per administrator).
 

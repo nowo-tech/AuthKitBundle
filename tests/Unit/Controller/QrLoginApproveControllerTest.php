@@ -22,6 +22,7 @@ use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Form\FormConfigInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
@@ -74,10 +75,20 @@ final class QrLoginApproveControllerTest extends TestCase
         return $challenge;
     }
 
+    private function csrfConfig(bool $csrf = true): FormConfigInterface
+    {
+        $config = $this->createMock(FormConfigInterface::class);
+        $config->method('getOption')->willReturnCallback(static fn (string $name, mixed $default = null): mixed => $name === 'csrf_protection' ? true : $default);
+        $config->method('hasOption')->willReturnCallback(static fn (string $name): bool => $name === 'csrf_token_manager' && $csrf);
+
+        return $config;
+    }
+
     private function validFormFactory(): FormFactoryInterface
     {
         $formView = $this->createMock(FormView::class);
         $form     = $this->createMock(FormInterface::class);
+        $form->method('getConfig')->willReturn($this->csrfConfig());
         $form->method('handleRequest');
         $form->method('isSubmitted')->willReturn(true);
         $form->method('isValid')->willReturn(true);
@@ -280,6 +291,27 @@ final class QrLoginApproveControllerTest extends TestCase
         self::assertSame(QrLoginChallengeStatus::Pending, $challenge->getStatus());
     }
 
+    /** SEC-004 P2: without the form CSRF extension the approval fails closed. */
+    public function testPostWithoutCsrfProtectionIsRefused(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->challenge());
+        $manager->method('isExpiredOrInvalid')->willReturn(false);
+        $manager->method('verifyApproveToken')->willReturn(true);
+        $manager->expects(self::never())->method('approve');
+
+        $form = $this->createMock(FormInterface::class);
+        $form->method('getConfig')->willReturn($this->csrfConfig(false));
+        $form->expects(self::never())->method('handleRequest');
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $response = $this->controller($manager, $this->overrides(), $this->authenticatedStorage(), formFactory: $formFactory)
+            ->approve(Request::create('/approve', 'POST', ['t' => 'good-token']), 'approve-id');
+
+        self::assertSame(Response::HTTP_FORBIDDEN, $response->getStatusCode());
+    }
+
     public function testPostStepUpFailure(): void
     {
         $manager = $this->createMock(QrLoginChallengeManager::class);
@@ -314,6 +346,7 @@ final class QrLoginApproveControllerTest extends TestCase
 
         $formView = $this->createMock(FormView::class);
         $form     = $this->createMock(FormInterface::class);
+        $form->method('getConfig')->willReturn($this->csrfConfig());
         $form->method('createView')->willReturn($formView);
 
         $formFactory = $this->createMock(FormFactoryInterface::class);
@@ -357,6 +390,7 @@ final class QrLoginApproveControllerTest extends TestCase
 
         $formView = $this->createMock(FormView::class);
         $form     = $this->createMock(FormInterface::class);
+        $form->method('getConfig')->willReturn($this->csrfConfig());
         $form->method('handleRequest');
         $form->method('isSubmitted')->willReturn(true);
         $form->method('isValid')->willReturn(false);
@@ -392,6 +426,8 @@ final class QrLoginApproveControllerTest extends TestCase
         $manager->expects(self::once())->method('approve');
 
         $form = $this->createMock(FormInterface::class);
+
+        $form->method('getConfig')->willReturn($this->csrfConfig());
         $form->method('handleRequest');
         $form->method('isSubmitted')->willReturn(true);
         $form->method('isValid')->willReturn(true);

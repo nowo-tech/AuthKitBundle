@@ -45,7 +45,7 @@ final class ResetPasswordRequestControllerCoverageTest extends TestCase
     {
         $user       = new TestUser();
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
@@ -108,9 +108,10 @@ final class ResetPasswordRequestControllerCoverageTest extends TestCase
 
     public function testAfterRequestRouteStoresTheCheckEmailPayload(): void
     {
-        $user       = new TestUser();
+        $user = new TestUser();
+        $user->setEmail('user@example.com');
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($user);
+        $repository->method('findBy')->willReturn([$user]);
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
 

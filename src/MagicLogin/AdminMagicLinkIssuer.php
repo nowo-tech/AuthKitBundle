@@ -6,7 +6,9 @@ namespace Nowo\AuthKitBundle\MagicLogin;
 
 use DateTimeImmutable;
 use Nowo\AuthKitBundle\Locale\RecipientLocale;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
+use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkDetails;
@@ -42,6 +44,8 @@ final class AdminMagicLinkIssuer
         private readonly ?AbsoluteUrlGenerator $absoluteUrlGenerator = null,
         private readonly int $lifetime = self::DEFAULT_LIFETIME,
         private readonly array $protectedRoles = ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN'],
+        private readonly ?LoginLinkHandlerLocator $loginLinkHandlers = null,
+        private readonly ?ProfileRegistry $profileRegistry = null,
     ) {
     }
 
@@ -84,6 +88,7 @@ final class AdminMagicLinkIssuer
             loginUrl: $link->getUrl(),
             expiresAt: $expires,
             recipientLocale: $locale,
+            user: $target,
         );
         $this->recipientLocale->run($locale, $this->notifier->notify(...), $context);
         $this->dispatch(new AdminMagicLinkIssuedEvent($issuer, $target, AdminMagicLinkIssuedEvent::DELIVERY_EMAIL, $expires));
@@ -97,17 +102,30 @@ final class AdminMagicLinkIssuer
         if ($refusal !== null) {
             throw new AdminMagicLinkRefusedException($refusal);
         }
-        if (!$this->loginLinkHandler instanceof LoginLinkHandlerInterface) {
+        $loginLinkHandler = $this->handlerFor($target);
+        if (!$loginLinkHandler instanceof LoginLinkHandlerInterface) {
             throw new AdminMagicLinkRefusedException(AdminMagicLinkRefusedException::NOT_CONFIGURED);
         }
 
         return (new MagicLinkFactory($this->absoluteUrlGenerator))->create(
-            $this->loginLinkHandler,
+            $loginLinkHandler,
             $target,
             $this->requestStack->getCurrentRequest(),
             $locale,
             $this->lifetime,
         );
+    }
+
+    /** SEC-004 L2: the login link handler of the firewall of the target's profile. */
+    private function handlerFor(UserInterface $target): ?LoginLinkHandlerInterface
+    {
+        if (!$this->loginLinkHandlers instanceof LoginLinkHandlerLocator) {
+            return $this->loginLinkHandler;
+        }
+
+        $firewall = $this->profileRegistry?->resolveForObject($target)?->firewall;
+
+        return $firewall !== null ? $this->loginLinkHandlers->get($firewall) : null;
     }
 
     private function refusal(UserInterface $issuer, UserInterface $target): ?string

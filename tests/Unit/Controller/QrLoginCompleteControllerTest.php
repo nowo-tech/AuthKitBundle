@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
+use Nowo\AuthKitBundle\Tests\Stub\RoleWritableUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
@@ -197,7 +198,7 @@ final class QrLoginCompleteControllerTest extends TestCase
         $manager->method('verifyDesktopBinding')->willReturn(true);
 
         $repo = $this->createMock(EntityRepository::class);
-        $repo->method('findOneBy')->willReturn(null);
+        $repo->method('findBy')->willReturn([]);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repo);
 
@@ -217,7 +218,7 @@ final class QrLoginCompleteControllerTest extends TestCase
         $manager->expects(self::once())->method('consume')->with($challenge, $user, 'default');
 
         $repo = $this->createMock(EntityRepository::class);
-        $repo->method('findOneBy')->willReturn($user);
+        $repo->method('findBy')->willReturn([$user]);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repo);
 
@@ -241,6 +242,23 @@ final class QrLoginCompleteControllerTest extends TestCase
         self::assertSame('/dashboard', $response->headers->get('Location'));
     }
 
+    /** SEC-004 L2: a challenge approved by an account of another profile's user class never logs in here. */
+    public function testRefusesAnApprovalByAnotherUserClass(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->approvedChallenge(RoleWritableUser::class));
+        $manager->method('verifyDesktopCookie')->willReturn(true);
+        $manager->method('verifyDesktopBinding')->willReturn(true);
+        $manager->expects(self::never())->method('consume');
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('getRepository');
+        $security = $this->createMock(Security::class);
+        $security->expects(self::never())->method('login');
+
+        self::assertSame('/login', $this->controller($manager, $em, $security)->complete(new Request(), 'complete-id')->headers->get('Location'));
+    }
+
     public function testDoesNotLogInWhenChallengeWasAlreadyConsumed(): void
     {
         $user = new TestUser();
@@ -255,7 +273,7 @@ final class QrLoginCompleteControllerTest extends TestCase
         );
 
         $repo = $this->createMock(EntityRepository::class);
-        $repo->method('findOneBy')->willReturn($user);
+        $repo->method('findBy')->willReturn([$user]);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repo);
 

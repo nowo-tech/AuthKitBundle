@@ -19,19 +19,36 @@ class SocialLoginAccountRepository extends ServiceEntityRepository
         parent::__construct($registry, SocialLoginAccount::class);
     }
 
-    public function findOneByProviderSubject(string $provider, string $providerUserId): ?SocialLoginAccount
+    /**
+     * The account linked to this provider subject, scoped to `$userClass` when given (SEC-004 H2: a subject linked to
+     * a user of one profile's class never resolves for a profile with another user class). The provider and subject
+     * must match exactly (a case- or accent-insensitive collation must not match another subject).
+     */
+    public function findOneByProviderSubject(string $provider, string $providerUserId, ?string $userClass = null): ?SocialLoginAccount
     {
-        /** @var SocialLoginAccount|null $account */
-        $account = $this->createQueryBuilder('a')
+        $builder = $this->createQueryBuilder('a')
             ->andWhere('a.provider = :provider')
             ->andWhere('a.providerUserId = :providerUserId')
             ->setParameter('provider', $provider)
             ->setParameter('providerUserId', $providerUserId)
-            ->setMaxResults(1)
-            ->getQuery()
-            ->setHint(Query::HINT_REFRESH, true)
-            ->getOneOrNullResult();
+            ->setMaxResults(10);
 
-        return $account;
+        if ($userClass !== null) {
+            $builder->andWhere('a.userClass = :userClass')->setParameter('userClass', $userClass);
+        }
+
+        /** @var list<SocialLoginAccount> $accounts */
+        $accounts = $builder->getQuery()->setHint(Query::HINT_REFRESH, true)->getResult();
+
+        foreach ($accounts as $account) {
+            if ($account->getProvider() === $provider
+                && $account->getProviderUserId() === $providerUserId
+                && ($userClass === null || $account->getUserClass() === $userClass)
+            ) {
+                return $account;
+            }
+        }
+
+        return null;
     }
 }

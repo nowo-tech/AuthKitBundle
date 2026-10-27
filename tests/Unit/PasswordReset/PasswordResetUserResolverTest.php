@@ -16,9 +16,10 @@ final class PasswordResetUserResolverTest extends TestCase
     public function testFindByIdentifier(): void
     {
         $user = new TestUser();
+        $user->setEmail('user@example.com');
 
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->with(['email' => 'user@example.com'])->willReturn($user);
+        $repository->method('findBy')->with(['email' => 'user@example.com'])->willReturn([$user]);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->with(TestUser::class)->willReturn($repository);

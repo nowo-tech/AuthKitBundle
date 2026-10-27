@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -32,6 +33,7 @@ final class PasswordResetRequestHandler
         private readonly RequestStack $requestStack,
         private readonly DeviceIntelligenceContext $deviceIntelligence = new DeviceIntelligenceContext(),
         private readonly RecipientLocale $recipientLocale = new RecipientLocale(),
+        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
     ) {
     }
 
@@ -70,6 +72,10 @@ final class PasswordResetRequestHandler
             return PasswordResetRequestOutcome::accepted();
         }
 
+        // SEC-004 H1: notifiers get the identifier stored on the account, never the typed input (the resolver only
+        // returns an account whose stored identifier is readable and equals the input).
+        $recipient = (string) $this->identifierMatcher->storedIdentifier($user, $profile->userIdentifierField);
+
         try {
             $tokenResult = $this->tokenManager->createForUser($user);
         } catch (PasswordResetThrottledException $exception) {
@@ -93,11 +99,12 @@ final class PasswordResetRequestHandler
             );
 
         $context = new PasswordResetNotificationContext(
-            identifier: $identifier,
+            identifier: $recipient,
             resetUrl: $resetUrl,
             deliveryMode: $delivery,
-            maskedIdentifier: $this->maskIdentifier($identifier),
+            maskedIdentifier: $this->maskIdentifier($recipient),
             recipientLocale: $locale,
+            user: $user,
         );
 
         $this->recipientLocale->run($locale, $this->dispatchAndNotify(...), $tokenResult, $context);

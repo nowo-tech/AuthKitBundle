@@ -14,7 +14,6 @@ use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Validator\Constraints\NotBlank;
 
 use function is_string;
 
@@ -41,7 +40,7 @@ final class ResetPasswordRequestFormType extends AbstractType
             'required'    => true,
             'help'        => false,
             'placeholder' => false,
-            'constraints' => [new NotBlank(message: 'reset.request.identifier_required')],
+            'constraints' => IdentifierConstraints::for($profile, 'reset.request.identifier_required'),
         ]);
     }
 

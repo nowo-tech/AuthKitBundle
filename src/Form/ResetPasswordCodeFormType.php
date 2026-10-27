@@ -49,7 +49,7 @@ final class ResetPasswordCodeFormType extends AbstractType
             'label'       => 'reset.code.field.identifier',
             'help'        => false,
             'placeholder' => false,
-            'constraints' => [new NotBlank(message: 'reset.code.identifier_required')],
+            'constraints' => IdentifierConstraints::for($profile, 'reset.code.identifier_required'),
         ]);
 
         $otpType         = $this->otpInputTypeResolver->resolvePasswordResetCodeType($profile->otpInput);

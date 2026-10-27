@@ -140,3 +140,6 @@ magic_login:
         submit: Continuer
         back_to_login: Retour à la connexion
         flash_invalid: Ce lien de connexion est invalide ou a expiré. Demandez-en un nouveau.
+validation:
+    identifier_email: 'Veuillez saisir une adresse e-mail valide.'
+    password_compromised: "Ce mot de passe figure dans une fuite de données. Choisissez-en un autre."

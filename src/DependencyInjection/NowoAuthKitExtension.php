@@ -63,6 +63,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.login_fields', $defaultProfile['login_fields']);
         $container->setParameter('nowo_auth_kit.remember_me', $defaultProfile['remember_me']);
         $container->setParameter('nowo_auth_kit.password_strength', $defaultProfile['password_strength']);
+        $container->setParameter('nowo_auth_kit.password_policy', $defaultProfile['password_policy']);
         $container->setParameter('nowo_auth_kit.slide_to_confirm', $defaultProfile['slide_to_confirm']);
         $container->setParameter('nowo_auth_kit.slide_to_confirm_assets', $this->anySlideToConfirmEnabled($profiles));
         $container->setParameter('nowo_auth_kit.device_intelligence', $defaultProfile['device_intelligence']);

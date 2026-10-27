@@ -140,7 +140,7 @@ final class AuthPagesKernelTest extends WebTestCase
             'reset_password_form[password][second]' => 'abc',
         ]));
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('[data-testid="auth-kit-reset_password"] form', 'Your password should be at least 6 characters.');
+        self::assertSelectorTextContains('[data-testid="auth-kit-reset_password"] form', 'Your password should be at least 12 characters.');
 
         $crawler = $this->client->submit($crawler->filter('[data-testid="auth-kit-reset_password"] form')->form([
             'reset_password_form[password][first]'  => 'new-password-456',

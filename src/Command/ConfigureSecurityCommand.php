@@ -31,7 +31,7 @@ final class ConfigureSecurityCommand extends Command
      * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
      * @param list<array{name: string, type: string, property: ?string, hash: bool, required: bool, security_name: ?string}> $loginFields
      * @param array{enabled: bool, lifetime: int, path: string} $rememberMe
-     * @param array{mode: string, lifetime: int, max_uses: int, confirm_interstitial?: bool} $magicLogin
+     * @param array{mode: string, lifetime: int, max_uses: int, confirm_interstitial?: bool, admin_link?: array{lifetime?: int}} $magicLogin
      */
     public function __construct(
         private readonly ?string $projectDir,
@@ -231,10 +231,12 @@ final class ConfigureSecurityCommand extends Command
             return;
         }
 
+        // SEC-004 L1: the password hash in the signature voids pending links on a password change, and the firewall
+        // lifetime covers administrator-issued links (Symfony remembers used links only for its own lifetime).
         $loginLink = [
             'check_route'          => $this->routes['magic_login_check']['name'],
-            'signature_properties' => [$this->userIdentifierField],
-            'lifetime'             => (int) $this->magicLogin['lifetime'],
+            'signature_properties' => [$this->userIdentifierField, 'password'],
+            'lifetime'             => max((int) $this->magicLogin['lifetime'], (int) ($this->magicLogin['admin_link']['lifetime'] ?? 0)),
             'max_uses'             => (int) $this->magicLogin['max_uses'],
         ];
 
