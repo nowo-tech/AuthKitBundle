@@ -104,15 +104,12 @@ Every inline `<script>` / `<style>` rendered by the bundle templates carries `no
 
 | Field | Value |
 | --- | --- |
-| Date | 2026-09-24 (refresh of 2026-08-24) |
-| Method | FrankenPHP worker audit (scenario B, no kernel reset) for 1.21.0 plus prior residual model — see [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md) |
-| Grade | **Pass (good)** — overall **Low** (re-audit **2026-09-28**; QR approve CSRF always on; prod `login_throttle_required`; residual OAuth secrets at rest = host) |
-| Mitigated in 1.10.0 | Unverified-email social auto-link; missing reset/magic/register rate limits; OTP lockout; custom OAuth SSRF; social `PUBLIC_ACCESS`; `first_user_only` race; magic login 500 oracle |
-| Mitigated in 1.18.0 | QR approve Form CSRF when slide-to-confirm is enabled (`QrLoginApproveType`) |
-| Mitigated in 1.19.0 | Device ID not used as a credential; no auto-trust; QR trusted-device step-up is opt-in and still runs a custom `QrLoginStepUpInterface` |
-| Mitigated in 1.20.0 | OTP input widget is UX only; `hash_equals` and `max_code_attempts` unchanged |
-| Mitigated in 1.21.0 | Stale Doctrine identity-map reads on QR/password-reset/social paths; atomic QR status transitions; closed EntityManager recovery; OAuth HTTP timeouts; embed dropdown ignores leftover tokens outside a secured firewall |
-| Open residuals | Cleartext OAuth secrets/tokens at rest (encrypt via DoctrineEncrypt); residual timing side-channels on reset/magic request; do not use logging notifiers in prod; host app still owns shared `cache.app` and optional global EM clear in worker mode; extra device-keyed rate limit can be skipped if `collect()` never runs (IP limiter still applies) |
+| Date | **2026-10-27** — first pass of `main` `78c5977` **Fail / High**; fix verification of PR #18 (`993d53d`) → **Pass (good)** for **1.31.0** (supersedes 2026-09-24 / 2026-09-28) |
+| Method | Claude Code security review (static, full `src/` + Twig/JS + config defaults + `configure-security` + docs + demo), then diff review of PR #18 with bypass analysis (NFC vs NFKC / fullwidth, Turkish İ, ß, zero-width, trailing dot / PAD SPACE, IDN vs punycode, Kelvin sign, `findBy` candidate limit, multi-profile social / QR / magic link, pre-registration, OTP variants, locale redirect, CSRF disabled) |
+| Grade | **Pass (good)** — overall **Low** |
+| Fixed in 1.31.0 | **High** H1 look-alike identifier → reset / magic link for the victim mailed to an attacker-owned IDN address (`UserIdentifierMatcher`, stored identifier + `user` in notification contexts, ASCII e-mail on request forms); **High** H2 cross-profile social sign-in (links scoped to `user_class`, new unique index, `instanceof` check); **Medium** M1 social sign-up ignored `registration_mode`, M2 pre-account takeover (`link_existing_account: reset_password`), M3 reset-code lockout bypass (per-account key + `code_rate_limit`); **Low** L1 link replay window / signature without password, L2 firewall-bound login link handler + profile-bound QR cookie, L3 locale whitelist + same-origin redirect, L5 12-character minimum + optional `NotCompromisedPassword`, L6 `Security::login()` on registration + reset credential invalidation; CSRF fails closed (`CsrfProtectionPass`, `FormCsrf`) |
+| Open residuals | Request-step timing (deliver mails asynchronously); notifiers must use `identifier` / `user` only; registration auto-login requires `form_login` on the firewall; `password_policy` read from the default profile; host-side credentials (TOTP, API tokens) survive the `reset_password` link; LoginThrottle buckets per typed username; run the 1.31 social schema change with several profiles; `raw_profile` JSON not encrypted |
+| Advisories | H1 — affected `>= 1.1.0, < 1.31.0`; H2 — affected `>= 1.9.0, < 1.31.0`; patched `1.31.0` |
 
 See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.com/nowo-tech/bundles/blob/master/BUNDLES_SECURITY_ANALYSIS.md) (AuthKitBundle entry).
 
@@ -134,7 +131,7 @@ Before each release, confirm:
 | Password hashing via Symfony hasher (no custom crypto) | ☑ |
 | Registration gate prevents unwanted signups per config | ☑ |
 | Require Login Throttle bundle + `configure-security` in INSTALLATION/recipe | ☑ |
-| AI security audit Pass (good/conditional) recorded (REQ-SEC-004) | ☑ |
+| AI security audit Pass (good/conditional) recorded (REQ-SEC-004) | ☑ Pass (good) 2026-10-27 (first pass Fail; H1/H2/M1–M3 fixed in 1.31.0) |
 
 ## Reporting
 
