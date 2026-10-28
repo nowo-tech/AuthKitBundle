@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.31.1](#to-1311)
 - [To 1.31.0](#to-1310)
   - [Security hardening (behaviour changes)](#security-hardening-behaviour-changes)
   - [Translation domain and routes](#translation-domain-and-routes)
@@ -91,6 +92,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.31.1
+
+From **1.31.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.31.0
 
