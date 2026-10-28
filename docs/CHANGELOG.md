@@ -83,6 +83,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **`password_reset.token_field` / `token_expires_field` must be property names.** `token_field` is concatenated into
+  the DQL that looks up a reset token (`PasswordResetTokenManager::findUserByStoredToken()`). The values come from
+  application config (trusted), but nothing checked them: a value with spaces or operators changed the query. Both
+  options now only accept property names or embeddable paths (`resetToken`, `security.resetToken`); anything else is
+  a configuration error.
+
 ## [1.31.0] - 2026-10-27
 
 Security release: look-alike identifier account takeover (H1), cross-profile social sign-in (H2), social sign-up/linking, reset-code lockout, link lifetimes, CSRF fail-closed; attribute routes, NowoAuthKitBundle validator domain, real deprecation gate See [UPGRADING](UPGRADING.md#to-1310).

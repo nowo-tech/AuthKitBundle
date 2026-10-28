@@ -750,6 +750,12 @@ final class Configuration implements ConfigurationInterface
         return $profile;
     }
 
+    /** Entity property / embeddable path safe to put in DQL (`passwordResetToken`, `security.resetToken`). */
+    private static function isPropertyPath(mixed $value): bool
+    {
+        return is_string($value) && preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/', $value) === 1;
+    }
+
     /**
      * Maps the deprecated per-profile templates.* keys onto web_ui.* (after the config blocks are merged; a web_ui
      * value other than the default wins) and rebuilds templates.* as a resolved legacy mirror for 1.x readers
@@ -888,10 +894,20 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->scalarNode('token_field')
                     ->info('User entity property storing the hashed reset credential.')
+                    ->validate()
+                        // token_field is concatenated into DQL (PasswordResetTokenManager::findUserByStoredToken()).
+                        ->ifTrue(static fn (mixed $value): bool => !self::isPropertyPath($value))
+                        ->thenInvalid('Invalid "password_reset.token_field" %s: use a property name (letters, digits, "_"; "." for embeddables).')
+                    ->end()
                     ->defaultValue('passwordResetToken')
                 ->end()
                 ->scalarNode('token_expires_field')
                     ->info('User entity property storing credential expiry.')
+                    ->validate()
+                        // token_field is concatenated into DQL (PasswordResetTokenManager::findUserByStoredToken()).
+                        ->ifTrue(static fn (mixed $value): bool => !self::isPropertyPath($value))
+                        ->thenInvalid('Invalid "password_reset.token_expires_field" %s: use a property name (letters, digits, "_"; "." for embeddables).')
+                    ->end()
                     ->defaultValue('passwordResetExpiresAt')
                 ->end()
                 ->scalarNode('after_request_route')

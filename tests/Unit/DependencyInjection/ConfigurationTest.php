@@ -492,4 +492,32 @@ final class ConfigurationTest extends TestCase
         ]]);
         self::assertSame(['google' => false, 'my-idp' => true], $config['profiles']['default']['social_login']['pkce']);
     }
+
+    /**
+     * @return iterable<string, array{string, string, bool}>
+     */
+    public static function passwordResetFields(): iterable
+    {
+        yield 'token property' => ['token_field', 'resetToken', true];
+        yield 'embeddable path' => ['token_expires_field', 'security.resetExpiresAt', true];
+        yield 'dql injection' => ['token_field', 'passwordResetToken IS NOT NULL OR u.id', false];
+        yield 'quote' => ['token_field', "x'", false];
+        yield 'leading digit' => ['token_expires_field', '1field', false];
+        yield 'trailing dot' => ['token_field', 'security.', false];
+    }
+
+    #[DataProvider('passwordResetFields')]
+    public function testPasswordResetFieldsMustBePropertyPaths(string $key, string $value, bool $valid): void
+    {
+        if (!$valid) {
+            $this->expectException(InvalidConfigurationException::class);
+            $this->expectExceptionMessage('password_reset.' . $key);
+        }
+
+        $config = (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => ['user_class' => TestUser::class, 'password_reset' => [$key => $value]]],
+        ]]);
+
+        self::assertSame($value, $config['profiles']['default']['password_reset'][$key]);
+    }
 }
