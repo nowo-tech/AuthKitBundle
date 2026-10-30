@@ -37,6 +37,11 @@ pages, data blocks and view-model fields.
 2. Theme `nowo_ui_kit.theme` (tokens + class map); per-bundle exceptions in `theme.bundles.NowoAuthKitBundle`.
 3. Optionally override `templates/bundles/NowoUiKitBundle/page/auth.html.twig` once for every auth page of every bundle.
 
+Every auth form is a Symfony Form Type that is also a FormKit Type (profile `auth_kit`, see
+[CONFIGURATION.md](CONFIGURATION.md#formkit-profile-auth_kit)), rendered with `form_start` + the
+`{% if not child.rendered %}{{ form_row(child) }}{% endif %}` child loop + `form_end`. Host overrides must not
+reintroduce raw `<form>` / `<input>` markup (REQ-TWIG-005).
+
 ### Override in the application
 
 For a genuinely AuthKit-specific need, point `web_ui.templates.<page>` at a thin template that extends the shipped

@@ -93,6 +93,11 @@
 
 ## Unreleased
 
+No action needed. `QrLoginDenyType`, `QrLoginRetryType` and `LogoutFormType` are now FormKit Types bound to the
+`auth_kit` profile (REQ-TWIG-005 rule 11); their names, fields, CSRF settings and rendered markup are unchanged.
+`nowo-tech/form-kit-bundle` was already a required dependency; override the forms' FormKit options through
+`nowo_form_kit.profiles.auth_kit` (see [CONFIGURATION.md](CONFIGURATION.md#formkit-profile-auth_kit)).
+
 ## To 1.31.1
 
 From **1.31.0**:

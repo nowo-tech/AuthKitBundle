@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Form;
 
+use Nowo\FormKitBundle\Attribute\FormKitConfig;
+use Nowo\FormKitBundle\Form\FormOptionsTrait;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -15,8 +17,11 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  * the firewall logout csrf_parameter; the token value comes from the "logout" CSRF token id (logout.enable_csrf).
  * The form's own CSRF protection is off: the Symfony LogoutListener validates that field.
  */
+#[FormKitConfig('auth_kit')]
 final class LogoutFormType extends AbstractType
 {
+    use FormOptionsTrait;
+
     public const CSRF_PARAMETER = '_csrf_token';
 
     public const CSRF_TOKEN_ID = 'logout';

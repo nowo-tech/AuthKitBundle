@@ -29,6 +29,7 @@
 - [Flash messages](#flash-messages)
 - [Admin CLI (create-admin)](#admin-cli-create-admin)
 - [Templates](#templates)
+  - [FormKit profile (`auth_kit`)](#formkit-profile-auth_kit)
 - [Routes](#routes)
   - [Logout HTTP methods](#logout-http-methods)
 - [Security.yaml checklist](#securityyaml-checklist)
@@ -742,6 +743,26 @@ Twig globals (1.x, kept): `nowo_auth_kit_form_themes` (default profile `web_ui.f
 
 The bundle prepends an asset package named `nowo_auth_kit` with base path `/bundles/nowoauthkit` (`css/nowo-auth-kit.css`,
 `js/nowo-auth-kit-qr-login.js`).
+
+### FormKit profile (`auth_kit`)
+
+Every auth form type (login, register, password reset, magic login, QR approve / deny / retry, embed logout) is a
+FormKit Type: `#[FormKitConfig('auth_kit')]` + `FormOptionsTrait` (REQ-TWIG-005 rule 11). The bundle prepends the
+profile `nowo_form_kit.profiles.auth_kit` (translation domain `NowoAuthKitBundle`, `auto_placeholder` / `auto_help`
+off, no framework classes) and `nowo_form_kit.css_framework: bootstrap` when the host has not set them. A host
+overrides the profile by defining the same key; host values are never overwritten:
+
+```yaml
+nowo_form_kit:
+    profiles:
+        auth_kit:
+            alias: auth_kit
+            translation_domain: NowoAuthKitBundle
+            defaults:
+                row_attr: { class: 'mb-3' }
+```
+
+The form markup itself is painted by `web_ui.form_themes` (UiKit form theme by default, REQ-UI-003).
 
 ## Routes
 
