@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.31.2](#to-1312)
 - [To 1.31.1](#to-1311)
 - [To 1.31.0](#to-1310)
   - [Security hardening (behaviour changes)](#security-hardening-behaviour-changes)
@@ -92,6 +93,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.31.2
+
+From **1.31.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 No action needed. `QrLoginDenyType`, `QrLoginRetryType` and `LogoutFormType` are now FormKit Types bound to the
 `auth_kit` profile (REQ-TWIG-005 rule 11); their names, fields, CSRF settings and rendered markup are unchanged.

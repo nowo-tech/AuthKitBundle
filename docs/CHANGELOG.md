@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.31.2] - 2026-10-30](#1312---2026-10-30)
 - [[1.31.1] - 2026-10-28](#1311---2026-10-28)
 - [[1.31.0] - 2026-10-27](#1310---2026-10-27)
 - [[1.30.0] - 2026-10-23](#1300---2026-10-23)
@@ -83,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.31.2] - 2026-10-30
+
+Controllers no longer autoconfigured (REQ-SF-004 rule 7, no route change); QR/logout form types are FormKit types (no markup change). See [UPGRADING](UPGRADING.md#to-1312).
 
 ### Changed
 
