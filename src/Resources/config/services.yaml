@@ -11,12 +11,19 @@ services:
             - '../../Entity/'
             - '../../Enum/'
             - '../../Form/'
+            - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
             - '../../NowoAuthKitBundle.php'
 
+    # REQ-SF-004 rule 7: the controllers carry #[Route] and must not be autoconfigured. On Symfony >= 7.3
+    # autoconfiguration tags them `routing.controller`, and the host's `controllers: { resource: routing.controllers }`
+    # would then register their routes without the profile defaults of the nowo_auth_kit route loader (the only
+    # documented import). Tagged explicitly instead.
     Nowo\AuthKitBundle\Controller\:
         resource: '../../Controller/'
+        autoconfigure: false
         public: true
+        tags: [controller.service_arguments]
 
     # Form Kit injects FormOptionsMerger into tagged form types (FormOptionsMergerInjectorCompilerPass).
     Nowo\AuthKitBundle\Form\:
@@ -129,40 +136,12 @@ services:
         tags:
             - { name: twig.extension }
 
-    Nowo\AuthKitBundle\Controller\LoginController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\RegisterController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\ResetPasswordRequestController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\ResetPasswordController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\ResetPasswordCodeController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\MagicLoginRequestController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\MagicLoginCheckController:
-        public: true
-
     Nowo\AuthKitBundle\Controller\MagicLoginConfirmController:
+        autoconfigure: false
         public: true
+        tags: [controller.service_arguments]
         arguments:
             $loginLinkHandler: '@?security.authenticator.login_link_handler.main'
-
-    Nowo\AuthKitBundle\Controller\SocialLoginStartController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\SocialLoginCheckController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\UnlocalizedLocaleRedirectController:
-        public: true
 
     Nowo\AuthKitBundle\Command\ConfigureSecurityCommand:
         arguments:
@@ -204,24 +183,6 @@ services:
     Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager:
         arguments:
             $kernelSecret: '%kernel.secret%'
-
-    Nowo\AuthKitBundle\Controller\QrLoginStartController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\QrLoginShowController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\QrLoginStatusController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\QrLoginCompleteController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\QrLoginApproveController:
-        public: true
-
-    Nowo\AuthKitBundle\Controller\QrLoginDenyController:
-        public: true
 
     Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger:
         arguments:

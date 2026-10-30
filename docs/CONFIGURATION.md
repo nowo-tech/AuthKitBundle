@@ -751,7 +751,7 @@ When `locale.in_path` is `always` or `both`, localized paths are `/{_locale}/log
 
 Every controller action declares its `#[Route]` attribute (REQ-SF-004): default path and name (the `routes.<key>` defaults below), HTTP methods and requirements. Import the routes through the `nowo_auth_kit` route loader only (`@NowoAuthKitBundle/Resources/config/routing.yaml`, `type: nowo_auth_kit`; the file declares no route itself): it copies each attribute once per profile with the configured `profiles.*.routes.<key>.path` / `.name`, the profile default and the `locale.in_path` variants, so one controller serves several profiles under different paths. `routes.logout.methods` overrides the attribute methods of the logout route.
 
-Do not import `vendor/nowo-tech/auth-kit-bundle/src/Controller/` as `type: attribute`: those copies would have no profile. The Symfony 7.3+ recipe import `resource: routing.controllers` is safe — the bundle removes the autoconfigured `routing.controller` tag from its controllers (`ControllerRouteAttributesPass`).
+Do not import `vendor/nowo-tech/auth-kit-bundle/src/Controller/` as `type: attribute`: those copies would have no profile. The Symfony 7.3+ recipe import `resource: routing.controllers` is safe — the bundle controller services are not autoconfigured (REQ-SF-004 rule 7), so they never carry the `routing.controller` tag.
 
 ### Logout HTTP methods
 

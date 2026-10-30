@@ -32,7 +32,7 @@ use function sys_get_temp_dir;
  * AuthKit login form fields), Doctrine (SQLite file in the kernel cache dir), FormKit, UiKit and AuthKit with
  * password reset (link + code) enabled.
  */
-final class AuthKitTestKernel extends Kernel
+class AuthKitTestKernel extends Kernel
 {
     use MicroKernelTrait;
 

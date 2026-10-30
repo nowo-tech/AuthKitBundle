@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle;
 
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\DoctrineOrmMappingsPass;
-use Nowo\AuthKitBundle\DependencyInjection\Compiler\ControllerRouteAttributesPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginLinkHandlerLocatorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginThrottleRequiredPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\QrCodeGeneratorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
-use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
@@ -31,7 +29,6 @@ class NowoAuthKitBundle extends Bundle
         $container->addCompilerPass(new LoginThrottleRequiredPass());
         $container->addCompilerPass(new LoginLinkHandlerLocatorPass());
         $container->addCompilerPass(new CsrfProtectionPass());
-        $container->addCompilerPass(new ControllerRouteAttributesPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, ControllerRouteAttributesPass::PRIORITY);
 
         $entityDir = __DIR__ . '/Entity';
         if (is_dir($entityDir)) {
