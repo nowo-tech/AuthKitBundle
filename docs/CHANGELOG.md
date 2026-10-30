@@ -84,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Bundle routes stay opt-in (REQ-SF-004 rule 7):** the controller services (all carrying `#[Route]`) are registered with `autoconfigure: false` and an explicit `controller.service_arguments` tag, so Symfony >= 7.3 never tags them `routing.controller` and a host's `controllers: { resource: routing.controllers }` cannot register the AuthKit routes; they only come from `@NowoAuthKitBundle/Resources/config/routing.yaml` (profile route loader). This replaces `ControllerRouteAttributesPass`, which removed the tag after autoconfiguration. Route names and paths are unchanged. Regression test with a kernel whose routing is only `routing.controllers`.
+
 ## [1.31.1] - 2026-10-28
 
 Security: password_reset.token_field / token_expires_field must be property names (they are used in DQL). See [UPGRADING](UPGRADING.md#to-1311).

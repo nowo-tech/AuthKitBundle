@@ -197,7 +197,7 @@ No configuration change is required for these two:
 2. **Controllers declare `#[Route]`** (REQ-SF-004). Route names, paths, methods and requirements are unchanged; keep
    importing `@NowoAuthKitBundle/Resources/config/routing.yaml`. Do not import the bundle `src/Controller/`
    directory as `type: attribute` (those copies would have no profile). `resource: routing.controllers`
-   (Symfony 7.3+ recipe) does not pick them up: the bundle removes the autoconfigured `routing.controller` tag.
+   (Symfony 7.3+ recipe) does not pick them up: the controller services are not autoconfigured (no `routing.controller` tag).
 
 ## To 1.30.0
 

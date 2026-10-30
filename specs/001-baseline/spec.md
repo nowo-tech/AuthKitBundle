@@ -89,7 +89,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### HTTP controllers
 
 - **FR-CTRL-001**: Login, logout, register controllers. `routes.logout.methods` (default `[GET]`; `[POST]` = CSRF-protected sign-out with the firewall `logout.enable_csrf`, the embed widget then renders `LogoutFormType`).
-- **FR-CTRL-003**: Every action declares `#[Route]` (default path and name = `routes.<key>` defaults, HTTP methods, requirements); `AuthKitRouteLoader` copies it per profile and `ControllerRouteAttributesPass` removes the autoconfigured `routing.controller` tag so a host `routing.controllers` import never registers un-profiled duplicates (REQ-SF-004). `UnlocalizedLocaleRedirectController` has no route of its own (it serves the bare twins).
+- **FR-CTRL-003**: Every action declares `#[Route]` (default path and name = `routes.<key>` defaults, HTTP methods, requirements); `AuthKitRouteLoader` copies it per profile and the controller services are registered with `autoconfigure: false` (explicit `controller.service_arguments` tag, no `routing.controller`) so a host `routing.controllers` import never registers un-profiled duplicates (REQ-SF-004). `UnlocalizedLocaleRedirectController` has no route of its own (it serves the bare twins).
 - **FR-CTRL-002**: Password reset request, code entry, completion controllers.
 
 ### Forms & validation

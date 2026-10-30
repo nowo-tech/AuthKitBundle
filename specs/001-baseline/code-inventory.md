@@ -44,7 +44,6 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | --- | --- | --- | --- |
 | `Config/FieldConfigNormalizer.php` | production | FR-CFG-002 | Mapped |
 | `Config/RememberMeConfigResolver.php` | production | FR-CFG-002 | Mapped |
-| `DependencyInjection/Compiler/ControllerRouteAttributesPass.php` | production | FR-CTRL-003 | Mapped |
 | `DependencyInjection/Compiler/CsrfProtectionPass.php` | production | FR-SEC-005 | Mapped |
 | `DependencyInjection/Compiler/LoginLinkHandlerLocatorPass.php` | production | FR-SEC-005 | Mapped |
 | `DependencyInjection/Compiler/LoginThrottleRequiredPass.php` | production | FR-SEC-004 | Mapped |
