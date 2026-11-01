@@ -172,7 +172,9 @@ With `invitations.mode: enabled` (1.32, often with `registration_mode: invite_on
 3. On valid submit the account is created like a registration (fields, hashing, `registration_role` plus the
    invitation roles), the invitation is claimed (single use), the `InvitationGrantInterface` services run, and the
    user is signed in.
-4. `/admin/invitations` lists invitations with Resend (new link) and Revoke (FormKit CSRF-only forms behind the UiKit
+4. Host code calling `InvitationManager` directly passes the **signed-in user** as the actor (never a user object
+   rebuilt from request data): the role rule trusts that object's roles.
+5. `/admin/invitations` lists invitations with Resend (new link) and Revoke (FormKit CSRF-only forms behind the UiKit
    confirm dialog). Every page is a Symfony Form / FormKit type rendered with `form_start` / child loop /
    `form_end` — never raw `<form>` / `<input>` in overrides.
 

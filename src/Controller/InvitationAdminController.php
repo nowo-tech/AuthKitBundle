@@ -225,7 +225,7 @@ final class InvitationAdminController
         match ($outcome->status) {
             InvitationOutcome::SENT, InvitationOutcome::REVOKED => $this->flashMessenger->flash($request, 'success', $successKey, ['%email%' => $email]),
             InvitationOutcome::NOT_DELIVERED                    => $this->flashMessenger->flash($request, 'warning', 'invitation.flash.not_delivered', ['%email%' => $email]),
-            InvitationOutcome::RATE_LIMITED                     => $this->flashMessenger->flash($request, 'error', 'invitation.flash.rate_limited'),
+            InvitationOutcome::RATE_LIMITED                     => $this->flashMessenger->flash($request, 'error', 'invitation.flash.rate_limited', ['%time%' => $outcome->retryAfter?->format('H:i T') ?? '']),
             InvitationOutcome::NOT_ALLOWED                      => $this->flashMessenger->flash($request, 'error', 'invitation.flash.not_allowed'),
             InvitationOutcome::CLOSED                           => $this->flashMessenger->flash($request, 'error', 'invitation.flash.closed'),
             InvitationOutcome::NOT_CONFIGURED                   => $this->flashMessenger->flash($request, 'error', 'invitation.flash.not_configured'),

@@ -99,7 +99,8 @@ Independent REQ-SEC-004 audit of the unreleased invitations (Appendix CD, 2026-1
 - **L1:** an `absolute_url.base_uri` env var resolving empty at runtime made the mailed link follow the request Host; nothing is sent then (`NOT_CONFIGURED`).
 - **L2:** on case-sensitive databases an invitation could create `mixed@example.com` next to `Mixed@Example.com`; `UserRegistrar::registerInvited()` refuses any-case duplicates (`not_accepted`).
 - **L3:** acceptance re-checks roles against `invitations.roles`, not the inviter (documented); `InvitationManager::revokeOpenBy()` revokes a demoted inviter's open invitations.
-- Info: sends per address (invite → revoke → invite included) limited to `resend_rate_limit + 1`; no link is sent with `registration_mode: disabled` (`CLOSED`); demo restricted to administrators and bound to 127.0.0.1; residuals documented in SECURITY.md and INVITATIONS.md.
+- Info: sends per actor and address (invite → revoke → invite included) limited to `resend_rate_limit + 1` — keyed per actor so one administrator cannot block an address for the others (re-verification N2), with `retryAfter` on the refusal and in the flash; no link is sent with `registration_mode: disabled` (`CLOSED`); demo restricted to administrators and bound to 127.0.0.1; residuals documented in SECURITY.md and INVITATIONS.md (incl. N1: pass the signed-in user as the API actor; N3: case-variant race with open registration on case-sensitive databases). Re-verification on `eda0883`: **Pass (good) / Low**.
+- Packaging: `.gitattributes` keeps `/demo`, `/tests` and other development-only paths out of the dist archive (Packagist zipball).
 
 ### Changed
 

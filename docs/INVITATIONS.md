@@ -129,8 +129,9 @@ resend, re-invite (which merges into the open invitation of the same address) or
 do not hold"), and the link shown once (`show_link_when_undelivered`) is never returned to an actor lacking a role.
 "Resend" re-issues the invitation's original roles. Nothing is sent while `registration_mode` is `disabled` (a link
 could not be accepted) or when `absolute_url.base_uri` resolves empty at runtime (the link would follow the request
-Host): the administrator sees why. Sends to one address — invite, re-invite, resend, and invite again after a revoke
-— are limited to `resend_rate_limit + 1` per `resend_rate_window`.
+Host): the administrator sees why. Sends by one administrator to one address — invite, re-invite, resend, and invite
+again after a revoke — are limited to `resend_rate_limit + 1` per `resend_rate_window` (per administrator, so one
+cannot block an address for the others); a refusal carries `retryAfter` (the latest retry time, shown in the flash).
 
 ## Accept page
 
@@ -157,7 +158,9 @@ Things to know:
   visitor should only accept an invitation for their own address.
 - **Existing account, any case.** If an account exists for the invited address in any letter case
   (`Mixed@Example.com` for `mixed@example.com`), the acceptance is refused (`not_accepted`), also on case-sensitive
-  databases.
+  databases. Residual: with `registration_mode: always` on a case-sensitive database, an open registration of a case
+  variant committed between that check and the insert can still produce two accounts (use `invite_only`, or store
+  identifiers lower-cased).
 - **`lock_email: false`** lets the link holder register another address; typing an address that already has an
   account answers `not_accepted` (an existence check bounded by `accept_rate_limit`). Keep the default `true` unless
   needed.
@@ -209,7 +212,13 @@ match ($outcome->status) {
 `revoke()` returns an outcome (`REVOKED`, `NOT_OPEN`, `NOT_ALLOWED`). The API enforces `invitations.roles` (forged
 roles throw) and the role rule above against the given actor (`InvitationsAccessGuard::holdsAll()`, role hierarchy):
 `NOT_ALLOWED` when the actor lacks a role of the request or of the open invitation — a `null` actor (console) can
-only handle invitations without roles. Other refusals: `RATE_LIMITED`, `CLOSED`, `NOT_CONFIGURED`.
+only handle invitations without roles. Other refusals: `RATE_LIMITED` (with `retryAfter`), `CLOSED`, `NOT_CONFIGURED`.
+
+**Pass the signed-in user as the actor** (`Security::getUser()`, or the refreshed token user), never a user object
+built or modified from request data: `holdsAll()` trusts the roles of the object it is given (it builds a
+`UsernamePasswordToken` from `$actor->getRoles()` on the firewall name `nowo_auth_kit_invitations` and asks the access
+decision manager, so the role hierarchy applies; custom voters answering `ROLE_*` from the token type or firewall see
+that synthetic token).
 
 `InvitationAcceptor::accept()` clears the default entity manager when an acceptance fails (nothing of it may be
 flushed later): call it with no pending changes of your own.

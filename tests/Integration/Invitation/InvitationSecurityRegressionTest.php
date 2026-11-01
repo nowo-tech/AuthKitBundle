@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Invitation;
 
+use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Entity\Invitation;
@@ -173,7 +174,7 @@ final class InvitationSecurityRegressionTest extends WebTestCase
         self::assertSame(0, $this->manager()->revokeOpenBy('super@example.com'));
     }
 
-    /** I5 — invite → revoke → invite of one address: at most resend_rate_limit + 1 sends per window. */
+    /** I5 / N2 — invite → revoke → invite of one address by one actor: at most resend_rate_limit + 1 sends per window. */
     public function testInviteRevokeLoopIsBoundedPerAddress(): void
     {
         $admin    = $this->user('admin@example.com');
@@ -190,6 +191,13 @@ final class InvitationSecurityRegressionTest extends WebTestCase
             InvitationOutcome::SENT, InvitationOutcome::SENT, InvitationOutcome::SENT, InvitationOutcome::SENT,
             InvitationOutcome::RATE_LIMITED, InvitationOutcome::RATE_LIMITED,
         ], $statuses);
+
+        // CD N2: the refusal says when to retry, and the limit is per actor — another administrator can still invite.
+        $refused = $this->manager()->invite($admin, 'default', new InvitationRequest('victim@example.com'));
+        self::assertSame(InvitationOutcome::RATE_LIMITED, $refused->status);
+        self::assertNotNull($refused->retryAfter);
+        self::assertGreaterThan(new DateTimeImmutable(), $refused->retryAfter);
+        self::assertSame(InvitationOutcome::SENT, $this->manager()->invite($this->user('super@example.com'), 'default', new InvitationRequest('victim@example.com'))->status);
     }
 
     private function invitation(string $email): Invitation

@@ -205,7 +205,7 @@ invitation:
         revoked: "Invitation revoked."
         not_open: "This invitation was already accepted or revoked."
         not_delivered: "The invitation to %email% could not be sent. Try \"Resend\" later."
-        rate_limited: "Too many invitations in a short time: nothing was sent. Try again later."
+        rate_limited: "Too many invitations in a short time: nothing was sent. Try again after %time% at the latest."
         not_allowed: "You cannot resend or revoke this invitation: it grants a role you do not hold."
         closed: "Invitations are closed: the registration is disabled, so no link was sent."
         not_configured: "No invitation link was built: the public base URL (absolute_url.base_uri) is empty."

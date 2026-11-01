@@ -102,13 +102,13 @@ final readonly class InvitationManager
         if (!$this->holdsAll($actor, $request->roles) || ($invitation instanceof Invitation && !$this->holdsAll($actor, $invitation->getRoles()))) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $invitation instanceof Invitation ? $this->snapshot($invitation) : null);
         }
-        $limits = [$this->inviterLimit($profile, $actor), $this->addressLimit($profile, $email)];
+        $limits = [$this->inviterLimit($profile, $actor), $this->addressLimit($profile, $actor, $email)];
         if ($invitation instanceof Invitation) {
             $limits[] = $this->resendLimit($profile, $invitation);
         }
         foreach ($limits as [$key, $max, $window]) {
             if (!$this->limiter->consume($key, $max, $window)) {
-                return InvitationOutcome::refused(InvitationOutcome::RATE_LIMITED, $invitation instanceof Invitation ? $this->snapshot($invitation) : null);
+                return InvitationOutcome::refused(InvitationOutcome::RATE_LIMITED, $invitation instanceof Invitation ? $this->snapshot($invitation) : null, $this->retryAfter($window));
             }
         }
 
@@ -146,9 +146,9 @@ final readonly class InvitationManager
         if ($refusal !== null) {
             return InvitationOutcome::refused($refusal, $this->snapshot($invitation));
         }
-        foreach ([$this->resendLimit($profile, $invitation), $this->inviterLimit($profile, $actor), $this->addressLimit($profile, $invitation->getEmail())] as [$key, $max, $window]) {
+        foreach ([$this->resendLimit($profile, $invitation), $this->inviterLimit($profile, $actor), $this->addressLimit($profile, $actor, $invitation->getEmail())] as [$key, $max, $window]) {
             if (!$this->limiter->consume($key, $max, $window)) {
-                return InvitationOutcome::refused(InvitationOutcome::RATE_LIMITED, $this->snapshot($invitation));
+                return InvitationOutcome::refused(InvitationOutcome::RATE_LIMITED, $this->snapshot($invitation), $this->retryAfter($window));
             }
         }
 
@@ -266,14 +266,23 @@ final readonly class InvitationManager
     }
 
     /**
-     * Sends to one address (invite, re-invite, resend, and invite after revoke alike), SEC-004 CD I5.
+     * Latest moment a refused send may be retried: the counters use fixed windows, so at most one window from now.
+     */
+    private function retryAfter(int $window): DateTimeImmutable
+    {
+        return $this->now()->modify(sprintf('+%d seconds', $window));
+    }
+
+    /**
+     * Sends by one actor to one address (invite, re-invite, resend, and invite after revoke alike), SEC-004 CD I5.
+     * Keyed per actor as well (CD N2): one administrator cannot block an address for the others.
      *
      * @return array{0: string, 1: int, 2: int}
      */
-    private function addressLimit(ProfileSettings $profile, string $email): array
+    private function addressLimit(ProfileSettings $profile, ?UserInterface $actor, string $email): array
     {
         return [
-            'invitation_email:' . $profile->name . ':' . Invitation::normalizeEmail($email),
+            'invitation_email:' . $profile->name . ':' . ($actor?->getUserIdentifier() ?? '~anonymous') . ':' . Invitation::normalizeEmail($email),
             (int) ($profile->invitations['resend_rate_limit'] ?? 3) + 1,
             (int) ($profile->invitations['resend_rate_window'] ?? 3600),
         ];

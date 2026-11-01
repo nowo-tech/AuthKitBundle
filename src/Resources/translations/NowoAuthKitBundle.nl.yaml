@@ -207,7 +207,7 @@ invitation:
         revoked: "Uitnodiging ingetrokken."
         not_open: "Deze uitnodiging is al geaccepteerd of ingetrokken."
         not_delivered: "De uitnodiging aan %email% kon niet worden verzonden. Probeer later \"Opnieuw versturen\"."
-        rate_limited: "Te veel uitnodigingen in korte tijd: er is niets verzonden. Probeer het later opnieuw."
+        rate_limited: "Te veel uitnodigingen in korte tijd: er is niets verzonden. Probeer het uiterlijk om %time% opnieuw."
         not_allowed: "Je kunt deze uitnodiging niet opnieuw versturen of intrekken: ze geeft een rol die jij niet hebt."
         closed: "Uitnodigingen zijn gesloten: registratie is uitgeschakeld, er is geen link verzonden."
         not_configured: "Er is geen uitnodigingslink gemaakt: de openbare basis-URL (absolute_url.base_uri) is leeg."

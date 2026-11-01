@@ -207,7 +207,7 @@ invitation:
         revoked: "Invito revocato."
         not_open: "Questo invito è già stato accettato o revocato."
         not_delivered: "Non è stato possibile inviare l’invito a %email%. Riprova più tardi con «Invia di nuovo»."
-        rate_limited: "Troppi inviti in poco tempo: non è stato inviato nulla. Riprova più tardi."
+        rate_limited: "Troppi inviti in poco tempo: non è stato inviato nulla. Riprova al più tardi alle %time%."
         not_allowed: "Non puoi inviare di nuovo né revocare questo invito: concede un ruolo che non hai."
         closed: "Gli inviti sono chiusi: la registrazione è disattivata, quindi non è stato inviato alcun link."
         not_configured: "Nessun link di invito creato: l’URL di base pubblico (absolute_url.base_uri) è vuoto."
