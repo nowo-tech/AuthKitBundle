@@ -26,7 +26,6 @@ use Nowo\UiKitBundle\View\Pagination;
 use Nowo\UiKitBundle\View\ShowPage;
 use Symfony\Component\Form\FormView;
 
-use function array_map;
 use function is_string;
 
 /**
@@ -97,14 +96,18 @@ final readonly class InvitationAdminPages
      * The list of a profile: Invite in the header, Resend / Revoke on open rows, bounded pagination.
      *
      * @param list<InvitationSnapshot> $invitations
+     * @param callable(InvitationSnapshot): bool|null $canHandle whether the viewer may resend / revoke a row (holds all its roles)
      */
-    public function indexPage(ProfileSettings $profile, array $invitations, FormView $filters, Pagination $pagination, string $clearHref): ListPage
+    public function indexPage(ProfileSettings $profile, array $invitations, FormView $filters, Pagination $pagination, string $clearHref, ?callable $canHandle = null): ListPage
     {
         $routes     = self::routes($profile);
-        $rows       = array_map(static fn (InvitationSnapshot $i): InvitationRow => InvitationRow::of($i), $invitations);
+        $rows       = [];
         $rowActions = [];
-        foreach ($rows as $row) {
-            $rowActions[$row->publicId] = $row->status->isOpen() ? [
+        foreach ($invitations as $invitation) {
+            $row                        = InvitationRow::of($invitation);
+            $rows[]                     = $row;
+            $actionable                 = $row->status->isOpen() && ($canHandle === null || $canHandle($invitation));
+            $rowActions[$row->publicId] = $actionable ? [
                 $this->post(
                     $routes['resend']['name'],
                     $row->publicId,

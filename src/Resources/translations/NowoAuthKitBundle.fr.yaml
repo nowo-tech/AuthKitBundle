@@ -208,6 +208,9 @@ invitation:
         not_open: "Cette invitation a déjà été acceptée ou révoquée."
         not_delivered: "L’invitation à %email% n’a pas pu être envoyée. Réessayez « Renvoyer » plus tard."
         rate_limited: "Trop d’invitations en peu de temps : rien n’a été envoyé. Réessayez plus tard."
+        not_allowed: "Vous ne pouvez ni renvoyer ni révoquer cette invitation : elle accorde un rôle que vous n’avez pas."
+        closed: "Les invitations sont fermées : l’inscription est désactivée, aucun lien n’a été envoyé."
+        not_configured: "Aucun lien d’invitation n’a été créé : l’URL de base publique (absolute_url.base_uri) est vide."
     accept:
         heading: "Acceptez votre invitation"
         title: "Acceptez votre invitation"

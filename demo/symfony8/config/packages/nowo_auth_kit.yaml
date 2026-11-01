@@ -35,8 +35,8 @@ nowo_auth_kit:
         mode: enabled
         show_link_when_undelivered: true
         security:
-            # DEMO ONLY: every signed-in user may invite. Production: keep [ROLE_ADMIN] (or an access_checker).
-            access_roles: [ROLE_USER]
+            # The first demo account is the administrator (App\Doctrine\FirstUserAdministratorListener).
+            access_roles: [ROLE_ADMIN]
     # REQ-UI-003 page contract: the auth pages render on nowo_ui_kit.layouts.guest (config/packages/nowo_ui_kit.yaml);
     # per-profile overrides live under web_ui (layout_template, templates.<page>, form_themes, brand, qr_login).
     # Optional: composer require nowo-tech/slide-to-confirm-bundle (PHP 8.2+)

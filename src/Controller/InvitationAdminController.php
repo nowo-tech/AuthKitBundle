@@ -110,6 +110,8 @@ final class InvitationAdminController
                 $filters->createView(),
                 $pagination,
                 $this->urls->generate($routes['index']['name']),
+                // SEC-004 CD M1: Resend / Revoke only on rows whose every role the administrator holds.
+                fn (InvitationSnapshot $invitation): bool => $this->guard->holdsAll($this->guard->user(), $invitation->roles),
             ),
         ]);
     }
@@ -163,10 +165,8 @@ final class InvitationAdminController
     {
         $profile = $this->profile($request);
         $this->requireCsrf($request, InvitationAdminPages::revokeTokenId($profile->name, $id));
-        $revoked = $this->manager->revoke($this->guard->user(), $this->invitation($profile, $id));
-        $this->flashMessenger->flash($request, $revoked ? 'success' : 'error', $revoked ? 'invitation.flash.revoked' : 'invitation.flash.not_open');
 
-        return $this->backToIndex($profile);
+        return $this->outcome($request, $profile, $this->manager->revoke($this->guard->user(), $this->invitation($profile, $id)), 'invitation.flash.revoked');
     }
 
     /**
@@ -223,10 +223,13 @@ final class InvitationAdminController
         }
 
         match ($outcome->status) {
-            InvitationOutcome::SENT          => $this->flashMessenger->flash($request, 'success', $successKey, ['%email%' => $email]),
-            InvitationOutcome::NOT_DELIVERED => $this->flashMessenger->flash($request, 'warning', 'invitation.flash.not_delivered', ['%email%' => $email]),
-            InvitationOutcome::RATE_LIMITED  => $this->flashMessenger->flash($request, 'error', 'invitation.flash.rate_limited'),
-            default                          => $this->flashMessenger->flash($request, 'error', 'invitation.flash.not_open'),
+            InvitationOutcome::SENT, InvitationOutcome::REVOKED => $this->flashMessenger->flash($request, 'success', $successKey, ['%email%' => $email]),
+            InvitationOutcome::NOT_DELIVERED                    => $this->flashMessenger->flash($request, 'warning', 'invitation.flash.not_delivered', ['%email%' => $email]),
+            InvitationOutcome::RATE_LIMITED                     => $this->flashMessenger->flash($request, 'error', 'invitation.flash.rate_limited'),
+            InvitationOutcome::NOT_ALLOWED                      => $this->flashMessenger->flash($request, 'error', 'invitation.flash.not_allowed'),
+            InvitationOutcome::CLOSED                           => $this->flashMessenger->flash($request, 'error', 'invitation.flash.closed'),
+            InvitationOutcome::NOT_CONFIGURED                   => $this->flashMessenger->flash($request, 'error', 'invitation.flash.not_configured'),
+            default                                             => $this->flashMessenger->flash($request, 'error', 'invitation.flash.not_open'),
         };
 
         return $this->backToIndex($profile);

@@ -208,6 +208,9 @@ invitation:
         not_open: "Este convite já foi aceite ou revogado."
         not_delivered: "Não foi possível enviar o convite para %email%. Tente «Reenviar» mais tarde."
         rate_limited: "Demasiados convites em pouco tempo: nada foi enviado. Tente novamente mais tarde."
+        not_allowed: "Não pode reenviar nem revogar este convite: concede uma função que não tem."
+        closed: "Os convites estão fechados: o registo está desativado, por isso não foi enviada nenhuma ligação."
+        not_configured: "Nenhuma ligação de convite foi criada: o URL base público (absolute_url.base_uri) está vazio."
     accept:
         heading: "Aceite o seu convite"
         title: "Aceite o seu convite"

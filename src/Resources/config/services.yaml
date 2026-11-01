@@ -228,6 +228,7 @@ services:
         arguments:
             $eventDispatcher: '@?event_dispatcher'
             $enabledLocales: '%nowo_auth_kit.locale.enabled%'
+            $logger: '@?logger'
 
     Nowo\AuthKitBundle\Invitation\InvitationAcceptor:
         arguments:
@@ -249,6 +250,7 @@ services:
             $tokenStorage: '@?security.token_storage'
             $authorizationChecker: '@?security.authorization_checker'
             $allowUnauthenticated: '%nowo_auth_kit.invitations.allow_unauthenticated%'
+            $decisionManager: '@?security.access.decision_manager'
 
     Nowo\AuthKitBundle\Command\PurgeInvitationsCommand:
         arguments:

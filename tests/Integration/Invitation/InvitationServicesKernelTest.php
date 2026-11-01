@@ -92,9 +92,11 @@ final class InvitationServicesKernelTest extends KernelTestCase
     public function testReinvitingMergesIntoTheOpenInvitationAndResendsAreLimited(): void
     {
         $manager = $this->manager();
-        $first   = $manager->invite(null, 'default', new InvitationRequest('a@example.com', ['ROLE_EDITOR'], 3, 'Hi', 'es', ['team' => 'blue']));
-        $second  = $manager->invite(null, 'default', new InvitationRequest('A@example.com', ['ROLE_SUPER_ADMIN'], 999, null, 'xx', ['seat' => 1]));
+        $super   = $this->user('super@example.com', ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN']);
+        $first   = $manager->invite($super, 'default', new InvitationRequest('a@example.com', ['ROLE_EDITOR'], 3, 'Hi', 'es', ['team' => 'blue']));
+        $second  = $manager->invite($super, 'default', new InvitationRequest('A@example.com', ['ROLE_SUPER_ADMIN'], 999, null, 'xx', ['seat' => 1]));
 
+        self::assertSame(InvitationOutcome::SENT, $first->status);
         self::assertSame(InvitationOutcome::SENT, $second->status);
         self::assertNotNull($second->invitation);
         self::assertSame($first->invitation?->publicId, $second->invitation->publicId);
@@ -110,9 +112,9 @@ final class InvitationServicesKernelTest extends KernelTestCase
         // resend_rate_limit: 3 sends per invitation and window (the re-invite counted as one).
         $statuses = [];
         for ($i = 0; $i < 3; ++$i) {
-            $statuses[] = $manager->resend(null, $invitation)->status;
+            $statuses[] = $manager->resend($super, $invitation)->status;
         }
-        $statuses[] = $manager->invite(null, 'default', new InvitationRequest('a@example.com'))->status;
+        $statuses[] = $manager->invite($super, 'default', new InvitationRequest('a@example.com'))->status;
         self::assertSame([InvitationOutcome::SENT, InvitationOutcome::SENT, InvitationOutcome::RATE_LIMITED, InvitationOutcome::RATE_LIMITED], $statuses);
     }
 
@@ -229,6 +231,14 @@ final class InvitationServicesKernelTest extends KernelTestCase
                 self::addToAssertionCount(1);
             }
         }
+    }
+
+    /**
+     * @param list<string> $roles
+     */
+    private function user(string $email, array $roles): KernelUser
+    {
+        return (new KernelUser())->setEmail($email)->setRoles($roles);
     }
 
     private function adminController(FormFactoryInterface $forms, ?ProfileRegistry $registry = null): InvitationAdminController

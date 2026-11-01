@@ -123,6 +123,15 @@ its CSRF token (fail closed: 403). Responses are `private, no-store`; redirects 
 carry no token and no hash. Inviting an e-mail that already has an account looks exactly like inviting a new one (no
 account enumeration); the invitee then sees "could not be accepted — sign in" on the accept page.
 
+**Role rule.** An administrator hands out only roles of `invitations.roles` they hold (role hierarchy), and may
+resend, re-invite (which merges into the open invitation of the same address) or revoke only an invitation whose
+**every** role they hold: Resend / Revoke are hidden on other rows, a forced request is refused ("it grants a role you
+do not hold"), and the link shown once (`show_link_when_undelivered`) is never returned to an actor lacking a role.
+"Resend" re-issues the invitation's original roles. Nothing is sent while `registration_mode` is `disabled` (a link
+could not be accepted) or when `absolute_url.base_uri` resolves empty at runtime (the link would follow the request
+Host): the administrator sees why. Sends to one address — invite, re-invite, resend, and invite again after a revoke
+— are limited to `resend_rate_limit + 1` per `resend_rate_window`.
+
 ## Accept page
 
 `/invitation/{token}` → session → `/invitation`: the registration page (`web_ui.templates.invitation_accept`, extends
@@ -139,6 +148,22 @@ account enumeration); the invitee then sees "could not be accepted — sign in" 
 
 None shows invitee data; all are `private, no-store`, `X-Robots-Tag: noindex, nofollow`, `Referrer-Policy: no-referrer`.
 Scalar `payload` values pre-fill the mapped, non-password registration fields of the same name.
+
+Things to know:
+
+- **One invitation per browser.** Opening a link stores it in the session (one per profile); the last link opened
+  wins, and a form of another invitation left open in a tab is refused (its CSRF token names that invitation).
+  Opening a link from a third-party page shows that link's invitation — always with its invited address — so a
+  visitor should only accept an invitation for their own address.
+- **Existing account, any case.** If an account exists for the invited address in any letter case
+  (`Mixed@Example.com` for `mixed@example.com`), the acceptance is refused (`not_accepted`), also on case-sensitive
+  databases.
+- **`lock_email: false`** lets the link holder register another address; typing an address that already has an
+  account answers `not_accepted` (an existence check bounded by `accept_rate_limit`). Keep the default `true` unless
+  needed.
+- **Sign-in after the commit.** The account is committed before `Security::login()`: a user checker that refuses the
+  sign-in (e.g. accounts awaiting verification) sends the invitee to the sign-in page, keeps the account and consumes
+  the invitation — as with the open registration. The profile firewall needs `form_login`.
 
 ## E-mail delivery
 
@@ -180,9 +205,23 @@ match ($outcome->status) {
 };
 ```
 
-`InvitationManager::resend()` and `revoke()` take an `Invitation` (`InvitationRepository::findOneByPublicId()`).
-The API enforces `invitations.roles`; checking that the inviter holds each role is the caller's job
-(`InvitationsAccessGuard::grantableRoles()` does it for the bundle pages).
+`InvitationManager::resend()` and `revoke()` take an `Invitation` (`InvitationRepository::findOneByPublicId()`);
+`revoke()` returns an outcome (`REVOKED`, `NOT_OPEN`, `NOT_ALLOWED`). The API enforces `invitations.roles` (forged
+roles throw) and the role rule above against the given actor (`InvitationsAccessGuard::holdsAll()`, role hierarchy):
+`NOT_ALLOWED` when the actor lacks a role of the request or of the open invitation — a `null` actor (console) can
+only handle invitations without roles. Other refusals: `RATE_LIMITED`, `CLOSED`, `NOT_CONFIGURED`.
+
+`InvitationAcceptor::accept()` clears the default entity manager when an acceptance fails (nothing of it may be
+flushed later): call it with no pending changes of your own.
+
+### Demoted or removed inviters
+
+On acceptance the roles are re-checked against `invitations.roles` (the configuration), **not** against the inviter.
+When an inviter is demoted, disabled or deleted, revoke their open invitations from your listener:
+
+```php
+$manager->revokeOpenBy($inviter->getUserIdentifier());   // returns the count; one InvitationRevokedEvent each
+```
 
 ## Host grants (InvitationGrantInterface)
 

@@ -208,6 +208,9 @@ invitation:
         not_open: "Diese Einladung wurde bereits angenommen oder widerrufen."
         not_delivered: "Die Einladung an %email% konnte nicht gesendet werden. Versuche es später mit „Erneut senden“."
         rate_limited: "Zu viele Einladungen in kurzer Zeit: Es wurde nichts gesendet. Versuche es später erneut."
+        not_allowed: "Du kannst diese Einladung weder erneut senden noch widerrufen: Sie vergibt eine Rolle, die du nicht hast."
+        closed: "Einladungen sind geschlossen: Die Registrierung ist deaktiviert, es wurde kein Link gesendet."
+        not_configured: "Es wurde kein Einladungslink erstellt: Die öffentliche Basis-URL (absolute_url.base_uri) ist leer."
     accept:
         heading: "Einladung annehmen"
         title: "Einladung annehmen"

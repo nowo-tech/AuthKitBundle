@@ -27,7 +27,7 @@ Notifiers only log and store the last payload in the session **demo inbox**.
 | Magic login | `/en/magic-login` or `/magic-login` | Submit email → inbox signed link |
 | Register | `/en/register` or `/register` | Until the first user exists (`first_user_only`) |
 | QR phone sign-in | `/en/login/qr` | QR + short code, live status and countdown (`nowo-auth-kit-qr-login.js`) |
-| Invitations | `/en/admin/invitations` (signed in) | Invite an e-mail (no mailer: the single-use link is shown once), resend, revoke; open the link signed out to accept on the registration form with the e-mail locked |
+| Invitations | `/en/admin/invitations` (signed in as the first account, the demo administrator) | Invite an e-mail (no mailer: the single-use link is shown once), resend, revoke; open the link signed out to accept on the registration form with the e-mail locked |
 
 To try **serve** instead of redirect, set `locale.unlocalized: serve` in `symfony8/config/packages/nowo_auth_kit.yaml` and clear the cache — bare URLs then render with `locale.default`.
 

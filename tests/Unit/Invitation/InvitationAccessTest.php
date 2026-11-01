@@ -12,7 +12,9 @@ use PHPUnit\Framework\TestCase;
 use stdClass;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 /**
@@ -56,5 +58,20 @@ final class InvitationAccessTest extends TestCase
         self::assertSame(['ROLE_EDITOR'], $guard->grantableRoles(['ROLE_EDITOR', 'ROLE_SUPER_ADMIN']));
 
         self::assertSame([], (new InvitationsAccessGuard($checkers, $storage))->grantableRoles(['ROLE_EDITOR']), 'No authorization checker: no role.');
+    }
+
+    /** SEC-004 CD M1: the actor must hold every role (role hierarchy through the decision manager); fail closed. */
+    public function testHoldsAll(): void
+    {
+        $user      = new TestUser();
+        $decisions = $this->createMock(AccessDecisionManagerInterface::class);
+        $decisions->method('decide')->willReturnCallback(static fn (TokenInterface $token, array $attributes): bool => $attributes === ['ROLE_EDITOR'] && $token->getUser() === $user);
+        $guard = new InvitationsAccessGuard(new ServiceLocator([]), decisionManager: $decisions);
+
+        self::assertTrue($guard->holdsAll(null, []), 'No role to hold.');
+        self::assertTrue($guard->holdsAll($user, ['ROLE_EDITOR']));
+        self::assertFalse($guard->holdsAll($user, ['ROLE_EDITOR', 'ROLE_SUPER_ADMIN']));
+        self::assertFalse($guard->holdsAll(null, ['ROLE_EDITOR']), 'No actor: nothing held.');
+        self::assertFalse((new InvitationsAccessGuard(new ServiceLocator([])))->holdsAll($user, ['ROLE_EDITOR']), 'No decision manager: fail closed.');
     }
 }

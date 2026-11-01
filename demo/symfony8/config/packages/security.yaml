@@ -47,8 +47,8 @@ security:
         - { path: ^/(en|es)/magic-login, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/invitation, roles: PUBLIC_ACCESS }
         - { path: ^/invitation, roles: PUBLIC_ACCESS }
-        - { path: ^/(en|es)/admin/invitations, roles: ROLE_USER }
-        - { path: ^/admin/invitations, roles: ROLE_USER }
+        - { path: ^/(en|es)/admin/invitations, roles: ROLE_ADMIN }
+        - { path: ^/admin/invitations, roles: ROLE_ADMIN }
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/register, roles: PUBLIC_ACCESS }
         - { path: ^/reset-password, roles: PUBLIC_ACCESS }

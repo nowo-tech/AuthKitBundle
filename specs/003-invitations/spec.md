@@ -42,8 +42,14 @@ the acceptance transaction with the invitation payload; throwing `InvitationRefu
 
 ### US-05 — Defaults keep 1.31 behaviour (P1)
 
-**Given** no `invitations` configuration, **Then** no entity mapping change (beyond `register_mapping` rules), no
-route, no page, no command, no behaviour change.
+**Given** no `invitations` configuration, **Then** no route, no page, no command, no behaviour change. The
+`Invitation` entity is mapped like the other AuthKit entities (`doctrine.register_mapping: true` by default; `auto`
+maps it only when a profile enables invitations), so a host migration diff adds its table.
+
+### US-06 — Tiered administrators (P1, audit CD M1)
+
+**Given** an invitation carrying `ROLE_SUPER_ADMIN`, **When** an administrator without that role tries to resend,
+re-invite or revoke it, **Then** it is refused, no link is shown and no account can be obtained.
 
 ## Requirements
 
@@ -72,6 +78,10 @@ route, no page, no command, no behaviour change.
   `--dry-run`), `InvitationsPurgedEvent`.
 - **FR-INV-009** Opt-in routes from the AuthKit route loader only (`invitations.routes`); a kernel whose routing is
   only `routing.controllers` has none (REQ-SF-004 rule 7).
+- **FR-INV-011** (audit CD) Role rule: invite, merge, resend, revoke and the "shown once" link require the actor to
+  hold every role involved (`InvitationsAccessGuard::holdsAll()`); per-address send limit; nothing sent with
+  `registration_mode: disabled` or an empty runtime `base_uri`; case-insensitive existing-account check on
+  acceptance; `InvitationManager::revokeOpenBy()`.
 - **FR-INV-010** No secret material (token, hash) in templates, events or logs: `InvitationSnapshot`,
   `InvitationRow`; the link reaches a page only with `show_link_when_undelivered`.
 

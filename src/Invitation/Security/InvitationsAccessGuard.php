@@ -6,6 +6,8 @@ namespace Nowo\AuthKitBundle\Invitation\Security;
 
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -25,7 +27,33 @@ final readonly class InvitationsAccessGuard
         private ?TokenStorageInterface $tokenStorage = null,
         private ?AuthorizationCheckerInterface $authorizationChecker = null,
         private array $allowUnauthenticated = [],
+        private ?AccessDecisionManagerInterface $decisionManager = null,
     ) {
+    }
+
+    /**
+     * Whether `$actor` holds every role of `$roles` (role hierarchy, through the access decision manager on a token of
+     * that user — also for an actor other than the signed-in user). No role: true. No actor or no decision manager
+     * (SecurityBundle missing): false (SEC-004 CD M1 — fail closed).
+     *
+     * @param list<string> $roles
+     */
+    public function holdsAll(?UserInterface $actor, array $roles): bool
+    {
+        if ($roles === []) {
+            return true;
+        }
+        if (!$actor instanceof UserInterface || !$this->decisionManager instanceof AccessDecisionManagerInterface) {
+            return false;
+        }
+        $token = new UsernamePasswordToken($actor, 'nowo_auth_kit_invitations', $actor->getRoles());
+        foreach ($roles as $role) {
+            if (!$this->decisionManager->decide($token, [$role])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function user(): ?UserInterface

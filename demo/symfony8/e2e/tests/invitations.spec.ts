@@ -40,6 +40,9 @@ test.describe('AuthKit demo invitations', () => {
     await panel.locator('button[type="submit"]').click();
     await expect(tab).toHaveURL(/\/en\/home$/);
     await expect(tab.locator('body')).toContainText(email);
+    // The invited account is no administrator: the invitation pages stay closed to it.
+    const admin = await tab.goto('/en/admin/invitations');
+    expect(admin?.status()).toBe(403);
     await invitee.close();
 
     // The same link again, in another fresh context: the neutral page, without the invitee's e-mail.

@@ -19,7 +19,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use function array_unique;
 use function array_values;
 use function is_string;
+use function mb_strtolower;
 use function sprintf;
+use function trim;
 
 /**
  * Creates and persists users from registration form data.
@@ -80,8 +82,44 @@ final class UserRegistrar
     public function registerInvited(array $formData, string $profileName, array $roles = []): UserInterface&PasswordAuthenticatedUserInterface
     {
         $profile = $this->profileRegistry->getByName($profileName);
+        $this->assertNoCaseVariant($profile, $formData);
 
         return $this->createUser($profile, $formData, array_values(array_unique([$profile->registrationRole, ...$roles])));
+    }
+
+    /**
+     * SEC-004 CD L2: on case-sensitive databases the unique constraint would accept `mixed@example.com` next to an
+     * existing `Mixed@Example.com`. The invited address is compared lower-cased (the invitation normalisation) with the
+     * stored identifiers first; a match refuses the acceptance like the constraint does.
+     *
+     * @param array<string, mixed> $formData
+     */
+    private function assertNoCaseVariant(ProfileSettings $profile, array $formData): void
+    {
+        $field = $profile->invitationEmailField();
+        $value = $field !== null ? ($formData[$field] ?? null) : null;
+        if (!is_string($value) || $value === '') {
+            return;
+        }
+        $property = $field;
+        foreach ($profile->registrationFields as $definition) {
+            if (($definition['name'] ?? null) === $field) {
+                $property = (string) ($definition['property'] ?? $field);
+            }
+        }
+        if (!$this->entityManager->getClassMetadata($profile->userClass)->hasField($property)) {
+            return;
+        }
+        $count = (int) $this->entityManager->createQueryBuilder()
+            ->select('COUNT(u)')
+            ->from($profile->userClass, 'u')
+            ->where(sprintf('LOWER(u.%s) = :identifier', $property))
+            ->setParameter('identifier', mb_strtolower(trim($value)))
+            ->getQuery()
+            ->getSingleScalarResult();
+        if ($count > 0) {
+            throw new RuntimeException(sprintf('Registration failed: a "%s" with the same identifier (any case) already exists.', $profile->userClass));
+        }
     }
 
     /**

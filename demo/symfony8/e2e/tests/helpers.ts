@@ -19,7 +19,7 @@ export async function ensureDemoUser(page: Page): Promise<void> {
   await page.context().clearCookies();
 }
 
-/** Signs the demo account in (the demo lets every signed-in user invite: invitations.security.access_roles). */
+/** Signs the demo account in (the first demo account is the administrator: invitations.security.access_roles). */
 export async function signIn(page: Page): Promise<void> {
   await page.goto('/en/login');
   await page.locator('input[name="login_form[_username]"]').fill(DEMO_EMAIL);

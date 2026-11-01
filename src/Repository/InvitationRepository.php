@@ -69,6 +69,29 @@ class InvitationRepository extends EntityRepository
         return $invitation;
     }
 
+    /**
+     * Open invitations issued by an inviter (security identifier), oldest first, at most `$limit`.
+     *
+     * @return list<Invitation>
+     */
+    public function findOpenByInviter(string $inviter, int $limit, ?string $profile = null): array
+    {
+        $qb = $this->createQueryBuilder('i')
+            ->andWhere('i.invitedBy = :inviter')
+            ->andWhere('i.acceptedAt IS NULL')
+            ->andWhere('i.revokedAt IS NULL')
+            ->setParameter('inviter', $inviter)
+            ->orderBy('i.id', SortDirection::Ascending)
+            ->setMaxResults(max(1, min(self::MAX_PAGE_SIZE, $limit)));
+        if ($profile !== null) {
+            $qb->andWhere('i.profile = :profile')->setParameter('profile', $profile);
+        }
+        /** @var list<Invitation> $rows */
+        $rows = $qb->getQuery()->getResult();
+
+        return $rows;
+    }
+
     public function findOneByTokenHash(string $tokenHash): ?Invitation
     {
         return $tokenHash === '' ? null : $this->findOneBy(['tokenHash' => $tokenHash]);

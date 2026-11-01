@@ -94,8 +94,13 @@
 
 ## Unreleased
 
-From **1.31.2**: no action unless you enable the new invitations (`invitations.mode` stays `disabled`, no route, no
-entity is added). `nowo-tech/form-kit-bundle` must be `^2.14`.
+From **1.31.2**: no action unless you enable the new invitations (`invitations.mode` stays `disabled`: no route, no
+page, no command). `nowo-tech/form-kit-bundle` must be `^2.14`.
+
+**Schema:** the `Invitation` entity lives in `src/Entity` with the other AuthKit entities, so with the default
+`doctrine.register_mapping: true` it is mapped even while invitations are disabled, and your next
+`doctrine:migrations:diff` adds the `auth_kit_invitation` table (as for the social / QR entities). To keep it out,
+set `doctrine.register_mapping: auto` (mapped only when social login, QR login or invitations are enabled).
 
 To use invitations ([INVITATIONS.md](INVITATIONS.md)):
 

@@ -91,6 +91,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`registration_mode: invite_only`:** the open registration page is closed (like `disabled`) and accounts are created only by accepting an invitation (requires `invitations.mode: enabled`). `UserRegistrar::registerInvited()` creates the account of an accepted invitation.
 - **`RegistrationFormType` options** `invitation_lock_email` and `invitation_csrf_token_id` (defaults keep the open registration form unchanged); `AuthPageFactory::notice()`; auth pages `invitation_accept` and `invitation_invalid` (`web_ui.templates.*`).
 
+### Security
+
+Independent REQ-SEC-004 audit of the unreleased invitations (Appendix CD, 2026-11-01, `b9888b0`: Pass (conditional) / Medium), fixed before release:
+
+- **M1:** an administrator could resend or re-invite (merge) an invitation carrying roles they do not hold and, with `show_link_when_undelivered` or without a mailer, obtain its link and create that account. Invite, merge, resend, revoke and the shown-once link now require the actor to hold every role involved (`InvitationsAccessGuard::holdsAll()`, role hierarchy); Resend / Revoke are hidden on other rows; outcome `NOT_ALLOWED`.
+- **L1:** an `absolute_url.base_uri` env var resolving empty at runtime made the mailed link follow the request Host; nothing is sent then (`NOT_CONFIGURED`).
+- **L2:** on case-sensitive databases an invitation could create `mixed@example.com` next to `Mixed@Example.com`; `UserRegistrar::registerInvited()` refuses any-case duplicates (`not_accepted`).
+- **L3:** acceptance re-checks roles against `invitations.roles`, not the inviter (documented); `InvitationManager::revokeOpenBy()` revokes a demoted inviter's open invitations.
+- Info: sends per address (invite → revoke → invite included) limited to `resend_rate_limit + 1`; no link is sent with `registration_mode: disabled` (`CLOSED`); demo restricted to administrators and bound to 127.0.0.1; residuals documented in SECURITY.md and INVITATIONS.md.
+
 ### Changed
 
 - `nowo-tech/form-kit-bundle` constraint raised to `^2.14` (fail-closed `CsrfOnlyType`, used by the invitation actions). `symfony/mailer` is suggested (invitation e-mails).
