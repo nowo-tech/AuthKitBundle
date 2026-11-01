@@ -5,8 +5,8 @@ import type { Page } from '@playwright/test';
 import { DEMO_EMAIL, ensureDemoUser, inviteAndReadLink, signIn } from './helpers';
 
 /**
- * REQ-DEMO-013 — the auth pages in the demo frame (demo navbar + UiKit auth scaffold + Symfony toolbar), in useful
- * states: sign-in, password reset with a validation error, QR phone sign-in.
+ * REQ-DEMO-013 — the README screenshots (1–3), in the demo frame (demo navbar + UiKit scaffold + Symfony toolbar):
+ * sign-in, the invitation administration list and the accept page.
  */
 const outDir = process.env.SCREENSHOT_DIR
   ? resolve(process.env.SCREENSHOT_DIR)
@@ -68,27 +68,6 @@ test.describe('AuthKit demo screenshots', () => {
     await page.locator('input[name="login_form[_username]"]').fill(DEMO_EMAIL);
     await fitViewport(page);
     await shoot(page, 'login');
-  });
-
-  test('password reset with a validation error', async ({ page }) => {
-    await page.goto('/en/reset-password');
-    await page.locator('input[name="reset_password_request_form[identifier]"]').fill(DEMO_EMAIL);
-    await page.locator('[data-testid="auth-kit-reset_request"] button[type="submit"]').click();
-    await page.locator('a', { hasText: 'Open reset link' }).first().click();
-    const panel = page.locator('[data-testid="auth-kit-reset_password"]');
-    await panel.locator('input[name="reset_password_form[password][first]"]').fill('new-password-456');
-    await panel.locator('input[name="reset_password_form[password][second]"]').fill('another-one-789');
-    await panel.locator('button[type="submit"]').click();
-    await expect(panel).toContainText('The password fields must match.');
-    await fitViewport(page);
-    await shoot(page, 'reset-password-error');
-  });
-
-  test('QR phone sign-in', async ({ page }) => {
-    await page.goto('/en/login/qr');
-    await expect(page.locator('img.nowo-auth-kit-qr__image')).toBeVisible();
-    await fitViewport(page);
-    await shoot(page, 'qr-login');
   });
 
   test('invitations: administration list and accept page', async ({ page, browser }) => {

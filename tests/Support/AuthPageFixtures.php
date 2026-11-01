@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Support;
 
+use DateTimeImmutable;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
+use Nowo\AuthKitBundle\DependencyInjection\InvitationsConfiguration;
+use Nowo\AuthKitBundle\Entity\Invitation;
+use Nowo\AuthKitBundle\Form\InvitationFilterType;
+use Nowo\AuthKitBundle\Form\InvitationFormType;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\Form\MagicLoginConfirmType;
 use Nowo\AuthKitBundle\Form\MagicLoginRequestFormType;
@@ -20,23 +25,37 @@ use Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType;
 use Nowo\AuthKitBundle\Form\ResetPasswordFormType;
 use Nowo\AuthKitBundle\Form\ResetPasswordRequestFormType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
+use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
+use Nowo\AuthKitBundle\Invitation\Ui\InvitationAdminPages;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
+use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
+use Nowo\FormKitBundle\Form\FormTypeMap;
+use Nowo\FormKitBundle\Form\Type\CsrfOnlyType;
 use Nowo\UiKitBundle\View\DetailItem;
 use Nowo\UiKitBundle\View\Label;
 use Nowo\UiKitBundle\View\Link;
+use Nowo\UiKitBundle\View\Pagination;
 use Symfony\Component\Form\Extension\Csrf\CsrfExtension;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\Forms;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Security\Core\Exception\BadCredentialsException;
 use Symfony\Component\Security\Csrf\CsrfToken;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Validator\Validation;
+
+use function count;
+use function strlen;
 
 /**
  * Realistic template contexts of the auth pages (the same `page` view model + 1.x variables the controllers pass),
@@ -249,6 +268,180 @@ final class AuthPageFixtures
                 new DetailItem(AuthPageFactory::label('qr_login.approve.phone_label'), '+34 *** ** 78'),
             ],
         ]);
+    }
+
+    /**
+     * Invitations (1.32) of the default profile: enabled, default routes and administration settings.
+     *
+     * @return array<string, mixed>
+     */
+    public static function invitationsConfig(): array
+    {
+        $routes = [];
+        foreach (InvitationsConfiguration::ROUTES as $key => [$path, $name]) {
+            $routes[$key] = ['path' => $path, 'name' => $name];
+        }
+
+        return [
+            'mode'        => 'enabled',
+            'ttl_days'    => 7,
+            'ttl_choices' => [1, 3, 7, 14, 30],
+            'lock_email'  => true,
+            'roles'       => ['ROLE_EDITOR'],
+            'admin'       => ['per_page' => 25, 'layout_template' => null, 'templates' => InvitationsConfiguration::ADMIN_TEMPLATES],
+            'routes'      => $routes,
+        ];
+    }
+
+    /**
+     * Invitation administration list: an open row (Resend / Revoke CSRF-only forms) and an accepted row, filters,
+     * pagination.
+     *
+     * @return array<string, mixed>
+     */
+    public static function invitationsIndex(bool $empty = false): array
+    {
+        $profile = self::profile(['invitations' => self::invitationsConfig()]);
+        $now     = new DateTimeImmutable('2026-11-01 10:00:00');
+        $rows    = [];
+        if (!$empty) {
+            $open = (new Invitation('default', 'ana@example.com', 'admin@example.com', 7, $now))->setRoles(['ROLE_EDITOR']);
+            $open->issue('hash-1', 7, $now);
+            $done = new Invitation('default', 'bob@example.com', 'admin@example.com', 7, $now->modify('-2 days'));
+            $done->issue('hash-2', 7, $now->modify('-2 days'));
+            $done->markAccepted('bob@example.com', $now);
+            $rows = [InvitationSnapshot::of($open, $now), InvitationSnapshot::of($done, $now)];
+        }
+        $filters    = self::invitationFormFactory()->create(InvitationFilterType::class, ['status' => 'open'], ['action' => '/admin/invitations'])->createView();
+        $pagination = new Pagination(1, 25, count($rows), 1, 'nowo_auth_kit_invitations', [], allowedPerPage: InvitationsConfiguration::PER_PAGE_CHOICES);
+
+        return ['page' => self::invitationPages()->indexPage($profile, $rows, $filters, $pagination, '/admin/invitations')];
+    }
+
+    /**
+     * Invite form page (e-mail, the grantable role, validity, message).
+     *
+     * @return array<string, mixed>
+     */
+    public static function invitationsNew(): array
+    {
+        $profile = self::profile(['invitations' => self::invitationsConfig()]);
+        $form    = self::invitationFormFactory()->create(InvitationFormType::class, ['ttlDays' => 7], [
+            'action'      => '/admin/invitations/new',
+            'roles'       => ['ROLE_EDITOR'],
+            'ttl_choices' => [1, 3, 7, 14, 30],
+            'profile'     => 'default',
+        ]);
+
+        return ['page' => self::invitationPages()->newPage($profile, $form->createView())];
+    }
+
+    /**
+     * The link shown once (`show_link_when_undelivered`).
+     *
+     * @return array<string, mixed>
+     */
+    public static function invitationLink(): array
+    {
+        $profile    = self::profile(['invitations' => self::invitationsConfig()]);
+        $now        = new DateTimeImmutable('2026-11-01 10:00:00');
+        $invitation = new Invitation('default', 'ana@example.com', 'admin@example.com', 7, $now);
+        $invitation->issue('hash-1', 7, $now);
+
+        return ['page' => self::invitationPages()->linkPage($profile, InvitationSnapshot::of($invitation, $now), 'https://app.example.com/invitation/' . str_repeat('A', 43))];
+    }
+
+    /**
+     * Accept page: the registration form with the invited e-mail locked and the inviter's message.
+     *
+     * @return array<string, mixed>
+     */
+    public static function invitationAccept(): array
+    {
+        $overrides = ['invitations' => self::invitationsConfig()];
+        $profile   = self::profile($overrides);
+        $view      = self::formFactory($overrides)->create(RegistrationFormType::class, ['email' => 'ana@example.com'], [
+            'profile'                  => 'default',
+            'invitation_lock_email'    => true,
+            'invitation_csrf_token_id' => 'nowo_auth_kit_invitation_accept/default/0123456789abcdef0123456789abcdef',
+        ])->createView();
+        $pages = new AuthPageFactory();
+        $page  = $pages->create('invitation_accept', $profile, $view, [$pages->link('register.login_link', '/login')]);
+
+        return ['form_themes' => self::FORM_THEMES] + $pages->context('invitation_accept', $page, $profile, [
+            'registration_form'     => $view,
+            'login_route'           => 'nowo_auth_kit_login',
+            'invitation_message'    => 'Welcome to the team!',
+            'slide_to_confirm_mode' => null,
+        ]);
+    }
+
+    /**
+     * Form-less invitation notice of one kind (invalid, expired, rate_limited, signed_in, not_accepted).
+     *
+     * @return array<string, mixed>
+     */
+    public static function invitationNotice(string $kind): array
+    {
+        $profile = self::profile(['invitations' => self::invitationsConfig()]);
+        $pages   = new AuthPageFactory();
+        $link    = $kind === 'signed_in' ? $pages->link('invitation.page.sign_out', '/logout') : $pages->link('invitation.page.sign_in', '/login');
+        $page    = $pages->notice(
+            'invitation_invalid',
+            $profile,
+            AuthPageFactory::label('invitation.page.' . $kind . '_title'),
+            AuthPageFactory::label('invitation.page.' . $kind . '_body'),
+            [$link],
+            ['data-nowo-auth-kit-invitation' => $kind],
+        );
+
+        return $pages->context('invitation_invalid', $page, $profile, ['invitation_kind' => $kind]);
+    }
+
+    private static function invitationPages(): InvitationAdminPages
+    {
+        $router = new class implements UrlGeneratorInterface {
+            private RequestContext $context;
+
+            public function __construct()
+            {
+                $this->context = new RequestContext();
+            }
+
+            public function setContext(RequestContext $context): void
+            {
+                $this->context = $context;
+            }
+
+            public function getContext(): RequestContext
+            {
+                return $this->context;
+            }
+
+            /** @param array<string, mixed> $parameters */
+            public function generate(string $name, array $parameters = [], int $referenceType = self::ABSOLUTE_PATH): string
+            {
+                $path = InvitationsConfiguration::ROUTES[substr($name, strlen('nowo_auth_kit_invitations_'))][0] ?? '/admin/invitations';
+
+                return str_replace('{id}', (string) ($parameters['id'] ?? ''), $path);
+            }
+        };
+
+        return new InvitationAdminPages(
+            new AuthKitUrlGenerator($router, new AuthKitRouteLocaleParameters(new RequestStack(), false, 'en', ['en'])),
+            new CsrfOnlyFormFactory(self::invitationFormFactory()),
+        );
+    }
+
+    private static function invitationFormFactory(): FormFactoryInterface
+    {
+        return Forms::createFormFactoryBuilder()
+            ->addExtension(new ValidatorExtension(Validation::createValidator()))
+            ->addExtension(new CsrfExtension(self::csrfTokenManager()))
+            ->addType(FormKitTestSupport::withMerger(new InvitationFormType()))
+            ->addType(FormKitTestSupport::withMerger(new InvitationFilterType()))
+            ->addType(new CsrfOnlyType(FormKitTestSupport::merger(), new FormTypeMap()))
+            ->getFormFactory();
     }
 
     /**

@@ -24,6 +24,8 @@ final class PageContractTest extends PageContractTestCase
 {
     private const VIEWS = '@NowoAuthKitBundle/security/';
 
+    private const ADMIN_VIEWS = '@NowoAuthKitBundle/invitations/';
+
     public static function pageFixtures(): iterable
     {
         yield 'login' => new PageFixture(self::VIEWS . 'login.html.twig', AuthPageFixtures::login());
@@ -42,6 +44,16 @@ final class PageContractTest extends PageContractTestCase
         yield 'qr login show (stimulus, no image)' => new PageFixture(self::VIEWS . 'qr_login_show.html.twig', AuthPageFixtures::qrLoginShow('qr-login', false));
         yield 'qr login show (stimulus, image)' => new PageFixture(self::VIEWS . 'qr_login_show.html.twig', AuthPageFixtures::qrLoginShow('qr-login'));
         yield 'qr login approve' => new PageFixture(self::VIEWS . 'qr_login_approve.html.twig', AuthPageFixtures::qrLoginApprove());
+        // Invitations (1.32): accept page and notices on the auth scaffold, administration on the list / form / show
+        // scaffolds (invitations.admin.* settings of the profile).
+        yield 'invitation accept' => new PageFixture(self::VIEWS . 'invitation_accept.html.twig', AuthPageFixtures::invitationAccept());
+        foreach (['invalid', 'expired', 'rate_limited', 'signed_in', 'not_accepted'] as $kind) {
+            yield 'invitation notice (' . $kind . ')' => new PageFixture(self::VIEWS . 'invitation_invalid.html.twig', AuthPageFixtures::invitationNotice($kind));
+        }
+        yield 'invitations index' => new PageFixture(self::ADMIN_VIEWS . 'index.html.twig', AuthPageFixtures::invitationsIndex());
+        yield 'invitations index (empty)' => new PageFixture(self::ADMIN_VIEWS . 'index.html.twig', AuthPageFixtures::invitationsIndex(true));
+        yield 'invitations new' => new PageFixture(self::ADMIN_VIEWS . 'new.html.twig', AuthPageFixtures::invitationsNew());
+        yield 'invitation link' => new PageFixture(self::ADMIN_VIEWS . 'link.html.twig', AuthPageFixtures::invitationLink());
     }
 
     /**
