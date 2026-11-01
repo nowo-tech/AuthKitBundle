@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.32.0](#to-1320)
 - [To 1.31.2](#to-1312)
 - [To 1.31.1](#to-1311)
 - [To 1.31.0](#to-1310)
@@ -93,6 +94,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.32.0
+
+From **1.31.2**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 From **1.31.2**: no action unless you enable the new invitations (`invitations.mode` stays `disabled`: no route, no
 page, no command). `nowo-tech/form-kit-bundle` must be `^2.14`.

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.32.0] - 2026-11-01](#1320---2026-11-01)
 - [[1.31.2] - 2026-10-30](#1312---2026-10-30)
 - [[1.31.1] - 2026-10-28](#1311---2026-10-28)
 - [[1.31.0] - 2026-10-27](#1310---2026-10-27)
@@ -84,6 +85,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.32.0] - 2026-11-01
+
+Invitations (opt-in): invite-only registration, admin invite/resend/revoke, single-use hashed links, role-bounded inviters See [UPGRADING](UPGRADING.md#to-1320).
 
 ### Added
 
