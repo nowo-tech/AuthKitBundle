@@ -86,6 +86,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Page contract (REQ-UI-003):** `PageContractTest` now renders the invitation pages — accept page, the five notice kinds (`invalid`, `expired`, `rate_limited`, `signed_in`, `not_accepted`), and the administration list (with rows and empty), invite form and link page on the UiKit list / form / show scaffolds with the profile `invitations.admin.*` settings — through the stub host layouts and themes. No template change was needed.
+- **README screenshots (REQ-DEMO-013):** three demo screenshots (sign-in, invitation list, invitation accept); the password-reset and QR captures were removed from the README, `docs/images/demo` and `screenshots.spec.ts` (the e2e still covers those pages).
+
 ## [1.32.0] - 2026-11-01
 
 Invitations (opt-in): invite-only registration, admin invite/resend/revoke, single-use hashed links, role-bounded inviters See [UPGRADING](UPGRADING.md#to-1320).

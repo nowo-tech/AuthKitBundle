@@ -18,16 +18,6 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
       <br /><sub>Sign in — UiKit auth scaffold on the host's guest layout</sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/images/demo/reset-password-error.webp" alt="AuthKit new-password page after a mismatched submit: 'The password fields must match.' under New password, the confirmation field before the Update password button, Back to sign in link, Symfony profiler toolbar" />
-      <br /><sub>Password reset — validation error, confirmation before the submit</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/images/demo/qr-login.webp" alt="AuthKit QR phone sign-in: QR code, short code to type on the phone, live status 'Waiting for approval…', countdown, Continue and Generate a new code buttons, Symfony profiler toolbar" />
-      <br /><sub>QR phone sign-in — live status and countdown (Stimulus-friendly)</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="33%">
       <img src="docs/images/demo/invitations-list.webp" alt="AuthKit invitation administration in the demo: Invitations list page on the host admin layout with Invite button, e-mail search and status filter, rows with e-mail, Pending badge, inviter, sent and expiry dates, Resend and Revoke actions, Symfony profiler toolbar" />
       <br /><sub>Invitations — administration list (opt-in, 1.32)</sub>
     </td>
@@ -35,7 +25,6 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
       <img src="docs/images/demo/invitation-accept.webp" alt="AuthKit accept-invitation page: registration form with the inviter's message, the invited e-mail pre-filled and read-only, password and confirmation, Register button, Symfony profiler toolbar" />
       <br /><sub>Accept an invitation — registration form, e-mail locked</sub>
     </td>
-    <td></td>
   </tr>
 </table>
 
