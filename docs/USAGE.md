@@ -13,6 +13,7 @@
   - [Override in the application](#override-in-the-application-1)
   - [Constraint messages](#constraint-messages)
 - [Registration flow](#registration-flow)
+- [Invitation flow](#invitation-flow)
 - [Login flow](#login-flow)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
   - [Enable](#enable)
@@ -159,6 +160,25 @@ BC: a key you already override in `translations/validators.<locale>.yaml` (AuthK
 4. Optional slide-to-confirm on a consent checkbox is UX only — see [CONFIGURATION.md](CONFIGURATION.md#slide-to-confirm-optional).
 5. Optional device intelligence (`device_rate_limit`) adds an extra limiter key by device ULID after a successful `collect()` — see [CONFIGURATION.md](CONFIGURATION.md#device-intelligence-optional).
 6. User is logged in on the configured firewall and redirected to `login_success_route` or login.
+
+## Invitation flow
+
+With `invitations.mode: enabled` (1.32, often with `registration_mode: invite_only`):
+
+1. An administrator invites an e-mail on `/admin/invitations/new` (UiKit form page, FormKit `InvitationFormType`) or
+   through `InvitationManager::invite()`; the single-use link is e-mailed (Symfony Mailer) and only its hash stored.
+2. The invitee opens `/invitation/{token}`; the token hash moves to the session and the page redirects to
+   `/invitation`, the registration form with the invited e-mail pre-filled (locked with `lock_email`).
+3. On valid submit the account is created like a registration (fields, hashing, `registration_role` plus the
+   invitation roles), the invitation is claimed (single use), the `InvitationGrantInterface` services run, and the
+   user is signed in.
+4. Host code calling `InvitationManager` directly passes the **signed-in user** as the actor (never a user object
+   rebuilt from request data): the role rule trusts that object's roles.
+5. `/admin/invitations` lists invitations with Resend (new link) and Revoke (FormKit CSRF-only forms behind the UiKit
+   confirm dialog). Every page is a Symfony Form / FormKit type rendered with `form_start` / child loop /
+   `form_end` — never raw `<form>` / `<input>` in overrides.
+
+Details: [INVITATIONS.md](INVITATIONS.md).
 
 ## Login flow
 

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
-import { DEMO_EMAIL, ensureDemoUser } from './helpers';
+import { DEMO_EMAIL, ensureDemoUser, inviteAndReadLink, signIn } from './helpers';
 
 /**
  * REQ-DEMO-013 — the auth pages in the demo frame (demo navbar + UiKit auth scaffold + Symfony toolbar), in useful
@@ -89,5 +89,24 @@ test.describe('AuthKit demo screenshots', () => {
     await expect(page.locator('img.nowo-auth-kit-qr__image')).toBeVisible();
     await fitViewport(page);
     await shoot(page, 'qr-login');
+  });
+
+  test('invitations: administration list and accept page', async ({ page, browser }) => {
+    await signIn(page);
+    const stamp = Date.now();
+    await inviteAndReadLink(page, `grace-${stamp}@example.com`);
+    const path = await inviteAndReadLink(page, `alan-${stamp}@example.com`);
+    await page.goto('/en/admin/invitations');
+    await expect(page.locator('[data-testid="nowo-auth-kit-invitations"]')).toBeVisible();
+    await fitViewport(page);
+    await shoot(page, 'invitations-list');
+
+    const invitee = await browser.newContext({ viewport: { width: WIDTH, height: 900 } });
+    const tab = await invitee.newPage();
+    await tab.goto(path);
+    await expect(tab.locator('[data-testid="auth-kit-invitation_accept"]')).toBeVisible();
+    await fitViewport(tab);
+    await shoot(tab, 'invitation-accept');
+    await invitee.close();
   });
 });

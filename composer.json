@@ -34,7 +34,7 @@
         "doctrine/doctrine-bundle": "^2.10 || ^3.0",
         "doctrine/orm": "^3.7",
         "nowo-tech/doctrine-encrypt-bundle": "^2.3",
-        "nowo-tech/form-kit-bundle": "^2.2",
+        "nowo-tech/form-kit-bundle": "^2.14",
         "nowo-tech/ui-kit-bundle": "^2.2",
         "psr/clock": "^1.0",
         "symfony/asset": "^7.4 || ^8.0",
@@ -71,6 +71,7 @@
         "symfony/ux-icons": "Required for password visibility toggle icons (^2.0 || ^3.0)",
         "symfony/http-client": "Required with symfony/ux-icons to fetch toggle icons on demand",
         "symfony/lock": "Serializes AuthKitAttemptLimiter read-modify-write so concurrent requests cannot exceed rate limits (^7.4 || ^8.0; use a shared store on multi-host setups)",
+        "symfony/mailer": "Sends the invitation e-mails (invitations.mode: enabled; ^7.4 || ^8.0). Without it the inviter can be shown the link once (invitations.show_link_when_undelivered)",
         "endroid/qr-code": "PNG/SVG data-URI QR codes for QR phone login (^6.0; PNG needs ext-gd)"
     },
     "require-dev": {
@@ -91,6 +92,7 @@
         "symfony/clock": "^7.4 || ^8.0",
         "symfony/css-selector": "^7.4 || ^8.0",
         "symfony/lock": "^7.4 || ^8.0",
+        "symfony/mailer": "^7.4 || ^8.0",
         "vincentlanglet/twig-cs-fixer": "^4.0"
     },
     "autoload": {

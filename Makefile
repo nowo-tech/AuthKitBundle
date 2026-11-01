@@ -6,7 +6,7 @@ SERVICE_PHP = php
 .PHONY: help ensure-up up down down-dev build shell install assets test test-coverage test-coverage-100 \
 	check-twig-extra check-no-raw-html-form check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history \
 	coverage-check cs-check cs-fix rector rector-dry phpstan igor qa release-check \
-	release-check-demos composer-sync clean update validate validate-translations setup-hooks demo-smoke twig-lint
+	release-check-demos composer-sync clean update validate validate-translations setup-hooks demo-smoke twig-lint test-e2e
 
 help:
 	@echo "Auth Kit Bundle - Development Commands"
@@ -64,6 +64,7 @@ help:
 	@echo ""
 	@echo "Demos:"
 	@echo "  demo-smoke        Boot demo/symfony8 and assert HTTP 200 (REQ-TEST-011)"
+	@echo "  test-e2e          Playwright e2e against the running demo/symfony8 (REQ-DEMO-013)"
 	@echo "  release-check-demos  Run release-check in every demo"
 	@echo "  make -C demo up-symfony8 / down-symfony8"
 
@@ -203,3 +204,7 @@ strip-cursor-coauthor-from-history:
 
 twig-lint: ensure-up
 	@$(COMPOSE) exec -T $(SERVICE_PHP) composer twig:lint || $(COMPOSE) exec -T $(SERVICE_PHP) ./vendor/bin/twig-cs-fixer lint --config=.twig-cs-fixer.php
+
+# REQ-DEMO-013 — Playwright e2e against demo/symfony8 (starts it when needed; Playwright Docker image).
+test-e2e:
+	@$(MAKE) -C demo/symfony8 test-e2e

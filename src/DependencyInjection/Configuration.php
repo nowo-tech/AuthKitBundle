@@ -77,6 +77,8 @@ final class Configuration implements ConfigurationInterface
         'magic_login_confirm' => '@NowoAuthKitBundle/security/magic_login_confirm.html.twig',
         'qr_login_show'       => '@NowoAuthKitBundle/security/qr_login_show.html.twig',
         'qr_login_approve'    => '@NowoAuthKitBundle/security/qr_login_approve.html.twig',
+        'invitation_accept'   => '@NowoAuthKitBundle/security/invitation_accept.html.twig',
+        'invitation_invalid'  => '@NowoAuthKitBundle/security/invitation_invalid.html.twig',
     ];
 
     /** @var list<string> */
@@ -103,6 +105,7 @@ final class Configuration implements ConfigurationInterface
         'magic_login',
         'social_login',
         'qr_login',
+        'invitations',
         'routes',
         'firewall',
         'login_success_route',
@@ -348,7 +351,7 @@ final class Configuration implements ConfigurationInterface
                             ->end()
                             ->enumNode('registration_mode')
                                 ->values(array_map(static fn (RegistrationMode $mode): string => $mode->value, RegistrationMode::cases()))
-                                ->info('disabled: no registration. first_user_only: register only when no users exist. always: open registration.')
+                                ->info('disabled: closed (no registration, no invitation acceptance). first_user_only: register only when no users exist. always: open registration. invite_only (1.32): accounts only from invitations (invitations.mode: enabled required).')
                                 ->defaultValue(RegistrationMode::FirstUserOnly->value)
                             ->end()
                             ->integerNode('registration_rate_limit')
@@ -385,6 +388,7 @@ final class Configuration implements ConfigurationInterface
                             ->append($this->createMagicLoginNode())
                             ->append($this->createSocialLoginNode())
                             ->append($this->createQrLoginNode())
+                            ->append(InvitationsConfiguration::createNode())
                             ->append($this->createRoutesNode())
                             ->scalarNode('firewall')
                                 ->info('Symfony firewall name where form_login should point (documented for security.yaml).')

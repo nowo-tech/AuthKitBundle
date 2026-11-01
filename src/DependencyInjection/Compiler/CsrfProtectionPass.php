@@ -14,8 +14,8 @@ use function sprintf;
 /**
  * Fails closed when a profile enables a CSRF-dependent flow without form CSRF protection (SEC-004 P2).
  *
- * QR login approval (a signed-in phone approves a desktop challenge) and the magic-login confirm interstitial are
- * protected by the Symfony form CSRF extension. A host that disables `framework.form.csrf_protection` (or has no CSRF
+ * QR login approval (a signed-in phone approves a desktop challenge), the magic-login confirm interstitial and the
+ * invitations (administration actions, acceptance; 1.32) are protected by the Symfony form CSRF extension. A host that disables `framework.form.csrf_protection` (or has no CSRF
  * token manager) would silently turn those checks off, letting a third-party page approve an attacker's QR challenge
  * with the victim's session; the container refuses to compile instead.
  */
@@ -44,6 +44,11 @@ final class CsrfProtectionPass implements CompilerPassInterface
             }
             if (($profile['magic_login']['mode'] ?? 'disabled') !== 'disabled' && ($profile['magic_login']['confirm_interstitial'] ?? false) === true) {
                 $feature = sprintf('profiles.%s.magic_login.confirm_interstitial', $name);
+
+                break;
+            }
+            if (($profile['invitations']['mode'] ?? 'disabled') !== 'disabled') {
+                $feature = sprintf('profiles.%s.invitations', $name);
 
                 break;
             }

@@ -1,8 +1,12 @@
 # UiKit page contract (REQ-UI-003): one guest layout and one theme for every bundle page.
 nowo_ui_kit:
     css_framework: bootstrap5
+    # Row actions with their label (the demo loads no icon font).
+    row_actions_display: icon_text
     layouts:
         guest: 'layouts/guest.html.twig'
+        # Invitation administration (AuthKit 1.32): the demo frame with a wide container.
+        admin: 'layouts/admin.html.twig'
     theme:
         tokens:
             primary: '#0b5fff'

@@ -7,6 +7,7 @@
 - [Legacy flat configuration](#legacy-flat-configuration)
 - [Reference (per profile)](#reference-per-profile)
 - [Registration modes](#registration-modes)
+- [Invitations](#invitations)
 - [Field configuration](#field-configuration)
   - [Login](#login)
   - [Remember me](#remember-me)
@@ -292,6 +293,35 @@ nowo_auth_kit:
 | `disabled` | `/register` redirects to login; no new users via bundle |
 | `first_user_only` | Registration works until the first user exists |
 | `always` | Registration always available to guests |
+| `invite_only` (1.32) | `/register` redirects to login; accounts only by accepting an invitation (`invitations.mode: enabled` required) |
+
+With `invitations.mode: enabled` an invitation can be accepted in every mode but `disabled` (closed). See
+[Invitations](#invitations).
+
+## Invitations
+
+Opt-in per profile (1.32, `invitations.mode: disabled` by default). Copy-paste:
+
+```yaml
+nowo_auth_kit:
+    registration_mode: invite_only
+    absolute_url:
+        base_uri: '%env(DEFAULT_URI)%'   # required with invitations
+    invitations:
+        mode: enabled
+        ttl_days: 7
+        lock_email: true
+        roles: [ROLE_EDITOR]
+        show_link_when_undelivered: false
+        security:
+            access_roles: [ROLE_ADMIN]
+            # access_checker: App\Security\InvitationsAccessChecker
+            allow_unauthenticated: false   # DEV/DEMO only, literal boolean, refused unless kernel.debug
+        # routes: { index: { path: /admin/invitations, name: nowo_auth_kit_invitations } }
+```
+
+Every key, the administration and accept pages, the mailer, the grant SPI, the events and the purge command:
+[INVITATIONS.md](INVITATIONS.md). Host firewall layer: `access_control: - { path: ^/admin/invitations, roles: ROLE_ADMIN }`.
 
 ## Field configuration
 

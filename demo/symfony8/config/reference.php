@@ -1415,6 +1415,15 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             testid?: scalar|Param|null, // Default: null
  *         }>,
  *     },
+ *     font_preload?: array{ // 2.21: <link rel="preload" as="font" crossorigin> tags printed in the <head> of the document and error layouts (Twig nowo_ui_font_preload()) for the fonts painted above the fold. Empty = no tags.
+ *         fonts?: list<scalar|Param|null>,
+ *         manifest?: array{ // Hashed builds: pick the fonts from a Vite manifest (.vite/manifest.json). A missing manifest (dev server) prints nothing.
+ *             path?: scalar|Param|null, // Absolute path of the manifest, e.g. "%kernel.project_dir%/public/build/.vite/manifest.json"; null = off. // Default: null
+ *             entry?: scalar|Param|null, // Manifest entry whose "assets" list holds the fonts. // Default: "assets/app.js"
+ *             prefixes?: list<scalar|Param|null>,
+ *             base?: scalar|Param|null, // Public URL prefix of the manifest assets. // Default: "/build/"
+ *         },
+ *     },
  *     appearance?: array{ // Optional site appearance SPI (presets, --nowo-ui-* token emitter, Twig functions). Off by default.
  *         enabled?: bool|Param, // Default: false
  *         provider?: scalar|Param|null, // Service id implementing AppearanceProviderInterface (host storage). Null = the config defaults below. // Default: null
@@ -1562,7 +1571,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         user_class?: scalar|Param|null, // FQCN of the application user entity (must implement UserInterface). // Default: null
  *         user_identifier_field?: scalar|Param|null, // Entity property used as the security user identifier (form_login username). // Default: "email"
  *         registration_role?: scalar|Param|null, // Role assigned to users created via registration (in addition to ROLE_USER from the entity). // Default: "ROLE_USER"
- *         registration_mode?: "disabled"|"first_user_only"|"always"|Param, // disabled: no registration. first_user_only: register only when no users exist. always: open registration. // Default: "first_user_only"
+ *         registration_mode?: "disabled"|"first_user_only"|"always"|"invite_only"|Param, // disabled: closed (no registration, no invitation acceptance). first_user_only: register only when no users exist. always: open registration. invite_only (1.32): accounts only from invitations (invitations.mode: enabled required). // Default: "first_user_only"
  *         registration_rate_limit?: int|Param, // Max registration POSTs per client IP per window (0 = disabled). // Default: 5
  *         registration_rate_window?: int|Param, // Seconds for registration_rate_limit window. // Default: 900
  *         login_fields?: list<mixed>,
@@ -1612,6 +1621,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 magic_login_confirm?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/magic_login_confirm.html.twig"
  *                 qr_login_show?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/qr_login_show.html.twig"
  *                 qr_login_approve?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/qr_login_approve.html.twig"
+ *                 invitation_accept?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/invitation_accept.html.twig"
+ *                 invitation_invalid?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/invitation_invalid.html.twig"
  *             },
  *             form_themes?: Param|null|string|list<scalar|Param|null>,
  *             brand?: scalar|Param|null, // Brand line printed above the panel heading (AuthPage::brand; plain text, null = none). // Default: null
@@ -1630,6 +1641,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             magic_login_confirm?: scalar|Param|null, // Deprecated: The "magic_login_confirm" option at "nowo_auth_kit.profiles..templates.magic_login_confirm" is deprecated, use "web_ui.templates.magic_login_confirm".
  *             qr_login_show?: scalar|Param|null, // Deprecated: The "qr_login_show" option at "nowo_auth_kit.profiles..templates.qr_login_show" is deprecated, use "web_ui.templates.qr_login_show".
  *             qr_login_approve?: scalar|Param|null, // Deprecated: The "qr_login_approve" option at "nowo_auth_kit.profiles..templates.qr_login_approve" is deprecated, use "web_ui.templates.qr_login_approve".
+ *             invitation_accept?: scalar|Param|null, // Deprecated: The "invitation_accept" option at "nowo_auth_kit.profiles..templates.invitation_accept" is deprecated, use "web_ui.templates.invitation_accept".
+ *             invitation_invalid?: scalar|Param|null, // Deprecated: The "invitation_invalid" option at "nowo_auth_kit.profiles..templates.invitation_invalid" is deprecated, use "web_ui.templates.invitation_invalid".
  *             form_theme?: Param|string|list<scalar|Param|null>,
  *         },
  *         css?: array{ // Deprecated since 1.27: buttons use the UiKit btn_primary / btn_secondary slots (nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes).
@@ -1692,6 +1705,63 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             create_rate_limit?: int|Param, // Max challenge creations per client IP per window (0 = disabled). // Default: 5
  *             create_rate_window?: int|Param, // Seconds for create_rate_limit window. // Default: 600
  *             approve_rate_limit?: int|Param, // Max approve/deny attempts per challenge id (0 = disabled). // Default: 5
+ *         },
+ *         invitations?: array{ // Invitations by e-mail (1.32). disabled by default; with registration_mode: invite_only they are the only way to create an account.
+ *             mode?: "disabled"|"enabled"|Param, // disabled: no invitation entity, route or page. enabled: the administration pages and the accept page (routes under invitations.routes). // Default: "disabled"
+ *             ttl_days?: int|Param, // Default validity of a link in days (resend restarts it from now). // Default: 7
+ *             ttl_choices?: list<int|Param>,
+ *             lock_email?: bool|Param, // true: the invited e-mail is pre-filled and read-only on the accept page (enforced server-side). false: pre-filled, the invitee may register another address. // Default: true
+ *             email_field?: scalar|Param|null, // Registration field that receives the invited e-mail. null: the field whose property is user_identifier_field, else the field named "email". // Default: null
+ *             roles?: list<scalar|Param|null>,
+ *             show_link_when_undelivered?: bool|Param, // When the e-mail cannot be sent (no mailer, transport error), show the link once to the inviter (no-store page). false: report "not sent" and keep the link secret. // Default: false
+ *             purge_after_days?: int|Param, // nowo:auth-kit:invitations:purge deletes revoked and expired invitations older than this. // Default: 90
+ *             invite_rate_limit?: int|Param, // Invitations created or resent per inviter and invite_rate_window. // Default: 20
+ *             invite_rate_window?: int|Param, // Default: 3600
+ *             resend_rate_limit?: int|Param, // Sends of one invitation per resend_rate_window (re-inviting the same e-mail counts as a resend). // Default: 3
+ *             resend_rate_window?: int|Param, // Default: 3600
+ *             accept_rate_limit?: int|Param, // Accept page hits (opening a link, submitting the form) per client IP and accept_rate_window. // Default: 10
+ *             accept_rate_window?: int|Param, // Default: 900
+ *             mail?: array{
+ *                 from?: scalar|Param|null, // Sender address. null: the mailer default (framework.mailer.headers / envelope). // Default: null
+ *                 html_template?: scalar|Param|null, // Default: "@NowoAuthKitBundle/email/invitation.html.twig"
+ *                 text_template?: scalar|Param|null, // Default: "@NowoAuthKitBundle/email/invitation.txt.twig"
+ *             },
+ *             admin?: array{
+ *                 per_page?: 10|25|50|100|Param, // Default: 25
+ *                 layout_template?: scalar|Param|null, // Layout of the administration pages (UiKit page contract). null: nowo_ui_kit.layouts.admin. // Default: null
+ *                 templates?: array{ // Template overrides of the administration pages (index, new, link).
+ *                     index?: scalar|Param|null, // Default: "@NowoAuthKitBundle/invitations/index.html.twig"
+ *                     new?: scalar|Param|null, // Default: "@NowoAuthKitBundle/invitations/new.html.twig"
+ *                     link?: scalar|Param|null, // Default: "@NowoAuthKitBundle/invitations/link.html.twig"
+ *                 },
+ *             },
+ *             security?: array{
+ *                 access_roles?: list<scalar|Param|null>,
+ *                 access_checker?: scalar|Param|null, // Service id implementing InvitationsAccessCheckerInterface (null: the built-in role checker on access_roles). // Default: null
+ *                 allow_unauthenticated?: bool|Param, // DEV/DEMO only, a literal boolean: open the administration pages without sign-in. Refused unless kernel.debug is true. // Default: false
+ *             },
+ *             routes?: array{ // Paths and names of the invitation routes (registered only with mode: enabled; route names must be unique across profiles).
+ *                 accept?: array{
+ *                     path?: scalar|Param|null, // Default: "/invitation/{token}"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_invitation_accept"
+ *                 },
+ *                 index?: array{
+ *                     path?: scalar|Param|null, // Default: "/admin/invitations"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_invitations"
+ *                 },
+ *                 new?: array{
+ *                     path?: scalar|Param|null, // Default: "/admin/invitations/new"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_invitations_new"
+ *                 },
+ *                 resend?: array{
+ *                     path?: scalar|Param|null, // Default: "/admin/invitations/{id}/resend"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_invitations_resend"
+ *                 },
+ *                 revoke?: array{
+ *                     path?: scalar|Param|null, // Default: "/admin/invitations/{id}/revoke"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_invitations_revoke"
+ *                 },
+ *             },
  *         },
  *         routes?: array{
  *             login?: array{

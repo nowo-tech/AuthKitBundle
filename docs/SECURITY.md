@@ -34,6 +34,10 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Slide to confirm (optional) | Crafted POST can still send `confirm=1` | UX only — CSRF, authn, QR step-up, and business rules remain mandatory |
 | Device intelligence (optional) | Treating Device ID as a login secret; blocking login on `isNew()`; auto-trust | Device ID is **not** a credential. LoginThrottle/CSRF/remember-me unchanged. AuthKit never auto-`trust()`. QR trusted-device step-up is opt-in |
 | OTP input (optional) | Treating the multi-box widget as verification | UX only — `hash_equals` and `max_code_attempts` remain mandatory |
+| Invitations — links (1.32) | Token theft from the database or logs, replay, guessing, leaking through Referer / history, Host-header poisoning | Only the SHA-256 of a 32-byte random token is stored and compared with `hash_equals`; single use (conditional claim in one `UPDATE`); `ttl_days` expiry; resend replaces the token; the link moves the hash into the session and redirects to `/invitation` (`Referrer-Policy: no-referrer`, `no-store`, `noindex`); links built on `absolute_url.base_uri` (required at compile time, and nothing is sent when it resolves empty at runtime — audit CD L1). Residual: the first `GET /invitation/<token>` reaches web-server and mail-scanner logs, and an async mailer keeps the e-mail (link included) in its transport / `failed` queue — keep `ttl_days` short (scanners do not consume links: only the POST claims) |
+| Invitations — accept page | Probing tokens / e-mails, brute force, CSRF, taking over another address, case-variant duplicate accounts | One neutral page for unknown, used, revoked and replaced links, no invitee data on any notice; `accept_rate_limit` per client IP; registration form CSRF bound to the invitation (fails closed); invited e-mail locked server-side (`lock_email`); an existing account in any letter case refuses the acceptance (`not_accepted`, audit CD L2); signed-in visitors refused (no merge); the account and the grants commit in one transaction. Residuals: opening a link stores it in the session (one invitation per browser, the last one opened wins), so a third-party page can make a visitor's browser show **the attacker's** invitation, with the attacker's address locked — the page always shows the invited address; with `lock_email: false` the link holder learns whether a typed address has an account (`not_accepted`, bounded by `accept_rate_limit`); a user checker refusing the sign-in after the commit keeps the new account and consumes the invitation (as with registration) |
+| Invitations — administration | Anonymous / unprivileged access, privilege escalation through roles (resending / re-inviting a higher-role invitation to obtain its link), CSRF on resend / revoke, mass mailing, account enumeration | `invitations.security.access_roles` (empty list refused) or `access_checker`, SecurityBundle required unless `allow_unauthenticated` (literal boolean, refused unless `kernel.debug`); an actor hands out only roles of `invitations.roles` it holds (role hierarchy) and may resend, re-invite (merge) or revoke only an invitation whose **every** role it holds — Resend / Revoke are hidden otherwise, and the "shown once" link is never returned to an actor lacking a role (1.32, audit CD M1); on acceptance the roles are re-checked against `invitations.roles` (the configuration), **not** against the inviter — revoke a demoted inviter's open invitations with `InvitationManager::revokeOpenBy()`; FormKit CSRF-only forms with `<action>/<profile>/<id>` token ids (fail closed); `invite_rate_limit` per inviter, `resend_rate_limit` per invitation and per actor and address (invite → revoke → invite counts; one administrator cannot block an address for the others); an existing account is invited exactly like a new address; nothing is sent while `registration_mode: disabled` or with an empty runtime `base_uri`; bounded lists; path-only redirects |
+| Invitations — secrets in output | Token or hash reaching templates, events or logs | Events, mailer context and list rows use `InvitationSnapshot` / `InvitationRow` (no hash); logs carry the public id and the exception class only; the link reaches a page only with the opt-in `show_link_when_undelivered` (shown once, `no-store`, not clickable) |
 | Configuration | Wrong entity/field mapping | Validation in `Configuration`; documented `security.yaml` setup |
 
 ### Link lifetimes
@@ -44,6 +48,7 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Magic login (sign-in page) | 600 s | `magic_login.lifetime` |
 | Administrator-issued magic link | 3600 s | `magic_login.admin_link.lifetime` (firewall `login_link.lifetime` must be at least this) |
 | QR challenge | 90 s | `qr_login.challenge_ttl` |
+| Invitation link | 7 days | `invitations.ttl_days` (1–90; per invitation from `ttl_choices`) |
 
 ## Application responsibilities
 
@@ -53,7 +58,8 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 - Keep `framework.csrf_protection` and `framework.form.csrf_protection` enabled (QR login and the magic-login confirm interstitial refuse to run without them)
 - Social login: keep `create_user_if_missing: false` unless public sign-up is intended; keep `link_existing_account: reset_password` (or `deny`) unless the application verifies e-mail ownership at registration; run the 1.31 schema change (see UPGRADING) when several profiles use social login
 - Deliver mails asynchronously (Symfony Messenger) so the request step does not reveal through its timing whether an account exists; do not show the `throttled` flag of `PasswordResetCheckEmail` in a way that differs from the normal answer
-- Protect admin routes with appropriate roles
+- Protect admin routes with appropriate roles; with invitations enabled add `access_control` for `^/admin/invitations` (the bundle checker is the second layer) and never set `invitations.security.allow_unauthenticated: true` outside a demo
+- Invitations: implement `InvitationGrantInterface` to re-check what an inviter may still grant; call `InvitationManager::revokeOpenBy($inviterIdentifier)` when an inviter is demoted, disabled or deleted (acceptance re-checks roles against `invitations.roles`, not against the inviter); schedule `nowo:auth-kit:invitations:purge` (personal data); keep `show_link_when_undelivered` off unless the inviters may see links
 - Provide a working Symfony `cache.app` pool (used by Auth Kit attempt limiter and Login Throttle when storage is `cache`)
 - Set `nowo_auth_kit.absolute_url.base_uri` (e.g. `%env(DEFAULT_URI)%`) or `framework.trusted_hosts` in production so mailed links cannot be poisoned through the `Host` header
 - Prefer password-reset `delivery: link` (or stronger OTP charset) in production
@@ -69,7 +75,7 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 ## Bundle responsibilities
 
 - Hash passwords on registration and password reset completion
-- Use Symfony form CSRF defaults on login forms; logout CSRF when configured via CLI / demo; refuse to compile (`CsrfProtectionPass`) and refuse to act (`FormCsrf`) when QR approval or the magic-login confirm interstitial would run without form CSRF
+- Use Symfony form CSRF defaults on login forms; logout CSRF when configured via CLI / demo; refuse to compile (`CsrfProtectionPass`) and refuse to act (`FormCsrf`) when QR approval, the magic-login confirm interstitial or the invitations would run without form CSRF
 - Sign the new account in through `Security::login()` after registration (session migrated by the firewall strategy)
 - Resolve anonymous identifiers by exact stored value (`UserIdentifierMatcher`) and hand notifiers the stored identifier and the account
 - Clear a pending reset credential when the identifier or password changes outside the reset flow (`PasswordResetTokenInvalidationListener`)
@@ -104,10 +110,12 @@ Every inline `<script>` / `<style>` rendered by the bundle templates carries `no
 
 | Field | Value |
 | --- | --- |
-| Date | **2026-10-27** — first pass of `main` `78c5977` **Fail / High**; fix verification of PR #18 (`993d53d`) → **Pass (good)** for **1.31.0** (supersedes 2026-09-24 / 2026-09-28) |
+| Date | **2026-11-01** — Appendix CD (invitations, PR #22): first pass on `b9888b0` **Pass (conditional) / Medium**; M1, L1, L2, L3 and I5 / I7 / I8 / I10 / I11 fixed, **re-verified on `eda0883` → Pass (good) / Low** for **1.32.0** (Info N1–N3 addressed afterwards). Previous: **2026-10-27** — first pass of `main` `78c5977` **Fail / High**; fix verification of PR #18 (`993d53d`) → **Pass (good)** for **1.31.0** |
 | Method | Claude Code security review (static, full `src/` + Twig/JS + config defaults + `configure-security` + docs + demo), then diff review of PR #18 with bypass analysis (NFC vs NFKC / fullwidth, Turkish İ, ß, zero-width, trailing dot / PAD SPACE, IDN vs punycode, Kelvin sign, `findBy` candidate limit, multi-profile social / QR / magic link, pre-registration, OTP variants, locale redirect, CSRF disabled) |
-| Grade | **Pass (good)** — overall **Low** |
+| Grade | 1.31.0: **Pass (good)** — overall **Low**. 1.32.0 (invitations): **Pass (good) / Low** (Appendix CD, re-verified on `eda0883`; first pass on `b9888b0` was Pass (conditional) / Medium) |
+| Fixed in 1.32.0 (before release) | **Medium** M1 a manager could resend / re-invite an invitation carrying roles they do not hold and, with `show_link_when_undelivered`, obtain its link (`InvitationsAccessGuard::holdsAll()` on invite, merge, resend, revoke and the link); **Low** L1 empty runtime `base_uri` fell back to the request Host (nothing is sent); L2 case-variant duplicate account on case-sensitive databases; L3 acceptance re-check documented + `revokeOpenBy()`; Info: per-address send limit, no link with `registration_mode: disabled` |
 | Fixed in 1.31.0 | **High** H1 look-alike identifier → reset / magic link for the victim mailed to an attacker-owned IDN address (`UserIdentifierMatcher`, stored identifier + `user` in notification contexts, ASCII e-mail on request forms); **High** H2 cross-profile social sign-in (links scoped to `user_class`, new unique index, `instanceof` check); **Medium** M1 social sign-up ignored `registration_mode`, M2 pre-account takeover (`link_existing_account: reset_password`), M3 reset-code lockout bypass (per-account key + `code_rate_limit`); **Low** L1 link replay window / signature without password, L2 firewall-bound login link handler + profile-bound QR cookie, L3 locale whitelist + same-origin redirect, L5 12-character minimum + optional `NotCompromisedPassword`, L6 `Security::login()` on registration + reset credential invalidation; CSRF fails closed (`CsrfProtectionPass`, `FormCsrf`) |
+| Open residuals (1.32) | Invitation link in the session (last opened wins, third-party page can show the attacker's invitation); `lock_email: false` account oracle for the link holder; link in access / scanner logs and async mailer queues; user checker refusal after commit keeps the account; `InvitationAcceptor::accept()` clears the default entity manager on failure; `InvitationManager` trusts the roles of the actor object it is given — pass the signed-in user (N1); on case-sensitive databases with `registration_mode: always`, an open registration of a case variant racing an acceptance between the any-case check and the insert can still create two accounts (N3) |
 | Open residuals | Request-step timing (deliver mails asynchronously); notifiers must use `identifier` / `user` only; registration auto-login requires `form_login` on the firewall; `password_policy` read from the default profile; host-side credentials (TOTP, API tokens) survive the `reset_password` link; LoginThrottle buckets per typed username; run the 1.31 social schema change with several profiles; `raw_profile` JSON not encrypted |
 | Advisories | H1 — affected `>= 1.1.0, < 1.31.0`; H2 — affected `>= 1.9.0, < 1.31.0`; patched `1.31.0` |
 
@@ -115,7 +123,7 @@ See also the monorepo record in [`BUNDLES_SECURITY_ANALYSIS.md`](https://github.
 
 ## Release security checklist (12.4.1)
 
-Last recorded run: **v1.21.0** (2026-09-24). Re-run it before the next tag (the 1.31 hardening changes behaviour: see the threat model above and UPGRADING).
+Last recorded run: **v1.21.0** (2026-09-24). Re-run it before the next tag (1.31 hardening and the 1.32 invitations add behaviour and an HTTP / admin surface: see the threat model above and UPGRADING).
 
 Before each release, confirm:
 
@@ -131,7 +139,7 @@ Before each release, confirm:
 | Password hashing via Symfony hasher (no custom crypto) | ☑ |
 | Registration gate prevents unwanted signups per config | ☑ |
 | Require Login Throttle bundle + `configure-security` in INSTALLATION/recipe | ☑ |
-| AI security audit Pass (good/conditional) recorded (REQ-SEC-004) | ☑ Pass (good) 2026-10-27 (first pass Fail; H1/H2/M1–M3 fixed in 1.31.0) |
+| AI security audit Pass (good/conditional) recorded (REQ-SEC-004) | ☑ 1.31.0: Pass (good) 2026-10-27 (first pass Fail; H1/H2/M1–M3 fixed). 1.32.0: **Pass (good) / Low** 2026-11-01 (Appendix CD, re-verified on `eda0883`; M1/L1/L2/L3 fixed) |
 
 ## Reporting
 

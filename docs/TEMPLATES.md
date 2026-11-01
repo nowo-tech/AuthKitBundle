@@ -37,6 +37,14 @@ the host's own pages, not a page: it uses theme slots only (see [Widgets](#widge
 | Magic link confirm (`magic_login_confirm`) | `security/magic_login_confirm.html.twig` | `page/auth` | `AuthPage` (`magic_login.confirm.*`, root `data-turbo="false"`) | `nowo_ui_auth_fields` (signed hidden fields + CSRF) |
 | QR challenge (`qr_login_show`) | `security/qr_login_show.html.twig` | `page/auth` | `AuthPage` (`qr_login.show.*`; form = field-less GET form to the start route = no-JS retry) | `nowo_ui_auth_fields` (challenge), `nowo_ui_auth_actions` (Continue + Generate a new code) — see [QR challenge page](#qr-challenge-page) |
 | QR approve (`qr_login_approve`) | `security/qr_login_approve.html.twig` | `page/auth` | `AuthPage` (`qr_login.approve.*`, intro = warning) | `nowo_ui_auth_fields` (details through the UiKit `detail_list` partial, token / CSRF / slide), `nowo_ui_auth_actions` (Approve), `nowo_ui_auth_footer` (Deny form) |
+| Accept an invitation (`invitation_accept`, 1.32) | `security/invitation_accept.html.twig` (extends `register.html.twig`) | `page/auth` | `AuthPage` (`invitation.accept.*`, form = registration form with the invited e-mail, link back to sign in); extra variable `invitation_message` | `nowo_ui_auth_fields` (inviter message, then the registration fields), `nowo_ui_auth_actions` (registration submit) |
+| Invitation notices (`invitation_invalid`, 1.32) | `security/invitation_invalid.html.twig` | `page/auth` | `AuthPage` without form (`invitation.page.<kind>_title` / `_body`; `invitation_kind` = `invalid`, `expired`, `rate_limited`, `signed_in`, `not_accepted`; root `data-nowo-auth-kit-invitation="<kind>"`) | none |
+
+Invitation administration pages (1.32, `invitations.admin.templates.*`, layout `invitations.admin.layout_template`
+or `nowo_ui_kit.layouts.admin`): `invitations/index.html.twig` (`page/list`, `ListPage`; fills `nowo_ui_list_row`
+with `invitations/_cells.html.twig`), `invitations/new.html.twig` (`page/form`, `FormPage`), `invitations/link.html.twig`
+(`page/show`, `ShowPage`; `nowo_ui_show_after` = warning). E-mails: `email/invitation.html.twig` and
+`email/invitation.txt.twig` (`invitations.mail.*_template`). See [INVITATIONS.md](INVITATIONS.md).
 
 Root attributes for tests: `data-testid="auth-kit-<page>"` and `data-nowo-auth-kit-page="<page>"` on the scaffold
 root (`[data-nowo-ui-page="auth"]`); the form is `[data-nowo-ui-region="form"]`.

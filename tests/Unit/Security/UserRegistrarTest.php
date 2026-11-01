@@ -8,6 +8,7 @@ use Doctrine\DBAL\Driver\AbstractException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
@@ -254,5 +255,31 @@ final class UserRegistrarTest extends TestCase
 
         // The next request served by the same worker gets an open manager again.
         self::assertTrue($entityManager->isOpen());
+    }
+
+    /**
+     * registerInvited() (1.32): the case-insensitive duplicate check (SEC-004 CD L2) is skipped without a usable
+     * e-mail value or when the identifier property is not a mapped field; roles = registration_role + invitation roles.
+     */
+    public function testRegisterInvitedSkipsTheCaseCheckWithoutAMappedEmailField(): void
+    {
+        $metadata = $this->createMock(ClassMetadata::class);
+        $metadata->method('hasField')->willReturn(false);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getClassMetadata')->willReturn($metadata);
+        $entityManager->expects(self::never())->method('createQueryBuilder');
+        $entityManager->expects(self::exactly(2))->method('persist');
+        $registrar = new UserRegistrar(
+            ProfileRegistryFactory::single(TestUser::class, ['registration_fields' => [[
+                'name' => 'email', 'type' => 'email', 'property' => 'email', 'hash' => false, 'required' => true, 'security_name' => null,
+            ]]]),
+            $entityManager,
+            $this->createMock(UserPasswordHasherInterface::class),
+            new PropertyAccessor(),
+        );
+
+        $user = $registrar->registerInvited(['email' => 'ana@example.com'], 'default', ['ROLE_EDITOR']);
+        self::assertSame(['ROLE_USER', 'ROLE_EDITOR'], $user->getRoles());
+        $registrar->registerInvited(['email' => ''], 'default');
     }
 }

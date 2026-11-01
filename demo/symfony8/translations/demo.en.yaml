@@ -12,7 +12,7 @@ demo:
         title: Auth Kit Demo
         heading: Auth Kit Bundle — Demo
         logged_in: "Logged in as %email%."
-        registration_hint: "Registration mode is first_user_only: only the first account can be created via /register; further sign-ups are disabled once a user exists."
+        registration_hint: "Registration mode is first_user_only: only the first account can be created via /register; further sign-ups are disabled once a user exists. The first account is the administrator: invite the next people from Invitations (the demo shows the link once instead of e-mailing it)."
         logout: Logout
     inbox:
         title: Demo delivery inbox

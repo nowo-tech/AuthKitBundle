@@ -34,6 +34,7 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $qrLogin
      * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
      * @param array{layout_template?: ?string, templates?: array<string, string>, form_themes?: list<string>, brand?: ?string, qr_login?: array{stimulus_controller?: ?string}} $webUi page contract settings (REQ-UI-003)
+     * @param array<string, mixed> $invitations `invitations` node (1.32; empty = disabled)
      */
     public function __construct(
         public string $name,
@@ -61,7 +62,48 @@ final readonly class ProfileSettings
         public int $registrationRateLimit = 5,
         public int $registrationRateWindow = 900,
         public array $webUi = [],
+        public array $invitations = [],
     ) {
+    }
+
+    /**
+     * Whether `invitations.mode` is `enabled` (1.32).
+     */
+    public function invitationsEnabled(): bool
+    {
+        return ($this->invitations['mode'] ?? 'disabled') === 'enabled';
+    }
+
+    /**
+     * Registration field that receives the invited e-mail: `invitations.email_field`, else the mapped field whose
+     * property is user_identifier_field, else the field named "email" (null: none — refused by the extension when
+     * invitations are enabled).
+     */
+    public function invitationEmailField(): ?string
+    {
+        $configured = $this->invitations['email_field'] ?? null;
+        $byProperty = null;
+        $byName     = null;
+        foreach ($this->registrationFields as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if (($field['type'] ?? 'text') === 'password' || ($field['mapped'] ?? true) === false) {
+                continue;
+            }
+            if (is_string($configured) && $configured !== '') {
+                if ($name === $configured) {
+                    return $name;
+                }
+                continue;
+            }
+            if (($field['property'] ?? $name) === $this->userIdentifierField) {
+                $byProperty ??= $name;
+            }
+            if ($name === 'email') {
+                $byName = $name;
+            }
+        }
+
+        return $byProperty ?? $byName;
     }
 
     /**
@@ -162,6 +204,7 @@ final readonly class ProfileSettings
             registrationRateLimit: (int) ($config['registration_rate_limit'] ?? 5),
             registrationRateWindow: (int) ($config['registration_rate_window'] ?? 900),
             webUi: $config['web_ui'] ?? [],
+            invitations: $config['invitations'] ?? [],
         );
     }
 }

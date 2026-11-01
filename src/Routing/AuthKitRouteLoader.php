@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Routing;
 
 use LogicException;
+use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
+use Nowo\AuthKitBundle\Controller\InvitationAdminController;
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\Controller\LogoutController;
 use Nowo\AuthKitBundle\Controller\MagicLoginCheckController;
@@ -139,6 +141,18 @@ final class AuthKitRouteLoader extends Loader
             $this->addControllerRoute($collection, $routes['qr_login_complete'], QrLoginCompleteController::class, 'complete', $profileDefaults);
             $this->addControllerRoute($collection, $routes['qr_login_approve'], QrLoginApproveController::class, 'approve', $profileDefaults);
             $this->addControllerRoute($collection, $routes['qr_login_deny'], QrLoginDenyController::class, 'deny', $profileDefaults);
+        }
+
+        // Invitations (1.32): opt-in, registered only with invitations.mode: enabled.
+        if (($profile['invitations']['mode'] ?? 'disabled') === 'enabled') {
+            /** @var array<string, array{path: string, name: string}> $invitationRoutes */
+            $invitationRoutes = $profile['invitations']['routes'];
+            // The token-less URL (token = null) renders the page with the token hash kept in the session.
+            $this->addControllerRoute($collection, $invitationRoutes['accept'], InvitationAcceptController::class, 'accept', ['token' => null] + $profileDefaults);
+            $this->addControllerRoute($collection, $invitationRoutes['index'], InvitationAdminController::class, 'index', $profileDefaults);
+            $this->addControllerRoute($collection, $invitationRoutes['new'], InvitationAdminController::class, 'new', $profileDefaults);
+            $this->addControllerRoute($collection, $invitationRoutes['resend'], InvitationAdminController::class, 'resend', $profileDefaults);
+            $this->addControllerRoute($collection, $invitationRoutes['revoke'], InvitationAdminController::class, 'revoke', $profileDefaults);
         }
     }
 
@@ -333,7 +347,8 @@ final class AuthKitRouteLoader extends Loader
             ? ($profile['registration_mode'] ?? null)
             : ($profile[$feature]['mode'] ?? null);
 
-        return $mode !== 'disabled';
+        // invite_only (1.32) closes the open registration page: its route is skipped like disabled.
+        return $mode !== 'disabled' && $mode !== 'invite_only';
     }
 
     /**

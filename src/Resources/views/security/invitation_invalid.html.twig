@@ -1,0 +1,8 @@
+{#
+  Invitation notice pages (web_ui.templates.invitation_invalid, 1.32): page = AuthPage without a form, its title and
+  intro chosen by invitation_kind — invalid (unknown, used, revoked or replaced link: one neutral answer), expired,
+  rate_limited, signed_in, not_accepted. Never any invitee data.
+#}
+{% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
+
+{% block nowo_ui_document_title %}{{ page.title|nowo_ui_trans }}{% endblock %}

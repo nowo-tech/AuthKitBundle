@@ -1,0 +1,15 @@
+{#
+  Invitation list (invitations.admin.templates.index, REQ-UI-003): UiKit list scaffold. Variables: page
+  (Nowo\UiKitBundle\View\ListPage from Invitation\Ui\InvitationAdminPages::indexPage(): header with "Invite", GET
+  filters (FormKit InvitationFilterType), one row per invitation (Invitation\Ui\InvitationRow — no token, no hash),
+  "Resend" / "Revoke" on open rows as FormKit CSRF-only forms behind the UiKit confirm dialog, bounded pagination).
+  This template only fills the row cells.
+
+  Override: a template that extends '@!NowoAuthKitBundle/invitations/index.html.twig' and overrides nowo_ui_list_row.
+  Restyle through nowo_ui_kit.theme, never here.
+#}
+{% extends '@NowoUiKit/page/list.html.twig' %}
+
+{% block nowo_ui_list_row %}
+    {{- include('@NowoAuthKitBundle/invitations/_cells.html.twig', {row: row, page: page}, false) -}}
+{% endblock %}

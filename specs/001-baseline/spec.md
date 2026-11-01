@@ -4,7 +4,7 @@
 **Status**: Active  
 **Package**: `nowo-tech/auth-kit-bundle` (tag **v1.30.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **193** units (160 PHP + 33 Resources), audited **2026-10-27**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **233** units (192 PHP + 41 Resources), audited **2026-11-01**
 
 ---
 
@@ -143,6 +143,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 - **FR-ROUT-001**: `AuthKitRouteLoader` (attribute-driven per-profile copies, FR-CTRL-003), locale parameters, custom URL generator. `locale.unlocalized_route_suffix` (default `_unlocalized`) names the bare twins; `routing.skip_disabled_features` registers no route for disabled features (v1.30.0).
 - **FR-ROUT-002**: `AbsoluteUrlGenerator` — optional `absolute_url.base_uri` origin for out-of-band absolute URLs (reset / magic / QR / OAuth `redirect_uri`); router context restored in `finally` (v1.24.0, [spec 002](../002-absolute-url-base-uri/spec.md)). `PublicUrlGenerator` (service `nowo_auth_kit.public_url_generator`) exposes the same origin to host code building out-of-band links, never trusting the request `Host`.
+- **FR-INV-001 – FR-INV-010**: invitations instead of open registration (opt-in `invitations`, `registration_mode: invite_only`; v1.32, [spec 003](../003-invitations/spec.md)).
 - **FR-TWIG-001**: Routing + embed Twig extensions and security/embed templates.
 - **FR-TWIG-002**: `AuthKitUiExtension` for shared UI helpers (buttons/providers chrome).
 - **FR-TWIG-003**: CSP — inline `<script>`/`<style>` in bundle templates emit `nonce` from request attribute `csp_nonce` when set; no inline event handlers (enforced by `InlineBlocksDeclareNonceTest`).
@@ -203,10 +204,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**193/193** units under `src/` as of 2026-10-27: 160 PHP + 33 Resources).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**233/233** units under `src/` as of 2026-11-01: 192 PHP + 41 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
-- **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.
+- **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, INVITATIONS, SECURITY.
 
 ---
 

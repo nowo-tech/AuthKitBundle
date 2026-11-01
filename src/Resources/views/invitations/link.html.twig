@@ -1,0 +1,11 @@
+{#
+  Invitation link shown once (invitations.admin.templates.link; only with invitations.show_link_when_undelivered and an
+  e-mail that could not be sent). Variable: page (Nowo\UiKitBundle\View\ShowPage from
+  Invitation\Ui\InvitationAdminPages::linkPage(): e-mail, expiry, the link as text). Served with Cache-Control:
+  no-store; the bundle keeps only the hash of the token.
+#}
+{% extends '@NowoUiKit/page/show.html.twig' %}
+
+{% block nowo_ui_show_after %}
+    <p data-testid="nowo-auth-kit-invitation-link-warning">{{ 'invitation.link.warning'|trans({}, 'NowoAuthKitBundle') }}</p>
+{% endblock %}

@@ -44,6 +44,8 @@ final class AuthPageFactory
         'magic_login_confirm' => ['magic_login.confirm.heading', 'magic_login.confirm.title', 'magic_login.confirm.help', 'magic_login.confirm.submit'],
         'qr_login_show'       => ['qr_login.show.heading', 'qr_login.show.title', 'qr_login.show.intro', 'qr_login.show.retry'],
         'qr_login_approve'    => ['qr_login.approve.heading', 'qr_login.approve.title', 'qr_login.approve.warning', 'qr_login.approve.submit'],
+        'invitation_accept'   => ['invitation.accept.heading', 'invitation.accept.title', 'invitation.accept.intro', 'invitation.accept.submit'],
+        'invitation_invalid'  => ['invitation.page.invalid_title', 'invitation.page.invalid_title', 'invitation.page.invalid_body', null],
     ];
 
     /**
@@ -68,6 +70,29 @@ final class AuthPageFactory
             brand: $brand !== null && $brand !== '' ? $brand : null,
             error: $error,
             submitLabel: $submit !== null ? self::label($submit) : null,
+            links: $links,
+            bundle: self::BUNDLE,
+            layout: $profile->layoutTemplate(),
+            attributes: ['data-testid' => 'auth-kit-' . $page, 'data-nowo-auth-kit-page' => $page] + $attributes,
+        );
+    }
+
+    /**
+     * A form-less message page (1.32: the invitation pages — no longer valid, expired, signed in…): the definition of
+     * `$page` with its title and intro replaced.
+     *
+     * @param iterable<Link> $links footer links
+     * @param array<string, bool|float|int|string|null> $attributes extra attributes of the scaffold root
+     */
+    public function notice(string $page, ProfileSettings $profile, Label $title, ?Label $intro, iterable $links = [], array $attributes = []): AuthPage
+    {
+        $this->definition($page);
+        $brand = $profile->webUi['brand'] ?? null;
+
+        return new AuthPage(
+            title: $title,
+            intro: $intro,
+            brand: $brand !== null && $brand !== '' ? $brand : null,
             links: $links,
             bundle: self::BUNDLE,
             layout: $profile->layoutTemplate(),
