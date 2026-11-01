@@ -4,7 +4,7 @@
 **Status**: Active  
 **Package**: `nowo-tech/auth-kit-bundle` (tag **v1.30.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **193** units (160 PHP + 33 Resources), audited **2026-10-27**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **233** units (192 PHP + 41 Resources), audited **2026-11-01**
 
 ---
 
@@ -204,10 +204,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**193/193** units under `src/` as of 2026-10-27: 160 PHP + 33 Resources).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**233/233** units under `src/` as of 2026-11-01: 192 PHP + 41 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
-- **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, SECURITY.
+- **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, INVITATIONS, SECURITY.
 
 ---
 

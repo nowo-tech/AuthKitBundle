@@ -29,3 +29,29 @@ jobs:
         if: failure()
         working-directory: demo/symfony8
         run: docker compose logs --tail=200 || true
+
+  # REQ-DEMO-013: Playwright e2e against the running demo (weekly, on tags and on demand).
+  e2e:
+    name: Demo symfony8 Playwright e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Start the demo
+        run: make -C demo/symfony8 up
+
+      - name: Playwright e2e
+        run: make test-e2e
+
+      - name: Dump demo logs on failure
+        if: failure()
+        working-directory: demo/symfony8
+        run: docker compose logs --tail=200 || true
+
+      - name: Stop the demo
+        if: always()
+        working-directory: demo/symfony8
+        run: docker compose down -v

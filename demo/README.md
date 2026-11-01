@@ -76,7 +76,7 @@ The demo uses `locale.in_path: both` with `unlocalized: redirect`:
 | `make test-symfony8` | Run demo tests |
 | `make update-bundle-symfony8` | Refresh bundle autoload / cache |
 | `make release-check` | Start demo and healthcheck `/en/login` |
-| `make -C symfony8 test-e2e` | Playwright e2e (auth scaffold, login error, reset mismatch error, QR status) |
+| `make -C symfony8 test-e2e` | Playwright e2e (auth scaffold, login error, reset mismatch error, QR status, invitation invite → accept with the e-mail locked → single use) |
 | `make -C symfony8 demo-screenshots` | Re-capture `docs/images/demo/*.webp` (README) |
 
 Bundle code is mounted from the repository root (`/var/auth-kit-bundle` in the container).
