@@ -1,0 +1,14 @@
+{#
+  Invitation acceptance (web_ui.templates.invitation_accept, 1.32) — the registration page (register.html.twig: the
+  profile registration_fields, the registration submit) with the invited e-mail pre-filled (read-only with
+  invitations.lock_email) and the inviter's message, if any, above the fields. Extra variable: invitation_message
+  (string|null, auto-escaped). The link token is never part of the page (it lives in the session).
+#}
+{% extends '@NowoAuthKitBundle/security/register.html.twig' %}
+
+{% block nowo_ui_auth_fields %}
+    {% if invitation_message|default(null) %}
+        <blockquote class="nowo-auth-kit-invitation__message" data-testid="auth-kit-invitation-message">{{ invitation_message }}</blockquote>
+    {% endif %}
+    {{ parent() }}
+{% endblock %}

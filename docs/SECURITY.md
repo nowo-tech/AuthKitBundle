@@ -34,6 +34,10 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Slide to confirm (optional) | Crafted POST can still send `confirm=1` | UX only — CSRF, authn, QR step-up, and business rules remain mandatory |
 | Device intelligence (optional) | Treating Device ID as a login secret; blocking login on `isNew()`; auto-trust | Device ID is **not** a credential. LoginThrottle/CSRF/remember-me unchanged. AuthKit never auto-`trust()`. QR trusted-device step-up is opt-in |
 | OTP input (optional) | Treating the multi-box widget as verification | UX only — `hash_equals` and `max_code_attempts` remain mandatory |
+| Invitations — links (1.32) | Token theft from the database or logs, replay, guessing, leaking through Referer / history | Only the SHA-256 of a 32-byte random token is stored and compared with `hash_equals`; single use (conditional claim in one `UPDATE`); `ttl_days` expiry; resend replaces the token; the link moves the hash into the session and redirects to `/invitation` (`Referrer-Policy: no-referrer`, `no-store`, `noindex`); links built on `absolute_url.base_uri` (required) |
+| Invitations — accept page | Probing tokens / e-mails, brute force, CSRF, taking over another address | One neutral page for unknown, used, revoked and replaced links, no invitee data on any notice; `accept_rate_limit` per client IP; registration form CSRF bound to the invitation (fails closed); invited e-mail locked server-side (`lock_email`); signed-in visitors refused (no merge); the account and the grants commit in one transaction |
+| Invitations — administration | Anonymous / unprivileged access, privilege escalation through roles, CSRF on resend / revoke, mass mailing, account enumeration | `invitations.security.access_roles` (empty list refused) or `access_checker`, SecurityBundle required unless `allow_unauthenticated` (literal boolean, refused unless `kernel.debug`); roles limited to `invitations.roles` the inviter holds and re-checked on acceptance; FormKit CSRF-only forms with `<action>/<profile>/<id>` token ids (fail closed); `invite_rate_limit` per inviter and `resend_rate_limit` per invitation; an existing account is invited exactly like a new address; bounded lists; path-only redirects |
+| Invitations — secrets in output | Token or hash reaching templates, events or logs | Events, mailer context and list rows use `InvitationSnapshot` / `InvitationRow` (no hash); logs carry the public id and the exception class only; the link reaches a page only with the opt-in `show_link_when_undelivered` (shown once, `no-store`, not clickable) |
 | Configuration | Wrong entity/field mapping | Validation in `Configuration`; documented `security.yaml` setup |
 
 ### Link lifetimes
@@ -44,6 +48,7 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 | Magic login (sign-in page) | 600 s | `magic_login.lifetime` |
 | Administrator-issued magic link | 3600 s | `magic_login.admin_link.lifetime` (firewall `login_link.lifetime` must be at least this) |
 | QR challenge | 90 s | `qr_login.challenge_ttl` |
+| Invitation link | 7 days | `invitations.ttl_days` (1–90; per invitation from `ttl_choices`) |
 
 ## Application responsibilities
 
@@ -53,7 +58,8 @@ Auth Kit Bundle provides login/register **UI and persistence helpers**. Symfony 
 - Keep `framework.csrf_protection` and `framework.form.csrf_protection` enabled (QR login and the magic-login confirm interstitial refuse to run without them)
 - Social login: keep `create_user_if_missing: false` unless public sign-up is intended; keep `link_existing_account: reset_password` (or `deny`) unless the application verifies e-mail ownership at registration; run the 1.31 schema change (see UPGRADING) when several profiles use social login
 - Deliver mails asynchronously (Symfony Messenger) so the request step does not reveal through its timing whether an account exists; do not show the `throttled` flag of `PasswordResetCheckEmail` in a way that differs from the normal answer
-- Protect admin routes with appropriate roles
+- Protect admin routes with appropriate roles; with invitations enabled add `access_control` for `^/admin/invitations` (the bundle checker is the second layer) and never set `invitations.security.allow_unauthenticated: true` outside a demo
+- Invitations: implement `InvitationGrantInterface` to re-check what an inviter may still grant; schedule `nowo:auth-kit:invitations:purge` (personal data)
 - Provide a working Symfony `cache.app` pool (used by Auth Kit attempt limiter and Login Throttle when storage is `cache`)
 - Set `nowo_auth_kit.absolute_url.base_uri` (e.g. `%env(DEFAULT_URI)%`) or `framework.trusted_hosts` in production so mailed links cannot be poisoned through the `Host` header
 - Prefer password-reset `delivery: link` (or stronger OTP charset) in production
@@ -69,7 +75,7 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 ## Bundle responsibilities
 
 - Hash passwords on registration and password reset completion
-- Use Symfony form CSRF defaults on login forms; logout CSRF when configured via CLI / demo; refuse to compile (`CsrfProtectionPass`) and refuse to act (`FormCsrf`) when QR approval or the magic-login confirm interstitial would run without form CSRF
+- Use Symfony form CSRF defaults on login forms; logout CSRF when configured via CLI / demo; refuse to compile (`CsrfProtectionPass`) and refuse to act (`FormCsrf`) when QR approval, the magic-login confirm interstitial or the invitations would run without form CSRF
 - Sign the new account in through `Security::login()` after registration (session migrated by the firewall strategy)
 - Resolve anonymous identifiers by exact stored value (`UserIdentifierMatcher`) and hand notifiers the stored identifier and the account
 - Clear a pending reset credential when the identifier or password changes outside the reset flow (`PasswordResetTokenInvalidationListener`)

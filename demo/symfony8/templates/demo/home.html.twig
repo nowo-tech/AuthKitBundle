@@ -8,6 +8,7 @@
     <p class="text-muted small">{{ 'demo.home.registration_hint'|trans({}, 'demo') }}</p>
     <div class="d-flex flex-wrap gap-2 mt-4">
         <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_invitations', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm" data-testid="demo-invitations">{{ 'invitation.index.title'|trans({}, 'NowoAuthKitBundle') }}</a>
         <a href="{{ path('nowo_auth_kit_logout', auth_kit_route_params()) }}" class="btn btn-outline-secondary btn-sm">{{ 'demo.home.logout'|trans({}, 'demo') }}</a>
     </div>
 {% endblock %}

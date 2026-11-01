@@ -1,6 +1,6 @@
 # Auth Kit Bundle — Demo
 
-FrankenPHP demo for **Symfony 8.1** with login, logout, first-user registration, password reset, magic link, **QR phone sign-in**, the UiKit page contract (Bootstrap 5 host theme) and **en/es** locale switching.
+FrankenPHP demo for **Symfony 8.1** with login, logout, first-user registration, password reset, magic link, **QR phone sign-in**, **invitations**, the UiKit page contract (Bootstrap 5 host theme) and **en/es** locale switching.
 
 See [docs/DEMO-FRANKENPHP.md](../docs/DEMO-FRANKENPHP.md) for **`FRANKENPHP_MODE`** (`worker` default / `classic`) and troubleshooting.
 
@@ -27,6 +27,7 @@ Notifiers only log and store the last payload in the session **demo inbox**.
 | Magic login | `/en/magic-login` or `/magic-login` | Submit email → inbox signed link |
 | Register | `/en/register` or `/register` | Until the first user exists (`first_user_only`) |
 | QR phone sign-in | `/en/login/qr` | QR + short code, live status and countdown (`nowo-auth-kit-qr-login.js`) |
+| Invitations | `/en/admin/invitations` (signed in) | Invite an e-mail (no mailer: the single-use link is shown once), resend, revoke; open the link signed out to accept on the registration form with the e-mail locked |
 
 To try **serve** instead of redirect, set `locale.unlocalized: serve` in `symfony8/config/packages/nowo_auth_kit.yaml` and clear the cache — bare URLs then render with `locale.default`.
 

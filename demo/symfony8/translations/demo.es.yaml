@@ -12,7 +12,7 @@ demo:
         title: Demo Auth Kit
         heading: Auth Kit Bundle — Demo
         logged_in: "Sesión iniciada como %email%."
-        registration_hint: "Modo de registro first_user_only: solo se puede crear la primera cuenta en /register; los siguientes registros quedan deshabilitados cuando ya existe un usuario."
+        registration_hint: "Modo de registro first_user_only: solo se puede crear la primera cuenta en /register; los siguientes registros quedan deshabilitados cuando ya existe un usuario. Invita a las siguientes personas desde Invitaciones (la demo muestra el enlace una vez en lugar de enviarlo por correo)."
         logout: Cerrar sesión
     inbox:
         title: Buzón de entrega (demo)

@@ -13,6 +13,7 @@ services:
             - '../../Form/'
             - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
+            - '../../Invitation/Security/RoleInvitationsAccessChecker.php'
             - '../../NowoAuthKitBundle.php'
 
     # REQ-SF-004 rule 7: the controllers carry #[Route] and must not be autoconfigured. On Symfony >= 7.3
@@ -221,3 +222,34 @@ services:
             $minPasswordLength: '%nowo_auth_kit.create_admin.min_password_length%'
             $roles: '%nowo_auth_kit.create_admin.roles%'
             $validator: '@?validator'
+
+    # Invitations (1.32, profiles.<name>.invitations; inert while every profile keeps mode: disabled).
+    Nowo\AuthKitBundle\Invitation\InvitationManager:
+        arguments:
+            $eventDispatcher: '@?event_dispatcher'
+            $enabledLocales: '%nowo_auth_kit.locale.enabled%'
+
+    Nowo\AuthKitBundle\Invitation\InvitationAcceptor:
+        arguments:
+            $grants: !tagged_iterator nowo_auth_kit.invitation_grant
+            $eventDispatcher: '@?event_dispatcher'
+            $logger: '@?logger'
+
+    # Symfony Mailer delivery; InvitationMailerPass aliases the interface to NullInvitationMailer without a mailer.
+    Nowo\AuthKitBundle\Invitation\MailerInvitationMailer:
+        arguments:
+            $logger: '@?logger'
+
+    Nowo\AuthKitBundle\Invitation\InvitationMailerInterface:
+        alias: Nowo\AuthKitBundle\Invitation\MailerInvitationMailer
+
+    # $checkers: per-profile locator set by the extension (invitations.security.access_checker / access_roles).
+    Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard:
+        arguments:
+            $tokenStorage: '@?security.token_storage'
+            $authorizationChecker: '@?security.authorization_checker'
+            $allowUnauthenticated: '%nowo_auth_kit.invitations.allow_unauthenticated%'
+
+    Nowo\AuthKitBundle\Command\PurgeInvitationsCommand:
+        arguments:
+            $eventDispatcher: '@?event_dispatcher'

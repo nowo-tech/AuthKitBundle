@@ -1,0 +1,29 @@
+{#
+  Row cells of the invitation list (same order as Invitation\Ui\InvitationAdminPages::columns()). Variables: row
+  (Invitation\Ui\InvitationRow: publicId, email, roles, invitedBy, sentAt, sendCount, expiresAt, status), page.
+#}
+{%- set _b = page.bundle -%}
+{%- set _cell = nowo_ui_class('table_cell', _b) -%}
+{%- set _muted = nowo_ui_class('table_cell_muted', _b) -%}
+{%- set _badge = row.status.value == 'pending' ? 'badge_success' : (row.status.value == 'expired' ? 'badge_warning' : 'badge') -%}
+<td class="{{ _cell }} nowo-ui-cell--start" data-label="{{ 'invitation.column.email'|trans({}, 'NowoAuthKitBundle') }}" data-required="1">
+    <span data-testid="nowo-auth-kit-invitation-email">{{ row.email }}</span>
+</td>
+<td class="{{ _cell }} nowo-ui-cell--start" data-label="{{ 'invitation.column.status'|trans({}, 'NowoAuthKitBundle') }}" data-required="1">
+    <span class="{{ nowo_ui_class(_badge, _b) }}" data-testid="nowo-auth-kit-invitation-status" data-status="{{ row.status.value }}">{{ row.status.labelKey|trans({}, 'NowoAuthKitBundle') }}</span>
+</td>
+<td class="{{ _cell }}{{ row.roles ? '' : ' ' ~ _muted }} nowo-ui-cell--start" data-label="{{ 'invitation.column.roles'|trans({}, 'NowoAuthKitBundle') }}" data-nowo-ui-priority="2">
+    {{- row.roles ?: '—' -}}
+</td>
+<td class="{{ _cell }}{{ row.invitedBy ? '' : ' ' ~ _muted }} nowo-ui-cell--start" data-label="{{ 'invitation.column.invited_by'|trans({}, 'NowoAuthKitBundle') }}" data-nowo-ui-priority="2">
+    {{- row.invitedBy ?: '—' -}}
+</td>
+<td class="{{ _cell }} nowo-ui-cell--start" data-label="{{ 'invitation.column.sent_at'|trans({}, 'NowoAuthKitBundle') }}" data-nowo-ui-priority="3">
+    <time datetime="{{ row.sentAt|date('c') }}">{{ row.sentAt|date('Y-m-d H:i') }}</time>
+</td>
+<td class="{{ _cell }} nowo-ui-cell--end" data-label="{{ 'invitation.column.send_count'|trans({}, 'NowoAuthKitBundle') }}" data-nowo-ui-priority="3">
+    {{- row.sendCount -}}
+</td>
+<td class="{{ _cell }} nowo-ui-cell--start" data-label="{{ 'invitation.column.expires_at'|trans({}, 'NowoAuthKitBundle') }}">
+    <time datetime="{{ row.expiresAt|date('c') }}">{{ row.expiresAt|date('Y-m-d H:i') }}</time>
+</td>

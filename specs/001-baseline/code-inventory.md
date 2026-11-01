@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-10-27  
-**Units**: **193** (`160` PHP under `src/` + `33` Resources)
+**Last audited**: 2026-11-01  
+**Units**: **233** (`192` PHP under `src/` + `41` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -314,14 +314,60 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Resources/views/_auth_kit_scripts.html.twig` | production | FR-UI-001, FR-TWIG-003 | Mapped |
 | `Resources/views/form/password_toggle_widget.html.twig` | production | FR-UI-001 | Mapped |
 
+## Invitations ([spec 003](../003-invitations/spec.md), v1.32)
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Command/PurgeInvitationsCommand.php` | production | FR-INV-008 | Mapped |
+| `Controller/InvitationAcceptController.php` | production | FR-INV-005, FR-INV-009 | Mapped |
+| `Controller/InvitationAdminController.php` | production | FR-INV-004, FR-INV-009 | Mapped |
+| `DependencyInjection/Compiler/InvitationsPass.php` | production | FR-INV-007 | Mapped |
+| `DependencyInjection/InvitationsConfiguration.php` | production | FR-INV-004, FR-INV-009 | Mapped |
+| `Entity/Invitation.php` | production | FR-INV-001 | Mapped |
+| `Enum/InvitationStatus.php` | production | FR-INV-001 | Mapped |
+| `Form/InvitationFilterType.php` | production | FR-INV-004 | Mapped |
+| `Form/InvitationFormType.php` | production | FR-INV-004 | Mapped |
+| `Invitation/Event/InvitationAcceptedEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
+| `Invitation/Event/InvitationCreatedEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
+| `Invitation/Event/InvitationEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
+| `Invitation/Event/InvitationResentEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
+| `Invitation/Event/InvitationRevokedEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
+| `Invitation/Event/InvitationsPurgedEvent.php` | production | FR-INV-008 | Mapped |
+| `Invitation/InvitationAcceptor.php` | production | FR-INV-002, FR-INV-005 | Mapped |
+| `Invitation/InvitationGrantInterface.php` | production | FR-INV-005 | Mapped |
+| `Invitation/InvitationMail.php` | production | FR-INV-007 | Mapped |
+| `Invitation/InvitationMailerInterface.php` | production | FR-INV-007 | Mapped |
+| `Invitation/InvitationManager.php` | production | FR-INV-003 | Mapped |
+| `Invitation/InvitationOutcome.php` | production | FR-INV-003 | Mapped |
+| `Invitation/InvitationRefusedException.php` | production | FR-INV-005 | Mapped |
+| `Invitation/InvitationRequest.php` | production | FR-INV-003 | Mapped |
+| `Invitation/InvitationSnapshot.php` | production | FR-INV-010 | Mapped |
+| `Invitation/InvitationTokens.php` | production | FR-INV-002 | Mapped |
+| `Invitation/MailerInvitationMailer.php` | production | FR-INV-007 | Mapped |
+| `Invitation/NullInvitationMailer.php` | production | FR-INV-007 | Mapped |
+| `Invitation/Security/InvitationsAccessCheckerInterface.php` | production | FR-INV-004 | Mapped |
+| `Invitation/Security/InvitationsAccessGuard.php` | production | FR-INV-004 | Mapped |
+| `Invitation/Security/RoleInvitationsAccessChecker.php` | production | FR-INV-004 | Mapped |
+| `Invitation/Ui/InvitationAdminPages.php` | production | FR-INV-004 | Mapped |
+| `Invitation/Ui/InvitationRow.php` | production | FR-INV-004, FR-INV-010 | Mapped |
+| `Repository/InvitationRepository.php` | production | FR-INV-002, FR-INV-004, FR-INV-008 | Mapped |
+| `Resources/views/email/invitation.html.twig` | production | FR-INV-007 | Mapped |
+| `Resources/views/email/invitation.txt.twig` | production | FR-INV-007 | Mapped |
+| `Resources/views/invitations/_cells.html.twig` | production | FR-INV-004 | Mapped |
+| `Resources/views/invitations/index.html.twig` | production | FR-INV-004 | Mapped |
+| `Resources/views/invitations/link.html.twig` | production | FR-INV-004, FR-INV-010 | Mapped |
+| `Resources/views/invitations/new.html.twig` | production | FR-INV-004 | Mapped |
+| `Resources/views/security/invitation_accept.html.twig` | production | FR-INV-005 | Mapped |
+| `Resources/views/security/invitation_invalid.html.twig` | production | FR-INV-005 | Mapped |
+
 ## Summary
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 160 |
-| Resources (config/translations/views/public) | 33 |
-| **Total production sources** | **193** |
-| Audit command | `git ls-files src \| wc -l` → 193 |
+| PHP under `src/` | 192 |
+| Resources (config/translations/views/public) | 41 |
+| **Total production sources** | **233** |
+| Audit command | `git ls-files src \| wc -l` → 233 |
 
 ## Coverage gate
 

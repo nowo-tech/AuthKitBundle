@@ -1,0 +1,22 @@
+{#
+  Invitation e-mail, HTML body (invitations.mail.html_template). Variables: invitation (Invitation\InvitationSnapshot:
+  email, invitedBy, message, expiresAt, roles, payload — no token), accept_url (the single-use link), resend (bool),
+  brand (web_ui.brand or ''). Subject: translation invitation.email.subject. Rendered in the invitation locale.
+#}
+{%- set _domain = 'NowoAuthKitBundle' -%}
+<!DOCTYPE html>
+<html lang="{{ invitation.locale|default('en') }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ 'invitation.email.title'|trans({'%brand%': brand}, _domain) }}</title>
+</head>
+<body>
+    <p>{{ (invitation.invitedBy ? 'invitation.email.intro_inviter' : 'invitation.email.intro')|trans({'%inviter%': invitation.invitedBy, '%brand%': brand}, _domain) }}</p>
+    {% if invitation.message %}
+        <blockquote>{{ invitation.message }}</blockquote>
+    {% endif %}
+    <p><a href="{{ accept_url }}">{{ 'invitation.email.button'|trans({}, _domain) }}</a></p>
+    <p>{{ 'invitation.email.expires'|trans({'%expires%': invitation.expiresAt|date('Y-m-d H:i T')}, _domain) }}</p>
+    <p>{{ 'invitation.email.ignore'|trans({}, _domain) }}</p>
+</body>
+</html>

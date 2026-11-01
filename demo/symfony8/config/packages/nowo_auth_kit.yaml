@@ -29,6 +29,14 @@ nowo_auth_kit:
     # QR phone login: desktop challenge page (UiKit auth scaffold + bundled poller; endroid/qr-code renders the SVG).
     qr_login:
         mode: enabled
+    # Invitations (1.32): /{_locale}/admin/invitations to invite, resend and revoke; the invitee accepts on the
+    # registration form (e-mail locked). The demo has no mailer, so the link is shown once to the inviter.
+    invitations:
+        mode: enabled
+        show_link_when_undelivered: true
+        security:
+            # DEMO ONLY: every signed-in user may invite. Production: keep [ROLE_ADMIN] (or an access_checker).
+            access_roles: [ROLE_USER]
     # REQ-UI-003 page contract: the auth pages render on nowo_ui_kit.layouts.guest (config/packages/nowo_ui_kit.yaml);
     # per-profile overrides live under web_ui (layout_template, templates.<page>, form_themes, brand, qr_login).
     # Optional: composer require nowo-tech/slide-to-confirm-bundle (PHP 8.2+)

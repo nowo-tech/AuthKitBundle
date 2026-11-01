@@ -85,6 +85,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Invitations instead of open registration (opt-in, `profiles.<name>.invitations`, `mode: disabled` by default).** A bundle-owned `Invitation` entity (`auth_kit_invitation`, `doctrine.table_prefix` aware; inviter, e-mail, roles, host payload, message, locale, `expires_at`, `accepted_at` / `revoked_at`) storing only the SHA-256 of a 32-byte link token, compared with `hash_equals`. Administration pages on the UiKit list / form / show scaffolds (list with search, status filter and bounded pagination; invite; resend with a new link; revoke) behind `invitations.security` (`access_roles`, `access_checker`, debug-only literal `allow_unauthenticated`), with FormKit forms and per-action, per-row CSRF-only tokens. The accept page (`/invitation/{token}`, token moved to the session) is the registration form with the invited e-mail pre-filled and locked (`lock_email`), single use (conditional claim), expiring, one neutral page for invalid links, rate limited per IP. Symfony Mailer delivery (`MailerInvitationMailer`, overridable `InvitationMailerInterface`, subject and bodies from translations / `invitations.mail`), optional "link shown once" (`show_link_when_undelivered`). `InvitationGrantInterface` SPI (host grants inside the acceptance transaction), audit events (`InvitationCreatedEvent`, `InvitationResentEvent`, `InvitationRevokedEvent`, `InvitationAcceptedEvent`, `InvitationsPurgedEvent`), `nowo:auth-kit:invitations:purge`, translations in the 7 locales. See [INVITATIONS.md](INVITATIONS.md).
+- **`registration_mode: invite_only`:** the open registration page is closed (like `disabled`) and accounts are created only by accepting an invitation (requires `invitations.mode: enabled`). `UserRegistrar::registerInvited()` creates the account of an accepted invitation.
+- **`RegistrationFormType` options** `invitation_lock_email` and `invitation_csrf_token_id` (defaults keep the open registration form unchanged); `AuthPageFactory::notice()`; auth pages `invitation_accept` and `invitation_invalid` (`web_ui.templates.*`).
+
+### Changed
+
+- `nowo-tech/form-kit-bundle` constraint raised to `^2.14` (fail-closed `CsrfOnlyType`, used by the invitation actions). `symfony/mailer` is suggested (invitation e-mails).
+
 ## [1.31.2] - 2026-10-30
 
 Controllers no longer autoconfigured (REQ-SF-004 rule 7, no route change); QR/logout form types are FormKit types (no markup change). See [UPGRADING](UPGRADING.md#to-1312).

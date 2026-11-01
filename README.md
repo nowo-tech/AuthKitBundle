@@ -37,6 +37,7 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 - **Social login** (OAuth; see [SOCIAL-LOGIN.md](docs/SOCIAL-LOGIN.md))
 - **Enterprise SSO (OIDC)** via social credentials + `enterpriseSso` flag (see [SSO.md](docs/SSO.md))
 - **QR phone login** (opt-in; see [QR-LOGIN.md](docs/QR-LOGIN.md))
+- **Invitations** (opt-in, 1.32): invite by e-mail instead of open registration (`registration_mode: invite_only`), hashed single-use expiring links, administration pages (list, invite, resend, revoke) on the UiKit scaffolds, acceptance on the registration form, Symfony Mailer delivery, audit events, grant SPI and purge command (see [INVITATIONS.md](docs/INVITATIONS.md))
 - **WebAuthn / passkeys** — design locked for a later release (see [WEBAUTHN.md](docs/WEBAUTHN.md))
 - **Embedded auth dropdown** (`auth_kit_dropdown()`) for navbars and layouts
 - **Locale in URL paths** (`/en/login`, `/es/register`, …)
@@ -122,6 +123,7 @@ make release-check
 - [Magic login](docs/MAGIC-LOGIN.md)
 - [Social login](docs/SOCIAL-LOGIN.md)
 - [QR phone login](docs/QR-LOGIN.md) — opt-in (`mode: disabled` by default; shipped since v1.12)
+- [Invitations](docs/INVITATIONS.md) — opt-in (`invitations.mode: disabled` by default; since v1.32)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
 - [FrankenPHP worker audit (no kernel reset)](docs/FRANKENPHP-WORKER-AUDIT.md)
 

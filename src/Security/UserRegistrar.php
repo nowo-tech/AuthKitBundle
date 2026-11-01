@@ -9,12 +9,15 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use RuntimeException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function array_unique;
+use function array_values;
 use function is_string;
 use function sprintf;
 
@@ -49,6 +52,44 @@ final class UserRegistrar
             }
         }
 
+        $user = $this->createUser($profile, $formData, [$profile->registrationRole]);
+
+        if ($mode === RegistrationMode::FirstUserOnly) {
+            $count = $this->entityManager->getRepository($profile->userClass)->count([]);
+            if ($count > 1) {
+                $this->entityManager->remove($user);
+                $this->entityManagerRecovery->flush($this->entityManager);
+
+                throw new RuntimeException(sprintf('Registration race detected for first_user_only on "%s"; rolling back extra user.', $profile->userClass));
+            }
+        }
+
+        return $user;
+    }
+
+    /**
+     * Creates the account of an accepted invitation (1.32): same field mapping and hashing as {@see self::register()},
+     * roles = registration_role plus `$roles`. Not subject to `first_user_only` (the invitation is the authorisation);
+     * the caller checks {@see RegistrationGate::isInvitationAcceptanceAllowed()}.
+     *
+     * @param array<string, mixed> $formData keyed by field name
+     * @param list<string> $roles extra roles granted by the invitation
+     *
+     * @throws RuntimeException when a user with the same unique value already exists
+     */
+    public function registerInvited(array $formData, string $profileName, array $roles = []): UserInterface&PasswordAuthenticatedUserInterface
+    {
+        $profile = $this->profileRegistry->getByName($profileName);
+
+        return $this->createUser($profile, $formData, array_values(array_unique([$profile->registrationRole, ...$roles])));
+    }
+
+    /**
+     * @param array<string, mixed> $formData
+     * @param list<string> $roles
+     */
+    private function createUser(ProfileSettings $profile, array $formData, array $roles): UserInterface&PasswordAuthenticatedUserInterface
+    {
         /** @var PasswordAuthenticatedUserInterface&UserInterface $user */
         $user = new ($profile->userClass)();
 
@@ -69,9 +110,9 @@ final class UserRegistrar
         }
 
         if (method_exists($user, 'setRoles')) {
-            $user->setRoles([$profile->registrationRole]);
+            $user->setRoles($roles);
         } elseif ($this->propertyAccessor->isWritable($user, 'roles')) {
-            $this->propertyAccessor->setValue($user, 'roles', [$profile->registrationRole]);
+            $this->propertyAccessor->setValue($user, 'roles', $roles);
         }
 
         $this->entityManager->persist($user);
@@ -80,16 +121,6 @@ final class UserRegistrar
             $this->entityManagerRecovery->flush($this->entityManager);
         } catch (UniqueConstraintViolationException $exception) {
             throw new RuntimeException(sprintf('Registration failed: a "%s" with the same unique value already exists.', $profile->userClass), 0, $exception);
-        }
-
-        if ($mode === RegistrationMode::FirstUserOnly) {
-            $count = $this->entityManager->getRepository($profile->userClass)->count([]);
-            if ($count > 1) {
-                $this->entityManager->remove($user);
-                $this->entityManagerRecovery->flush($this->entityManager);
-
-                throw new RuntimeException(sprintf('Registration race detected for first_user_only on "%s"; rolling back extra user.', $profile->userClass));
-            }
         }
 
         return $user;

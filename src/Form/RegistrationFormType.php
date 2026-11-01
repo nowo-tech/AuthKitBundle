@@ -14,6 +14,7 @@ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\OptionsResolver\Options;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 use function is_string;
@@ -36,6 +37,9 @@ final class RegistrationFormType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $profile = $this->resolveProfile($options);
+        // Invitation acceptance (1.32): the invited e-mail field is read-only when invitations.lock_email is true
+        // (a disabled field keeps the invitation's value whatever is submitted).
+        $lockedField = $options['invitation_lock_email'] === true ? $profile->invitationEmailField() : null;
 
         foreach ($profile->registrationFields as $field) {
             if ($field['type'] === 'password') {
@@ -85,6 +89,7 @@ final class RegistrationFormType extends AbstractType
                 'mapped'      => (bool) ($field['mapped'] ?? true),
                 'help'        => false,
                 'placeholder' => false,
+                'disabled'    => $lockedField !== null && $field['name'] === $lockedField,
             ]);
         }
     }
@@ -92,10 +97,18 @@ final class RegistrationFormType extends AbstractType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
-            'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
-            'profile'            => null,
+            'translation_domain'       => NowoAuthKitBundle::TRANSLATION_DOMAIN,
+            'profile'                  => null,
+            'invitation_lock_email'    => false,
+            'invitation_csrf_token_id' => null,
         ]);
         $resolver->setAllowedTypes('profile', ['null', 'string']);
+        $resolver->setAllowedTypes('invitation_lock_email', 'bool');
+        $resolver->setAllowedTypes('invitation_csrf_token_id', ['null', 'string']);
+        // Invitation acceptance (1.32): the CSRF token id binds the invitation (set only with the form CSRF extension).
+        if ($resolver->isDefined('csrf_token_id')) {
+            $resolver->setNormalizer('csrf_token_id', static fn (Options $options, mixed $value): mixed => $options['invitation_csrf_token_id'] ?? $value);
+        }
     }
 
     /**

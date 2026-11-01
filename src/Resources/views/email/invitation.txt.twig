@@ -1,0 +1,12 @@
+{#- Invitation e-mail, text body (invitations.mail.text_template); same variables as invitation.html.twig. -#}
+{%- set _domain = 'NowoAuthKitBundle' -%}
+{{ (invitation.invitedBy ? 'invitation.email.intro_inviter' : 'invitation.email.intro')|trans({'%inviter%': invitation.invitedBy, '%brand%': brand}, _domain) }}
+{% if invitation.message %}
+
+{{ invitation.message }}
+{% endif %}
+
+{{ 'invitation.email.button'|trans({}, _domain) }}: {{ accept_url }}
+
+{{ 'invitation.email.expires'|trans({'%expires%': invitation.expiresAt|date('Y-m-d H:i T')}, _domain) }}
+{{ 'invitation.email.ignore'|trans({}, _domain) }}

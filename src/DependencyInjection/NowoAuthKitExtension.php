@@ -5,25 +5,37 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\DependencyInjection;
 
 use InvalidArgumentException;
+use Nowo\AuthKitBundle\Command\PurgeInvitationsCommand;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
+use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
+use Nowo\AuthKitBundle\Invitation\Security\RoleInvitationsAccessChecker;
 use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
+use Symfony\Component\DependencyInjection\Reference;
 
 use function array_key_exists;
+use function array_values;
 use function class_exists;
 use function is_array;
+use function is_bool;
 use function is_string;
 use function sprintf;
+use function trim;
 
 /**
  * Loads bundle configuration and registers services.
@@ -51,6 +63,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $bundles = $container->hasParameter('kernel.bundles') ? $container->getParameter('kernel.bundles') : null;
         /* @var array<string, string>|null $bundles */
         $this->normalizeProfiles($profiles, is_array($bundles) ? $bundles : null);
+        $this->assertInvitations($profiles, $config, $container);
 
         $defaultProfile = $profiles[$defaultProfileName];
 
@@ -127,6 +140,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.doctrine.table_prefix', $config['doctrine']['table_prefix']);
         $container->setParameter('nowo_auth_kit.locale.unlocalized_route_suffix', $config['locale']['unlocalized_route_suffix']);
         $container->setParameter('nowo_auth_kit.routing.skip_disabled_features', $config['routing']['skip_disabled_features']);
+        $container->setParameter('nowo_auth_kit.invitations.allow_unauthenticated', $this->allowUnauthenticated($profiles));
 
         $registerMapping = $this->resolveRegisterMapping($config['doctrine']['register_mapping'], $profiles);
         $container->setParameter('nowo_auth_kit.doctrine.register_mapping', $registerMapping);
@@ -141,6 +155,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         if ($config['doctrine']['table_prefix'] === '') {
             $container->removeDefinition(TablePrefixListener::class);
         }
+
+        $this->registerInvitations($container, $profiles);
 
         if ($config['flash']['twig_filter'] !== true) {
             $container->removeDefinition(AuthKitFlashExtension::class);
@@ -245,6 +261,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         foreach ($profiles as $profileName => $profile) {
             /** @var array<string, array{path: string, name: string, methods?: list<string>}> $routes */
             $routes = $profile['routes'];
+            if (($profile['invitations']['mode'] ?? InvitationsConfiguration::MODE_DISABLED) === InvitationsConfiguration::MODE_ENABLED) {
+                foreach ($profile['invitations']['routes'] as $routeKey => $route) {
+                    $routes['invitations.' . $routeKey] = $route;
+                }
+            }
 
             foreach ($routes as $routeKey => $route) {
                 $routeName = $route['name'];
@@ -339,7 +360,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     }
 
     /**
-     * doctrine.register_mapping: true / false / "auto" (mapped only when a profile enables social or QR login).
+     * doctrine.register_mapping: true / false / "auto" (mapped only when a profile enables social login, QR login or
+     * invitations).
      *
      * @param array<string, array<string, mixed>> $profiles
      */
@@ -352,7 +374,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         if ($registerMapping === false && $needed) {
-            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode and qr_login.mode to be "disabled" in every profile (their entities would not be mapped).');
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode and invitations.mode to be "disabled" in every profile (their entities would not be mapped).');
         }
 
         return (bool) $registerMapping;
@@ -367,7 +389,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             if (!is_array($profile)) {
                 continue;
             }
-            foreach (['social_login', 'qr_login'] as $feature) {
+            foreach (['social_login', 'qr_login', 'invitations'] as $feature) {
                 $settings = $profile[$feature] ?? null;
                 if (is_array($settings) && ($settings['mode'] ?? null) === 'enabled') {
                     return true;
@@ -445,6 +467,93 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->prependExtensionConfig('doctrine', [
             'orm' => ['entity_managers' => [$manager ?? 'default' => ['mappings' => [self::BUNDLE_NAME => ['mapping' => false]]]]],
         ]);
+    }
+
+    /**
+     * Invitations (1.32): `registration_mode: invite_only` needs `invitations.mode: enabled`; an enabled profile needs
+     * `absolute_url.base_uri` (the mailed link is never built from the request Host), a registration field for the
+     * e-mail, and `security.allow_unauthenticated` as a literal boolean that is true only with kernel.debug.
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     * @param array<string, mixed> $config
+     */
+    private function assertInvitations(array $profiles, array $config, ContainerBuilder $container): void
+    {
+        foreach ($profiles as $name => $profile) {
+            $invitations = $profile['invitations'];
+            $enabled     = $invitations['mode'] === InvitationsConfiguration::MODE_ENABLED;
+            if ($profile['registration_mode'] === RegistrationMode::InviteOnly->value && !$enabled) {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.registration_mode: invite_only" requires "invitations.mode: enabled" (nobody could register otherwise).', $name));
+            }
+            if (!$enabled) {
+                continue;
+            }
+            $baseUri = $config['absolute_url']['base_uri'] ?? null;
+            if (!is_string($baseUri) || trim($baseUri) === '') {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations" requires "nowo_auth_kit.absolute_url.base_uri": invitation links are never built from the request Host header.', $name));
+            }
+            if (ProfileSettings::fromConfig($name, $profile)->invitationEmailField() === null) {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations" needs a registration field for the invited e-mail (set invitations.email_field to a mapped, non-password registration field).', $name));
+            }
+            $allow = $invitations['security']['allow_unauthenticated'];
+            if (!is_bool($allow)) {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.security.allow_unauthenticated" must be a literal boolean (no env placeholder).', $name));
+            }
+            if ($allow && (!$container->hasParameter('kernel.debug') || $container->getParameter('kernel.debug') !== true)) {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.security.allow_unauthenticated: true" is a DEV/DEMO setting and is refused when kernel.debug is false.', $name));
+            }
+        }
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $profiles
+     *
+     * @return array<string, bool> profile => invitations.security.allow_unauthenticated (enabled profiles only)
+     */
+    private function allowUnauthenticated(array $profiles): array
+    {
+        $allow = [];
+        foreach ($profiles as $name => $profile) {
+            if ($profile['invitations']['mode'] === InvitationsConfiguration::MODE_ENABLED) {
+                $allow[$name] = $profile['invitations']['security']['allow_unauthenticated'] === true;
+            }
+        }
+
+        return $allow;
+    }
+
+    /**
+     * The per-profile access checkers of the invitation administration (a locator keyed by profile: the configured
+     * `access_checker` service, else a {@see RoleInvitationsAccessChecker} on `access_roles`). Without any enabled
+     * profile the purge command is not registered.
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function registerInvitations(ContainerBuilder $container, array $profiles): void
+    {
+        $checkers = [];
+        foreach ($profiles as $name => $profile) {
+            $invitations = $profile['invitations'];
+            if ($invitations['mode'] !== InvitationsConfiguration::MODE_ENABLED) {
+                continue;
+            }
+            $custom = $invitations['security']['access_checker'];
+            if (is_string($custom) && $custom !== '') {
+                $checkers[$name] = new Reference($custom);
+                continue;
+            }
+            $id = 'nowo_auth_kit.invitations.access_checker.' . $name;
+            $container->register($id, RoleInvitationsAccessChecker::class)
+                ->setArguments([new Reference('security.authorization_checker', ContainerInterface::NULL_ON_INVALID_REFERENCE), array_values($invitations['security']['access_roles'])]);
+            $checkers[$name] = new Reference($id);
+        }
+
+        $container->getDefinition(InvitationsAccessGuard::class)->setArgument('$checkers', ServiceLocatorTagPass::register($container, $checkers));
+        $container->registerForAutoconfiguration(InvitationGrantInterface::class)->addTag(InvitationGrantInterface::TAG);
+
+        if ($checkers === []) {
+            $container->removeDefinition(PurgeInvitationsCommand::class);
+        }
     }
 
     /**

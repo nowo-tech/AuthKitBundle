@@ -35,6 +35,13 @@ class KernelUser implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?DateTimeImmutable $passwordResetExpiresAt = null;
 
+    /** Optional registration fields of the invitations kernel. */
+    #[ORM\Column(length: 60, nullable: true)]
+    private ?string $nickname = null;
+
+    #[ORM\Column]
+    private bool $newsletter = false;
+
     public function getEmail(): string
     {
         return $this->email;
@@ -106,6 +113,30 @@ class KernelUser implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPasswordResetExpiresAt(?DateTimeImmutable $passwordResetExpiresAt): self
     {
         $this->passwordResetExpiresAt = $passwordResetExpiresAt;
+
+        return $this;
+    }
+
+    public function getNickname(): ?string
+    {
+        return $this->nickname;
+    }
+
+    public function setNickname(?string $nickname): self
+    {
+        $this->nickname = $nickname;
+
+        return $this;
+    }
+
+    public function isNewsletter(): bool
+    {
+        return $this->newsletter;
+    }
+
+    public function setNewsletter(bool $newsletter): self
+    {
+        $this->newsletter = $newsletter;
 
         return $this;
     }
