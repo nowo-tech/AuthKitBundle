@@ -105,6 +105,7 @@ Independent REQ-SEC-004 audit of the unreleased invitations (Appendix CD, 2026-1
 ### Changed
 
 - `nowo-tech/form-kit-bundle` constraint raised to `^2.14` (fail-closed `CsrfOnlyType`, used by the invitation actions). `symfony/mailer` is suggested (invitation e-mails).
+- `composer test` runs PHPUnit with `memory_limit=512M`: the suite (1014 tests) exceeded PHP's default 128M in the Docker pre-commit hook.
 
 ## [1.31.2] - 2026-10-30
 

@@ -117,7 +117,7 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "scripts": {
-        "test": "vendor/bin/phpunit",
+        "test": "@php -d memory_limit=512M vendor/bin/phpunit",
         "test-coverage": "@php -d memory_limit=1G vendor/bin/phpunit --colors=always --coverage-html coverage --coverage-clover coverage.xml --coverage-text",
         "test-coverage-100": [
             "@test-coverage",
