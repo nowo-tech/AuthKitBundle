@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Command;
 
 use Nowo\AuthKitBundle\Command\ConfigureSecurityCommand;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Filesystem\Filesystem;
@@ -13,6 +14,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Yaml\Yaml;
 
 use function count;
+use function str_contains;
 
 final class ConfigureSecurityCommandTest extends TestCase
 {
@@ -403,6 +405,127 @@ final class ConfigureSecurityCommandTest extends TestCase
         /** @var array<string, mixed> $security */
         $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
         self::assertSame('nowo_auth_kit_login', $security['security']['firewalls']['main']['form_login']['login_path']);
+    }
+
+    /**
+     * 1.32.2: logout.path is the route the firewall can intercept for each locale mode.
+     *
+     * @return iterable<string, array{0: bool|string, 1: string, 2: string, 3: string}>
+     */
+    public static function logoutPathPerLocaleModeProvider(): iterable
+    {
+        yield 'never' => ['never', 'redirect', '_unlocalized', 'nowo_auth_kit_logout'];
+        yield 'legacy false' => [false, 'serve', '_unlocalized', 'nowo_auth_kit_logout'];
+        yield 'always' => ['always', 'serve', '_unlocalized', 'nowo_auth_kit_logout'];
+        yield 'legacy true' => [true, 'redirect', '_unlocalized', 'nowo_auth_kit_logout'];
+        yield 'both + redirect' => ['both', 'redirect', '_unlocalized', 'nowo_auth_kit_logout'];
+        yield 'both + serve' => ['both', 'serve', '_unlocalized', 'nowo_auth_kit_logout_unlocalized'];
+        yield 'both + serve, custom suffix' => ['both', 'serve', '.default', 'nowo_auth_kit_logout.default'];
+    }
+
+    #[DataProvider('logoutPathPerLocaleModeProvider')]
+    public function testLogoutPathFollowsTheLocaleMode(string|bool $inPath, string $unlocalized, string $suffix, string $expected): void
+    {
+        $this->dumpEmptyFirewall();
+
+        $tester = new CommandTester($this->createLocaleCommand($inPath, $unlocalized, $suffix, false));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame($expected, $security['security']['firewalls']['main']['logout']['path']);
+        self::assertSame('nowo_auth_kit_login', $security['security']['firewalls']['main']['form_login']['check_path']);
+        self::assertSame(
+            $inPath === 'both' && $unlocalized === 'serve',
+            str_contains($tester->getDisplay(true), 'localized_logout_redirect'),
+        );
+    }
+
+    public function testNoRedirectNoteWhenTheLocalizedLogoutRedirectIsEnabled(): void
+    {
+        $this->dumpEmptyFirewall();
+
+        $tester = new CommandTester($this->createLocaleCommand('both', 'serve', '_unlocalized', true));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('nowo_auth_kit_logout_unlocalized', $security['security']['firewalls']['main']['logout']['path']);
+        self::assertStringNotContainsString('localized_logout_redirect', $tester->getDisplay(true));
+    }
+
+    public function testWarnsWhenTheExistingLogoutPathCannotBeInterceptedWithoutForce(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => [
+                'form_login' => ['login_path' => 'nowo_auth_kit_login'],
+                'logout'     => ['path' => 'nowo_auth_kit_logout'],
+            ]]]], 6),
+        );
+
+        $tester = new CommandTester($this->createLocaleCommand('both', 'serve', '_unlocalized', true));
+        self::assertSame(0, $tester->execute([]));
+        $display = preg_replace('/\s+/', ' ', $tester->getDisplay(true)) ?? '';
+        self::assertStringContainsString('logout.path is "nowo_auth_kit_logout"', $display);
+        self::assertStringContainsString('"nowo_auth_kit_logout_unlocalized"', $display);
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('nowo_auth_kit_logout', $security['security']['firewalls']['main']['logout']['path']);
+
+        self::assertSame(0, $tester->execute(['--force' => true]));
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        self::assertSame('nowo_auth_kit_logout_unlocalized', $security['security']['firewalls']['main']['logout']['path']);
+    }
+
+    public function testNoLogoutWarningWhenTheExistingLogoutPathMatches(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => [
+                'form_login' => ['login_path' => 'nowo_auth_kit_login'],
+                'logout'     => ['path' => 'nowo_auth_kit_logout'],
+            ]]]], 6),
+        );
+
+        $tester = new CommandTester($this->createLocaleCommand('always', 'redirect', '_unlocalized', false));
+        self::assertSame(0, $tester->execute([]));
+        self::assertStringNotContainsString('logout.path is', $tester->getDisplay(true));
+    }
+
+    private function dumpEmptyFirewall(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+    }
+
+    private function createLocaleCommand(string|bool $inPath, string $unlocalized, string $suffix, bool $localizedLogoutRedirect): ConfigureSecurityCommand
+    {
+        return new ConfigureSecurityCommand(
+            $this->testDir,
+            $this->routes(),
+            'main',
+            'App\\Entity\\User',
+            'email',
+            null,
+            'disabled',
+            new AuthKitRouteLocaleParameters(new RequestStack(), $inPath, 'en', ['en', 'es']),
+            [
+                ['name' => '_username', 'type' => 'text', 'property' => 'email', 'hash' => false, 'required' => true, 'security_name' => '_username'],
+                ['name' => '_password', 'type' => 'password', 'property' => null, 'hash' => false, 'required' => true, 'security_name' => '_password'],
+            ],
+            ['enabled' => false, 'lifetime' => 604800, 'path' => '/'],
+            ['mode' => 'disabled', 'lifetime' => 600, 'max_uses' => 1],
+            'disabled',
+            $inPath,
+            $unlocalized,
+            $suffix,
+            $localizedLogoutRedirect,
+        );
     }
 
     private function createCommand(

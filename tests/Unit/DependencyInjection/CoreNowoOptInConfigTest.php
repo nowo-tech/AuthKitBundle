@@ -23,6 +23,7 @@ final class CoreNowoOptInConfigTest extends TestCase
         $container = $this->load([]);
 
         self::assertSame('_unlocalized', $container->getParameter('nowo_auth_kit.locale.unlocalized_route_suffix'));
+        self::assertFalse($container->getParameter('nowo_auth_kit.locale.localized_logout_redirect'));
         self::assertFalse($container->getParameter('nowo_auth_kit.routing.skip_disabled_features'));
         self::assertTrue($container->getParameter('nowo_auth_kit.doctrine.register_mapping'));
         self::assertTrue($container->hasParameter(NowoAuthKitExtension::MAPPING_ENABLED_PARAMETER));
@@ -40,7 +41,7 @@ final class CoreNowoOptInConfigTest extends TestCase
     public function testCoreNowoStyleOptions(): void
     {
         $container = $this->load([
-            'locale'         => ['in_path' => 'both', 'unlocalized' => 'serve', 'unlocalized_route_suffix' => '.default'],
+            'locale'         => ['in_path' => 'both', 'unlocalized' => 'serve', 'unlocalized_route_suffix' => '.default', 'localized_logout_redirect' => true],
             'routing'        => ['skip_disabled_features' => true],
             'doctrine'       => ['register_mapping' => false],
             'routes'         => ['logout' => ['methods' => 'POST']],
@@ -48,6 +49,7 @@ final class CoreNowoOptInConfigTest extends TestCase
         ]);
 
         self::assertSame('.default', $container->getParameter('nowo_auth_kit.locale.unlocalized_route_suffix'));
+        self::assertTrue($container->getParameter('nowo_auth_kit.locale.localized_logout_redirect'));
         self::assertTrue($container->getParameter('nowo_auth_kit.routing.skip_disabled_features'));
         self::assertFalse($container->getParameter('nowo_auth_kit.doctrine.register_mapping'));
         self::assertFalse($container->hasParameter(NowoAuthKitExtension::MAPPING_ENABLED_PARAMETER));

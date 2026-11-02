@@ -125,7 +125,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Profiles & locale
 
 - **FR-PROFILE-001**: `ProfileSettings`, `ProfileRegistry`, `RequestProfileResolver`, `UnknownProfileException`.
-- **FR-LOCALE-001**: Locale-in-path / unlocalized redirect modes and `UnlocalizedLocaleRedirectController`. When `unlocalized: serve`, `UnlocalizedDefaultLocaleSubscriber` forces `locale.default` at runtime on `*_unlocalized` AuthKit routes (covers warmed route-cache vs runtime env drift).
+- **FR-LOCALE-001**: Locale-in-path / unlocalized redirect modes and `UnlocalizedLocaleRedirectController`. When `unlocalized: serve`, `UnlocalizedDefaultLocaleSubscriber` forces `locale.default` at runtime on `*_unlocalized` AuthKit routes (covers warmed route-cache vs runtime env drift). Opt-in `locale.localized_logout_redirect` (1.32.2): with `both` + `serve`, `LocalizedLogoutRedirectSubscriber` redirects each profile's localized logout route to its bare twin (router-generated path, query kept, 302/307) so a firewall `logout.path` on the bare twin intercepts both; `nowo:auth-kit:configure-security` (FR-CLI-001) writes that bare twin for `both` + `serve`.
 
 ### Security integration
 

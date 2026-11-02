@@ -608,6 +608,7 @@ nowo_auth_kit:
         enabled: [en, es]
         unlocalized: redirect    # serve | redirect (when in_path: both)
         unlocalized_route_suffix: _unlocalized   # 1.30+: name suffix of the bare twins (e.g. ".default")
+        localized_logout_redirect: false         # 1.32.2+: both + serve: /{_locale}/logout -> /logout (query kept)
 ```
 
 | `in_path` | Behaviour |
@@ -624,6 +625,11 @@ When `in_path: both`:
 `unlocalized_route_suffix` (1.30+) names the bare twins: an application whose routes are already called
 `web.security.login` (localized) and `web.security.login.default` (bare) sets `.default` and keeps its route names
 without aliases. Letters, digits, `_`, `.` and `-`.
+
+`localized_logout_redirect` (1.32.2+, opt-in): the firewall `logout.path` is one route name. With `both` + `serve`
+set it to the bare twin (`nowo_auth_kit_logout_unlocalized`) and enable this option: `/{_locale}/logout` is then
+redirected (302, 307 for POST, query string kept) to `/logout` and intercepted too. With `both` + `redirect` keep
+`nowo_auth_kit_logout`. See [UPGRADING](UPGRADING.md#logout-with-localein_path-1312).
 
 Legacy keys `default_locale`, `enabled_locales`, and `locale_in_path` (bool) still work and map into `locale.*`.
 
@@ -832,13 +838,15 @@ A GET then answers 405. The embed widget (`auth_kit_dropdown()`) renders the sig
 ```
 
 where `logout_form` is `formFactory.createNamed('', LogoutFormType::class, null, {action: path('nowo_auth_kit_logout'), logout_csrf_token: csrf_token('logout')})`.
-With `locale.in_path: both` the firewall `logout.path` (a route name) only matches the localized route; post to it.
+With `locale.in_path: both` the firewall `logout.path` (a route name) only matches that one route: `nowo_auth_kit_logout`
+(`/{_locale}/logout`) with `unlocalized: redirect`, or the bare `nowo_auth_kit_logout_unlocalized` with
+`unlocalized: serve` plus `locale.localized_logout_redirect: true` (see [Locale in paths](#locale-in-paths)).
 
 ## Security.yaml checklist
 
 1. Entity provider with `user_class` and `user_identifier_field`
 2. `form_login.login_path` and `check_path` = login route name
-3. `logout.path` = logout route name
+3. `logout.path` = logout route name (its bare twin with `locale.in_path: both` + `unlocalized: serve`)
 4. `access_control` for login, register, and (if enabled) password-reset / magic-login / social-login paths → `PUBLIC_ACCESS`
 5. Protected areas require `ROLE_USER` (or your roles)
 

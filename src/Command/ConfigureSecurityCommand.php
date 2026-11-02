@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Command;
 
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
+use Nowo\AuthKitBundle\Enum\LocaleInPathMode;
+use Nowo\AuthKitBundle\Enum\UnlocalizedLocaleMode;
+use Nowo\AuthKitBundle\Routing\AuthKitRouteLoader;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
 use Nowo\AuthKitBundle\Security\AuthKitFormLoginParameters;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -16,6 +19,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Yaml\Yaml;
 
+use function is_bool;
+use function is_string;
 use function sprintf;
 
 /**
@@ -46,6 +51,10 @@ final class ConfigureSecurityCommand extends Command
         private readonly array $rememberMe,
         private readonly array $magicLogin,
         private readonly string $socialLoginMode = 'disabled',
+        private readonly string|bool $localeInPath = 'never',
+        private readonly string $unlocalizedMode = 'redirect',
+        private readonly string $unlocalizedRouteSuffix = AuthKitRouteLoader::UNLOCALIZED_ROUTE_SUFFIX,
+        private readonly bool $localizedLogoutRedirect = false,
     ) {
         parent::__construct();
     }
@@ -75,7 +84,7 @@ final class ConfigureSecurityCommand extends Command
         $security['security'] ??= [];
 
         $loginRoute   = $this->routes['login']['name'];
-        $logoutRoute  = $this->routes['logout']['name'];
+        $logoutRoute  = $this->firewallLogoutRoute();
         $registerPath = $this->routes['register']['path'];
         $loginPath    = $this->routes['login']['path'];
 
@@ -101,6 +110,16 @@ final class ConfigureSecurityCommand extends Command
 
         if (isset($firewall['form_login']) && !$input->getOption('force')) {
             $io->warning(sprintf('Firewall "%s" already has form_login. Use --force to overwrite.', $this->firewall));
+            $currentLogoutPath = $firewall['logout']['path'] ?? null;
+            if (is_string($currentLogoutPath) && $currentLogoutPath !== $logoutRoute) {
+                $io->warning(sprintf(
+                    'Firewall "%s" logout.path is "%s"; with locale.in_path "%s" the firewall can only intercept the logout URL through "%s". Use --force to update it (see UPGRADING 1.32.2).',
+                    $this->firewall,
+                    $currentLogoutPath,
+                    $this->inPathMode()->value,
+                    $logoutRoute,
+                ));
+            }
         } else {
             $formLogin = [
                 'login_path' => $loginRoute,
@@ -192,6 +211,12 @@ final class ConfigureSecurityCommand extends Command
         $filesystem->dumpFile($securityPath, Yaml::dump($security, 6, 2));
 
         $io->success(sprintf('Updated %s for firewall "%s".', $securityPath, $this->firewall));
+        if ($this->needsLocalizedLogoutRedirect()) {
+            $io->note(sprintf(
+                'logout.path is the bare route "%s" ("/logout"). Enable nowo_auth_kit.locale.localized_logout_redirect so "/{_locale}/logout" is redirected to it and intercepted too (see UPGRADING 1.32.2).',
+                $logoutRoute,
+            ));
+        }
         $io->note([
             'Verify user_class and user_identifier_field match your entity.',
             'form_login uses nested parameters (login_form[_username]) — see AuthKitFormLoginParameters.',
@@ -201,6 +226,39 @@ final class ConfigureSecurityCommand extends Command
         ]);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * The logout route name the firewall can intercept (1.32.2): with locale.in_path "both" and unlocalized "serve" the
+     * canonical name only matches "/{_locale}/logout", while AuthKit links and hosts use the bare "/logout" (served,
+     * not redirected): the firewall then needs the bare twin. With unlocalized "redirect" the canonical name already
+     * covers both ("/logout" redirects to "/{default}/logout" with its query); "never" / "always" register one route.
+     */
+    private function firewallLogoutRoute(): string
+    {
+        $name = $this->routes['logout']['name'];
+
+        if ($this->inPathMode() === LocaleInPathMode::Both && $this->unlocalizedMode === UnlocalizedLocaleMode::Serve->value) {
+            return $name . $this->unlocalizedRouteSuffix;
+        }
+
+        return $name;
+    }
+
+    private function needsLocalizedLogoutRedirect(): bool
+    {
+        return !$this->localizedLogoutRedirect
+            && $this->inPathMode() === LocaleInPathMode::Both
+            && $this->unlocalizedMode === UnlocalizedLocaleMode::Serve->value;
+    }
+
+    private function inPathMode(): LocaleInPathMode
+    {
+        if (is_bool($this->localeInPath)) {
+            return $this->localeInPath ? LocaleInPathMode::Always : LocaleInPathMode::Never;
+        }
+
+        return LocaleInPathMode::from($this->localeInPath);
     }
 
     /**

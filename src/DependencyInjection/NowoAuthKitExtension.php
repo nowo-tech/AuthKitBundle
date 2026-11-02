@@ -139,6 +139,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.http_client.max_duration', (float) $config['http_client']['max_duration']);
         $container->setParameter('nowo_auth_kit.doctrine.table_prefix', $config['doctrine']['table_prefix']);
         $container->setParameter('nowo_auth_kit.locale.unlocalized_route_suffix', $config['locale']['unlocalized_route_suffix']);
+        $container->setParameter('nowo_auth_kit.locale.localized_logout_redirect', $config['locale']['localized_logout_redirect']);
         $container->setParameter('nowo_auth_kit.routing.skip_disabled_features', $config['routing']['skip_disabled_features']);
         $container->setParameter('nowo_auth_kit.invitations.allow_unauthenticated', $this->allowUnauthenticated($profiles));
 
