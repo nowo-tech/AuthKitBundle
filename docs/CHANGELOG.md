@@ -88,6 +88,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Invitations, host API for hosts with their own invitation UI (Symfony Beacon spec 191; spec 004), all opt-in:
+  - `invitations.registration_role` (nullable): base role of invited accounts instead of `registration_role`.
+  - `InvitationLinkRejectedEvent` when an expired or revoked link is opened (snapshot, reason; no token).
+  - `InvitationAcceptingEvent` pre-accept hook and `InvitationRefusal` (translatable reason shown to the invitee);
+    `InvitationRefusedException::because()` for grants; `InvitationAcceptor::attempt()` returns an
+    `InvitationAcceptance`.
+  - `InvitationManager::resend()` optional `$ttlDays` and `$returnLink`; `InvitationRequest::$returnLink`; delivery
+    `host` on the created / resent events.
+  - `invitations.merge_key` (one open invitation per e-mail and payload key) and `invitations.payload_merge`
+    (`replace` default, `deep`); `InvitationRepository::findOpenByEmailAndPayloadKey()`.
+  - Social acceptance: `InvitationAcceptor::pending()` and `acceptPendingForSocial()`; `InvitationAcceptor::SESSION_KEY`.
+  - `invitations.admin_routes: false` leaves the administration routes unregistered.
+
 ## [1.32.2] - 2026-11-02
 
 Logout behind locale prefixes: configure-security writes the logout route the firewall can intercept for each locale.in_path / unlocalized mode (and warns on a wrong one), opt-in locale.localized_logout_redirect sends /{_locale}/logout to /logout keeping the CSRF query, clearer LogoutController error. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.32.2/docs/UPGRADING.md#to-1322).

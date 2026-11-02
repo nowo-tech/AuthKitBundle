@@ -98,6 +98,18 @@
 
 ## Unreleased
 
+No action required: every 1.33 invitation addition is opt-in and the defaults keep 1.32 behaviour
+(`invitations.registration_role: null`, `merge_key: null`, `payload_merge: replace`, `admin_routes: true`; `resend()`
+and `InvitationRequest` gain optional trailing arguments). Notes:
+
+- A listener of `InvitationAcceptingEvent` that calls `refuse()` blocks acceptances; an exception it throws aborts
+  the request (nothing is created).
+- Hosts reading `_nowo_auth_kit_invitation.<profile>` from the session should move to
+  `InvitationAcceptor::pending()` / `acceptPendingForSocial()` (the key itself is unchanged).
+- With `admin_routes: false`, remove links to `nowo_auth_kit_invitations*` routes from your menus.
+- With `merge_key`, several open invitations can exist for one e-mail; once one is accepted the others can no longer
+  create the (same) account — revoke them or handle existing accounts in your own flow.
+
 ## To 1.32.2
 
 From **1.32.1**:
