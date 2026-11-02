@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.32.2] - 2026-11-02](#1322---2026-11-02)
 - [[1.32.1] - 2026-11-01](#1321---2026-11-01)
 - [[1.32.0] - 2026-11-01](#1320---2026-11-01)
 - [[1.31.2] - 2026-10-30](#1312---2026-10-30)
@@ -86,6 +87,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.32.2] - 2026-11-02
+
+Logout behind locale prefixes: configure-security writes the logout route the firewall can intercept for each locale.in_path / unlocalized mode (and warns on a wrong one), opt-in locale.localized_logout_redirect sends /{_locale}/logout to /logout keeping the CSRF query, clearer LogoutController error. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.32.2/docs/UPGRADING.md#to-1322).
 
 Logout with `locale.in_path: both` + `unlocalized: serve`. See [UPGRADING](UPGRADING.md#logout-with-localein_path-1312).
 
