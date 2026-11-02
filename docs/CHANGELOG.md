@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.33.0] - 2026-11-02](#1330---2026-11-02)
 - [[1.32.2] - 2026-11-02](#1322---2026-11-02)
 - [[1.32.1] - 2026-11-01](#1321---2026-11-01)
 - [[1.32.0] - 2026-11-01](#1320---2026-11-01)
@@ -87,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.33.0] - 2026-11-02
+
+Invitations host API: invitations.registration_role, InvitationLinkRejectedEvent, refuse-only InvitationAcceptingEvent, resend TTL + returned link, invitations.merge_key + payload_merge, social acceptance (acceptPendingForSocial), invitations.admin_routes, configurable accept path, InvitationActionAuthorizerInterface (hosts with roleless invitations must implement it), lastSentBy column (migration). See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.33.0/docs/UPGRADING.md#to-1330).
 
 ### Added
 

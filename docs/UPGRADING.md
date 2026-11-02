@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.33.0](#to-1330)
 - [To 1.32.2](#to-1322)
   - [Logout with locale.in_path (1.31.2+)](#logout-with-localein_path-1312)
 - [To 1.32.1](#to-1321)
@@ -97,6 +98,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.33.0
+
+From **1.32.2**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 No action required: every 1.33 invitation addition is opt-in and the defaults keep 1.32 behaviour
 (`invitations.registration_role: null`, `merge_key: null`, `payload_merge: replace`, `admin_routes: true`; `resend()`
