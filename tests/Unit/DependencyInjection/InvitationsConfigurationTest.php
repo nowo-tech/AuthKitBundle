@@ -95,6 +95,29 @@ final class InvitationsConfigurationTest extends TestCase
         yield 'unknown e-mail field' => [self::enabledConfig(['email_field' => 'nope']), 'needs a registration field for the invited e-mail'];
         yield 'allow_unauthenticated without debug' => [self::enabledConfig(['security' => ['allow_unauthenticated' => true]]), 'refused when kernel.debug is false'];
         yield 'duplicate route name' => [self::enabledConfig(['routes' => ['index' => ['name' => 'nowo_auth_kit_login']]]), 'Duplicate route name "nowo_auth_kit_login"'];
+        yield 'duplicate accept route name without admin routes' => [self::enabledConfig(['admin_routes' => false, 'routes' => ['accept' => ['name' => 'nowo_auth_kit_login']]]), 'Duplicate route name "nowo_auth_kit_login"'];
+    }
+
+    public function testHostKeysDefaultToThe132BehaviourAndAcceptValues(): void
+    {
+        $defaults = $this->profile($this->load($this->enabled()))['invitations'];
+        self::assertNull($defaults['registration_role']);
+        self::assertNull($defaults['merge_key']);
+        self::assertSame(InvitationsConfiguration::PAYLOAD_MERGE_REPLACE, $defaults['payload_merge']);
+        self::assertTrue($defaults['admin_routes']);
+
+        // admin_routes: false leaves the admin route names free (no duplicate check on unregistered routes).
+        $set = $this->profile($this->load($this->enabled([
+            'registration_role' => 'ROLE_MEMBER',
+            'merge_key'         => 'organization',
+            'payload_merge'     => 'deep',
+            'admin_routes'      => false,
+            'routes'            => ['index' => ['name' => 'nowo_auth_kit_login']],
+        ])))['invitations'];
+        self::assertSame('ROLE_MEMBER', $set['registration_role']);
+        self::assertSame('organization', $set['merge_key']);
+        self::assertSame(InvitationsConfiguration::PAYLOAD_MERGE_DEEP, $set['payload_merge']);
+        self::assertFalse($set['admin_routes']);
     }
 
     /**
@@ -122,6 +145,9 @@ final class InvitationsConfigurationTest extends TestCase
         yield 'relative path' => [['routes' => ['index' => ['path' => 'admin']]], 'must start with a single "/"'];
         yield 'ttl too long' => [['ttl_days' => 91], 'ttl_days'];
         yield 'per_page not offered' => [['admin' => ['per_page' => 7]], 'per_page'];
+        yield 'registration_role not a ROLE_ name' => [['registration_role' => 'member'], 'Invalid invitations.registration_role'];
+        yield 'merge_key with a space' => [['merge_key' => 'org id'], 'Invalid invitations.merge_key'];
+        yield 'unknown payload_merge' => [['payload_merge' => 'union'], 'payload_merge'];
     }
 
     /**

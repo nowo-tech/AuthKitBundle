@@ -9,7 +9,10 @@ use Nowo\AuthKitBundle\Enum\InvitationStatus;
 use Nowo\AuthKitBundle\Form\FormCsrf;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
+use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
+use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
+use Nowo\AuthKitBundle\Invitation\InvitationRefusal;
 use Nowo\AuthKitBundle\Invitation\InvitationTokens;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -17,6 +20,7 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\UiKitBundle\View\Label;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -43,12 +47,14 @@ use function is_string;
  * An unknown, used, revoked or replaced link answers the same neutral page; an expired one (still the current token)
  * says so; neither shows any invitee data. Opening a link and submitting are rate limited per client IP
  * (`accept_rate_limit`); signed-in visitors are asked to sign out first (no account merge). Responses are
- * `private, no-store`, `noindex` and `Referrer-Policy: no-referrer`; redirects are path-only.
+ * `private, no-store`, `noindex` and `Referrer-Policy: no-referrer`; redirects are path-only. 1.33: an expired or
+ * revoked link dispatches {@see InvitationLinkRejectedEvent}; a host refusal
+ * ({@see InvitationAcceptingEvent}, grant) shows its translatable reason.
  */
 final class InvitationAcceptController
 {
-    /** Session key prefix of the token hash (one per profile). */
-    public const SESSION_KEY = '_nowo_auth_kit_invitation.';
+    /** Session key prefix of the token hash (one per profile); hosts use {@see InvitationAcceptor::pending()}. */
+    public const SESSION_KEY = InvitationAcceptor::SESSION_KEY;
 
     public const CSRF_TOKEN_PREFIX = 'nowo_auth_kit_invitation_accept';
 
@@ -98,8 +104,9 @@ final class InvitationAcceptController
             return $this->redirect($this->urlGenerator->generate(self::routeName($profile)), Response::HTTP_SEE_OTHER);
         }
 
-        $tokenHash             = $session->get($key);
-        [$status, $invitation] = is_string($tokenHash) ? $this->acceptor->lookup($profile->name, $tokenHash) : [null, null];
+        $tokenHash = $session->get($key);
+        // 1.33: an expired or revoked link dispatches InvitationLinkRejectedEvent (once: the session entry goes below).
+        [$status, $invitation] = is_string($tokenHash) ? $this->acceptor->lookup($profile->name, $tokenHash, true) : [null, null];
         if (!$invitation instanceof Invitation || !is_string($tokenHash)) {
             $session->remove($key);
 
@@ -132,13 +139,14 @@ final class InvitationAcceptController
                 if ($locked && $emailField !== null) {
                     $data[$emailField] = $invitation->getEmail();
                 }
-                $user = $this->acceptor->accept($invitation, $tokenHash, $data);
+                $acceptance = $this->acceptor->attempt($invitation, $tokenHash, $data);
                 $session->remove($key);
-                if (!$user instanceof UserInterface) {
-                    return $this->notice($profile, 'not_accepted');
+                if (!$acceptance->user instanceof UserInterface) {
+                    // 1.33: the host's translatable reason (pre-accept event or grant), else the neutral text.
+                    return $this->notice($profile, 'not_accepted', Response::HTTP_OK, $acceptance->refusal);
                 }
 
-                return $this->signIn($profile, $user);
+                return $this->signIn($profile, $acceptance->user);
             }
         }
 
@@ -220,7 +228,7 @@ final class InvitationAcceptController
      * A form-less page: `invalid` (unknown, used, revoked or replaced link), `expired`, `rate_limited`,
      * `signed_in`, `not_accepted`. No invitee data on any of them.
      */
-    private function notice(ProfileSettings $profile, string $kind, int $status = Response::HTTP_OK): Response
+    private function notice(ProfileSettings $profile, string $kind, int $status = Response::HTTP_OK, ?InvitationRefusal $refusal = null): Response
     {
         $links = [$this->pages->link('invitation.page.sign_in', $this->urlGenerator->generate($profile->routes['login']['name']))];
         if ($kind === 'signed_in') {
@@ -230,7 +238,9 @@ final class InvitationAcceptController
             'invitation_invalid',
             $profile,
             AuthPageFactory::label('invitation.page.' . $kind . '_title'),
-            AuthPageFactory::label('invitation.page.' . $kind . '_body'),
+            $refusal instanceof InvitationRefusal
+                ? new Label($refusal->key, $refusal->domain, $refusal->parameters)
+                : AuthPageFactory::label('invitation.page.' . $kind . '_body'),
             $links,
             ['data-nowo-auth-kit-invitation' => $kind],
         );

@@ -9,14 +9,20 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Enum\InvitationStatus;
+use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptedEvent;
+use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
+use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
+use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
+use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Throwable;
@@ -24,6 +30,7 @@ use Throwable;
 use function array_intersect;
 use function array_values;
 use function is_array;
+use function is_string;
 
 /**
  * What a link opens and the acceptance. {@see self::lookup()} answers the same `null` for an unknown, used, revoked or
@@ -32,9 +39,17 @@ use function is_array;
  * {@see UserRegistrar::registerInvited()} with the roles still grantable (`invitations.roles` re-checked), runs the
  * {@see InvitationGrantInterface} services and commits — all in one transaction — then dispatches
  * {@see InvitationAcceptedEvent}.
+ *
+ * 1.33: {@see InvitationAcceptingEvent} before the transaction (a host may refuse with a reason shown to the invitee),
+ * {@see self::attempt()} (the outcome with that reason), {@see InvitationLinkRejectedEvent} for an expired or revoked
+ * link ({@see self::lookup()} with `$report`), and the social acceptance of the invitation pending in the session
+ * ({@see self::pending()}, {@see self::acceptPendingForSocial()}).
  */
 final readonly class InvitationAcceptor
 {
+    /** Session key prefix of the opened link's token hash (one per profile); read it through {@see self::pending()}. */
+    public const SESSION_KEY = '_nowo_auth_kit_invitation.';
+
     /**
      * @param iterable<InvitationGrantInterface> $grants
      */
@@ -61,9 +76,12 @@ final readonly class InvitationAcceptor
      * The invitation behind a token hash in a profile: `[Pending, invitation]` (valid), `[Expired, invitation]` (only
      * while the token is still the current one), or `[null, null]` (no longer valid, whatever the reason).
      *
+     * @param bool $report (1.33) dispatch {@see InvitationLinkRejectedEvent} when the current token of an expired or
+     *                     revoked invitation is looked up
+     *
      * @return array{0: InvitationStatus|null, 1: Invitation|null}
      */
-    public function lookup(string $profile, string $tokenHash): array
+    public function lookup(string $profile, string $tokenHash, bool $report = false): array
     {
         $invitation = $this->invitations->findOneByTokenHash($tokenHash);
         if (!$invitation instanceof Invitation
@@ -72,9 +90,75 @@ final readonly class InvitationAcceptor
         ) {
             return [null, null];
         }
-        $status = $invitation->status($this->now());
+        $now    = $this->now();
+        $status = $invitation->status($now);
+        if ($report && ($status === InvitationStatus::Expired || $status === InvitationStatus::Revoked)) {
+            $this->eventDispatcher?->dispatch(new InvitationLinkRejectedEvent(
+                InvitationSnapshot::of($invitation, $now),
+                $status === InvitationStatus::Expired ? InvitationLinkRejectedEvent::REASON_EXPIRED : InvitationLinkRejectedEvent::REASON_REVOKED,
+                $now,
+            ));
+        }
 
         return $status->isOpen() ? [$status, $invitation] : [null, null];
+    }
+
+    /**
+     * The pending invitation whose link was opened in this session for the profile (the accept page keeps its token
+     * hash under {@see self::SESSION_KEY}), or null. Hosts call this instead of reading the session key.
+     *
+     * @phpstan-impure
+     */
+    public function pending(SessionInterface $session, string $profile): ?InvitationSnapshot
+    {
+        $tokenHash             = $session->get(self::SESSION_KEY . $profile);
+        [$status, $invitation] = is_string($tokenHash) ? $this->lookup($profile, $tokenHash) : [null, null];
+
+        return $status === InvitationStatus::Pending && $invitation instanceof Invitation ? InvitationSnapshot::of($invitation, $this->now()) : null;
+    }
+
+    /**
+     * Social acceptance (1.33): accepts the invitation pending in the session (link opened on the accept page) for a
+     * person who signed in with a social provider. The provider must assert a verified e-mail equal to the invited
+     * one (normalised); the account is created like the form acceptance (pre-accept event, roles re-check, grants,
+     * one transaction) with the invited e-mail forced into the e-mail field. The session entry is removed whatever the
+     * outcome. The caller links the social identity (e.g. {@see SocialAccountLinker}),
+     * signs the user in, and must have checked the OAuth state and code itself.
+     *
+     * @param array<string, mixed> $formData other registration field values (e.g. a display name); never a password
+     */
+    public function acceptPendingForSocial(SessionInterface $session, string $profile, SocialUserProfile $social, array $formData = []): InvitationAcceptance
+    {
+        $key       = self::SESSION_KEY . $profile;
+        $tokenHash = $session->get($key);
+        $session->remove($key);
+        $settings = $this->profiles->getByName($profile);
+        // Same gate as the accept page: invitations enabled and a registration mode other than disabled.
+        if (!$settings->invitationsEnabled() || $settings->registrationMode === RegistrationMode::Disabled->value) {
+            return InvitationAcceptance::failed(InvitationAcceptance::NO_INVITATION);
+        }
+        [$status, $invitation] = is_string($tokenHash) ? $this->lookup($profile, $tokenHash, true) : [null, null];
+        if (!$invitation instanceof Invitation || !is_string($tokenHash)) {
+            return InvitationAcceptance::failed(InvitationAcceptance::NO_INVITATION);
+        }
+        $snapshot = InvitationSnapshot::of($invitation, $this->now());
+        if ($status === InvitationStatus::Expired) {
+            return InvitationAcceptance::failed(InvitationAcceptance::EXPIRED, $snapshot);
+        }
+        if ($social->emailVerified !== true || !is_string($social->email) || Invitation::normalizeEmail($social->email) !== $invitation->getEmail()) {
+            return InvitationAcceptance::failed(InvitationAcceptance::EMAIL_MISMATCH, $snapshot);
+        }
+        $field = $settings->invitationEmailField();
+        foreach ($settings->registrationFields as $definition) {
+            if (($definition['type'] ?? 'text') === 'password' || ($definition['hash'] ?? false) === true) {
+                unset($formData[(string) $definition['name']]);
+            }
+        }
+        if ($field !== null) {
+            $formData[$field] = $invitation->getEmail();
+        }
+
+        return $this->attempt($invitation, $tokenHash, $formData);
     }
 
     /**
@@ -85,9 +169,29 @@ final readonly class InvitationAcceptor
      */
     public function accept(Invitation $invitation, string $tokenHash, array $formData): ?UserInterface
     {
+        return $this->attempt($invitation, $tokenHash, $formData)->user;
+    }
+
+    /**
+     * {@see self::accept()} with the outcome (1.33): `accepted`, `refused` (pre-accept event or grant, with the host's
+     * reason when given) or `not_accepted`. Deny by default: a listener or grant that fails refuses the acceptance.
+     *
+     * @param array<string, mixed> $formData registration form data (the e-mail field already forced when locked)
+     */
+    public function attempt(Invitation $invitation, string $tokenHash, array $formData): InvitationAcceptance
+    {
         $now = $this->now();
         if ($invitation->status($now) !== InvitationStatus::Pending || !$this->tokens->matchesHash($tokenHash, $invitation->getTokenHash())) {
-            return null;
+            return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED);
+        }
+        $snapshot = InvitationSnapshot::of($invitation, $now);
+        if ($this->eventDispatcher instanceof EventDispatcherInterface) {
+            $accepting = $this->eventDispatcher->dispatch(new InvitationAcceptingEvent($snapshot, $now));
+            if ($accepting->isRefused()) {
+                $this->logger->notice('AuthKit invitation refused before acceptance.', ['invitation' => $invitation->getPublicId()]);
+
+                return InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot, $accepting->getRefusal());
+            }
         }
         $profile   = $this->profiles->getByName($invitation->getProfile());
         $grantable = is_array($profile->invitations['roles'] ?? null) ? $profile->invitations['roles'] : [];
@@ -99,7 +203,7 @@ final readonly class InvitationAcceptor
             if (!$this->invitations->claim($invitation, $tokenHash, $invitation->getEmail(), $now)) {
                 $connection->rollBack();
 
-                return null;
+                return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
             }
             // @igor-ignore - Stateless registrar call (persists a new account); no service state changes.
             $user = $this->registrar->registerInvited($formData, $profile->name, $roles);
@@ -123,12 +227,14 @@ final readonly class InvitationAcceptor
             }
             $this->logger->notice('AuthKit invitation not accepted.', ['invitation' => $invitation->getPublicId(), 'reason' => $exception::class]);
 
-            return null;
+            return $exception instanceof InvitationRefusedException
+                ? InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot, $exception->reason)
+                : InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
         }
 
         $this->eventDispatcher?->dispatch(new InvitationAcceptedEvent($snapshot, $user, $now));
 
-        return $user;
+        return InvitationAcceptance::accepted($user, $snapshot);
     }
 
     private function now(): DateTimeImmutable

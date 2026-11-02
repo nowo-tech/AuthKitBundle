@@ -50,6 +50,15 @@ final class InvitationsConfiguration
         'link'  => '@NowoAuthKitBundle/invitations/link.html.twig',
     ];
 
+    /** `invitations.payload_merge`: re-inviting replaces top-level payload keys (1.32 behaviour). */
+    public const PAYLOAD_MERGE_REPLACE = 'replace';
+
+    /** `invitations.payload_merge`: maps merge recursively, lists are unioned (1.33). */
+    public const PAYLOAD_MERGE_DEEP = 'deep';
+
+    /** Route keys of the administration pages (`invitations.admin_routes: false` leaves them unregistered, 1.33). */
+    public const ADMIN_ROUTE_KEYS = ['index', 'new', 'resend', 'revoke'];
+
     public const MAIL_HTML_TEMPLATE = '@NowoAuthKitBundle/email/invitation.html.twig';
 
     public const MAIL_TEXT_TEMPLATE = '@NowoAuthKitBundle/email/invitation.txt.twig';
@@ -94,6 +103,31 @@ final class InvitationsConfiguration
                         ->end()
                     ->end()
                     ->defaultValue([])
+                ->end()
+                ->scalarNode('registration_role')
+                    ->info('Base role of an account created from an invitation (1.33), instead of the profile registration_role (e.g. when registration_role is ROLE_ADMIN for the first user). null: registration_role.')
+                    ->defaultNull()
+                    ->validate()
+                        ->ifTrue(static fn (mixed $role): bool => $role !== null && (!is_string($role) || preg_match('/^ROLE_[A-Z0-9_]+$/', $role) !== 1))
+                        ->thenInvalid('Invalid invitations.registration_role %s: use a ROLE_* name or null.')
+                    ->end()
+                ->end()
+                ->scalarNode('merge_key')
+                    ->info('Payload key that, with the e-mail, identifies the open invitation a re-invite updates (1.33), e.g. "organization": one open invitation per (e-mail, payload[merge_key]). null: one open invitation per e-mail.')
+                    ->defaultNull()
+                    ->validate()
+                        ->ifTrue(static fn (mixed $key): bool => $key !== null && (!is_string($key) || preg_match('/^[A-Za-z0-9_.\-]{1,64}$/', $key) !== 1))
+                        ->thenInvalid('Invalid invitations.merge_key %s: 1-64 characters among letters, digits, "_", "-" and ".", or null.')
+                    ->end()
+                ->end()
+                ->enumNode('payload_merge')
+                    ->values([self::PAYLOAD_MERGE_REPLACE, self::PAYLOAD_MERGE_DEEP])
+                    ->info('How a re-invite merges its payload into the open invitation (1.33). replace: top-level keys replaced (1.32). deep: maps merged recursively, lists unioned.')
+                    ->defaultValue(self::PAYLOAD_MERGE_REPLACE)
+                ->end()
+                ->booleanNode('admin_routes')
+                    ->info('false: the administration routes (index, new, resend, revoke) are not registered, for hosts with their own invitation UI (1.33). The accept route stays.')
+                    ->defaultTrue()
                 ->end()
                 ->booleanNode('show_link_when_undelivered')
                     ->info('When the e-mail cannot be sent (no mailer, transport error), show the link once to the inviter (no-store page). false: report "not sent" and keep the link secret.')

@@ -70,6 +70,34 @@ class InvitationRepository extends EntityRepository
     }
 
     /**
+     * The newest open invitation of the e-mail in the profile whose `payload[$key]` is `$value` (strict comparison; a
+     * missing key matches null), among the newest {@see self::MAX_PAGE_SIZE} open ones of the e-mail
+     * (`invitations.merge_key`, 1.33).
+     */
+    public function findOpenByEmailAndPayloadKey(string $profile, string $email, string $key, mixed $value): ?Invitation
+    {
+        /** @var list<Invitation> $open */
+        $open = $this->createQueryBuilder('i')
+            ->andWhere('i.profile = :profile')
+            ->andWhere('i.email = :email')
+            ->andWhere('i.acceptedAt IS NULL')
+            ->andWhere('i.revokedAt IS NULL')
+            ->setParameter('profile', $profile)
+            ->setParameter('email', Invitation::normalizeEmail($email))
+            ->orderBy('i.id', SortDirection::Descending)
+            ->setMaxResults(self::MAX_PAGE_SIZE)
+            ->getQuery()
+            ->getResult();
+        foreach ($open as $invitation) {
+            if (($invitation->getPayload()[$key] ?? null) === $value) {
+                return $invitation;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Open invitations issued by an inviter (security identifier), oldest first, at most `$limit`.
      *
      * @return list<Invitation>

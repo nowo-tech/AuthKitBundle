@@ -31,6 +31,7 @@ use Symfony\Component\DependencyInjection\Reference;
 use function array_key_exists;
 use function array_values;
 use function class_exists;
+use function in_array;
 use function is_array;
 use function is_bool;
 use function is_string;
@@ -264,6 +265,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $routes = $profile['routes'];
             if (($profile['invitations']['mode'] ?? InvitationsConfiguration::MODE_DISABLED) === InvitationsConfiguration::MODE_ENABLED) {
                 foreach ($profile['invitations']['routes'] as $routeKey => $route) {
+                    if (($profile['invitations']['admin_routes'] ?? true) === false && in_array($routeKey, InvitationsConfiguration::ADMIN_ROUTE_KEYS, true)) {
+                        continue;
+                    }
                     $routes['invitations.' . $routeKey] = $route;
                 }
             }
