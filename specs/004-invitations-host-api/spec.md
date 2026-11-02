@@ -76,6 +76,10 @@ names are not checked for duplicates); the accept route stays. Routes remain opt
   (same value as `InvitationAcceptController::SESSION_KEY`); registration gate, verified equal e-mail, password
   fields dropped.
 - **FR-INVH-007** `invitations.admin_routes` (default `true`) in `AuthKitRouteLoader` and the route-name check.
+- **FR-INVH-009** (Beacon review) `merge_key`: an absent key is `null` (key-less invitations merge with each other,
+  never with a keyed one; `''`, `0`, `false` are distinct); `payload_merge: deep` lets a later scalar win (documented);
+  `invitations.routes.accept.path` must end with `/{token}`; accept route paths per `locale.in_path` mode tested, and
+  `admin_routes: false` leaves only the accept route (plus its unlocalized twin).
 - **FR-INVH-008** SEC-004 CD fixes hold: role escalation via resend / re-invite (with merge key and returned link),
   roles re-check on acceptance, no secrets in events / logs.
 

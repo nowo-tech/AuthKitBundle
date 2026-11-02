@@ -106,6 +106,8 @@ and `InvitationRequest` gain optional trailing arguments). Notes:
   the request (nothing is created).
 - Hosts reading `_nowo_auth_kit_invitation.<profile>` from the session should move to
   `InvitationAcceptor::pending()` / `acceptPendingForSocial()` (the key itself is unchanged).
+- `invitations.routes.accept.path` must now end with `/{token}` (the default does; other paths could not work).
+- With `payload_merge: deep` a later scalar wins (a re-invite can downgrade a role kept in the payload).
 - With `admin_routes: false`, remove links to `nowo_auth_kit_invitations*` routes from your menus.
 - With `merge_key`, several open invitations can exist for one e-mail; once one is accepted the others can no longer
   create the (same) account — revoke them or handle existing accounts in your own flow.

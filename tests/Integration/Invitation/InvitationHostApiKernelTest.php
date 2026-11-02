@@ -213,6 +213,36 @@ final class InvitationHostApiKernelTest extends WebTestCase
         self::assertNull($repository->findOpenByEmailAndPayloadKey('default', 'b@example.com', 'organization', 3));
     }
 
+    public function testMergeKeyAbsentIsNullAndNeverCollidesWithAnOrganization(): void
+    {
+        $super  = $this->user('super@example.com');
+        $admin  = $this->user('admin@example.com');
+        $invite = fn (array $payload, ?KernelUser $actor = null): ?string => $this->manager()->invite($actor ?? $super, 'default', new InvitationRequest('p@example.com', payload: $payload))->invitation?->publicId;
+
+        // Org-less (platform / project) invitations merge with each other; an explicit null is the same as absent.
+        $platform = $invite(['projects' => [1]]);
+        self::assertSame($platform, $invite(['projects' => [2]]));
+        self::assertSame($platform, $invite(['organization' => null]));
+        self::assertSame(['projects' => [1, 2], 'organization' => null], $this->invitation('p@example.com')->getPayload());
+
+        // An org-less invitation never merges with an organization one, nor org A with org B.
+        // (Another actor: the per-actor-and-address send limit is 4 per window.)
+        $orgA = $invite(['organization' => 'A'], $admin);
+        $orgB = $invite(['organization' => 'B'], $admin);
+        self::assertNotSame($platform, $orgA);
+        self::assertNotSame($orgA, $orgB);
+        self::assertNotSame($platform, $orgB);
+
+        // Strict comparison: '' and 0 are values of their own, never null.
+        $repository = self::getContainer()->get(InvitationRepository::class);
+        self::assertInstanceOf(InvitationRepository::class, $repository);
+        self::assertSame($platform, $repository->findOpenByEmailAndPayloadKey('default', 'p@example.com', 'organization', null)?->getPublicId());
+        self::assertSame($orgA, $repository->findOpenByEmailAndPayloadKey('default', 'p@example.com', 'organization', 'A')?->getPublicId());
+        self::assertNull($repository->findOpenByEmailAndPayloadKey('default', 'p@example.com', 'organization', ''));
+        self::assertNull($repository->findOpenByEmailAndPayloadKey('default', 'p@example.com', 'organization', 0));
+        self::assertNull($repository->findOpenByEmailAndPayloadKey('default', 'p@example.com', 'organization', false));
+    }
+
     public function testSocialAcceptanceOfThePendingInvitation(): void
     {
         $acceptor = $this->acceptor();

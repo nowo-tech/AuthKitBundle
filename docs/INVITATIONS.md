@@ -90,9 +90,9 @@ All keys live under `profiles.<name>.invitations` (or the flat `invitations` of 
 | `lock_email` | `true` | Invited e-mail read-only on the accept page (enforced server-side). `false`: pre-filled, editable |
 | `email_field` | `null` | Registration field receiving the e-mail (null: the field mapped to `user_identifier_field`, else `email`) |
 | `roles` | `[]` | Roles an inviter may grant (`ROLE_*`); intersected with this list again on acceptance |
-| `registration_role` | `null` | 1.33: base role of an invited account instead of the profile `registration_role` (e.g. `ROLE_MEMBER` when `registration_role` is `ROLE_ADMIN` for the first user). null: `registration_role` |
-| `merge_key` | `null` | 1.33: payload key that, with the e-mail, identifies the open invitation a re-invite updates (one open invitation per e-mail and `payload[merge_key]`, strict comparison). null: one per e-mail |
-| `payload_merge` | `replace` | 1.33: how a re-invite merges its payload. `replace`: top-level keys replaced (1.32). `deep`: maps merged recursively, lists unioned |
+| `registration_role` | `null` | 1.33: base role of an invited account instead of the profile `registration_role` (e.g. `ROLE_USER` when `registration_role` is `ROLE_ADMIN` for the first user). null: `registration_role` |
+| `merge_key` | `null` | 1.33: payload key that, with the e-mail, identifies the open invitation a re-invite updates (one open invitation per e-mail and `payload[merge_key]`, strict comparison; an absent key is `null`, so key-less invitations merge with each other and never with a keyed one; `''` and `0` are values of their own). null: one per e-mail |
+| `payload_merge` | `replace` | 1.33: how a re-invite merges its payload. `replace`: top-level keys replaced (1.32). `deep`: maps merged recursively, lists unioned, **a later scalar wins** (a re-invite can downgrade e.g. a project role from `manager` to `member`; pre-merge your grants and use `replace` if that matters) |
 | `admin_routes` | `true` | 1.33: `false` leaves the administration routes (`index`, `new`, `resend`, `revoke`) unregistered for hosts with their own UI; the accept route stays |
 | `show_link_when_undelivered` | `false` | When the e-mail cannot be sent, show the link once to the inviter (no-store page) |
 | `purge_after_days` | `90` | Age used by the purge command |
@@ -107,7 +107,7 @@ All keys live under `profiles.<name>.invitations` (or the flat `invitations` of 
 | `security.access_roles` | `[ROLE_ADMIN]` | Required roles (any). An empty list is refused (it would let every signed-in user invite) |
 | `security.access_checker` | `null` | Service id implementing `InvitationsAccessCheckerInterface` (custom rules) |
 | `security.allow_unauthenticated` | `false` | **DEV/DEMO only**, literal boolean, refused unless `kernel.debug` is true |
-| `routes.accept` | `/invitation/{token}`, `nowo_auth_kit_invitation_accept` | Accept page (the token-less `/invitation` is the same route) |
+| `routes.accept` | `/invitation/{token}`, `nowo_auth_kit_invitation_accept` | Accept page (the token-less `/invitation` is the same route). The path must end with `/{token}` (1.33); token: 43 base64url characters. With `locale.in_path`: `false` → `/invitation/{token}`; `true` → only `/{_locale}/invitation/{token}` (a bare link is 404); `both` → `/{_locale}/…` plus the bare path, which redirects to the localized URL (`unlocalized: redirect`, token kept in the path) or serves it in the default locale (`serve`) |
 | `routes.index` / `new` / `resend` / `revoke` | `/admin/invitations…`, `nowo_auth_kit_invitations…` | Administration routes (paths must start with a single `/`) |
 
 Route names must be unique across profiles (checked for the routes a profile registers).
@@ -255,7 +255,7 @@ nowo_auth_kit:
     registration_role: ROLE_ADMIN         # first-user path (when used)
     invitations:
         mode: enabled
-        registration_role: ROLE_MEMBER    # invitees never get registration_role
+        registration_role: ROLE_USER    # invitees never get registration_role
         roles: [ROLE_MANAGER, ROLE_DEVELOPER]
         merge_key: organization           # one open invitation per (e-mail, payload.organization)
         payload_merge: deep               # re-invites merge maps and union lists

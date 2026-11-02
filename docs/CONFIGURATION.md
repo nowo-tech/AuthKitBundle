@@ -315,7 +315,7 @@ nowo_auth_kit:
         lock_email: true
         roles: [ROLE_EDITOR]
         show_link_when_undelivered: false
-        # 1.33 (host with its own UI): registration_role: ROLE_MEMBER, merge_key: organization,
+        # 1.33 (host with its own UI): registration_role: ROLE_USER, merge_key: organization,
         # payload_merge: deep (default replace), admin_routes: false (default true)
         security:
             access_roles: [ROLE_ADMIN]

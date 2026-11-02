@@ -14,6 +14,7 @@ use function is_int;
 use function is_string;
 use function ksort;
 use function preg_match;
+use function str_ends_with;
 use function str_starts_with;
 use function trim;
 
@@ -253,6 +254,11 @@ final class InvitationsConfiguration
                         ->validate()
                             ->ifTrue(static fn (mixed $value): bool => !is_string($value) || !str_starts_with($value, '/') || str_starts_with($value, '//') || str_starts_with($value, '/\\'))
                             ->thenInvalid('Invalid invitation route path %s: it must start with a single "/".')
+                        ->end()
+                        // The accept page reads the token from the last segment (the token-less URL drops it, 1.33).
+                        ->validate()
+                            ->ifTrue(static fn (mixed $value): bool => $key === 'accept' && is_string($value) && !str_ends_with($value, '/{token}'))
+                            ->thenInvalid('Invalid invitations.routes.accept.path %s: it must end with "/{token}".')
                         ->end()
                     ->end()
                     ->scalarNode('name')->defaultValue($name)->cannotBeEmpty()->end()

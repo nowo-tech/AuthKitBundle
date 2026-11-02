@@ -112,8 +112,9 @@ final class InvitationsConfigurationTest extends TestCase
             'merge_key'         => 'organization',
             'payload_merge'     => 'deep',
             'admin_routes'      => false,
-            'routes'            => ['index' => ['name' => 'nowo_auth_kit_login']],
+            'routes'            => ['index' => ['name' => 'nowo_auth_kit_login'], 'accept' => ['path' => '/join/{token}']],
         ])))['invitations'];
+        self::assertSame('/join/{token}', $set['routes']['accept']['path']);
         self::assertSame('ROLE_MEMBER', $set['registration_role']);
         self::assertSame('organization', $set['merge_key']);
         self::assertSame(InvitationsConfiguration::PAYLOAD_MERGE_DEEP, $set['payload_merge']);
@@ -148,6 +149,8 @@ final class InvitationsConfigurationTest extends TestCase
         yield 'registration_role not a ROLE_ name' => [['registration_role' => 'member'], 'Invalid invitations.registration_role'];
         yield 'merge_key with a space' => [['merge_key' => 'org id'], 'Invalid invitations.merge_key'];
         yield 'unknown payload_merge' => [['payload_merge' => 'union'], 'payload_merge'];
+        yield 'accept path without token' => [['routes' => ['accept' => ['path' => '/invitation']]], 'must end with "/{token}"'];
+        yield 'accept path with token mid-path' => [['routes' => ['accept' => ['path' => '/invitation/{token}/accept']]], 'must end with "/{token}"'];
     }
 
     /**

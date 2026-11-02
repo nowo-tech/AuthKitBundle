@@ -103,6 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Social acceptance: `InvitationAcceptor::pending()` and `acceptPendingForSocial()`; `InvitationAcceptor::SESSION_KEY`.
   - `invitations.admin_routes: false` leaves the administration routes unregistered.
 
+### Changed
+
+- `invitations.routes.accept.path` must end with `/{token}` (validated at compile time; the default is unchanged).
+
 ## [1.32.2] - 2026-11-02
 
 Logout behind locale prefixes: configure-security writes the logout route the firewall can intercept for each locale.in_path / unlocalized mode (and warns on a wrong one), opt-in locale.localized_logout_redirect sends /{_locale}/logout to /logout keeping the CSRF query, clearer LogoutController error. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.32.2/docs/UPGRADING.md#to-1322).
