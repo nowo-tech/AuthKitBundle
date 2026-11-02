@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.33.1](#to-1331)
 - [To 1.33.0](#to-1330)
 - [To 1.32.2](#to-1322)
   - [Logout with locale.in_path (1.31.2+)](#logout-with-localein_path-1312)
@@ -98,6 +99,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.33.1
+
+From **1.33.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 From **1.33.0** (security patch, no schema change):
 

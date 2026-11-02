@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.33.1] - 2026-11-02](#1331---2026-11-02)
 - [[1.33.0] - 2026-11-02](#1330---2026-11-02)
 - [[1.32.2] - 2026-11-02](#1322---2026-11-02)
 - [[1.32.1] - 2026-11-01](#1321---2026-11-01)
@@ -88,6 +89,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.33.1] - 2026-11-02
+
+Invitations hardening: the link shown after an undelivered mail needs a non-null actor and every action authorizer granting return_link; expired invitations no longer count toward the 500-open cap; merge_key values must be string, int or null. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.33.1/docs/UPGRADING.md#to-1331).
 
 ### Security
 
