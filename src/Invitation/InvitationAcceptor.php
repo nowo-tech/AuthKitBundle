@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Invitation;
 
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Normalizer;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Enum\InvitationStatus;
@@ -15,6 +16,7 @@ use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
@@ -31,6 +33,9 @@ use function array_intersect;
 use function array_values;
 use function is_array;
 use function is_string;
+use function preg_match;
+use function strtolower;
+use function trim;
 
 /**
  * What a link opens and the acceptance. {@see self::lookup()} answers the same `null` for an unknown, used, revoked or
@@ -50,6 +55,9 @@ final readonly class InvitationAcceptor
     /** Session key prefix of the opened link's token hash (one per profile); read it through {@see self::pending()}. */
     public const SESSION_KEY = '_nowo_auth_kit_invitation.';
 
+    /** {@see InvitationLinkRejectedEvent} at most once per invitation and window (seconds), SEC-004 CP L2. */
+    public const REJECTED_EVENT_WINDOW = 3600;
+
     /**
      * @param iterable<InvitationGrantInterface> $grants
      */
@@ -64,6 +72,7 @@ final readonly class InvitationAcceptor
         private ?EventDispatcherInterface $eventDispatcher = null,
         private LoggerInterface $logger = new NullLogger(),
         private EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        private ?AuthKitAttemptLimiter $limiter = null,
     ) {
     }
 
@@ -92,7 +101,9 @@ final readonly class InvitationAcceptor
         }
         $now    = $this->now();
         $status = $invitation->status($now);
-        if ($report && ($status === InvitationStatus::Expired || $status === InvitationStatus::Revoked)) {
+        if ($report && ($status === InvitationStatus::Expired || $status === InvitationStatus::Revoked)
+            // SEC-004 CP L2: once per invitation and window, whatever the client IP.
+            && (!$this->limiter instanceof AuthKitAttemptLimiter || $this->limiter->consume('invitation_rejected:' . $profile . ':' . $invitation->getPublicId(), 1, self::REJECTED_EVENT_WINDOW))) {
             $this->eventDispatcher?->dispatch(new InvitationLinkRejectedEvent(
                 InvitationSnapshot::of($invitation, $now),
                 $status === InvitationStatus::Expired ? InvitationLinkRejectedEvent::REASON_EXPIRED : InvitationLinkRejectedEvent::REASON_REVOKED,
@@ -145,7 +156,7 @@ final readonly class InvitationAcceptor
         if ($status === InvitationStatus::Expired) {
             return InvitationAcceptance::failed(InvitationAcceptance::EXPIRED, $snapshot);
         }
-        if ($social->emailVerified !== true || !is_string($social->email) || Invitation::normalizeEmail($social->email) !== $invitation->getEmail()) {
+        if ($social->emailVerified !== true || !is_string($social->email) || !self::sameEmail($social->email, $invitation->getEmail())) {
             return InvitationAcceptance::failed(InvitationAcceptance::EMAIL_MISMATCH, $snapshot);
         }
         $field = $settings->invitationEmailField();
@@ -186,7 +197,14 @@ final readonly class InvitationAcceptor
         }
         $snapshot = InvitationSnapshot::of($invitation, $now);
         if ($this->eventDispatcher instanceof EventDispatcherInterface) {
-            $accepting = $this->eventDispatcher->dispatch(new InvitationAcceptingEvent($snapshot, $now));
+            try {
+                $accepting = $this->eventDispatcher->dispatch(new InvitationAcceptingEvent($snapshot, $now));
+            } catch (Throwable $exception) {
+                // SEC-004 CP I3: a failing pre-accept listener denies (refused), it never accepts nor answers 500.
+                $this->logger->error('AuthKit invitation pre-accept listener failed; acceptance refused.', ['invitation' => $invitation->getPublicId(), 'reason' => $exception::class]);
+
+                return InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot);
+            }
             if ($accepting->isRefused()) {
                 $this->logger->notice('AuthKit invitation refused before acceptance.', ['invitation' => $invitation->getPublicId()]);
 
@@ -235,6 +253,23 @@ final readonly class InvitationAcceptor
         $this->eventDispatcher?->dispatch(new InvitationAcceptedEvent($snapshot, $user, $now));
 
         return InvitationAcceptance::accepted($user, $snapshot);
+    }
+
+    /**
+     * SEC-004 CP I2: the provider e-mail matches the invited one without Unicode case folding (U+212A KELVIN SIGN must
+     * not become "k"): an ASCII address compares ASCII-lower-cased; any other is NFC-normalised and compared byte for
+     * byte.
+     */
+    public static function sameEmail(string $provided, string $invited): bool
+    {
+        $provided = trim($provided);
+        if (preg_match('/^[\x20-\x7E]+$/', $provided) === 1) {
+            return strtolower($provided) === $invited;
+        }
+        // Non-ASCII input (checked before NFC, which maps U+212A to "K"): NFC, then byte for byte, no case folding.
+        $nfc = Normalizer::normalize($provided, Normalizer::FORM_C);
+
+        return $nfc === $invited;
     }
 
     private function now(): DateTimeImmutable

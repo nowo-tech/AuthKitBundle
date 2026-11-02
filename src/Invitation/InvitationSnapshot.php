@@ -37,6 +37,7 @@ final readonly class InvitationSnapshot
         public ?DateTimeImmutable $revokedAt,
         public ?string $revokedBy,
         public InvitationStatus $status,
+        public ?string $lastSentBy = null,
     ) {
     }
 
@@ -61,6 +62,7 @@ final readonly class InvitationSnapshot
             revokedAt: $invitation->getRevokedAt(),
             revokedBy: $invitation->getRevokedBy(),
             status: $invitation->status($now),
+            lastSentBy: $invitation->getLastSentBy(),
         );
     }
 }

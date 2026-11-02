@@ -3,7 +3,7 @@
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
 **Last audited**: 2026-11-02  
-**Units**: **239** (`198` PHP under `src/` + `41` Resources)
+**Units**: **240** (`199` PHP under `src/` + `41` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -351,6 +351,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Invitation/InvitationTokens.php` | production | FR-INV-002 | Mapped |
 | `Invitation/MailerInvitationMailer.php` | production | FR-INV-007 | Mapped |
 | `Invitation/NullInvitationMailer.php` | production | FR-INV-007 | Mapped |
+| `Invitation/Security/InvitationActionAuthorizerInterface.php` | production | FR-INVH-010 | Mapped |
 | `Invitation/Security/InvitationsAccessCheckerInterface.php` | production | FR-INV-004 | Mapped |
 | `Invitation/Security/InvitationsAccessGuard.php` | production | FR-INV-004 | Mapped |
 | `Invitation/Security/RoleInvitationsAccessChecker.php` | production | FR-INV-004 | Mapped |
@@ -370,10 +371,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 198 |
+| PHP under `src/` | 199 |
 | Resources (config/translations/views/public) | 41 |
-| **Total production sources** | **239** |
-| Audit command | `git ls-files src \| wc -l` → 239 |
+| **Total production sources** | **240** |
+| Audit command | `git ls-files src \| wc -l` → 240 |
 
 ## Coverage gate
 

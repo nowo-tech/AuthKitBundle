@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationCreatedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationResentEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationRevokedEvent;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
@@ -20,6 +21,7 @@ use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use OverflowException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -33,6 +35,7 @@ use function filter_var;
 use function implode;
 use function in_array;
 use function is_array;
+use function is_scalar;
 use function is_string;
 use function mb_strlen;
 use function sprintf;
@@ -62,6 +65,7 @@ final readonly class InvitationManager
 
     /**
      * @param list<string> $enabledLocales
+     * @param iterable<InvitationActionAuthorizerInterface> $authorizers host authorisation hooks (1.33, deny only)
      */
     public function __construct(
         private InvitationRepository $invitations,
@@ -76,6 +80,7 @@ final readonly class InvitationManager
         private ?InvitationsAccessGuard $guard = null,
         private ?AbsoluteUrlGenerator $absoluteUrls = null,
         private LoggerInterface $logger = new NullLogger(),
+        private iterable $authorizers = [],
     ) {
     }
 
@@ -98,12 +103,26 @@ final readonly class InvitationManager
         }
 
         $mergeKey   = is_string($settings['merge_key'] ?? null) ? $settings['merge_key'] : null;
-        $invitation = $mergeKey === null
-            ? $this->invitations->findOpenByEmail($profileName, $email)
-            : $this->invitations->findOpenByEmailAndPayloadKey($profileName, $email, $mergeKey, $request->payload[$mergeKey] ?? null);
+        $mergeValue = $mergeKey !== null ? ($request->payload[$mergeKey] ?? null) : null;
+        if ($mergeValue !== null && !is_scalar($mergeValue)) {
+            throw new InvalidArgumentException(sprintf('The invitations.merge_key value "%s" must be a scalar or null.', (string) $mergeKey));
+        }
+        try {
+            $invitation = $mergeKey === null
+                ? $this->invitations->findOpenByEmail($profileName, $email)
+                : $this->invitations->findOpenByEmailAndPayloadKey($profileName, $email, $mergeKey, $mergeValue);
+        } catch (OverflowException) {
+            // SEC-004 CP I1: fail closed rather than open a second live invitation for the same e-mail and key.
+            return InvitationOutcome::refused(InvitationOutcome::TOO_MANY_OPEN);
+        }
         // SEC-004 CD M1: the actor must hold every role they hand out, those of an open invitation they would resend
-        // through the merge included (no union beyond what the actor can grant).
-        if (!$this->holdsAll($actor, $request->roles) || ($invitation instanceof Invitation && !$this->holdsAll($actor, $invitation->getRoles()))) {
+        // through the merge included (no union beyond what the actor can grant). CP L1: the host authorizers must
+        // grant the invite, the merge into the open invitation and a returned link; a returned link needs an actor.
+        if (!$this->holdsAll($actor, $request->roles) || ($invitation instanceof Invitation && !$this->holdsAll($actor, $invitation->getRoles()))
+            || ($request->returnLink && !$actor instanceof UserInterface)
+            || !$this->authorized($actor, InvitationActionAuthorizerInterface::INVITE, $request)
+            || ($invitation instanceof Invitation && !$this->authorized($actor, InvitationActionAuthorizerInterface::REINVITE, $invitation, $request))
+            || ($request->returnLink && !$this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $request))) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $invitation instanceof Invitation ? $this->snapshot($invitation) : null);
         }
         $limits = [$this->inviterLimit($profile, $actor), $this->addressLimit($profile, $actor, $email)];
@@ -151,7 +170,11 @@ final readonly class InvitationManager
             return InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
         }
         $profile = $this->profile($invitation->getProfile());
-        $refusal = $this->refusal($profile) ?? ($this->holdsAll($actor, $invitation->getRoles()) ? null : InvitationOutcome::NOT_ALLOWED);
+        $allowed = $this->holdsAll($actor, $invitation->getRoles())
+            && $this->authorized($actor, InvitationActionAuthorizerInterface::RESEND, $invitation)
+            // SEC-004 CP L1: a returned link needs an actor, and the host authorizers' consent.
+            && (!$returnLink || ($actor instanceof UserInterface && $this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $invitation)));
+        $refusal = $this->refusal($profile) ?? ($allowed ? null : InvitationOutcome::NOT_ALLOWED);
         if ($refusal !== null) {
             return InvitationOutcome::refused($refusal, $this->snapshot($invitation));
         }
@@ -173,7 +196,7 @@ final readonly class InvitationManager
         if (!$invitation->isOpen()) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
         }
-        if (!$this->holdsAll($actor, $invitation->getRoles())) {
+        if (!$this->holdsAll($actor, $invitation->getRoles()) || !$this->authorized($actor, InvitationActionAuthorizerInterface::REVOKE, $invitation)) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $this->snapshot($invitation));
         }
 
@@ -213,7 +236,7 @@ final readonly class InvitationManager
     {
         [$token, $hash] = $this->tokens->generate();
         $now            = $this->now();
-        $invitation->issue($hash, $ttl, $now);
+        $invitation->issue($hash, $ttl, $now, $actor?->getUserIdentifier());
         $this->invitations->save($invitation);
 
         $snapshot = $this->snapshot($invitation);
@@ -279,6 +302,20 @@ final readonly class InvitationManager
     private function holdsAll(?UserInterface $actor, array $roles): bool
     {
         return $roles === [] || ($this->guard instanceof InvitationsAccessGuard && $this->guard->holdsAll($actor, $roles));
+    }
+
+    /**
+     * Host authorisation (SEC-004 CP L1): every tagged {@see InvitationActionAuthorizerInterface} must grant.
+     */
+    private function authorized(?UserInterface $actor, string $action, Invitation|InvitationRequest $subject, ?InvitationRequest $request = null): bool
+    {
+        foreach ($this->authorizers as $authorizer) {
+            if (!$authorizer->isGranted($actor, $action, $subject, $request)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

@@ -102,10 +102,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`replace` default, `deep`); `InvitationRepository::findOpenByEmailAndPayloadKey()`.
   - Social acceptance: `InvitationAcceptor::pending()` and `acceptPendingForSocial()`; `InvitationAcceptor::SESSION_KEY`.
   - `invitations.admin_routes: false` leaves the administration routes unregistered.
+  - `InvitationActionAuthorizerInterface` (tag `nowo_auth_kit.invitation_action_authorizer`): host authorisation of
+    invite, re-invite, resend, revoke and returned links (deny only). `Invitation::getLastSentBy()` /
+    `InvitationSnapshot::$lastSentBy` (new nullable column `last_sent_by`). `InvitationOutcome::TOO_MANY_OPEN`.
 
 ### Changed
 
 - `invitations.routes.accept.path` must end with `/{token}` (validated at compile time; the default is unchanged).
+
+### Security
+
+- SEC-004 Appendix CP: returned links need an actor and the host authorizers (L1); `InvitationLinkRejectedEvent`
+  once per invitation and hour (L2); `merge_key` values compared as strings, full scan or `TOO_MANY_OPEN` (I1); social
+  e-mail match without Unicode compatibility folding (I2); a failing pre-accept listener refuses instead of 500 (I3).
 
 ## [1.32.2] - 2026-11-02
 

@@ -102,8 +102,13 @@ No action required: every 1.33 invitation addition is opt-in and the defaults ke
 (`invitations.registration_role: null`, `merge_key: null`, `payload_merge: replace`, `admin_routes: true`; `resend()`
 and `InvitationRequest` gain optional trailing arguments). Notes:
 
-- A listener of `InvitationAcceptingEvent` that calls `refuse()` blocks acceptances; an exception it throws aborts
-  the request (nothing is created).
+- **Schema:** `auth_kit_invitation` gains a nullable `last_sent_by` column (who issued the current link). Generate
+  and run a migration (`doctrine:migrations:diff`) if invitations are enabled.
+- A listener of `InvitationAcceptingEvent` that calls `refuse()` or throws blocks acceptances (nothing is created).
+- `returnLink` needs a non-null actor. Hosts acting on invitations without roles must implement
+  `InvitationActionAuthorizerInterface` (AuthKit's role rule is always true for them).
+- `merge_key` values compare as strings (`7` ≡ `'7'`); non-scalar values throw; more than 500 open invitations of
+  one e-mail answer `InvitationOutcome::TOO_MANY_OPEN`.
 - Hosts reading `_nowo_auth_kit_invitation.<profile>` from the session should move to
   `InvitationAcceptor::pending()` / `acceptPendingForSocial()` (the key itself is unchanged).
 - `invitations.routes.accept.path` must now end with `/{token}` (the default does; other paths could not work).

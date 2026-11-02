@@ -80,6 +80,10 @@ names are not checked for duplicates); the accept route stays. Routes remain opt
   never with a keyed one; `''`, `0`, `false` are distinct); `payload_merge: deep` lets a later scalar win (documented);
   `invitations.routes.accept.path` must end with `/{token}`; accept route paths per `locale.in_path` mode tested, and
   `admin_routes: false` leaves only the accept route (plus its unlocalized twin).
+- **FR-INVH-010** (SEC-004 CP) `InvitationActionAuthorizerInterface` (deny only) on invite / reinvite / resend /
+  revoke / return_link; returned link needs a non-null actor; `last_sent_by`; dead-link event once per invitation and
+  hour; merge values compared as strings with a fail-closed scan (`TOO_MANY_OPEN`); social e-mail ASCII
+  case-insensitive else NFC byte-equal; a throwing pre-accept listener refuses. Regression: `InvitationCpRegressionTest`.
 - **FR-INVH-008** SEC-004 CD fixes hold: role escalation via resend / re-invite (with merge key and returned link),
   roles re-check on acceptance, no secrets in events / logs.
 

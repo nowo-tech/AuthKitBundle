@@ -94,6 +94,10 @@ class Invitation
     #[ORM\Column(name: 'invited_by', type: Types::STRING, length: self::IDENTIFIER_MAX_LENGTH, nullable: true)]
     private ?string $invitedBy;
 
+    /** Who issued the current link (invite, re-invite or resend; 1.33, SEC-004 CP L1). Null: a command, or before 1.33. */
+    #[ORM\Column(name: 'last_sent_by', type: Types::STRING, length: self::IDENTIFIER_MAX_LENGTH, nullable: true)]
+    private ?string $lastSentBy = null;
+
     #[ORM\Column(name: 'accepted_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $acceptedAt = null;
 
@@ -239,11 +243,20 @@ class Invitation
         return $this->invitedBy;
     }
 
-    /**
-     * A new link: the previous token stops matching at once, the expiry restarts from now.
-     */
-    public function issue(string $tokenHash, int $ttlDays, DateTimeImmutable $now): void
+    /** Who issued the current link (1.33): the actor of the last invite, re-invite or resend. */
+    public function getLastSentBy(): ?string
     {
+        return $this->lastSentBy;
+    }
+
+    /**
+     * A new link: the previous token stops matching at once, the expiry restarts from now. `$by` (1.33) records the
+     * actor that issued it ({@see self::getLastSentBy()}).
+     */
+    public function issue(string $tokenHash, int $ttlDays, DateTimeImmutable $now, ?string $by = null): void
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->lastSentBy = $this->identifier($by);
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->tokenHash = $tokenHash;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.

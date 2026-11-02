@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
 use Nowo\AuthKitBundle\Invitation\Security\RoleInvitationsAccessChecker;
 use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
@@ -555,6 +556,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
         $container->getDefinition(InvitationsAccessGuard::class)->setArgument('$checkers', ServiceLocatorTagPass::register($container, $checkers));
         $container->registerForAutoconfiguration(InvitationGrantInterface::class)->addTag(InvitationGrantInterface::TAG);
+        $container->registerForAutoconfiguration(InvitationActionAuthorizerInterface::class)->addTag(InvitationActionAuthorizerInterface::AUTHORIZER_TAG);
 
         if ($checkers === []) {
             $container->removeDefinition(PurgeInvitationsCommand::class);
