@@ -30,12 +30,13 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_diff;
+use function array_key_exists;
 use function count;
 use function filter_var;
 use function implode;
 use function in_array;
 use function is_array;
-use function is_scalar;
+use function is_int;
 use function is_string;
 use function mb_strlen;
 use function sprintf;
@@ -104,13 +105,14 @@ final readonly class InvitationManager
 
         $mergeKey   = is_string($settings['merge_key'] ?? null) ? $settings['merge_key'] : null;
         $mergeValue = $mergeKey !== null ? ($request->payload[$mergeKey] ?? null) : null;
-        if ($mergeValue !== null && !is_scalar($mergeValue)) {
-            throw new InvalidArgumentException(sprintf('The invitations.merge_key value "%s" must be a scalar or null.', (string) $mergeKey));
+        // SEC-004 CP N3: booleans and floats would collide with ids (true ≡ 1 ≡ 1.0, false ≡ 0); only strings and integers.
+        if ($mergeValue !== null && !is_string($mergeValue) && !is_int($mergeValue)) {
+            throw new InvalidArgumentException(sprintf('The invitations.merge_key value "%s" must be a string, an integer or null.', (string) $mergeKey));
         }
         try {
             $invitation = $mergeKey === null
                 ? $this->invitations->findOpenByEmail($profileName, $email)
-                : $this->invitations->findOpenByEmailAndPayloadKey($profileName, $email, $mergeKey, $mergeValue);
+                : $this->invitations->findOpenByEmailAndPayloadKey($profileName, $email, $mergeKey, $mergeValue, $this->now());
         } catch (OverflowException) {
             // SEC-004 CP I1: fail closed rather than open a second live invitation for the same e-mail and key.
             return InvitationOutcome::refused(InvitationOutcome::TOO_MANY_OPEN);
@@ -138,8 +140,15 @@ final readonly class InvitationManager
         $ttl    = $this->ttl($settings, $request->ttlDays);
         $resend = $invitation instanceof Invitation;
         if ($invitation instanceof Invitation) {
-            $invitation->setRoles([...$invitation->getRoles(), ...$request->roles])
-                ->setPayload(InvitationPayloadMerger::merge((string) ($settings['payload_merge'] ?? InvitationsConfiguration::PAYLOAD_MERGE_REPLACE), $invitation->getPayload(), $request->payload));
+            $payload = InvitationPayloadMerger::merge((string) ($settings['payload_merge'] ?? InvitationsConfiguration::PAYLOAD_MERGE_REPLACE), $invitation->getPayload(), $request->payload);
+            if ($mergeKey !== null) {
+                // SEC-004 CP N3: the matched invitation keeps its stored key value (7 stays 7 when re-invited with '7').
+                $stored = $invitation->getPayload();
+                if (array_key_exists($mergeKey, $stored)) {
+                    $payload[$mergeKey] = $stored[$mergeKey];
+                }
+            }
+            $invitation->setRoles([...$invitation->getRoles(), ...$request->roles])->setPayload($payload);
         } else {
             $invitation = (new Invitation($profileName, $email, $actor?->getUserIdentifier(), $ttl, $this->now()))
                 ->setRoles($request->roles)
@@ -234,6 +243,12 @@ final readonly class InvitationManager
 
     private function deliver(?UserInterface $actor, ProfileSettings $profile, Invitation $invitation, int $ttl, bool $resend, bool $returnLink): InvitationOutcome
     {
+        // SEC-004 CD M1: the link is never shown nor returned to an actor lacking a role of the invitation. CP N1: every
+        // link handed back (returned or shown once after a failed mail) needs a non-null actor and the host authorizers'
+        // `return_link` consent (asked here, before any write, for the shown-once link; `returnLink` callers already did).
+        $mayShow = $actor instanceof UserInterface && $this->holdsAll($actor, $invitation->getRoles()) && ($returnLink
+            || (($profile->invitations['show_link_when_undelivered'] ?? false) === true
+                && $this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $invitation)));
         [$token, $hash] = $this->tokens->generate();
         $now            = $this->now();
         $invitation->issue($hash, $ttl, $now, $actor?->getUserIdentifier());
@@ -243,11 +258,9 @@ final readonly class InvitationManager
         /** @var array{accept: array{name: string}} $routes */
         $routes = $profile->invitations['routes'];
         $url    = $this->urlGenerator->generate($routes['accept']['name'], ['token' => $token], UrlGeneratorInterface::ABSOLUTE_URL, $invitation->getLocale());
-        // SEC-004 CD M1: the link is never shown nor returned to an actor lacking a role of the invitation.
-        $holds = $this->holdsAll($actor, $invitation->getRoles());
         // returnLink (1.33): the host sends its own mail with the returned link.
         $sent = !$returnLink && $this->mailer->send(new InvitationMail($snapshot, $url, $resend));
-        $show = !$sent && $holds && ($returnLink || ($profile->invitations['show_link_when_undelivered'] ?? false) === true);
+        $show = !$sent && $mayShow;
 
         $delivery = match (true) {
             $sent                => InvitationCreatedEvent::DELIVERY_EMAIL,

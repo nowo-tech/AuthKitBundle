@@ -91,7 +91,7 @@ All keys live under `profiles.<name>.invitations` (or the flat `invitations` of 
 | `email_field` | `null` | Registration field receiving the e-mail (null: the field mapped to `user_identifier_field`, else `email`) |
 | `roles` | `[]` | Roles an inviter may grant (`ROLE_*`); intersected with this list again on acceptance |
 | `registration_role` | `null` | 1.33: base role of an invited account instead of the profile `registration_role` (e.g. `ROLE_USER` when `registration_role` is `ROLE_ADMIN` for the first user). null: `registration_role` |
-| `merge_key` | `null` | 1.33: payload key that, with the e-mail, identifies the open invitation a re-invite updates (one open invitation per e-mail and `payload[merge_key]`, compared as strings: `7` ≡ `'7'`, `true` ≡ `'1'`, `false` ≡ `'0'`; an absent key is `null`, so key-less invitations merge with each other and never with a keyed one; `''` and `'0'` never equal `null`; the value must be a scalar or null). More than 500 open invitations of one e-mail: `TOO_MANY_OPEN` (nothing created). null: one per e-mail |
+| `merge_key` | `null` | 1.33: payload key that, with the e-mail, identifies the open invitation a re-invite updates (one open invitation per e-mail and `payload[merge_key]`, compared as strings: `7` ≡ `'7'`, an absent key is `null`, so key-less invitations merge with each other and never with a keyed one; `''` and `'0'` never equal `null`; the value must be a string, an integer or null — booleans and floats throw; a merge keeps the stored key value). More than 500 unexpired open invitations of one e-mail: `TOO_MANY_OPEN` (nothing created; expired ones do not count — revoke or `nowo:auth-kit:invitations:purge` them). null: one per e-mail |
 | `payload_merge` | `replace` | 1.33: how a re-invite merges its payload. `replace`: top-level keys replaced (1.32). `deep`: maps merged recursively, lists unioned, **a later scalar wins** (a re-invite can downgrade e.g. a project role from `manager` to `member`; pre-merge your grants and use `replace` if that matters) |
 | `admin_routes` | `true` | 1.33: `false` leaves the administration routes (`index`, `new`, `resend`, `revoke`) unregistered for hosts with their own UI; the accept route stays |
 | `show_link_when_undelivered` | `false` | When the e-mail cannot be sent, show the link once to the inviter (no-store page) |
@@ -131,7 +131,7 @@ account enumeration); the invitee then sees "could not be accepted — sign in" 
 **Role rule.** An administrator hands out only roles of `invitations.roles` they hold (role hierarchy), and may
 resend, re-invite (which merges into the open invitation of the same address) or revoke only an invitation whose
 **every** role they hold: Resend / Revoke are hidden on other rows, a forced request is refused ("it grants a role you
-do not hold"), and the link shown once (`show_link_when_undelivered`) is never returned to an actor lacking a role.
+do not hold"), and the link shown once (`show_link_when_undelivered`) is never returned to an actor lacking a role, to a `null` actor, or when a host authorizer refuses `return_link` (1.33.1).
 "Resend" re-issues the invitation's original roles. Nothing is sent while `registration_mode` is `disabled` (a link
 could not be accepted) or when `absolute_url.base_uri` resolves empty at runtime (the link would follow the request
 Host): the administrator sees why. Sends by one administrator to one address — invite, re-invite, resend, and invite

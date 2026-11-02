@@ -89,6 +89,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Invitations (audit CP re-verification on 1.33.0):
+  - N1 (Low): the link shown once after a failed mail (`show_link_when_undelivered`) now follows the returned-link rule: a non-null actor holding every role and every `InvitationActionAuthorizerInterface` granting `return_link` (asked before the token is rotated). A `null` actor or a refused `return_link` gets `not_delivered`.
+  - N2 (Low): expired open invitations no longer count toward the 500-per-e-mail `TOO_MANY_OPEN` limit of the `merge_key` scan, so stale rows cannot block new invitations; the newest 500 expired ones are still matched (resent, not forked).
+  - N3 (Info): `merge_key` values must be strings, integers or null (`true` / `false` / floats throw `InvalidArgumentException`, they collided with `1` / `0`); a merge keeps the matched invitation's stored key value instead of overwriting it.
+
 ## [1.33.0] - 2026-11-02
 
 Invitations host API: invitations.registration_role, InvitationLinkRejectedEvent, refuse-only InvitationAcceptingEvent, resend TTL + returned link, invitations.merge_key + payload_merge, social acceptance (acceptPendingForSocial), invitations.admin_routes, configurable accept path, InvitationActionAuthorizerInterface (hosts with roleless invitations must implement it), lastSentBy column (migration). See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.33.0/docs/UPGRADING.md#to-1330).

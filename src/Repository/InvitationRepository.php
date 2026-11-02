@@ -80,12 +80,40 @@ class InvitationRepository extends EntityRepository
     /**
      * The newest open invitation of the e-mail in the profile whose `payload[$key]` equals `$value`
      * (`invitations.merge_key`, 1.33): compared after {@see self::mergeValue()} (7 ≡ '7'; a missing key ≡ null, never
-     * equal to '' or '0'). Every open invitation of the e-mail is scanned; more than {@see self::MERGE_SCAN_LIMIT}
-     * throws (SEC-004 CP I1: fail closed rather than miss the match and open a second live link).
+     * equal to '' or '0'). Every unexpired open invitation of the e-mail is scanned; more than
+     * {@see self::MERGE_SCAN_LIMIT} throws (SEC-004 CP I1: fail closed rather than miss the match and open a second
+     * live link). Expired open invitations (dead links until resent) do not count toward that limit (CP N2: stale rows
+     * cannot block new invitations); the newest {@see self::MERGE_SCAN_LIMIT} of them are still matched.
+     *
+     * @param DateTimeImmutable|null $now (1.33.1) reference time for "expired"; null: now
      *
      * @throws OverflowException
      */
-    public function findOpenByEmailAndPayloadKey(string $profile, string $email, string $key, mixed $value): ?Invitation
+    public function findOpenByEmailAndPayloadKey(string $profile, string $email, string $key, mixed $value, ?DateTimeImmutable $now = null): ?Invitation
+    {
+        $now ??= new DateTimeImmutable();
+        $live = $this->openByEmail($profile, $email, $now, true);
+        if (count($live) > self::MERGE_SCAN_LIMIT) {
+            throw new OverflowException(sprintf('More than %d open invitations for one e-mail.', self::MERGE_SCAN_LIMIT));
+        }
+        $wanted = self::mergeValue($value);
+        foreach ([$live, $this->openByEmail($profile, $email, $now, false)] as $open) {
+            foreach ($open as $invitation) {
+                if (self::mergeValue($invitation->getPayload()[$key] ?? null) === $wanted) {
+                    return $invitation;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Open invitations of the e-mail, newest first, at most {@see self::MERGE_SCAN_LIMIT} + 1: unexpired or expired.
+     *
+     * @return list<Invitation>
+     */
+    private function openByEmail(string $profile, string $email, DateTimeImmutable $now, bool $unexpired): array
     {
         /** @var list<Invitation> $open */
         $open = $this->createQueryBuilder('i')
@@ -93,23 +121,16 @@ class InvitationRepository extends EntityRepository
             ->andWhere('i.email = :email')
             ->andWhere('i.acceptedAt IS NULL')
             ->andWhere('i.revokedAt IS NULL')
+            ->andWhere($unexpired ? 'i.expiresAt > :now' : 'i.expiresAt <= :now')
             ->setParameter('profile', $profile)
             ->setParameter('email', Invitation::normalizeEmail($email))
+            ->setParameter('now', $now)
             ->orderBy('i.id', SortDirection::Descending)
             ->setMaxResults(self::MERGE_SCAN_LIMIT + 1)
             ->getQuery()
             ->getResult();
-        if (count($open) > self::MERGE_SCAN_LIMIT) {
-            throw new OverflowException(sprintf('More than %d open invitations for one e-mail.', self::MERGE_SCAN_LIMIT));
-        }
-        $wanted = self::mergeValue($value);
-        foreach ($open as $invitation) {
-            if (self::mergeValue($invitation->getPayload()[$key] ?? null) === $wanted) {
-                return $invitation;
-            }
-        }
 
-        return null;
+        return $open;
     }
 
     /**

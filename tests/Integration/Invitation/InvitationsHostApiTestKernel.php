@@ -14,7 +14,7 @@ use function sys_get_temp_dir;
  * (first user) with `invitations.registration_role: ROLE_MEMBER`, one open invitation per (e-mail, organization) with
  * deep payload merge, no admin routes, and a recorder of the host hooks.
  */
-final class InvitationsHostApiTestKernel extends InvitationsTestKernel
+class InvitationsHostApiTestKernel extends InvitationsTestKernel
 {
     public function getCacheDir(): string
     {

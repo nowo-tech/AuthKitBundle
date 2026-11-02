@@ -145,7 +145,7 @@ final class InvitationCpRegressionTest extends WebTestCase
             $this->manager()->invite($super, 'default', new InvitationRequest('w@example.com', payload: ['organization' => ['x']]));
             self::fail('A non-scalar merge key value must be refused.');
         } catch (InvalidArgumentException $exception) {
-            self::assertStringContainsString('must be a scalar or null', $exception->getMessage());
+            self::assertStringContainsString('must be a string, an integer or null', $exception->getMessage());
         }
 
         $em     = $this->em();

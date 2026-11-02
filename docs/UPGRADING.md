@@ -99,6 +99,12 @@
 
 ## Unreleased
 
+From **1.33.0** (security patch, no schema change):
+
+- `invitations.merge_key`: a boolean or float key value now throws `InvalidArgumentException` (use the typed id, `int` or `string`). On a merge, the stored key value is kept (`7` stays `7` when re-invited with `'7'`).
+- `show_link_when_undelivered`: the link shown once is refused (`not_delivered`) to a `null` actor and when a host `InvitationActionAuthorizerInterface` refuses `return_link`; authorizers are asked for `return_link` before the send when the option is on.
+- `TOO_MANY_OPEN` only counts unexpired open invitations of the e-mail. `InvitationRepository::findOpenByEmailAndPayloadKey()` takes an optional `$now`.
+
 ## To 1.33.0
 
 From **1.32.2**:
