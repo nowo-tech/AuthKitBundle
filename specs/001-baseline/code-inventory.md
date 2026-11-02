@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-01  
-**Units**: **233** (`192` PHP under `src/` + `41` Resources)
+**Last audited**: 2026-11-02  
+**Units**: **234** (`193` PHP under `src/` + `41` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -61,6 +61,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `DeviceIntelligence/NewDeviceLoginNotifierInterface.php` | production | FR-DIINTEL-001 | Mapped |
 | `DeviceIntelligence/NullNewDeviceLoginNotifier.php` | production | FR-DIINTEL-001 | Mapped |
 | `EventSubscriber/NewDeviceLoginSubscriber.php` | production | FR-DIINTEL-001 | Mapped |
+| `EventSubscriber/LocalizedLogoutRedirectSubscriber.php` | production | FR-LOCALE-001 | Mapped |
 | `EventSubscriber/UnlocalizedDefaultLocaleSubscriber.php` | production | FR-LOCALE-001 | Mapped |
 
 ## HTTP controllers
