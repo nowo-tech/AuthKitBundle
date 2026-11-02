@@ -35,6 +35,12 @@ final readonly class InvitationOutcome
     public const REVOKED = 'revoked';
 
     /**
+     * `invitations.merge_key`: more open invitations of the e-mail than can be scanned for the key (1.33, SEC-004 CP
+     * I1); nothing is created. Revoke or purge some first.
+     */
+    public const TOO_MANY_OPEN = 'too_many_open';
+
+    /**
      * @param string|null $url the accept link, only for {@see self::LINK} (shown once, never logged)
      */
     private function __construct(

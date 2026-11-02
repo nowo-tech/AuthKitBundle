@@ -5,19 +5,27 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\Routing;
 
 use LogicException;
+use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\Controller\MagicLoginCheckController;
 use Nowo\AuthKitBundle\Controller\MagicLoginConfirmController;
 use Nowo\AuthKitBundle\Controller\UnlocalizedLocaleRedirectController;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
+use Nowo\AuthKitBundle\DependencyInjection\InvitationsConfiguration;
+use Nowo\AuthKitBundle\Invitation\InvitationTokens;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLoader;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Processor;
+use Symfony\Component\Routing\Route;
 
+use function array_fill_keys;
 use function class_exists;
 use function count;
 use function explode;
+use function str_contains;
+use function str_starts_with;
 
 final class AuthKitRouteLoaderTest extends TestCase
 {
@@ -128,6 +136,62 @@ final class AuthKitRouteLoaderTest extends TestCase
         self::assertSame('/login', $bare->getPath());
         self::assertSame('en', $bare->getDefault('_locale'));
         self::assertNull($bare->getDefault('_auth_kit_canonical_route'));
+    }
+
+    /**
+     * @return iterable<string, array{0: bool|string, 1: string, 2: array<string, string>}>
+     */
+    public static function invitationLocaleModes(): iterable
+    {
+        yield 'never' => [false, 'redirect', ['nowo_auth_kit_invitation_accept' => '/invitation/{token}']];
+        yield 'always' => [true, 'redirect', ['nowo_auth_kit_invitation_accept' => '/{_locale}/invitation/{token}']];
+        yield 'both, redirect' => [
+            'both',
+            'redirect',
+            ['nowo_auth_kit_invitation_accept' => '/{_locale}/invitation/{token}', 'nowo_auth_kit_invitation_accept_unlocalized' => '/invitation/{token}'],
+        ];
+        yield 'both, serve' => [
+            'both',
+            'serve',
+            ['nowo_auth_kit_invitation_accept' => '/{_locale}/invitation/{token}', 'nowo_auth_kit_invitation_accept_unlocalized' => '/invitation/{token}'],
+        ];
+    }
+
+    /**
+     * 1.33: with admin_routes: false only the accept route (and its unlocalized twin) is registered, on the default
+     * path `/invitation/{token}` (43-character base64url token, optional for the token-less page) in every locale mode.
+     *
+     * @param array<string, string> $expected
+     */
+    #[DataProvider('invitationLocaleModes')]
+    public function testInvitationAcceptRouteOnlyWithoutAdminRoutes(string|bool $inPath, string $unlocalized, array $expected): void
+    {
+        $profiles                           = $this->profiles('link');
+        $profiles['default']['invitations'] = [
+            'mode'         => 'enabled',
+            'admin_routes' => false,
+            'routes'       => ['accept' => ['path' => '/invitation/{token}', 'name' => 'nowo_auth_kit_invitation_accept']] + array_fill_keys(InvitationsConfiguration::ADMIN_ROUTE_KEYS, ['path' => '/admin/x', 'name' => 'unused']),
+        ];
+        $collection = (new AuthKitRouteLoader($profiles, $inPath, 'en', ['en', 'es'], $unlocalized))->load('.', 'nowo_auth_kit');
+
+        $invitation = [];
+        foreach ($collection->all() as $name => $route) {
+            if (str_contains((string) $route->getDefault('_controller'), 'Invitation') || str_starts_with($name, 'nowo_auth_kit_invitation')) {
+                $invitation[$name] = $route->getPath();
+            }
+        }
+        self::assertSame($expected, $invitation);
+        $accept = $collection->get('nowo_auth_kit_invitation_accept');
+        self::assertNotNull($accept);
+        self::assertSame(InvitationTokens::PATTERN, $accept->getRequirement('token'));
+        self::assertNull($accept->getDefault('token'), 'The token-less URL is the same route.');
+        $bare = $collection->get('nowo_auth_kit_invitation_accept_unlocalized');
+        if ($bare instanceof Route) {
+            self::assertSame(
+                $unlocalized === 'redirect' ? UnlocalizedLocaleRedirectController::class . '::redirect' : InvitationAcceptController::class . '::accept',
+                $bare->getDefault('_controller'),
+            );
+        }
     }
 
     public function testLoadsCodeRouteWhenDeliveryIsCode(): void

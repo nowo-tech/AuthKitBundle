@@ -14,6 +14,7 @@ Invite people by e-mail instead of (or besides) the open registration. Opt-in pe
 - [E-mail delivery](#e-mail-delivery)
 - [PHP API](#php-api)
 - [Host grants (InvitationGrantInterface)](#host-grants-invitationgrantinterface)
+- [Host with its own invitation UI (1.33)](#host-with-its-own-invitation-ui-133)
 - [Audit events](#audit-events)
 - [Purge](#purge)
 - [Database schema](#database-schema)
@@ -89,6 +90,10 @@ All keys live under `profiles.<name>.invitations` (or the flat `invitations` of 
 | `lock_email` | `true` | Invited e-mail read-only on the accept page (enforced server-side). `false`: pre-filled, editable |
 | `email_field` | `null` | Registration field receiving the e-mail (null: the field mapped to `user_identifier_field`, else `email`) |
 | `roles` | `[]` | Roles an inviter may grant (`ROLE_*`); intersected with this list again on acceptance |
+| `registration_role` | `null` | 1.33: base role of an invited account instead of the profile `registration_role` (e.g. `ROLE_USER` when `registration_role` is `ROLE_ADMIN` for the first user). null: `registration_role` |
+| `merge_key` | `null` | 1.33: payload key that, with the e-mail, identifies the open invitation a re-invite updates (one open invitation per e-mail and `payload[merge_key]`, compared as strings: `7` ≡ `'7'`, `true` ≡ `'1'`, `false` ≡ `'0'`; an absent key is `null`, so key-less invitations merge with each other and never with a keyed one; `''` and `'0'` never equal `null`; the value must be a scalar or null). More than 500 open invitations of one e-mail: `TOO_MANY_OPEN` (nothing created). null: one per e-mail |
+| `payload_merge` | `replace` | 1.33: how a re-invite merges its payload. `replace`: top-level keys replaced (1.32). `deep`: maps merged recursively, lists unioned, **a later scalar wins** (a re-invite can downgrade e.g. a project role from `manager` to `member`; pre-merge your grants and use `replace` if that matters) |
+| `admin_routes` | `true` | 1.33: `false` leaves the administration routes (`index`, `new`, `resend`, `revoke`) unregistered for hosts with their own UI; the accept route stays |
 | `show_link_when_undelivered` | `false` | When the e-mail cannot be sent, show the link once to the inviter (no-store page) |
 | `purge_after_days` | `90` | Age used by the purge command |
 | `invite_rate_limit` / `invite_rate_window` | `20` / `3600` | Invitations created or resent per inviter and window |
@@ -102,10 +107,10 @@ All keys live under `profiles.<name>.invitations` (or the flat `invitations` of 
 | `security.access_roles` | `[ROLE_ADMIN]` | Required roles (any). An empty list is refused (it would let every signed-in user invite) |
 | `security.access_checker` | `null` | Service id implementing `InvitationsAccessCheckerInterface` (custom rules) |
 | `security.allow_unauthenticated` | `false` | **DEV/DEMO only**, literal boolean, refused unless `kernel.debug` is true |
-| `routes.accept` | `/invitation/{token}`, `nowo_auth_kit_invitation_accept` | Accept page (the token-less `/invitation` is the same route) |
+| `routes.accept` | `/invitation/{token}`, `nowo_auth_kit_invitation_accept` | Accept page (the token-less `/invitation` is the same route). The path must end with `/{token}` (1.33); token: 43 base64url characters. With `locale.in_path`: `false` → `/invitation/{token}`; `true` → only `/{_locale}/invitation/{token}` (a bare link is 404); `both` → `/{_locale}/…` plus the bare path, which redirects to the localized URL (`unlocalized: redirect`, token kept in the path) or serves it in the default locale (`serve`) |
 | `routes.index` / `new` / `resend` / `revoke` | `/admin/invitations…`, `nowo_auth_kit_invitations…` | Administration routes (paths must start with a single `/`) |
 
-Route names must be unique across profiles (checked for profiles with invitations enabled).
+Route names must be unique across profiles (checked for the routes a profile registers).
 
 ## Administration pages
 
@@ -239,11 +244,100 @@ Implement `Nowo\AuthKitBundle\Invitation\InvitationGrantInterface` (autoconfigur
 acceptance transaction after the account is persisted; throw `InvitationRefusedException` to refuse (everything is
 rolled back, the invitee sees `not_accepted`). Re-check there anything the inviter may no longer grant.
 
+## Host with its own invitation UI (1.33)
+
+For a host (e.g. Symfony Beacon) that issues invitations from its own pages and sends its own e-mail, keeping
+AuthKit's storage, accept page and rules:
+
+```yaml
+nowo_auth_kit:
+    registration_mode: invite_only        # the intended production mode: accounts only by invitation
+    registration_role: ROLE_ADMIN         # first-user path (when used)
+    invitations:
+        mode: enabled
+        registration_role: ROLE_USER    # invitees never get registration_role
+        roles: [ROLE_MANAGER, ROLE_DEVELOPER]
+        merge_key: organization           # one open invitation per (e-mail, payload.organization)
+        payload_merge: deep               # re-invites merge maps and union lists
+        admin_routes: false               # no /admin/invitations pages (REQ-SF-004 r7: still opt-in per feature)
+```
+
+`registration_mode` decides whether invitations work: `invite_only` closes `/register` and social sign-up while
+invitations are sent and accepted; `first_user_only` and `always` accept them too; **`disabled` refuses both
+sending (`InvitationOutcome::CLOSED`) and accepting** (the accept page answers 404, the social acceptance
+`no_invitation`).
+
+**Authorise every action (required when invitations carry no roles).** AuthKit authorises by Symfony roles only;
+for an invitation without roles (e.g. Beacon: base role from `registration_role`, membership and org role in the
+payload) that check always passes, so any actor could resend another organization's invitation or merge into it.
+Implement `Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface` (autoconfigured, tag
+`nowo_auth_kit.invitation_action_authorizer`):
+
+```php
+public function isGranted(?UserInterface $actor, string $action, Invitation|InvitationRequest $subject, ?InvitationRequest $request = null): bool
+```
+
+It is asked for `invite` (the request), `reinvite` (the open invitation a re-invite would merge into, with the
+request), `resend`, `revoke` (the invitation) and `return_link` (request or invitation). Every authorizer must grant
+(deny only; AuthKit's role rule still applies); a denial answers `NOT_ALLOWED`. Check the actor on
+`payload[merge_key]` and on every payload grant — with `payload_merge: deep`, on what the merge would produce.
+`Invitation::getLastSentBy()` / `InvitationSnapshot::$lastSentBy` record who issued the current link (invite,
+re-invite or resend); `invitedBy` stays the creator, so grants can re-check the right person.
+
+**Issue and resend, the host sends the mail.** `returnLink: true` sends no e-mail and returns the link
+(`InvitationOutcome::LINK`, `$outcome->url`; the events carry `delivery: host`). A returned link needs a non-null
+actor (`NOT_ALLOWED` otherwise) and the `return_link` consent of the authorizers. The token is never logged; keep the
+URL out of your own logs and flash messages too. The role rules are unchanged: an actor lacking a role of the
+request or of the open invitation gets `NOT_ALLOWED` and no link.
+
+```php
+$outcome = $manager->invite($this->getUser(), 'default', new InvitationRequest(
+    email: 'ana@example.com', roles: ['ROLE_MANAGER'], payload: ['organization' => $org->getId()], returnLink: true,
+));
+$outcome = $manager->resend($this->getUser(), $invitation, ttlDays: 14, returnLink: true); // ttl among ttl_choices
+```
+
+**Pre-accept refusal.** Listen to `InvitationAcceptingEvent` (before the transaction) and call
+`$event->refuse(new InvitationRefusal('invitations.no_seat_left', ['%org%' => $name], 'messages'))`; or, inside a
+grant (same transaction as the account), throw `InvitationRefusedException::because(new InvitationRefusal(…))`. The
+invitee sees the translated reason on the `not_accepted` page, nothing is created and the invitation stays pending.
+A listener cannot accept anything: deny by default stays (pending invitation, current token, `invitations.roles`
+re-check, grants); an exception thrown by a listener refuses the acceptance (logged as an error; nothing created). Use translation keys,
+never request data, as reasons. `InvitationAcceptor::attempt()` returns the `InvitationAcceptance` (status, user,
+refusal) for hosts that drive the acceptance themselves; `accept()` keeps returning `?UserInterface`.
+
+**Dead links.** `InvitationLinkRejectedEvent` (`invitation` snapshot, `reason`: `expired` / `revoked`,
+`invitationId()`, `profile()`) is dispatched when the current link of an expired or revoked invitation is opened on
+the accept page, at most once per invitation per hour (whatever the client IP); unknown, replaced and used links
+dispatch nothing. No token, hash or link.
+
+**Social acceptance.** Do not read `_nowo_auth_kit_invitation.<profile>` from the session. After the invitee opened
+the link (AuthKit's accept page stores it) and came back from your social provider callback (you verified the OAuth
+state and code):
+
+```php
+$pending = $acceptor->pending($request->getSession(), 'default');  // ?InvitationSnapshot, e.g. to show the button
+$result  = $acceptor->acceptPendingForSocial($request->getSession(), 'default', $socialProfile, ['nickname' => $name]);
+if ($result->isAccepted()) {
+    $linker->linkOrCreate($profile, $provider, $socialProfile, $tokens);   // finds the new account by e-mail
+    $security->login($result->user, 'form_login', $profile->firewall);
+}
+```
+
+The provider must assert a **verified** e-mail equal to the invited one (`email_mismatch` otherwise): an ASCII
+address compares case-insensitively (ASCII only), any other is NFC-normalised and compared byte for byte, so no
+compatibility character (e.g. U+212A KELVIN SIGN) matches an ASCII letter; password fields
+are dropped, the invited e-mail is forced; the pre-accept event, roles re-check, grants and single use apply; the
+session entry is removed whatever the outcome (`accepted`, `no_invitation`, `expired`, `email_mismatch`,
+`refused`, `not_accepted`).
+
 ## Audit events
 
 Dispatched after every mutation, with an `InvitationSnapshot` (never the token, its hash or the link), the actor and
-the time: `InvitationCreatedEvent` / `InvitationResentEvent` (`delivery`: `email`, `link`, `none`),
-`InvitationRevokedEvent`, `InvitationAcceptedEvent` (`user`), and `InvitationsPurgedEvent` (count).
+the time: `InvitationCreatedEvent` / `InvitationResentEvent` (`delivery`: `email`, `link`, `host` (1.33), `none`),
+`InvitationRevokedEvent`, `InvitationAcceptedEvent` (`user`), and `InvitationsPurgedEvent` (count). 1.33 hooks:
+`InvitationAcceptingEvent` (pre-accept, may refuse) and `InvitationLinkRejectedEvent` (expired / revoked link
+opened).
 
 ## Purge
 

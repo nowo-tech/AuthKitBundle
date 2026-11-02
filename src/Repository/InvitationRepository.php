@@ -9,13 +9,18 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
 use Nowo\AuthKitBundle\Entity\Invitation;
+use OverflowException;
 use SortDirection;
 
 use function array_map;
 use function count;
+use function is_bool;
+use function is_scalar;
+use function json_encode;
 use function max;
 use function mb_substr;
 use function min;
+use function sprintf;
 use function str_replace;
 use function trim;
 
@@ -29,6 +34,9 @@ class InvitationRepository extends EntityRepository
 {
     /** Largest page of the administration list. */
     public const MAX_PAGE_SIZE = 100;
+
+    /** Open invitations of one e-mail scanned for `invitations.merge_key` (more: refused, SEC-004 CP I1). */
+    public const MERGE_SCAN_LIMIT = 500;
 
     /** Rows deleted per statement by {@see self::deleteClosedBefore()}. */
     public const PURGE_BATCH = 500;
@@ -67,6 +75,55 @@ class InvitationRepository extends EntityRepository
             ->getOneOrNullResult();
 
         return $invitation;
+    }
+
+    /**
+     * The newest open invitation of the e-mail in the profile whose `payload[$key]` equals `$value`
+     * (`invitations.merge_key`, 1.33): compared after {@see self::mergeValue()} (7 ≡ '7'; a missing key ≡ null, never
+     * equal to '' or '0'). Every open invitation of the e-mail is scanned; more than {@see self::MERGE_SCAN_LIMIT}
+     * throws (SEC-004 CP I1: fail closed rather than miss the match and open a second live link).
+     *
+     * @throws OverflowException
+     */
+    public function findOpenByEmailAndPayloadKey(string $profile, string $email, string $key, mixed $value): ?Invitation
+    {
+        /** @var list<Invitation> $open */
+        $open = $this->createQueryBuilder('i')
+            ->andWhere('i.profile = :profile')
+            ->andWhere('i.email = :email')
+            ->andWhere('i.acceptedAt IS NULL')
+            ->andWhere('i.revokedAt IS NULL')
+            ->setParameter('profile', $profile)
+            ->setParameter('email', Invitation::normalizeEmail($email))
+            ->orderBy('i.id', SortDirection::Descending)
+            ->setMaxResults(self::MERGE_SCAN_LIMIT + 1)
+            ->getQuery()
+            ->getResult();
+        if (count($open) > self::MERGE_SCAN_LIMIT) {
+            throw new OverflowException(sprintf('More than %d open invitations for one e-mail.', self::MERGE_SCAN_LIMIT));
+        }
+        $wanted = self::mergeValue($value);
+        foreach ($open as $invitation) {
+            if (self::mergeValue($invitation->getPayload()[$key] ?? null) === $wanted) {
+                return $invitation;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Comparable form of a merge key value: null stays null, booleans '1' / '0', other scalars their string, anything
+     * else a JSON form that never equals a scalar's.
+     */
+    public static function mergeValue(mixed $value): ?string
+    {
+        return match (true) {
+            $value === null   => null,
+            is_bool($value)   => $value ? '1' : '0',
+            is_scalar($value) => (string) $value,
+            default           => "\0" . json_encode($value),
+        };
     }
 
     /**

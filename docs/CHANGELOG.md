@@ -88,6 +88,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Invitations, host API for hosts with their own invitation UI (Symfony Beacon spec 191; spec 004), all opt-in:
+  - `invitations.registration_role` (nullable): base role of invited accounts instead of `registration_role`.
+  - `InvitationLinkRejectedEvent` when an expired or revoked link is opened (snapshot, reason; no token).
+  - `InvitationAcceptingEvent` pre-accept hook and `InvitationRefusal` (translatable reason shown to the invitee);
+    `InvitationRefusedException::because()` for grants; `InvitationAcceptor::attempt()` returns an
+    `InvitationAcceptance`.
+  - `InvitationManager::resend()` optional `$ttlDays` and `$returnLink`; `InvitationRequest::$returnLink`; delivery
+    `host` on the created / resent events.
+  - `invitations.merge_key` (one open invitation per e-mail and payload key) and `invitations.payload_merge`
+    (`replace` default, `deep`); `InvitationRepository::findOpenByEmailAndPayloadKey()`.
+  - Social acceptance: `InvitationAcceptor::pending()` and `acceptPendingForSocial()`; `InvitationAcceptor::SESSION_KEY`.
+  - `invitations.admin_routes: false` leaves the administration routes unregistered.
+  - `InvitationActionAuthorizerInterface` (tag `nowo_auth_kit.invitation_action_authorizer`): host authorisation of
+    invite, re-invite, resend, revoke and returned links (deny only). `Invitation::getLastSentBy()` /
+    `InvitationSnapshot::$lastSentBy` (new nullable column `last_sent_by`). `InvitationOutcome::TOO_MANY_OPEN`.
+
+### Changed
+
+- `invitations.routes.accept.path` must end with `/{token}` (validated at compile time; the default is unchanged).
+
+### Security
+
+- SEC-004 Appendix CP: returned links need an actor and the host authorizers (L1); `InvitationLinkRejectedEvent`
+  once per invitation and hour (L2); `merge_key` values compared as strings, full scan or `TOO_MANY_OPEN` (I1); social
+  e-mail match without Unicode compatibility folding (I2); a failing pre-accept listener refuses instead of 500 (I3).
+
 ## [1.32.2] - 2026-11-02
 
 Logout behind locale prefixes: configure-security writes the logout route the firewall can intercept for each locale.in_path / unlocalized mode (and warns on a wrong one), opt-in locale.localized_logout_redirect sends /{_locale}/logout to /logout keeping the CSRF query, clearer LogoutController error. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.32.2/docs/UPGRADING.md#to-1322).

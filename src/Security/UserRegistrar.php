@@ -71,7 +71,7 @@ final class UserRegistrar
 
     /**
      * Creates the account of an accepted invitation (1.32): same field mapping and hashing as {@see self::register()},
-     * roles = registration_role plus `$roles`. Not subject to `first_user_only` (the invitation is the authorisation);
+     * roles = `invitations.registration_role` (1.33; null: registration_role) plus `$roles`. Not subject to `first_user_only` (the invitation is the authorisation);
      * the caller checks {@see RegistrationGate::isInvitationAcceptanceAllowed()}.
      *
      * @param array<string, mixed> $formData keyed by field name
@@ -84,7 +84,9 @@ final class UserRegistrar
         $profile = $this->profileRegistry->getByName($profileName);
         $this->assertNoCaseVariant($profile, $formData);
 
-        return $this->createUser($profile, $formData, array_values(array_unique([$profile->registrationRole, ...$roles])));
+        $base = $profile->invitations['registration_role'] ?? null;
+
+        return $this->createUser($profile, $formData, array_values(array_unique([is_string($base) && $base !== '' ? $base : $profile->registrationRole, ...$roles])));
     }
 
     /**

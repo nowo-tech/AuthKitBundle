@@ -25,6 +25,7 @@ use Nowo\AuthKitBundle\Controller\ResetPasswordRequestController;
 use Nowo\AuthKitBundle\Controller\SocialLoginCheckController;
 use Nowo\AuthKitBundle\Controller\SocialLoginStartController;
 use Nowo\AuthKitBundle\Controller\UnlocalizedLocaleRedirectController;
+use Nowo\AuthKitBundle\DependencyInjection\InvitationsConfiguration;
 use Nowo\AuthKitBundle\Enum\LocaleInPathMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Enum\UnlocalizedLocaleMode;
@@ -149,10 +150,12 @@ final class AuthKitRouteLoader extends Loader
             $invitationRoutes = $profile['invitations']['routes'];
             // The token-less URL (token = null) renders the page with the token hash kept in the session.
             $this->addControllerRoute($collection, $invitationRoutes['accept'], InvitationAcceptController::class, 'accept', ['token' => null] + $profileDefaults);
-            $this->addControllerRoute($collection, $invitationRoutes['index'], InvitationAdminController::class, 'index', $profileDefaults);
-            $this->addControllerRoute($collection, $invitationRoutes['new'], InvitationAdminController::class, 'new', $profileDefaults);
-            $this->addControllerRoute($collection, $invitationRoutes['resend'], InvitationAdminController::class, 'resend', $profileDefaults);
-            $this->addControllerRoute($collection, $invitationRoutes['revoke'], InvitationAdminController::class, 'revoke', $profileDefaults);
+            // invitations.admin_routes: false (1.33): the host has its own invitation UI.
+            if (($profile['invitations']['admin_routes'] ?? true) !== false) {
+                foreach (InvitationsConfiguration::ADMIN_ROUTE_KEYS as $action) {
+                    $this->addControllerRoute($collection, $invitationRoutes[$action], InvitationAdminController::class, $action, $profileDefaults);
+                }
+            }
         }
     }
 

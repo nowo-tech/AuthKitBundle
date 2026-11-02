@@ -243,12 +243,14 @@ services:
             $eventDispatcher: '@?event_dispatcher'
             $enabledLocales: '%nowo_auth_kit.locale.enabled%'
             $logger: '@?logger'
+            $authorizers: !tagged_iterator nowo_auth_kit.invitation_action_authorizer
 
     Nowo\AuthKitBundle\Invitation\InvitationAcceptor:
         arguments:
             $grants: !tagged_iterator nowo_auth_kit.invitation_grant
             $eventDispatcher: '@?event_dispatcher'
             $logger: '@?logger'
+            $limiter: '@Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter'
 
     # Symfony Mailer delivery; InvitationMailerPass aliases the interface to NullInvitationMailer without a mailer.
     Nowo\AuthKitBundle\Invitation\MailerInvitationMailer:

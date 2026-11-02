@@ -180,6 +180,25 @@ With `invitations.mode: enabled` (1.32, often with `registration_mode: invite_on
 
 Details: [INVITATIONS.md](INVITATIONS.md).
 
+### Host with its own invitation UI
+
+Since 1.33 a host can keep AuthKit's storage, accept page and rules while issuing invitations from its own pages:
+
+- `invitations.admin_routes: false` — the `/admin/invitations` pages are not registered (the accept route stays).
+- `invitations.registration_role` — invitees get this base role instead of `registration_role` (e.g. `ROLE_ADMIN`
+  for the first user). Use `registration_mode: invite_only` in production; `disabled` refuses sending and accepting.
+- `InvitationRequest(returnLink: true)` and `InvitationManager::resend($actor, $invitation, ?int $ttlDays, bool
+  $returnLink)` — no e-mail; the outcome carries the link for the host's own mail (never logged).
+- `invitations.merge_key` / `payload_merge: deep` — one open invitation per e-mail and payload key (e.g. an
+  organization), payloads merged deeply on re-invite.
+- `InvitationAcceptingEvent::refuse(new InvitationRefusal('key', [], 'domain'))` or
+  `InvitationRefusedException::because(…)` in a grant — refuse with a translated reason shown to the invitee.
+- `InvitationLinkRejectedEvent` — an expired or revoked link was opened (snapshot and reason, no token).
+- `InvitationAcceptor::pending()` / `acceptPendingForSocial()` — social-login acceptance of the invitation pending in
+  the session (verified, equal e-mail); never read `_nowo_auth_kit_invitation.<profile>` yourself.
+
+Full example: [INVITATIONS.md — Host with its own invitation UI](INVITATIONS.md#host-with-its-own-invitation-ui-133).
+
 ## Login flow
 
 1. Guest opens `/login`.

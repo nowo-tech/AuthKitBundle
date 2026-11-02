@@ -295,7 +295,9 @@ nowo_auth_kit:
 | `always` | Registration always available to guests |
 | `invite_only` (1.32) | `/register` redirects to login; accounts only by accepting an invitation (`invitations.mode: enabled` required) |
 
-With `invitations.mode: enabled` an invitation can be accepted in every mode but `disabled` (closed). See
+With `invitations.mode: enabled` an invitation can be accepted in every mode but `disabled`, which refuses both
+sending and accepting. `invite_only` is the intended production mode for hosts that create accounts only by
+invitation; set `invitations.registration_role` (1.33) when `registration_role` is a privileged first-user role. See
 [Invitations](#invitations).
 
 ## Invitations
@@ -313,6 +315,8 @@ nowo_auth_kit:
         lock_email: true
         roles: [ROLE_EDITOR]
         show_link_when_undelivered: false
+        # 1.33 (host with its own UI): registration_role: ROLE_USER, merge_key: organization,
+        # payload_merge: deep (default replace), admin_routes: false (default true)
         security:
             access_roles: [ROLE_ADMIN]
             # access_checker: App\Security\InvitationsAccessChecker

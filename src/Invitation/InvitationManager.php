@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationCreatedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationResentEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationRevokedEvent;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
@@ -20,6 +21,7 @@ use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use OverflowException;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -28,12 +30,12 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_diff;
-use function array_replace;
 use function count;
 use function filter_var;
 use function implode;
 use function in_array;
 use function is_array;
+use function is_scalar;
 use function is_string;
 use function mb_strlen;
 use function sprintf;
@@ -44,7 +46,9 @@ use const FILTER_VALIDATE_EMAIL;
  * Invite (or update the open invitation of the same e-mail and send it again), resend (a new token voids the previous
  * link) and revoke. Rate limited per inviter (`invite_rate_limit`) and per invitation (`resend_rate_limit`). Every
  * mutation dispatches its audit event ({@see Event\InvitationEvent}); the token leaves only in the e-mail, or in the
- * outcome when `show_link_when_undelivered` is on and the e-mail could not be sent.
+ * outcome when `show_link_when_undelivered` is on and the e-mail could not be sent, or when the host asks for it to send
+ * its own mail (`returnLink`, 1.33). With `invitations.merge_key` (1.33) the open invitation a re-invite updates is the
+ * one of the same e-mail and `payload[merge_key]`; `invitations.payload_merge` says how the payloads merge.
  *
  * Roles must be listed in `invitations.roles` (forged values throw). The actor must hold every role it hands out, those
  * of an open invitation it resends, re-invites or revokes included (role hierarchy, {@see InvitationsAccessGuard::holdsAll()};
@@ -61,6 +65,7 @@ final readonly class InvitationManager
 
     /**
      * @param list<string> $enabledLocales
+     * @param iterable<InvitationActionAuthorizerInterface> $authorizers host authorisation hooks (1.33, deny only)
      */
     public function __construct(
         private InvitationRepository $invitations,
@@ -75,6 +80,7 @@ final readonly class InvitationManager
         private ?InvitationsAccessGuard $guard = null,
         private ?AbsoluteUrlGenerator $absoluteUrls = null,
         private LoggerInterface $logger = new NullLogger(),
+        private iterable $authorizers = [],
     ) {
     }
 
@@ -96,10 +102,27 @@ final readonly class InvitationManager
             return InvitationOutcome::refused($refusal);
         }
 
-        $invitation = $this->invitations->findOpenByEmail($profileName, $email);
+        $mergeKey   = is_string($settings['merge_key'] ?? null) ? $settings['merge_key'] : null;
+        $mergeValue = $mergeKey !== null ? ($request->payload[$mergeKey] ?? null) : null;
+        if ($mergeValue !== null && !is_scalar($mergeValue)) {
+            throw new InvalidArgumentException(sprintf('The invitations.merge_key value "%s" must be a scalar or null.', (string) $mergeKey));
+        }
+        try {
+            $invitation = $mergeKey === null
+                ? $this->invitations->findOpenByEmail($profileName, $email)
+                : $this->invitations->findOpenByEmailAndPayloadKey($profileName, $email, $mergeKey, $mergeValue);
+        } catch (OverflowException) {
+            // SEC-004 CP I1: fail closed rather than open a second live invitation for the same e-mail and key.
+            return InvitationOutcome::refused(InvitationOutcome::TOO_MANY_OPEN);
+        }
         // SEC-004 CD M1: the actor must hold every role they hand out, those of an open invitation they would resend
-        // through the merge included (no union beyond what the actor can grant).
-        if (!$this->holdsAll($actor, $request->roles) || ($invitation instanceof Invitation && !$this->holdsAll($actor, $invitation->getRoles()))) {
+        // through the merge included (no union beyond what the actor can grant). CP L1: the host authorizers must
+        // grant the invite, the merge into the open invitation and a returned link; a returned link needs an actor.
+        if (!$this->holdsAll($actor, $request->roles) || ($invitation instanceof Invitation && !$this->holdsAll($actor, $invitation->getRoles()))
+            || ($request->returnLink && !$actor instanceof UserInterface)
+            || !$this->authorized($actor, InvitationActionAuthorizerInterface::INVITE, $request)
+            || ($invitation instanceof Invitation && !$this->authorized($actor, InvitationActionAuthorizerInterface::REINVITE, $invitation, $request))
+            || ($request->returnLink && !$this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $request))) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $invitation instanceof Invitation ? $this->snapshot($invitation) : null);
         }
         $limits = [$this->inviterLimit($profile, $actor), $this->addressLimit($profile, $actor, $email)];
@@ -116,7 +139,7 @@ final readonly class InvitationManager
         $resend = $invitation instanceof Invitation;
         if ($invitation instanceof Invitation) {
             $invitation->setRoles([...$invitation->getRoles(), ...$request->roles])
-                ->setPayload(array_replace($invitation->getPayload(), $request->payload));
+                ->setPayload(InvitationPayloadMerger::merge((string) ($settings['payload_merge'] ?? InvitationsConfiguration::PAYLOAD_MERGE_REPLACE), $invitation->getPayload(), $request->payload));
         } else {
             $invitation = (new Invitation($profileName, $email, $actor?->getUserIdentifier(), $ttl, $this->now()))
                 ->setRoles($request->roles)
@@ -129,20 +152,29 @@ final readonly class InvitationManager
         // @igor-ignore - Doctrine entity of this call (loaded or created here), not a shared service.
         $invitation->setLocale($this->locale($request->locale));
 
-        return $this->deliver($actor, $profile, $invitation, $ttl, $resend);
+        return $this->deliver($actor, $profile, $invitation, $ttl, $resend, $request->returnLink);
     }
 
     /**
      * A new link and expiry (the previous link stops working); pending and expired invitations only, and only by an
      * actor holding every role of the invitation (SEC-004 CD M1).
+     *
+     * @param int|null $ttlDays validity of the new link (1.33): one of the offered validities
+     *                          ({@see InvitationsConfiguration::ttlChoices()}), else `ttl_days`; null keeps the invitation's
+     * @param bool $returnLink (1.33) send no e-mail and return the link in the outcome ({@see InvitationOutcome::LINK}),
+     *                         for a host that sends its own mail; never logged
      */
-    public function resend(?UserInterface $actor, Invitation $invitation): InvitationOutcome
+    public function resend(?UserInterface $actor, Invitation $invitation, ?int $ttlDays = null, bool $returnLink = false): InvitationOutcome
     {
         if (!$invitation->isOpen()) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
         }
         $profile = $this->profile($invitation->getProfile());
-        $refusal = $this->refusal($profile) ?? ($this->holdsAll($actor, $invitation->getRoles()) ? null : InvitationOutcome::NOT_ALLOWED);
+        $allowed = $this->holdsAll($actor, $invitation->getRoles())
+            && $this->authorized($actor, InvitationActionAuthorizerInterface::RESEND, $invitation)
+            // SEC-004 CP L1: a returned link needs an actor, and the host authorizers' consent.
+            && (!$returnLink || ($actor instanceof UserInterface && $this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $invitation)));
+        $refusal = $this->refusal($profile) ?? ($allowed ? null : InvitationOutcome::NOT_ALLOWED);
         if ($refusal !== null) {
             return InvitationOutcome::refused($refusal, $this->snapshot($invitation));
         }
@@ -152,7 +184,7 @@ final readonly class InvitationManager
             }
         }
 
-        return $this->deliver($actor, $profile, $invitation, $this->ttl($profile->invitations, $invitation->getTtlDays()), true);
+        return $this->deliver($actor, $profile, $invitation, $this->ttl($profile->invitations, $ttlDays ?? $invitation->getTtlDays()), true, $returnLink);
     }
 
     /**
@@ -164,7 +196,7 @@ final readonly class InvitationManager
         if (!$invitation->isOpen()) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
         }
-        if (!$this->holdsAll($actor, $invitation->getRoles())) {
+        if (!$this->holdsAll($actor, $invitation->getRoles()) || !$this->authorized($actor, InvitationActionAuthorizerInterface::REVOKE, $invitation)) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $this->snapshot($invitation));
         }
 
@@ -200,22 +232,29 @@ final readonly class InvitationManager
         return InvitationSnapshot::of($invitation, $this->now());
     }
 
-    private function deliver(?UserInterface $actor, ProfileSettings $profile, Invitation $invitation, int $ttl, bool $resend): InvitationOutcome
+    private function deliver(?UserInterface $actor, ProfileSettings $profile, Invitation $invitation, int $ttl, bool $resend, bool $returnLink): InvitationOutcome
     {
         [$token, $hash] = $this->tokens->generate();
         $now            = $this->now();
-        $invitation->issue($hash, $ttl, $now);
+        $invitation->issue($hash, $ttl, $now, $actor?->getUserIdentifier());
         $this->invitations->save($invitation);
 
         $snapshot = $this->snapshot($invitation);
         /** @var array{accept: array{name: string}} $routes */
         $routes = $profile->invitations['routes'];
         $url    = $this->urlGenerator->generate($routes['accept']['name'], ['token' => $token], UrlGeneratorInterface::ABSOLUTE_URL, $invitation->getLocale());
-        $sent   = $this->mailer->send(new InvitationMail($snapshot, $url, $resend));
-        // SEC-004 CD M1: the link is never shown to an actor lacking a role of the invitation.
-        $show = !$sent && ($profile->invitations['show_link_when_undelivered'] ?? false) === true && $this->holdsAll($actor, $invitation->getRoles());
+        // SEC-004 CD M1: the link is never shown nor returned to an actor lacking a role of the invitation.
+        $holds = $this->holdsAll($actor, $invitation->getRoles());
+        // returnLink (1.33): the host sends its own mail with the returned link.
+        $sent = !$returnLink && $this->mailer->send(new InvitationMail($snapshot, $url, $resend));
+        $show = !$sent && $holds && ($returnLink || ($profile->invitations['show_link_when_undelivered'] ?? false) === true);
 
-        $delivery = $sent ? InvitationCreatedEvent::DELIVERY_EMAIL : ($show ? InvitationCreatedEvent::DELIVERY_LINK : InvitationCreatedEvent::DELIVERY_NONE);
+        $delivery = match (true) {
+            $sent                => InvitationCreatedEvent::DELIVERY_EMAIL,
+            $show && $returnLink => InvitationCreatedEvent::DELIVERY_HOST,
+            $show                => InvitationCreatedEvent::DELIVERY_LINK,
+            default              => InvitationCreatedEvent::DELIVERY_NONE,
+        };
         $this->eventDispatcher?->dispatch($resend
             ? new InvitationResentEvent($snapshot, $actor, $now, $delivery)
             : new InvitationCreatedEvent($snapshot, $actor, $now, $delivery));
@@ -263,6 +302,20 @@ final readonly class InvitationManager
     private function holdsAll(?UserInterface $actor, array $roles): bool
     {
         return $roles === [] || ($this->guard instanceof InvitationsAccessGuard && $this->guard->holdsAll($actor, $roles));
+    }
+
+    /**
+     * Host authorisation (SEC-004 CP L1): every tagged {@see InvitationActionAuthorizerInterface} must grant.
+     */
+    private function authorized(?UserInterface $actor, string $action, Invitation|InvitationRequest $subject, ?InvitationRequest $request = null): bool
+    {
+        foreach ($this->authorizers as $authorizer) {
+            if (!$authorizer->isGranted($actor, $action, $subject, $request)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
