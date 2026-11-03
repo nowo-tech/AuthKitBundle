@@ -6,14 +6,14 @@ namespace Nowo\AuthKitBundle\Tests\Integration;
 
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
  * Integration tests: bundle extension loads services from default configuration.
- *
- * @covers \Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension
  */
+#[CoversClass(NowoAuthKitExtension::class)]
 final class AuthKitBundleIntegrationTest extends TestCase
 {
     public function testExtensionLoadsDefaultConfiguration(): void
