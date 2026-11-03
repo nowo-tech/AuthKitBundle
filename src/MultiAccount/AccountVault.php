@@ -113,7 +113,10 @@ final readonly class AccountVault
     public function entries(Request $request, ProfileSettings $profile): array
     {
         $tokens = VaultCookie::tokens($request, $profile);
-        if ($tokens === []) {
+        $limit  = $profile->multiAccount['rate_limit']['invalid'] ?? ['limit' => 20, 'window' => 600];
+        $ipKey  = 'accounts:invalid:' . ($request->getClientIp() ?? 'unknown');
+        if ($tokens === [] || !$this->limiter->isAllowed($ipKey, (int) $limit['limit'])) {
+            // No cookie, or this client sent too many unknown tokens: no vault for now.
             return [];
         }
         $crypto = $this->crypto($profile);
@@ -151,7 +154,9 @@ final readonly class AccountVault
         }
         $unknown = array_values(array_filter($tokens, static fn (string $token): bool => !isset($known[$token])));
         if ($unknown !== [] || $removed) {
-            $this->limiter->hit('accounts:invalid:' . ($request->getClientIp() ?? 'unknown'), (int) ($profile->multiAccount['rate_limit']['invalid']['window'] ?? 600));
+            if ($unknown !== []) {
+                $this->limiter->hit($ipKey, (int) $limit['window']);
+            }
             VaultCookie::queue($request, $profile, array_map(static fn (VaultEntry $entry): string => $entry->token, $entries));
         }
 
