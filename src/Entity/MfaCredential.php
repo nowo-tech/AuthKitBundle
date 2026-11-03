@@ -139,15 +139,15 @@ class MfaCredential
     public function enable(string $secret, int $confirmedStep, DateTimeImmutable $now): void
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->totpSecret    = $secret;
+        $this->totpSecret = $secret;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->enabledAt     = $now;
+        $this->enabledAt = $now;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->lastUsedStep  = $confirmedStep;
+        $this->lastUsedStep = $confirmedStep;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->requiredSince = null;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->updatedAt     = $now;
+        $this->updatedAt = $now;
     }
 
     /**
@@ -156,13 +156,13 @@ class MfaCredential
     public function disable(DateTimeImmutable $now, ?string $resetBy = null): void
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->totpSecret   = null;
+        $this->totpSecret = null;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->enabledAt    = null;
+        $this->enabledAt = null;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->lastUsedStep = null;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->updatedAt    = $now;
+        $this->updatedAt = $now;
         if ($resetBy !== null) {
             // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
             $this->resetAt = $now;
@@ -176,6 +176,6 @@ class MfaCredential
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->requiredSince = $since;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->updatedAt     = $now;
+        $this->updatedAt = $now;
     }
 }

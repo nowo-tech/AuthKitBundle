@@ -576,9 +576,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 ->addTag('kernel.event_listener', ['event' => AuthenticationTokenCreatedEvent::class, 'method' => 'onTokenCreated', 'dispatcher' => $dispatcher, 'priority' => -1024])
                 ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLoginSuccess', 'dispatcher' => $dispatcher, 'priority' => -48]);
         }
-        // Without UserKit there are no session events to follow.
+        // Without UserKit there are no session events to follow (UserKit is a dev dependency: always installed in tests).
         if (!class_exists(UserSessionsRevokedEvent::class)) {
-            $container->removeDefinition(MfaSessionsSubscriber::class);
+            $container->removeDefinition(MfaSessionsSubscriber::class); // @codeCoverageIgnore
         }
     }
 
