@@ -78,7 +78,7 @@ final class AuthKitRouteLocaleParameters
     public function accessControlPatterns(string $path): array
     {
         $pathPattern = preg_quote($path, '/');
-        $pathPattern = str_replace(['\\{token\\}', '\\{provider\\}', '\\{id\\}'], '[^/]+', $pathPattern);
+        $pathPattern = str_replace(['\\{token\\}', '\\{provider\\}', '\\{id\\}', '\\{account\\}'], '[^/]+', $pathPattern);
 
         return match ($this->localeInPathMode) {
             LocaleInPathMode::Never  => ['^' . $pathPattern],

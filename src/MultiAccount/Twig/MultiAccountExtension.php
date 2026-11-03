@@ -19,9 +19,10 @@ use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
 /**
- * `auth_kit_accounts(profile = null, display = 'full')` (1.34, registered with `multi_account.enabled`): the
+ * `auth_kit_accounts(profile = null, display = null)` (1.34, registered with `multi_account.enabled`): the
  * {@see AccountSwitcherView} of the current browser for the switcher partial `@NowoAuthKitBundle/accounts/_switcher
- * .html.twig`, or null without a multi-account profile. `display` = `masked` / `none` for anonymous pages (D4).
+ * .html.twig`, or null without a multi-account profile. `display` (`full`, `masked`, `none`) defaults to `full` when
+ * signed in and to `chooser.identifier_display` otherwise (D4, DE-L1).
  */
 final class MultiAccountExtension extends AbstractExtension
 {
@@ -40,13 +41,15 @@ final class MultiAccountExtension extends AbstractExtension
         return [new TwigFunction('auth_kit_accounts', $this->switcher(...))];
     }
 
-    public function switcher(?string $profile = null, string $display = 'full'): ?AccountSwitcherView
+    public function switcher(?string $profile = null, ?string $display = null): ?AccountSwitcherView
     {
         $request  = $this->requests->getMainRequest();
         $settings = $this->profileFor($profile);
         if (!$request instanceof Request || !$settings instanceof ProfileSettings) {
             return null;
         }
+        // Full identifiers only for a signed-in browser; anonymous pages follow `chooser.identifier_display` (DE-L1).
+        $display ??= $this->vault->isSignedIn() ? 'full' : (string) ($settings->multiAccount['chooser']['identifier_display'] ?? 'masked');
 
         return $this->view($request, $settings, $display);
     }

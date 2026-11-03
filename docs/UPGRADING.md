@@ -124,9 +124,12 @@ To enable MFA ([MFA.md](MFA.md)):
    store). If your user entity keeps its password hash in another field than `password`, set
    `mfa.trusted_devices.password_field`. Setting up the second factor needs a sign-in within `mfa.recent_sign_in`.
 
-To enable several accounts at once ([MULTI-ACCOUNT.md](MULTI-ACCOUNT.md)): UserKit ≥ 1.11 with sessions on, the PHP
-`sodium` extension, `multi_account.enabled: true`, the migration, `/accounts` reachable anonymously, and the switcher
-partial in your user menu. The normal sign-out then ends every account of the browser (`logout_scope: all`).
+To enable several accounts at once ([MULTI-ACCOUNT.md](MULTI-ACCOUNT.md)): UserKit ≥ 1.11 with sessions on (≥ 1.11.1
+recommended: a revoked parked session stays revoked after the retention purge), the PHP `sodium` extension,
+`multi_account.enabled: true`, the migration (table `auth_kit_account_vault`), `/accounts` reachable anonymously
+(`nowo:auth-kit:configure-security` adds the rules), and the switcher partial in your user menu. The normal sign-out
+then ends every account of the browser (`logout_scope: all`). Behind a TLS-terminating proxy without
+`trusted_proxies`, set `multi_account.cookie.secure: true`.
 
 ## To 1.33.1
 

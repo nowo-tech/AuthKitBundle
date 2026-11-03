@@ -13,6 +13,7 @@ use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Yaml\Yaml;
 
+use function array_column;
 use function count;
 use function str_contains;
 
@@ -61,6 +62,22 @@ final class ConfigureSecurityCommandTest extends TestCase
         self::assertSame('login_form[_username]', $security['security']['firewalls']['main']['form_login']['username_parameter']);
         self::assertSame('App\\Entity\\User', $security['security']['providers']['app_user_provider']['entity']['class']);
         self::assertArrayNotHasKey('remember_me', $security['security']['firewalls']['main']);
+    }
+
+    public function testMakesTheAccountSwitcherRoutesPublic(): void
+    {
+        $this->filesystem->dumpFile(
+            $this->testDir . '/config/packages/security.yaml',
+            Yaml::dump(['security' => ['firewalls' => ['main' => []]]], 2),
+        );
+        $tester = new CommandTester($this->createCommand('disabled', 'demo_home', multiAccountRoutes: ['chooser' => ['path' => '/accounts', 'name' => 'c'], 'switch' => ['path' => '/accounts/{account}/switch', 'name' => 's']]));
+        self::assertSame(0, $tester->execute([]));
+
+        /** @var array<string, mixed> $security */
+        $security = Yaml::parseFile($this->testDir . '/config/packages/security.yaml');
+        $paths    = array_column($security['security']['access_control'], 'roles', 'path');
+        self::assertSame('PUBLIC_ACCESS', $paths['^\\/accounts'] ?? null);
+        self::assertSame('PUBLIC_ACCESS', $paths['^\\/accounts\\/[^/]+\\/switch'] ?? null);
     }
 
     public function testAddsRememberMeWhenEnabled(): void
@@ -528,6 +545,9 @@ final class ConfigureSecurityCommandTest extends TestCase
         );
     }
 
+    /**
+     * @param array<string, array{path: string, name: string}> $multiAccountRoutes
+     */
     private function createCommand(
         string $passwordResetMode,
         ?string $loginSuccessRoute = null,
@@ -539,6 +559,7 @@ final class ConfigureSecurityCommandTest extends TestCase
         bool $magicLoginConfirmInterstitial = false,
         bool $useCwdAsProjectDir = false,
         ?int $adminLinkLifetime = null,
+        array $multiAccountRoutes = [],
     ): ConfigureSecurityCommand {
         return new ConfigureSecurityCommand(
             $useCwdAsProjectDir ? null : ($projectDir ?? $this->testDir),
@@ -567,6 +588,7 @@ final class ConfigureSecurityCommandTest extends TestCase
                 ...($adminLinkLifetime !== null ? ['admin_link' => ['lifetime' => $adminLinkLifetime]] : []),
             ],
             $socialLoginMode,
+            multiAccountRoutes: $multiAccountRoutes,
         );
     }
 

@@ -27,7 +27,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Twig\Environment;
 
 use function is_string;
-use function str_starts_with;
+use function preg_match;
 
 /**
  * The account switcher (1.34, `multi_account.enabled`): chooser page, add another account, switch, sign one account
@@ -183,7 +183,9 @@ final class AccountsController
     private function afterSwitch(Request $request, ProfileSettings $profile): string
     {
         $target = $request->request->get('_target_path');
-        if (is_string($target) && str_starts_with($target, '/') && !str_starts_with($target, '//') && !str_starts_with($target, '/\\')) {
+        // A path of this application only: no scheme-relative start, no backslash, no control character (browsers drop
+        // tabs and new lines from URLs, so "/\t/evil.example" would leave the site, DE-L2).
+        if (is_string($target) && preg_match('#^/(?![/\\\\])[^\x00-\x1F\x7F\\\\]*\z#', $target) === 1) {
             return $target;
         }
         $route = $profile->multiAccount['after_switch'] ?? $profile->loginSuccessRoute;

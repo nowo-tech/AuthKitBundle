@@ -46,6 +46,12 @@ final readonly class MultiAccountSubscriber
 {
     public const SCOPE_ATTRIBUTE = '_nowo_auth_kit_accounts_logout_scope';
 
+    /** Session flag: the first factor of a pending MFA sign-in came from an admin-issued magic link (D8, DE-L5). */
+    public const ADMIN_LINK_ATTRIBUTE = '_nowo_auth_kit_accounts_admin_link';
+
+    /** UserKit revocations that sign the user out of every session: the user leaves every browser's switcher. */
+    private const FORGET_REASONS = ['everywhere', 'admin', 'account_disabled', 'account_changed', 'password_changed'];
+
     public function __construct(
         private AccountVault $vault,
         private ProfileRegistry $profiles,
@@ -56,9 +62,16 @@ final readonly class MultiAccountSubscriber
 
     public function onLoginSuccess(LoginSuccessEvent $event): void
     {
-        $token = $event->getAuthenticatedToken();
+        $token   = $event->getAuthenticatedToken();
+        $request = $event->getRequest();
         if (!$token instanceof MfaPendingToken) {
-            $this->enrol($event->getRequest(), $token);
+            $this->enrol($request, $token);
+
+            return;
+        }
+        // The second factor completes on another request, without the link: remember where the first one came from.
+        if ($request->hasSession() && $this->adminIssued($request)) {
+            $request->getSession()->set(self::ADMIN_LINK_ATTRIBUTE, true);
         }
     }
 
@@ -111,17 +124,25 @@ final readonly class MultiAccountSubscriber
         $response->headers->setCookie(Cookie::create($cookie['name'], $value, time() + $cookie['lifetime'], $cookie['path'], $cookie['domain'], $secure, true, false, $sameSite));
     }
 
+    /**
+     * Sign-outs of every session remove the user from every browser at once; a revoked single session leaves its
+     * browser's switcher on the next list or switch (UserKit ≥ 1.11.1 reports it revoked, never revived).
+     */
     public function onSessionsRevoked(UserSessionsRevokedEvent $event): void
     {
-        if ($event->user instanceof UserInterface && in_array($event->reason->value, ['everywhere', 'admin', 'account_disabled', 'password_changed'], true)) {
-            $this->vault->forgetUser($event->user->getUserIdentifier());
+        $user    = $event->user;
+        $profile = $user instanceof UserInterface ? $this->profileOf($user) : null;
+        if ($user instanceof UserInterface && $profile instanceof ProfileSettings && in_array($event->reason->value, self::FORGET_REASONS, true)) {
+            $this->vault->forgetUser($profile, $user->getUserIdentifier());
         }
     }
 
     public function onSessionsDeleted(UserSessionsDeletedEvent $event): void
     {
-        if ($event->user instanceof UserInterface) {
-            $this->vault->forgetUser($event->user->getUserIdentifier());
+        $user    = $event->user;
+        $profile = $user instanceof UserInterface ? $this->profileOf($user) : null;
+        if ($user instanceof UserInterface && $profile instanceof ProfileSettings) {
+            $this->vault->forgetUser($profile, $user->getUserIdentifier());
         }
     }
 
@@ -129,10 +150,18 @@ final readonly class MultiAccountSubscriber
     {
         $user    = $token->getUser();
         $profile = $user instanceof UserInterface ? $this->profileOf($user) : null;
-        if ($profile instanceof ProfileSettings) {
-            $admin = $this->issuedLinks instanceof CacheItemPoolInterface && AdminMagicLinkIssuer::isAdminIssued($this->issuedLinks, $request);
-            $this->vault->enrol($request, $profile, $token, $admin);
+        $flagged = false;
+        if ($request->hasSession() && $request->getSession()->has(self::ADMIN_LINK_ATTRIBUTE)) {
+            $flagged = $request->getSession()->remove(self::ADMIN_LINK_ATTRIBUTE) === true;
         }
+        if ($profile instanceof ProfileSettings) {
+            $this->vault->enrol($request, $profile, $token, $flagged || $this->adminIssued($request));
+        }
+    }
+
+    private function adminIssued(Request $request): bool
+    {
+        return $this->issuedLinks instanceof CacheItemPoolInterface && AdminMagicLinkIssuer::isAdminIssued($this->issuedLinks, $request);
     }
 
     private function profileOf(UserInterface $user): ?ProfileSettings

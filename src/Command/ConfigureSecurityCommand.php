@@ -37,6 +37,7 @@ final class ConfigureSecurityCommand extends Command
      * @param list<array{name: string, type: string, property: ?string, hash: bool, required: bool, security_name: ?string}> $loginFields
      * @param array{enabled: bool, lifetime: int, path: string} $rememberMe
      * @param array{mode: string, lifetime: int, max_uses: int, confirm_interstitial?: bool, admin_link?: array{lifetime?: int}} $magicLogin
+     * @param array<string, array{path: string, name: string}> $multiAccountRoutes account-switcher routes of the default profile (empty when off)
      */
     public function __construct(
         private readonly ?string $projectDir,
@@ -55,6 +56,7 @@ final class ConfigureSecurityCommand extends Command
         private readonly string $unlocalizedMode = 'redirect',
         private readonly string $unlocalizedRouteSuffix = AuthKitRouteLoader::UNLOCALIZED_ROUTE_SUFFIX,
         private readonly bool $localizedLogoutRedirect = false,
+        private readonly array $multiAccountRoutes = [],
     ) {
         parent::__construct();
     }
@@ -197,6 +199,13 @@ final class ConfigureSecurityCommand extends Command
                 foreach ($this->routeLocaleParameters->accessControlPatterns($path) as $pattern) {
                     $publicPaths[] = ['path' => $pattern, 'roles' => 'PUBLIC_ACCESS'];
                 }
+            }
+        }
+
+        // Account switcher (1.34): the chooser and switch also serve a browser whose active session ended.
+        foreach ($this->multiAccountRoutes as $route) {
+            foreach ($this->routeLocaleParameters->accessControlPatterns($route['path']) as $pattern) {
+                $publicPaths[] = ['path' => $pattern, 'roles' => 'PUBLIC_ACCESS'];
             }
         }
 

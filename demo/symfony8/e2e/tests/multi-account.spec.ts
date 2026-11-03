@@ -31,7 +31,7 @@ async function signIn(page: Page, email: string): Promise<void> {
   await page.goto('/en/login');
   await page.locator('input[name="login_form[_username]"]').fill(email);
   await page.locator('input[name="login_form[_password]"]').fill(PASSWORD);
-  await page.locator('[data-testid="auth-kit-login"] button[type="submit"]').click();
+  await page.locator('form:has(input[name="login_form[_username]"]) button[type="submit"]').click();
 }
 
 async function passChallenge(page: Page): Promise<void> {

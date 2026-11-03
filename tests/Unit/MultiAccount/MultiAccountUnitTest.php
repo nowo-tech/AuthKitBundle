@@ -21,6 +21,7 @@ use Nowo\UserKitBundle\Sessions\UserSessionManager;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\NullToken;
@@ -65,6 +66,17 @@ final class MultiAccountUnitTest extends TestCase
         self::assertSame('__Host-v_admin', VaultCookie::name($request, ProfileRegistryFactory::single(TestUser::class, ['multi_account' => ['cookie' => ['name' => 'v']]], 'admin')->getByName('admin')));
     }
 
+    public function testCookieSecureOption(): void
+    {
+        $http   = Request::create('http://app.example.test/');
+        $forced = ProfileRegistryFactory::single(TestUser::class, ['multi_account' => ['enabled' => true, 'cookie' => ['name' => 'v', 'secure' => true]]])->getDefault();
+        self::assertTrue(VaultCookie::secure($http, $forced));
+        self::assertSame('__Host-v', VaultCookie::name($http, $forced), 'Forced Secure behind a TLS proxy without trusted_proxies (DE-L6).');
+        $off = ProfileRegistryFactory::single(TestUser::class, ['multi_account' => ['enabled' => true, 'cookie' => ['name' => 'v', 'secure' => false]]])->getDefault();
+        self::assertFalse(VaultCookie::secure(Request::create('https://app.example.test/'), $off));
+        self::assertSame('v', VaultCookie::name(Request::create('https://app.example.test/'), $off));
+    }
+
     public function testPresentation(): void
     {
         $p = new AccountPresentation('Ana María López', 'ana@example.com');
@@ -82,7 +94,7 @@ final class MultiAccountUnitTest extends TestCase
         self::assertTrue($gate->isComplete(new UsernamePasswordToken(new InMemoryUser('a', null), 'main')));
         self::assertFalse($gate->isComplete(new NullToken()));
         $now = new DateTimeImmutable();
-        self::assertInstanceOf(AccountVaultEntry::class, new AccountVaultEntry('p', 'default', 'a', 'h', null, $now, null, $now, $now, $now));
+        self::assertInstanceOf(AccountVaultEntry::class, new AccountVaultEntry('p', 'default', 'a', 'h', null, $now, null, null, $now, $now, $now));
     }
 
     public function testStore(): void
@@ -131,5 +143,11 @@ final class MultiAccountUnitTest extends TestCase
         $vault = $container->getDefinition(AccountVault::class);
         self::assertSame(['main' => 'shared'], $vault->getArgument('$contexts'));
         self::assertSame(['main' => null], $vault->getArgument('$rememberMe'), 'A custom handler without options gives no cookie to move.');
+
+        $container->register('app.users');
+        $container->setDefinition('security.firewall.map.config.main', new Definition('x', ['main', 'c', null, true, false, 'app.users', 'shared']));
+        (new MultiAccountPass())->process($container);
+        $locator = $container->getDefinition(AccountVault::class)->getArgument('$userProviders');
+        self::assertInstanceOf(Reference::class, $locator, 'The firewall\'s own user provider (DE-I5).');
     }
 }

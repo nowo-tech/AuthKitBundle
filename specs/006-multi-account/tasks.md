@@ -8,4 +8,5 @@
 - [x] T006 Controller, Twig, templates, translations, purge
 - [x] T007 Tests, 100 % coverage, QA
 - [x] T008 Docs (MULTI-ACCOUNT, CONFIGURATION, SECURITY, TEMPLATES, README, CHANGELOG, UPGRADING, ROADMAP)
+- [x] T010 Audit DE fixes with regression tests (MultiAccountAuditDeKernelTest)
 - [ ] T009 Demo + Playwright / axe (M4)
