@@ -320,3 +320,33 @@ mfa:
         flash:
             reset: 'Die Bestätigung in zwei Schritten von %user% wurde zurückgesetzt.'
             not_enabled: '%user% hat keine Bestätigung in zwei Schritten zum Zurücksetzen.'
+accounts:
+    list_label: 'Konten in diesem Browser'
+    state:
+        active: 'Angemeldet (aktuell)'
+        signed_in: 'Angemeldet'
+        signed_out: 'Abgemeldet'
+    action:
+        switch: 'Wechseln'
+        resume: 'Erneut anmelden'
+        sign_out: 'Abmelden'
+        add: 'Weiteres Konto hinzufügen'
+        sign_out_all: 'Von allen Konten abmelden'
+        manage: 'Konten verwalten'
+    notice:
+        other_tab: 'Sie haben in einem anderen Tab das Konto gewechselt.'
+        reload: 'Neu laden'
+    chooser:
+        title: 'Konto auswählen'
+        heading: 'Konto auswählen'
+        intro: 'In diesem Browser angemeldete Konten. Der Wechsel erfordert kein Passwort.'
+        back: 'Weiter'
+        on_login: 'Konten in diesem Browser'
+    flash:
+        not_now: 'Schließen Sie die aktuelle Anmeldung ab, bevor Sie das Konto wechseln.'
+        gone: 'Dieses Konto ist abgemeldet. Melden Sie sich erneut an, um es zu verwenden.'
+        unknown: 'Dieses Konto ist in diesem Browser nicht angemeldet.'
+        switched: 'Sie verwenden jetzt %account%.'
+        full: 'In diesem Browser können keine weiteren Konten hinzugefügt werden. Melden Sie zuerst eines ab.'
+        rate_limited: 'Zu viele Versuche. Versuchen Sie es in einigen Minuten erneut.'
+        signed_out: 'Das Konto wurde abgemeldet.'

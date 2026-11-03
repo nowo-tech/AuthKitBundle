@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use Nowo\AuthKitBundle\Command\PurgeInvitationsCommand;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
@@ -15,11 +16,14 @@ use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
 use Nowo\AuthKitBundle\Invitation\Security\RoleInvitationsAccessChecker;
 use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
+use Nowo\AuthKitBundle\MagicLogin\AdminMagicLinkIssuer;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaAuthenticationSubscriber;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaSessionsSubscriber;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
+use Nowo\AuthKitBundle\MultiAccount\AccountVault;
+use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
@@ -35,11 +39,13 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Security\Http\Event\AuthenticationTokenCreatedEvent;
 use Symfony\Component\Security\Http\Event\CheckPassportEvent;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
+use Symfony\Component\Security\Http\Event\LogoutEvent;
 
 use function array_key_exists;
 use function array_keys;
 use function array_values;
 use function class_exists;
+use function function_exists;
 use function in_array;
 use function is_array;
 use function is_bool;
@@ -169,6 +175,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
         $this->registerInvitations($container, $profiles);
         $this->registerMfa($container, $profiles, $loader, is_array($bundles) ? $bundles : null);
+        $this->registerMultiAccount($container, $profiles, $loader);
 
         if ($config['flash']['twig_filter'] !== true) {
             $container->removeDefinition(AuthKitFlashExtension::class);
@@ -279,6 +286,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                         continue;
                     }
                     $routes['invitations.' . $routeKey] = $route;
+                }
+            }
+            if (($profile['multi_account']['enabled'] ?? false) === true) {
+                foreach ($profile['multi_account']['routes'] as $routeKey => $route) {
+                    $routes['multi_account.' . $routeKey] = $route;
                 }
             }
             if (($profile['mfa']['enabled'] ?? false) === true) {
@@ -397,7 +409,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         if ($registerMapping === false && $needed) {
-            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode and invitations.mode to be "disabled" and mfa.enabled false in every profile (their entities would not be mapped).');
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode and invitations.mode to be "disabled" and mfa.enabled / multi_account.enabled false in every profile (their entities would not be mapped).');
         }
 
         return (bool) $registerMapping;
@@ -418,9 +430,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                     return true;
                 }
             }
-            $mfa = $profile['mfa'] ?? null;
-            if (is_array($mfa) && ($mfa['enabled'] ?? false) === true) {
-                return true;
+            foreach (['mfa', 'multi_account'] as $feature) {
+                $settings = $profile[$feature] ?? null;
+                if (is_array($settings) && ($settings['enabled'] ?? false) === true) {
+                    return true;
+                }
             }
         }
 
@@ -530,6 +544,53 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.security.allow_unauthenticated: true" is a DEV/DEMO setting and is refused when kernel.debug is false.', $name));
             }
         }
+    }
+
+    /**
+     * Several accounts at once (1.34): with at least one `multi_account.enabled` profile, loads `multi_account.yaml`,
+     * the sign-in / sign-out listeners on each multi-account firewall's dispatcher, the gate and presenter locators,
+     * and records admin-issued magic links (they never enrol, D8). libsodium (D6) and UserKit are required; the
+     * firewall data comes from {@see MultiAccountPass}. Nothing is registered otherwise.
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function registerMultiAccount(ContainerBuilder $container, array $profiles, YamlFileLoader $loader): void
+    {
+        $firewalls  = [];
+        $gates      = [];
+        $presenters = [];
+        foreach ($profiles as $name => $profile) {
+            $settings = $profile['multi_account'];
+            if ($settings['enabled'] !== true) {
+                continue;
+            }
+            if (!function_exists('sodium_crypto_aead_xchacha20poly1305_ietf_encrypt')) {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.multi_account" needs the PHP sodium extension (sealed vault entries).', $name)); // @codeCoverageIgnore
+            }
+            $firewalls[$profile['firewall']] = true;
+            if (is_string($settings['enrolment_gate']) && $settings['enrolment_gate'] !== '') {
+                $gates[$name] = new Reference($settings['enrolment_gate']);
+            }
+            if (is_string($settings['presenter']) && $settings['presenter'] !== '') {
+                $presenters[$name] = new Reference($settings['presenter']);
+            }
+        }
+        if ($firewalls === []) {
+            return;
+        }
+        $loader->load('multi_account.yaml');
+        $container->setParameter(MultiAccountPass::FIREWALLS_PARAMETER, array_keys($firewalls));
+        $vault = $container->getDefinition(AccountVault::class);
+        $vault->setArgument('$gates', ServiceLocatorTagPass::register($container, $gates));
+        $vault->setArgument('$presenters', ServiceLocatorTagPass::register($container, $presenters));
+        $subscriber = $container->getDefinition(MultiAccountSubscriber::class);
+        foreach (array_keys($firewalls) as $firewall) {
+            $dispatcher = 'security.event_dispatcher.' . $firewall;
+            $subscriber
+                ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLoginSuccess', 'dispatcher' => $dispatcher, 'priority' => -512])
+                ->addTag('kernel.event_listener', ['event' => LogoutEvent::class, 'method' => 'onLogout', 'dispatcher' => $dispatcher, 'priority' => 32]);
+        }
+        $container->getDefinition(AdminMagicLinkIssuer::class)->setArgument('$issuedLinks', new Reference('cache.app'));
     }
 
     /**

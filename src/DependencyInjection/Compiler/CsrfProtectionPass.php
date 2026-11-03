@@ -15,7 +15,7 @@ use function sprintf;
  * Fails closed when a profile enables a CSRF-dependent flow without form CSRF protection (SEC-004 P2).
  *
  * QR login approval (a signed-in phone approves a desktop challenge), the magic-login confirm interstitial and the
- * invitations (administration actions, acceptance; 1.32) and MFA (challenge, enrolment, step-up, admin reset; 1.34)
+ * invitations (administration actions, acceptance; 1.32) MFA (challenge, enrolment, step-up, admin reset; 1.34) and the account switcher (1.34)
  * are protected by the Symfony form CSRF extension. A host that disables `framework.form.csrf_protection` (or has no CSRF
  * token manager) would silently turn those checks off, letting a third-party page approve an attacker's QR challenge
  * with the victim's session; the container refuses to compile instead.
@@ -55,6 +55,11 @@ final class CsrfProtectionPass implements CompilerPassInterface
             }
             if (($profile['mfa']['enabled'] ?? false) === true) {
                 $feature = sprintf('profiles.%s.mfa', $name);
+
+                break;
+            }
+            if (($profile['multi_account']['enabled'] ?? false) === true) {
+                $feature = sprintf('profiles.%s.multi_account', $name);
 
                 break;
             }

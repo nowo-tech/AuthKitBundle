@@ -41,6 +41,7 @@ the host's own pages, not a page: it uses theme slots only (see [Widgets](#widge
 | Invitation notices (`invitation_invalid`, 1.32) | `security/invitation_invalid.html.twig` | `page/auth` | `AuthPage` without form (`invitation.page.<kind>_title` / `_body`; `invitation_kind` = `invalid`, `expired`, `rate_limited`, `signed_in`, `not_accepted`; root `data-nowo-auth-kit-invitation="<kind>"`) | none |
 | MFA challenge (`mfa_challenge`, 1.34) | `mfa/challenge.html.twig` | `page/auth` | `AuthPage` (`mfa.challenge.*`, form = `MfaCodeFormType`: code, recovery code, trust device); extra variable `mfa_logout_route` | `nowo_ui_auth_fields` (code, `<details>` recovery code, trust device), `nowo_auth_kit_footer_before` (sign out) |
 | MFA forced enrolment (`mfa_setup`, 1.34) | `mfa/setup.html.twig` | `page/auth` | `AuthPage` (`mfa.setup.*`, form = code); extra variables `mfa_enrolment` (`qr`, `secret`, `issuer`, `label`), `mfa_logout_route` | `nowo_ui_auth_fields` (`mfa/_enrolment.html.twig`, then the code) |
+| Account chooser (`accounts_chooser`, 1.34) | `security/accounts_chooser.html.twig` | `page/auth` | `AuthPage` without form (`accounts.chooser.*`, link Continue); extra variable `accounts_switcher` | `nowo_auth_kit_footer_before` (`accounts/_switcher.html.twig`, variant `list`) |
 | MFA recovery codes (`mfa_recovery_codes`, 1.34) | `mfa/recovery_codes.html.twig` | `page/auth` | `AuthPage` without form (`mfa.recovery.*`); extra variables `mfa_codes`, `mfa_continue_form` | `nowo_auth_kit_footer_before` (`mfa/_codes.html.twig` + Continue form) |
 
 Invitation administration pages (1.32, `invitations.admin.templates.*`, layout `invitations.admin.layout_template`
@@ -51,7 +52,9 @@ with `invitations/_cells.html.twig`), `invitations/new.html.twig` (`page/form`, 
 
 MFA pages on the admin layout (1.34, `nowo_ui_kit.layouts.admin`; override with the Twig path): `mfa/account.html.twig`
 (enrolment, disable, new codes, trusted devices; `mfa/_code_form.html.twig`), `mfa/account_codes.html.twig`,
-`mfa/admin_reset.html.twig`; account card partial `mfa/_account.html.twig`. See [MFA.md](MFA.md).
+`mfa/admin_reset.html.twig`; account card partial `mfa/_account.html.twig`. See [MFA.md](MFA.md). Account switcher
+partial for the user menu: `accounts/_switcher.html.twig` (variants `menu` / `list`; [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md));
+the sign-in page lists the browser's accounts (`accounts_switcher`) above the providers.
 
 Root attributes for tests: `data-testid="auth-kit-<page>"` and `data-nowo-auth-kit-page="<page>"` on the scaffold
 root (`[data-nowo-ui-page="auth"]`); the form is `[data-nowo-ui-region="form"]`.

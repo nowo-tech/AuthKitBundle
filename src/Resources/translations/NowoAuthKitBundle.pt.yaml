@@ -320,3 +320,33 @@ mfa:
         flash:
             reset: 'A verificação em dois passos de %user% foi reposta.'
             not_enabled: '%user% não tem verificação em dois passos para repor.'
+accounts:
+    list_label: 'Contas neste navegador'
+    state:
+        active: 'Sessão iniciada (atual)'
+        signed_in: 'Sessão iniciada'
+        signed_out: 'Sessão terminada'
+    action:
+        switch: 'Mudar'
+        resume: 'Iniciar sessão novamente'
+        sign_out: 'Terminar sessão'
+        add: 'Adicionar outra conta'
+        sign_out_all: 'Terminar sessão em todas as contas'
+        manage: 'Gerir contas'
+    notice:
+        other_tab: 'Mudou de conta noutro separador.'
+        reload: 'Recarregar'
+    chooser:
+        title: 'Escolha uma conta'
+        heading: 'Escolha uma conta'
+        intro: 'Contas com sessão iniciada neste navegador. Mudar não pede palavra-passe.'
+        back: 'Continuar'
+        on_login: 'Contas neste navegador'
+    flash:
+        not_now: 'Conclua o início de sessão atual antes de mudar de conta.'
+        gone: 'Essa conta tem a sessão terminada. Inicie sessão novamente para a usar.'
+        unknown: 'Essa conta não tem sessão neste navegador.'
+        switched: 'Está agora a usar %account%.'
+        full: 'Não é possível adicionar mais contas neste navegador. Termine a sessão de uma primeiro.'
+        rate_limited: 'Demasiadas tentativas. Tente novamente dentro de alguns minutos.'
+        signed_out: 'A sessão da conta foi terminada.'

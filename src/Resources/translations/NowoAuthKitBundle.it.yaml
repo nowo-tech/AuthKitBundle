@@ -320,3 +320,33 @@ mfa:
         flash:
             reset: 'La verifica in due passaggi di %user% è stata reimpostata.'
             not_enabled: '%user% non ha una verifica in due passaggi da reimpostare.'
+accounts:
+    list_label: 'Account in questo browser'
+    state:
+        active: 'Connesso (attuale)'
+        signed_in: 'Connesso'
+        signed_out: 'Disconnesso'
+    action:
+        switch: 'Passa'
+        resume: 'Accedi di nuovo'
+        sign_out: 'Esci'
+        add: 'Aggiungi un altro account'
+        sign_out_all: 'Esci da tutti gli account'
+        manage: 'Gestisci account'
+    notice:
+        other_tab: 'Hai cambiato account in un’altra scheda.'
+        reload: 'Ricarica'
+    chooser:
+        title: 'Scegli un account'
+        heading: 'Scegli un account'
+        intro: 'Account connessi in questo browser. Passare da uno all’altro non richiede la password.'
+        back: 'Continua'
+        on_login: 'Account in questo browser'
+    flash:
+        not_now: 'Completa l’accesso in corso prima di cambiare account.'
+        gone: 'Quell’account è disconnesso. Accedi di nuovo per usarlo.'
+        unknown: 'Quell’account non è connesso in questo browser.'
+        switched: 'Ora stai usando %account%.'
+        full: 'Non è possibile aggiungere altri account in questo browser. Esci prima da uno.'
+        rate_limited: 'Troppi tentativi. Riprova tra qualche minuto.'
+        signed_out: 'L’account è stato disconnesso.'

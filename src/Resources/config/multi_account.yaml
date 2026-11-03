@@ -1,0 +1,40 @@
+# Several accounts signed in at once (1.34). Loaded only when a profile sets multi_account.enabled: true
+# (NowoAuthKitExtension::registerMultiAccount()); MultiAccountPass completes the firewall data.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: false
+        public: false
+
+    Nowo\AuthKitBundle\MultiAccount\AccountVaultStore: ~
+
+    Nowo\AuthKitBundle\MultiAccount\AccountVault:
+        public: true
+        arguments:
+            $users: '@security.user_providers'
+            $userCheckers: ~
+            $gates: ~
+            $presenters: ~
+            $dispatcher: '@?event_dispatcher'
+            $logger: '@?logger'
+
+    Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber:
+        arguments:
+            $issuedLinks: '@?cache.app'
+        tags:
+            - { name: kernel.event_listener, event: kernel.response, method: onResponse }
+            - { name: kernel.event_listener, event: Nowo\AuthKitBundle\Mfa\Event\MfaLoginCompletedEvent, method: onMfaCompleted }
+            - { name: kernel.event_listener, event: Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent, method: onSessionsRevoked }
+            - { name: kernel.event_listener, event: Nowo\UserKitBundle\Sessions\Event\UserSessionsDeletedEvent, method: onSessionsDeleted }
+
+    Nowo\AuthKitBundle\MultiAccount\Twig\MultiAccountExtension:
+        public: true
+        tags: [twig.extension]
+
+    Nowo\AuthKitBundle\MultiAccount\Command\PurgeAccountVaultCommand:
+        tags: [console.command]
+
+    Nowo\AuthKitBundle\MultiAccount\Controller\:
+        resource: '../../MultiAccount/Controller/'
+        public: true
+        tags: [controller.service_arguments]

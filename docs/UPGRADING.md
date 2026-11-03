@@ -100,11 +100,12 @@
 
 ## Unreleased
 
-No action unless you enable MFA (`mfa.enabled` stays `false`: no service, route, cookie or listener). Notes:
+No action unless you enable MFA or the account switcher (`mfa.enabled` / `multi_account.enabled` stay `false`: no
+service, route, cookie or listener). Notes:
 
 - **Schema:** the MFA entities live in `src/Entity`, so with the default `doctrine.register_mapping: true` your next
-  `doctrine:migrations:diff` adds `auth_kit_mfa`, `auth_kit_mfa_recovery_code` and `auth_kit_mfa_trusted_device`
-  (empty); `register_mapping: auto` keeps them out until a profile enables MFA. `register_mapping: false` with
+  `doctrine:migrations:diff` adds `auth_kit_mfa`, `auth_kit_mfa_recovery_code`, `auth_kit_mfa_trusted_device` and
+  `auth_kit_account_vault` (empty); `register_mapping: auto` keeps them out until a profile enables a feature. `register_mapping: false` with
   `mfa.enabled: true` is refused.
 - The profile configuration (`nowo_auth_kit.profiles` parameter) gains an `mfa` node and three `web_ui.templates`
   keys.
@@ -122,6 +123,10 @@ To enable MFA ([MFA.md](MFA.md)):
 6. `composer require symfony/lock` (MFA refuses to compile without `lock.factory`; on several hosts use a shared
    store). If your user entity keeps its password hash in another field than `password`, set
    `mfa.trusted_devices.password_field`. Setting up the second factor needs a sign-in within `mfa.recent_sign_in`.
+
+To enable several accounts at once ([MULTI-ACCOUNT.md](MULTI-ACCOUNT.md)): UserKit ≥ 1.11 with sessions on, the PHP
+`sodium` extension, `multi_account.enabled: true`, the migration, `/accounts` reachable anonymously, and the switcher
+partial in your user menu. The normal sign-out then ends every account of the browser (`logout_scope: all`).
 
 ## To 1.33.1
 

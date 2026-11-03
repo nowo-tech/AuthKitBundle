@@ -9,6 +9,8 @@ use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
+use Psr\Cache\CacheItemPoolInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkDetails;
@@ -16,6 +18,12 @@ use Symfony\Component\Security\Http\LoginLink\LoginLinkHandlerInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_intersect;
+use function hash;
+use function is_string;
+use function parse_str;
+use function parse_url;
+
+use const PHP_URL_QUERY;
 
 /**
  * Magic links an administrator issues for another account (support sign-in): shown once to copy ({@see issue()}) or
@@ -32,6 +40,9 @@ final class AdminMagicLinkIssuer
 {
     public const DEFAULT_LIFETIME = 3600;
 
+    /** Cache key prefix of the admin-issued link signatures (multi-account, D8). */
+    public const ISSUED_PREFIX = 'auth_kit_admin_link_';
+
     /**
      * @param list<string> $protectedRoles
      */
@@ -46,7 +57,19 @@ final class AdminMagicLinkIssuer
         private readonly array $protectedRoles = ['ROLE_ADMIN', 'ROLE_SUPER_ADMIN'],
         private readonly ?LoginLinkHandlerLocator $loginLinkHandlers = null,
         private readonly ?ProfileRegistry $profileRegistry = null,
+        private readonly ?CacheItemPoolInterface $issuedLinks = null,
     ) {
+    }
+
+    /**
+     * Whether the request carries an admin-issued link (1.34, recorded only when `multi_account` is enabled: such a
+     * link signs in but never adds an account to a browser's switcher, D8).
+     */
+    public static function isAdminIssued(CacheItemPoolInterface $issuedLinks, Request $request): bool
+    {
+        $hash = $request->query->get('hash') ?? $request->request->get('hash');
+
+        return is_string($hash) && $hash !== '' && $issuedLinks->hasItem(self::ISSUED_PREFIX . hash('sha256', $hash));
     }
 
     public function lifetime(): int
@@ -107,13 +130,25 @@ final class AdminMagicLinkIssuer
             throw new AdminMagicLinkRefusedException(AdminMagicLinkRefusedException::NOT_CONFIGURED);
         }
 
-        return (new MagicLinkFactory($this->absoluteUrlGenerator))->create(
+        $link = (new MagicLinkFactory($this->absoluteUrlGenerator))->create(
             $loginLinkHandler,
             $target,
             $this->requestStack->getCurrentRequest(),
             $locale,
             $this->lifetime,
         );
+        if ($this->issuedLinks instanceof CacheItemPoolInterface) {
+            parse_str((string) parse_url($link->getUrl(), PHP_URL_QUERY), $query);
+            $hash = $query['hash'] ?? null;
+            if (is_string($hash) && $hash !== '') {
+                $item = $this->issuedLinks->getItem(self::ISSUED_PREFIX . hash('sha256', $hash));
+                $item->set(true);
+                $item->expiresAfter($this->lifetime);
+                $this->issuedLinks->save($item);
+            }
+        }
+
+        return $link;
     }
 
     /** SEC-004 L2: the login link handler of the firewall of the target's profile. */

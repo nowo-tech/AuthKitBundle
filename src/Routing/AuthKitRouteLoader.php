@@ -32,6 +32,7 @@ use Nowo\AuthKitBundle\Enum\UnlocalizedLocaleMode;
 use Nowo\AuthKitBundle\Mfa\Controller\MfaAccountController;
 use Nowo\AuthKitBundle\Mfa\Controller\MfaAdminController;
 use Nowo\AuthKitBundle\Mfa\Controller\MfaChallengeController;
+use Nowo\AuthKitBundle\MultiAccount\Controller\AccountsController;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use ReflectionMethod;
 use Symfony\Component\Config\Loader\Loader;
@@ -159,6 +160,17 @@ final class AuthKitRouteLoader extends Loader
                     $this->addControllerRoute($collection, $invitationRoutes[$action], InvitationAdminController::class, $action, $profileDefaults);
                 }
             }
+        }
+
+        // Several accounts (1.34): opt-in, registered only with multi_account.enabled.
+        if (($profile['multi_account']['enabled'] ?? false) === true) {
+            /** @var array<string, array{path: string, name: string}> $accountRoutes */
+            $accountRoutes = $profile['multi_account']['routes'];
+            $this->addControllerRoute($collection, $accountRoutes['chooser'], AccountsController::class, 'chooser', $profileDefaults);
+            $this->addControllerRoute($collection, $accountRoutes['add'], AccountsController::class, 'add', $profileDefaults);
+            $this->addControllerRoute($collection, $accountRoutes['switch'], AccountsController::class, 'switch', $profileDefaults);
+            $this->addControllerRoute($collection, $accountRoutes['sign_out'], AccountsController::class, 'signOut', $profileDefaults);
+            $this->addControllerRoute($collection, $accountRoutes['sign_out_all'], AccountsController::class, 'signOutAll', $profileDefaults);
         }
 
         // MFA (1.34): opt-in, registered only with mfa.enabled; the admin reset page only with mfa.admin.routes.
