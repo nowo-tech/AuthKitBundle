@@ -1,0 +1,10 @@
+# UserKit sessions (1.11): one registry row per signed-in browser and account, "My sessions" page, remember-me epoch.
+# Required by AuthKit multi_account; also follows AuthKit MFA (pending sign-ins are registered once complete).
+nowo_user_kit:
+    user_class: App\Entity\User
+    sessions:
+        enabled: true
+        remember_me_epoch:
+            enabled: true
+        web_ui:
+            enabled: true

@@ -9,6 +9,13 @@
     <div class="d-flex flex-wrap gap-2 mt-4">
         <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
         {% if is_granted('ROLE_ADMIN') %}<a href="{{ path('nowo_auth_kit_invitations', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm" data-testid="demo-invitations">{{ 'invitation.index.title'|trans({}, 'NowoAuthKitBundle') }}</a>{% endif %}
+        <a href="{{ path('nowo_auth_kit_mfa_account', auth_kit_route_params()) }}" class="btn btn-outline-primary btn-sm" data-testid="demo-mfa">{{ 'mfa.account.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_user_kit_sessions') }}" class="btn btn-outline-primary btn-sm" data-testid="demo-sessions">Sessions</a>
         <a href="{{ path('nowo_auth_kit_logout', auth_kit_route_params()) }}" class="btn btn-outline-secondary btn-sm">{{ 'demo.home.logout'|trans({}, 'demo') }}</a>
     </div>
+    {# 1.34: the account switcher of the avatar menu (AuthKit multi_account) and the two-step verification card. #}
+    <section class="mt-4" aria-label="Accounts" data-testid="demo-accounts">
+        {{ include('@NowoAuthKitBundle/accounts/_switcher.html.twig', {target_path: path('demo_home', auth_kit_route_params())}) }}
+    </section>
+    <div class="mt-4">{{ include('@NowoAuthKitBundle/mfa/_account.html.twig') }}</div>
 {% endblock %}

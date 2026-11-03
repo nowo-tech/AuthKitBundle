@@ -13,6 +13,8 @@ use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
+use function chr;
+
 /**
  * Account switcher edge cases (1.34): chooser and sign-in page, signing the active account out, token reuse, expiry,
  * revival through remember-me, host veto, rate limits, full browser, impersonation, purge.
@@ -82,6 +84,22 @@ final class MultiAccountEdgeKernelTest extends MultiAccountKernelTestCase
         $this->clock()->modify('+31 days');
         self::assertSame([], $this->accounts());
         self::assertSame(AccountRemovalReason::Expired, $this->eventsOf(AccountRemovedEvent::class)[0]->reason);
+    }
+
+    public function testUnknownTokensAreRateLimitedPerClient(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->add();
+        $this->signIn('admin@example.com', 'admin-password-123');
+        $good = (string) $this->vaultCookie();
+        for ($i = 0; $i < 20; ++$i) {
+            $this->client->getCookieJar()->expire('nowo_auth_kit_accounts');
+            $this->client->getCookieJar()->set(new Cookie('nowo_auth_kit_accounts', $good . '.' . str_repeat(chr(65 + $i), 43), null, '/', 'localhost'));
+            $this->menu();
+        }
+        $this->client->getCookieJar()->expire('nowo_auth_kit_accounts');
+        $this->client->getCookieJar()->set(new Cookie('nowo_auth_kit_accounts', $good, null, '/', 'localhost'));
+        self::assertSame([], $this->accounts(), 'Over the limit the vault is ignored for this client.');
     }
 
     public function testAnExpiredParkedSessionComesBackThroughItsRememberMeCookie(): void

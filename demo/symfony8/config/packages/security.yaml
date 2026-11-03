@@ -15,6 +15,12 @@ security:
         main:
             lazy: true
             provider: app_user_provider
+            # Demo: accounts with ROLE_DISABLED are refused (sign-in and account switch).
+            user_checker: App\Security\DemoUserChecker
+            remember_me:
+                secret: '%kernel.secret%'
+                remember_me_parameter: login_form[_remember_me]
+                signature_properties: [password]
             form_login:
                 login_path: nowo_auth_kit_login
                 check_path: nowo_auth_kit_login
@@ -39,6 +45,11 @@ security:
                 default_target_path: demo_home
 
     access_control:
+        # 1.34: account chooser and switch (also for a browser whose active session ended); MFA challenge under /login.
+        - { path: ^/((en|es)/)?accounts, roles: PUBLIC_ACCESS }
+        - { path: ^/_demo/, roles: PUBLIC_ACCESS }
+        - { path: ^/((en|es)/)?account/, roles: ROLE_USER }
+        - { path: ^/(en|es)/admin/mfa, roles: ROLE_ADMIN }
         - { path: ^/(en|es)/login, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/register, roles: PUBLIC_ACCESS }
         - { path: ^/(en|es)/reset-password, roles: PUBLIC_ACCESS }
