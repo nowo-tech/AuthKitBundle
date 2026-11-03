@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Tests\Stub\PreferredLocaleTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -132,6 +133,20 @@ final class AdminMagicLinkIssuerTest extends TestCase
         self::assertSame('https://example.test/login/magic/check?u=1', $contexts[0]->loginUrl);
         self::assertEquals($expires, $contexts[0]->expiresAt);
         self::assertSame('alias@example.com', $contexts[1]->identifier);
+    }
+
+    public function testIssuedLinksAreRecordedForTheAccountSwitcher(): void
+    {
+        $cache   = new ArrayAdapter();
+        $handler = $this->createMock(LoginLinkHandlerInterface::class);
+        $handler->method('createLoginLink')->willReturn(new LoginLinkDetails('https://example.test/login/magic/check?user=m&expires=1&hash=abc123', new DateTimeImmutable('+1 hour')));
+        $issuer = new AdminMagicLinkIssuer(new NullMagicLoginNotifier(), new RequestStack(), $handler, issuedLinks: $cache);
+        $issuer->issue($this->user('admin@example.com', ['ROLE_ADMIN']), $this->user('member@example.com', ['ROLE_USER']));
+
+        self::assertTrue(AdminMagicLinkIssuer::isAdminIssued($cache, Request::create('/login/magic/check?hash=abc123')));
+        self::assertTrue(AdminMagicLinkIssuer::isAdminIssued($cache, Request::create('/login/magic/check', 'POST', ['hash' => 'abc123'])));
+        self::assertFalse(AdminMagicLinkIssuer::isAdminIssued($cache, Request::create('/login/magic/check?hash=other')));
+        self::assertFalse(AdminMagicLinkIssuer::isAdminIssued($cache, Request::create('/login')));
     }
 
     private function handler(int $lifetime): LoginLinkHandlerInterface
