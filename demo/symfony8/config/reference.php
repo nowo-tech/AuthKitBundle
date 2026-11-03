@@ -1398,6 +1398,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     css_framework?: "bootstrap"|"bootstrap5"|"bootstrap4"|"tailwind"|"foundation"|"custom"|"tabler"|"none"|Param, // Host CSS stack: bootstrap5|bootstrap4|tailwind|foundation|custom|none|tabler (bootstrap alias → bootstrap5). // Default: "bootstrap5"
  *     icon_set?: "bootstrap-icons"|"tabler-icons"|"ux_icon"|"svg_inline"|"none"|Param, // Icon rendering: bootstrap-icons|tabler-icons|ux_icon|svg_inline|none. // Default: "bootstrap-icons"
  *     row_actions_display?: "icon"|"text"|"icon_text"|Param, // Table/list row actions: icon (glyph only) | text (label only) | icon_text (both). // Default: "icon"
+ *     row_actions_confirm?: "inline"|"native"|"dialog"|Param, // confirm_message of 1.x row_actions POST hashes (2.22, REQ-UI-003): inline = onsubmit="return confirm(…)" (default, unchanged markup); native | dialog = no inline handler, the confirm-submit Stimulus peer asks (window.confirm or the kit <dialog>). native / dialog need the confirm-submit peer registered. // Default: "inline"
  *     panel_path_rewrites?: array<string, scalar|Param|null>,
  *     release_check?: array{ // Optional GitHub release-version checker (footer dialog + JSON endpoint). Off by default.
  *         enabled?: bool|Param, // Register the checker service + controller. Also import @NowoUiKitBundle/Resources/config/routes/release_check.yaml. // Default: false
@@ -1406,6 +1407,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         cache_ttl?: int|Param, // Seconds to cache the GitHub answer (cache.app). Default 12h. // Default: 43200
  *         default_branch?: scalar|Param|null, // Branch used as compare target when the installed version is already the latest. // Default: "main"
  *         user_agent?: scalar|Param|null, // User-Agent sent to api.github.com. // Default: "nowo-ui-kit-release-check"
+ *         timeout?: float|Param, // Idle timeout in seconds of the GitHub "releases/latest" request (HttpClient "timeout"). Keep it below PHP max_execution_time (REQ-RUNTIME-001). // Default: 5.0
+ *         releases_timeout?: float|Param, // Idle timeout in seconds of the GitHub "releases" listing used to count versions behind. Keep it below PHP max_execution_time (REQ-RUNTIME-001). // Default: 8.0
  *     },
  *     route_links?: array{ // Route (or route prefix) → link map read by nowo_ui_route_link(), e.g. for the page-edge "manual" tab (partials/_edge_tab.html.twig). A prefix matches the route itself or any route starting with "<prefix>_"; the longest prefix wins.
  *         base_url?: scalar|Param|null, // Prepended to every relative path (paths starting with "/", "//", "http://" or "https://" are used as is). // Default: ""
@@ -1623,6 +1626,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 qr_login_approve?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/qr_login_approve.html.twig"
  *                 invitation_accept?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/invitation_accept.html.twig"
  *                 invitation_invalid?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/invitation_invalid.html.twig"
+ *                 mfa_challenge?: scalar|Param|null, // Default: "@NowoAuthKitBundle/mfa/challenge.html.twig"
+ *                 mfa_setup?: scalar|Param|null, // Default: "@NowoAuthKitBundle/mfa/setup.html.twig"
+ *                 mfa_recovery_codes?: scalar|Param|null, // Default: "@NowoAuthKitBundle/mfa/recovery_codes.html.twig"
+ *                 accounts_chooser?: scalar|Param|null, // Default: "@NowoAuthKitBundle/security/accounts_chooser.html.twig"
  *             },
  *             form_themes?: Param|null|string|list<scalar|Param|null>,
  *             brand?: scalar|Param|null, // Brand line printed above the panel heading (AuthPage::brand; plain text, null = none). // Default: null
@@ -1643,6 +1650,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             qr_login_approve?: scalar|Param|null, // Deprecated: The "qr_login_approve" option at "nowo_auth_kit.profiles..templates.qr_login_approve" is deprecated, use "web_ui.templates.qr_login_approve".
  *             invitation_accept?: scalar|Param|null, // Deprecated: The "invitation_accept" option at "nowo_auth_kit.profiles..templates.invitation_accept" is deprecated, use "web_ui.templates.invitation_accept".
  *             invitation_invalid?: scalar|Param|null, // Deprecated: The "invitation_invalid" option at "nowo_auth_kit.profiles..templates.invitation_invalid" is deprecated, use "web_ui.templates.invitation_invalid".
+ *             mfa_challenge?: scalar|Param|null, // Deprecated: The "mfa_challenge" option at "nowo_auth_kit.profiles..templates.mfa_challenge" is deprecated, use "web_ui.templates.mfa_challenge".
+ *             mfa_setup?: scalar|Param|null, // Deprecated: The "mfa_setup" option at "nowo_auth_kit.profiles..templates.mfa_setup" is deprecated, use "web_ui.templates.mfa_setup".
+ *             mfa_recovery_codes?: scalar|Param|null, // Deprecated: The "mfa_recovery_codes" option at "nowo_auth_kit.profiles..templates.mfa_recovery_codes" is deprecated, use "web_ui.templates.mfa_recovery_codes".
+ *             accounts_chooser?: scalar|Param|null, // Deprecated: The "accounts_chooser" option at "nowo_auth_kit.profiles..templates.accounts_chooser" is deprecated, use "web_ui.templates.accounts_chooser".
  *             form_theme?: Param|string|list<scalar|Param|null>,
  *         },
  *         css?: array{ // Deprecated since 1.27: buttons use the UiKit btn_primary / btn_secondary slots (nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes).
@@ -1713,6 +1724,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             lock_email?: bool|Param, // true: the invited e-mail is pre-filled and read-only on the accept page (enforced server-side). false: pre-filled, the invitee may register another address. // Default: true
  *             email_field?: scalar|Param|null, // Registration field that receives the invited e-mail. null: the field whose property is user_identifier_field, else the field named "email". // Default: null
  *             roles?: list<scalar|Param|null>,
+ *             registration_role?: scalar|Param|null, // Base role of an account created from an invitation (1.33), instead of the profile registration_role (e.g. when registration_role is ROLE_ADMIN for the first user). null: registration_role. // Default: null
+ *             merge_key?: scalar|Param|null, // Payload key that, with the e-mail, identifies the open invitation a re-invite updates (1.33), e.g. "organization": one open invitation per (e-mail, payload[merge_key]). null: one open invitation per e-mail. // Default: null
+ *             payload_merge?: "replace"|"deep"|Param, // How a re-invite merges its payload into the open invitation (1.33). replace: top-level keys replaced (1.32). deep: maps merged recursively, lists unioned. // Default: "replace"
+ *             admin_routes?: bool|Param, // false: the administration routes (index, new, resend, revoke) are not registered, for hosts with their own invitation UI (1.33). The accept route stays. // Default: true
  *             show_link_when_undelivered?: bool|Param, // When the e-mail cannot be sent (no mailer, transport error), show the link once to the inviter (no-store page). false: report "not sent" and keep the link secret. // Default: false
  *             purge_after_days?: int|Param, // nowo:auth-kit:invitations:purge deletes revoked and expired invitations older than this. // Default: 90
  *             invite_rate_limit?: int|Param, // Invitations created or resent per inviter and invite_rate_window. // Default: 20
@@ -1760,6 +1775,147 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 revoke?: array{
  *                     path?: scalar|Param|null, // Default: "/admin/invitations/{id}/revoke"
  *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_invitations_revoke"
+ *                 },
+ *             },
+ *         },
+ *         mfa?: array{ // Native two-factor authentication (1.34): TOTP + recovery codes, trusted devices, role policy. Off by default.
+ *             enabled?: bool|Param, // false: no MFA service, route, entity (register_mapping: auto), cookie or listener for this profile. // Default: false
+ *             issuer?: scalar|Param|null, // Name shown in authenticator apps (otpauth issuer). Required when enabled. // Default: null
+ *             require_encryption?: bool|Param, // true: the container refuses to compile unless nowo-tech/doctrine-encrypt-bundle is registered (the TOTP secret is #[Encrypted]). Set false only for tests / demos. // Default: true
+ *             totp?: array{
+ *                 digits?: int|Param, // Default: 6
+ *                 period?: int|Param, // Default: 30
+ *                 window?: int|Param, // Accepted clock skew in time steps on each side (RFC 6238 §5.2). // Default: 1
+ *             },
+ *             recovery_codes?: array{
+ *                 count?: int|Param, // Default: 10
+ *                 low_warning?: int|Param, // The account page warns when this many unused codes or fewer are left. // Default: 3
+ *             },
+ *             required_roles?: list<scalar|Param|null>,
+ *             policy?: scalar|Param|null, // Service id of a Mfa\MfaPolicyInterface (host rules, e.g. organisations that require MFA), asked after required_roles. // Default: null
+ *             grace_period?: int|Param, // Seconds a required user may still sign in without MFA (from the first such sign-in); 0 = enrol at the next sign-in. // Default: 604800
+ *             pending_lifetime?: int|Param, // Seconds a sign-in may wait for its second step. // Default: 300
+ *             max_attempts?: int|Param, // Wrong codes per pending sign-in; then the sign-in ends (the session is invalidated). // Default: 5
+ *             rate_limit?: array{
+ *                 account?: array{
+ *                     limit?: int|Param, // Default: 10
+ *                     window?: int|Param, // Default: 900
+ *                 },
+ *                 ip?: array{
+ *                     limit?: int|Param, // Default: 30
+ *                     window?: int|Param, // Default: 900
+ *                 },
+ *             },
+ *             first_factors?: array{ // Second step per first factor: required | exempt (D-M9: qr exempt, the rest required). Exempt never skips forced enrolment.
+ *                 form_login?: "required"|"exempt"|Param, // Default: "required"
+ *                 login_link?: "required"|"exempt"|Param, // Default: "required"
+ *                 qr?: "required"|"exempt"|Param, // Default: "exempt"
+ *                 social?: "required"|"exempt"|Param, // Default: "required"
+ *                 registration?: "required"|"exempt"|Param, // Default: "required"
+ *                 invitation?: "required"|"exempt"|Param, // Default: "required"
+ *                 default?: "required"|"exempt"|Param, // Default: "required"
+ *             },
+ *             remember_me?: "trusted"|"challenge"|Param, // trusted (D-M6): a remember-me sign-in is not challenged (its cookie is only issued after the second step). challenge: challenge it unless the device is trusted. // Default: "trusted"
+ *             trusted_devices?: array{
+ *                 lifetime?: int|Param, // Seconds a trusted device skips the second step (0 = no "trust this device" option). // Default: 2592000
+ *                 max?: int|Param, // Trusted devices per user when UserKit gives no maxTrustedDevices (the least recently used one is forgotten). // Default: 5
+ *             },
+ *             allowed_routes?: list<scalar|Param|null>,
+ *             hash_secret?: scalar|Param|null, // HMAC key of recovery codes and trusted-device tokens (null: %kernel.secret% when enabled). // Default: null
+ *             admin?: array{
+ *                 routes?: bool|Param, // true: register the admin reset page (D-M10: off by default; MfaManager::reset() is the PHP API). // Default: false
+ *                 access_roles?: list<scalar|Param|null>,
+ *             },
+ *             routes?: array{ // Paths and names of the MFA routes (registered only with enabled: true; admin_reset only with admin.routes: true).
+ *                 challenge?: array{
+ *                     path?: scalar|Param|null, // Default: "/login/mfa"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_mfa_challenge"
+ *                 },
+ *                 setup?: array{
+ *                     path?: scalar|Param|null, // Default: "/login/mfa/setup"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_mfa_setup"
+ *                 },
+ *                 account?: array{
+ *                     path?: scalar|Param|null, // Default: "/account/security/mfa"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_mfa_account"
+ *                 },
+ *                 enable?: array{
+ *                     path?: scalar|Param|null, // Default: "/account/security/mfa/enable"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_mfa_enable"
+ *                 },
+ *                 disable?: array{
+ *                     path?: scalar|Param|null, // Default: "/account/security/mfa/disable"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_mfa_disable"
+ *                 },
+ *                 recovery_codes?: array{
+ *                     path?: scalar|Param|null, // Default: "/account/security/mfa/recovery-codes"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_mfa_recovery_codes"
+ *                 },
+ *                 forget_device?: array{
+ *                     path?: scalar|Param|null, // Default: "/account/security/mfa/devices/{device}/forget"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_mfa_forget_device"
+ *                 },
+ *                 admin_reset?: array{
+ *                     path?: scalar|Param|null, // Default: "/admin/mfa/{user}"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_mfa_admin_reset"
+ *                 },
+ *             },
+ *         },
+ *         multi_account?: array{ // Several accounts signed in at once with an account switcher (1.34). Off by default; needs UserKit >= 1.11 sessions.
+ *             enabled?: bool|Param, // Default: false
+ *             max_accounts?: int|Param, // Accounts one browser may hold. // Default: 5
+ *             max_lifetime?: int|Param, // Seconds an account stays in the switcher after its last full sign-in in this browser (D10: 30 days). // Default: 2592000
+ *             logout_scope?: "all"|"current"|Param, // What the firewall sign-out ends: all (D2, every account of the browser) or current (the active account; the chooser follows). // Default: "all"
+ *             revive_with_remember_me?: bool|Param, // Switching to an account whose parked session expired restores its own remember-me cookie (D9). // Default: true
+ *             after_switch?: scalar|Param|null, // Route after a switch; null: the profile login_success_route. // Default: null
+ *             rotation_grace?: int|Param, // Seconds a rotated vault token is still accepted (concurrent tabs); later it counts as reuse (theft). // Default: 30
+ *             hash_secret?: scalar|Param|null, // HMAC key of the vault tokens (null: %kernel.secret% when enabled). // Default: null
+ *             cookie?: array{
+ *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_accounts"
+ *                 lifetime?: int|Param, // null (D3): a browser-session cookie; seconds: persistent. // Default: null
+ *                 samesite?: "lax"|"strict"|Param, // Default: "lax"
+ *             },
+ *             chooser?: array{
+ *                 on_login_page?: bool|Param, // Default: true
+ *                 identifier_display?: "full"|"masked"|"none"|Param, // What the login-page chooser shows next to the name (D4: masked e-mail). // Default: "masked"
+ *                 cross_tab_notice?: bool|Param, // D7 (opt-in): other tabs show "you switched account" after a switch. // Default: false
+ *             },
+ *             rate_limit?: array{
+ *                 switch?: array{
+ *                     limit?: int|Param, // Default: 30
+ *                     window?: int|Param, // Default: 600
+ *                 },
+ *                 add?: array{
+ *                     limit?: int|Param, // Default: 10
+ *                     window?: int|Param, // Default: 3600
+ *                 },
+ *                 invalid?: array{
+ *                     limit?: int|Param, // Default: 20
+ *                     window?: int|Param, // Default: 600
+ *                 },
+ *             },
+ *             enrolment_gate?: scalar|Param|null, // Service id of a MultiAccount\EnrolmentGateInterface; null: a sign-in is complete once AuthKit MFA (if any) passed. // Default: null
+ *             presenter?: scalar|Param|null, // Service id of a MultiAccount\AccountPresenterInterface (name, secondary line, avatar); null: the identifier. // Default: null
+ *             routes?: array{ // Paths and names of the account-switcher routes (registered only with enabled: true).
+ *                 chooser?: array{
+ *                     path?: scalar|Param|null, // Default: "/accounts"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_accounts"
+ *                 },
+ *                 add?: array{
+ *                     path?: scalar|Param|null, // Default: "/accounts/add"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_accounts_add"
+ *                 },
+ *                 switch?: array{
+ *                     path?: scalar|Param|null, // Default: "/accounts/{account}/switch"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_accounts_switch"
+ *                 },
+ *                 sign_out?: array{
+ *                     path?: scalar|Param|null, // Default: "/accounts/{account}/sign-out"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_accounts_sign_out"
+ *                 },
+ *                 sign_out_all?: array{
+ *                     path?: scalar|Param|null, // Default: "/accounts/sign-out-all"
+ *                     name?: scalar|Param|null, // Default: "nowo_auth_kit_accounts_sign_out_all"
  *                 },
  *             },
  *         },
@@ -1843,10 +1999,121 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         enabled?: list<scalar|Param|null>,
  *         unlocalized?: "serve"|"redirect"|Param, // When in_path=both: serve bare URLs with default locale, or redirect to /{default}/… // Default: "redirect"
  *         unlocalized_route_suffix?: scalar|Param|null, // When in_path=both: suffix appended to each route name for its bare (unlocalized) twin, e.g. ".default" names it "<route>.default". // Default: "_unlocalized"
+ *         localized_logout_redirect?: bool|Param, // 1.32.2, opt-in. When in_path=both and unlocalized=serve: redirect /{_locale}/logout to the bare logout URL (query string kept) so a firewall whose logout.path is the bare twin intercepts both. // Default: false
  *     },
  *     default_locale?: scalar|Param|null, // Deprecated: use locale.default. // Default: "en"
  *     enabled_locales?: list<scalar|Param|null>,
  *     locale_in_path?: mixed, // Deprecated: use locale.in_path (never|always|both). Bool true/false still accepted. // Default: false
+ *     ...<string, mixed>
+ * }
+ * @psalm-type NowoUserKitConfig = array{
+ *     default_profile?: scalar|Param|null, // Profile name used when no profile is specified explicitly. // Default: "default"
+ *     profiles?: array<string, array{ // Default: []
+ *         user_class?: scalar|Param|null, // FQCN of the application user entity for this profile. // Default: null
+ *         account_status?: array{
+ *             enabled?: bool|Param, // Register AccountStatusUserChecker for this profile when true. // Default: true
+ *             field?: scalar|Param|null, // Default: "enabled"
+ *             invalidate_sessions_on_disable?: bool|Param, // Default: false
+ *         },
+ *         last_activity?: array{
+ *             enabled?: bool|Param, // Default: false
+ *             field?: scalar|Param|null, // Default: "lastActivityAt"
+ *             online_threshold?: int|Param, // Default: 300
+ *             update_throttle?: int|Param, // Default: 30
+ *         },
+ *     }>,
+ *     twig?: bool|Param, // Register the user_is_online and user_ui_html_attributes Twig helpers when Twig is installed. // Default: true
+ *     personal_data?: array{ // GDPR self-service SPI: PersonalDataExporter / PersonalDataEraser and their tagged providers, erasers and guards.
+ *         enabled?: bool|Param, // Register the exporter, the eraser and autoconfigure the provider / eraser / guard interfaces. // Default: false
+ *         schema?: scalar|Param|null, // Value of the "schema" key of the export document. // Default: "nowo-user-kit/personal-data"
+ *         version?: int|Param, // Value of the "version" key of the export document (bump it when the document shape changes). // Default: 1
+ *         builtin_providers?: bool|Param, // Register the account_status, last_activity, ui_preferences and product_tour export sections. // Default: true
+ *         builtin_erasers?: bool|Param, // Register the last_activity, ui_preferences and product_tour erasers. // Default: true
+ *     },
+ *     sessions?: array{ // Session registry: one row per signed-in session (list, revoke one / others / all, concurrent-session limit). Off by default.
+ *         enabled?: bool|Param, // Register the registry, its request / login / logout listeners and the purge command (needs the user_kit_session table). // Default: false
+ *         hash_secret?: scalar|Param|null, // HMAC key of the stored session id hashes (and of the "hash" IP mode). After a change, each row is re-keyed on the next request of its session. // Default: "%kernel.secret%"
+ *         idle_lifetime?: int|Param, // Seconds after which an idle session is expired (keep it >= framework.session.gc_maxlifetime). Expired sessions are signed out and purged. // Default: 86400
+ *         touch_interval?: int|Param, // Write last_seen_at at most once per this many seconds per session. // Default: 300
+ *         remember_me_cookies?: list<scalar|Param|null>,
+ *         flash?: bool|Param, // Add a "You were signed out because…" warning flash to the browser of a revoked session. // Default: true
+ *         remember_me_epoch?: array{ // Per-user remember-me epoch: revokeAll / revokeOthers refuse every remember-me cookie issued before them (built-in signature and persistent handlers). Off by default.
+ *             enabled?: bool|Param, // Bump the epoch on revokeAll / revokeOthers and check it on remember-me sign-in (needs the user_kit_session_epoch table, or store). // Default: false
+ *             store?: scalar|Param|null, // Service id implementing Sessions\Epoch\SessionEpochStoreInterface (null = the bundle table user_kit_session_epoch). // Default: null
+ *         },
+ *         early_check?: array{
+ *             json_response?: bool|Param, // XHR / Accept: application/json requests of a revoked, missing or idle session get 401 {"error":"session_signed_out"} from the early check instead of going on as a guest. // Default: false
+ *         },
+ *         purge?: array{
+ *             revoked_retention?: int|Param, // Seconds a revoked row is kept by sessions:purge (null = like the other rows: idle_lifetime + touch_interval after its last activity). // Default: null
+ *         },
+ *         user_removal?: array{
+ *             delete_sessions?: bool|Param, // Delete the registry rows (and remember-me epoch) of a profile user removed through Doctrine (the table has no foreign key). // Default: false
+ *         },
+ *         revocation?: array{
+ *             store?: "database"|"cache"|Param, // database: one indexed query per signed-in request, works everywhere. cache: no query; needs a pool shared by every web server (cache_pool); touch_interval is then the worst-case revocation delay. // Default: "database"
+ *             cache_pool?: scalar|Param|null, // PSR-6 pool service id of the "cache" store, shared by every web server (e.g. a Redis or Memcached pool). Required with store: cache; per-server pools (filesystem, array, APCu, PHP files) are refused. // Default: null
+ *         },
+ *         client?: array{ // What is kept about the client (data minimisation).
+ *             user_agent?: "label"|"none"|Param, // label: browser and OS names only (no versions, no raw user agent). none: nothing. // Default: "label"
+ *             ip?: "truncate"|"hash"|"none"|Param, // truncate: the network (ipv4_prefix / ipv6_prefix). hash: keyed HMAC of that network (not shown). none: nothing. // Default: "truncate"
+ *             ipv4_prefix?: 8|16|24|Param, // Default: 24
+ *             ipv6_prefix?: 8|16|24|32|40|48|56|64|Param, // Default: 48
+ *             device_id_resolver?: scalar|Param|null, // Service id implementing Sessions\Client\DeviceIdResolverInterface (optional device id per session). // Default: null
+ *         },
+ *         limit?: array{ // Concurrent-session limit applied at sign-in.
+ *             max_sessions?: int|Param, // Live sessions a user may hold at once (null = unlimited). // Default: null
+ *             policy?: "evict_oldest"|"reject_new"|Param, // evict_oldest: sign the least recently active sessions out. reject_new: refuse the sign-in. // Default: "evict_oldest"
+ *             max_trusted_devices?: int|Param, // Trusted devices a user may keep (null = unlimited). Not enforced by the bundle: carried in SessionLimit for the host that keeps trusted devices. // Default: null
+ *             resolver?: scalar|Param|null, // Service id implementing Sessions\Limit\SessionLimitResolverInterface (per-user limits); replaces max_sessions / policy / max_trusted_devices. // Default: null
+ *         },
+ *         password_change?: array{
+ *             revoke_sessions?: bool|Param, // Sign out the other sessions of a profile user whose password field changes (Doctrine preUpdate). // Default: true
+ *             field?: scalar|Param|null, // Mapped password field of the profile user classes. // Default: "password"
+ *         },
+ *         doctrine?: array{
+ *             table_prefix?: scalar|Param|null, // Prefix of the bundle table and index names (e.g. "app_" → app_user_kit_session). // Default: ""
+ *             entity_manager?: scalar|Param|null, // Entity manager that maps the registry entity (null = the default one). // Default: null
+ *         },
+ *         web_ui?: array{ // Session pages (UiKit list scaffold, FormKit CSRF-only actions). Mount them with the nowo_user_kit_sessions route loader.
+ *             enabled?: bool|Param, // Register the "My sessions" and administration pages (needs Twig, UiKit, FormKit and form CSRF). // Default: false
+ *             path_prefix?: scalar|Param|null, // URL prefix of "My sessions" (a signed-in area of the firewall). // Default: "/account/sessions"
+ *             admin?: bool|Param, // Register the administration page of the sessions of a user. // Default: true
+ *             admin_path_prefix?: scalar|Param|null, // URL prefix of the administration page; protect it with security.access_control in the host. // Default: "/admin/user-sessions"
+ *             layout_template?: scalar|Param|null, // Layout the pages extend (null = nowo_ui_kit.layouts.admin). // Default: null
+ *             templates?: array{ // Per-page template overrides: index, admin.
+ *                 index?: scalar|Param|null, // Default: null
+ *                 admin?: scalar|Param|null, // Default: null
+ *             },
+ *         },
+ *         security?: array{ // REQ-UI-002 access to the session pages.
+ *             access_roles?: list<scalar|Param|null>,
+ *             manage_roles?: list<scalar|Param|null>,
+ *             access_checker?: scalar|Param|null, // Service id implementing Sessions\Security\SessionsAccessCheckerInterface (replaces the role checks). // Default: null
+ *             allow_unauthenticated?: bool|Param, // DEV / DEMO only (refused unless kernel.debug): skip the role checks. // Default: false
+ *         },
+ *     },
+ *     ...<string, mixed>
+ * }
+ * @psalm-type NowoDoctrineEncryptConfig = array{
+ *     connections?: Param|string|list<scalar|Param|null>,
+ *     default_profile?: scalar|Param|null, // Profile name to use when #[Encrypted] has no alias or uses "default". // Default: "default"
+ *     on_decrypt_failure?: "keep"|"null"|"throw"|Param, // What an #[Encrypted] property gets when its stored value cannot be decrypted (wrong or rotated key, corrupted ciphertext): "keep" = the raw ciphertext (2.x default, callers may take it for the secret), "null" = null (recommended; the stored ciphertext is written back unchanged on flush), "throw" = DecryptionFailedException (recommended). A warning is logged for "keep" and "null". // Default: "keep"
+ *     generate_missing_key?: bool|Param|null, // Whether the Halite / Defuse encryptors may create a missing key file on first use. null (default) = only when kernel.debug is true; outside debug a missing key file is an error (a wrong path or a lost volume would otherwise encrypt new data with a throwaway key). Create keys explicitly with doctrine:encrypt:generate-secret-key. // Default: null
+ *     batch_size?: int|Param, // Default batch size for doctrine:decrypt:database and doctrine:encrypt:database (raw SQL). Overridable per run via the batchSize argument. // Default: 5
+ *     secret_permissions?: array{ // Filesystem hardening for file-based keys: creates missing key directories with directory_mode and chmods key files to file_mode (console: every command; HTTP: at most once per http_check_interval seconds per worker).
+ *         enabled?: bool|Param, // Default: true
+ *         directory_mode?: int|Param, // Mode for key directories created by the bundle (octal string "0770" or "0700", or integer). Existing directories are not changed. // Default: 504
+ *         file_mode?: int|Param, // Mode enforced on key files (octal string "0600" or integer). // Default: 384
+ *         http_check_interval?: int|Param, // Seconds between HTTP checks per worker (0 = every main request). // Default: 60
+ *     },
+ *     profiles?: array<string, array{ // Default: []
+ *         encryptor_class?: scalar|Param|null, // Default: "Halite"
+ *         secret_directory_path?: scalar|Param|null, // Directory for the key file. Required unless secret_key_env_var is set. // Default: null
+ *         secret_key_filename?: scalar|Param|null, // Optional custom key filename (e.g. .my_app.key). Only used when secret_directory_path is set. // Default: null
+ *         secret_key_env_var?: scalar|Param|null, // Key content from env: use %env(APP_ENCRYPT_KEY)% so Symfony resolves it at config load and the bundle receives the value. When set, secret_directory_path and secret_key_filename are not allowed. // Default: null
+ *         ...<string, mixed>
+ *     }>,
  *     ...<string, mixed>
  * }
  * @psalm-type UxIconsConfig = array{
@@ -1992,6 +2259,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     twig?: TwigConfig,
  *     nowo_ui_kit?: NowoUiKitConfig,
  *     nowo_auth_kit?: NowoAuthKitConfig,
+ *     nowo_user_kit?: NowoUserKitConfig,
+ *     nowo_doctrine_encrypt?: NowoDoctrineEncryptConfig,
  *     ux_icons?: UxIconsConfig,
  *     nowo_password_toggle?: NowoPasswordToggleConfig,
  *     twig_extra?: TwigExtraConfig,
@@ -2007,6 +2276,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         twig?: TwigConfig,
  *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_auth_kit?: NowoAuthKitConfig,
+ *         nowo_user_kit?: NowoUserKitConfig,
+ *         nowo_doctrine_encrypt?: NowoDoctrineEncryptConfig,
  *         ux_icons?: UxIconsConfig,
  *         nowo_hot_reload?: NowoHotReloadConfig,
  *         nowo_twig_inspector?: NowoTwigInspectorConfig,
@@ -2027,6 +2298,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         twig?: TwigConfig,
  *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_auth_kit?: NowoAuthKitConfig,
+ *         nowo_user_kit?: NowoUserKitConfig,
+ *         nowo_doctrine_encrypt?: NowoDoctrineEncryptConfig,
  *         ux_icons?: UxIconsConfig,
  *         nowo_password_toggle?: NowoPasswordToggleConfig,
  *         twig_extra?: TwigExtraConfig,
@@ -2043,6 +2316,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         twig?: TwigConfig,
  *         nowo_ui_kit?: NowoUiKitConfig,
  *         nowo_auth_kit?: NowoAuthKitConfig,
+ *         nowo_user_kit?: NowoUserKitConfig,
+ *         nowo_doctrine_encrypt?: NowoDoctrineEncryptConfig,
  *         ux_icons?: UxIconsConfig,
  *         nowo_hot_reload?: NowoHotReloadConfig,
  *         nowo_twig_inspector?: NowoTwigInspectorConfig,
