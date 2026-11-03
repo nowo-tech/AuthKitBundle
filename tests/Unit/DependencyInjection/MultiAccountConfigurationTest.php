@@ -66,6 +66,18 @@ final class MultiAccountConfigurationTest extends TestCase
         $this->load(['multi_account' => ['enabled' => true, 'routes' => ['chooser' => ['name' => 'nowo_auth_kit_login']]]]);
     }
 
+    public function testAnInsecureCookieIsRefusedOutsideDebug(): void
+    {
+        try {
+            $this->load(['multi_account' => ['enabled' => true, 'cookie' => ['secure' => false]]]);
+            self::fail('DE-I10: cookie.secure: false outside kernel.debug.');
+        } catch (InvalidArgumentException $e) {
+            self::assertStringContainsString('cookie.secure: false', $e->getMessage());
+        }
+        $this->load(['multi_account' => ['enabled' => true, 'cookie' => ['secure' => false]]], debug: true);
+        self::assertTrue($this->load(['multi_account' => ['enabled' => true, 'cookie' => ['secure' => true]]])->hasDefinition(AccountVault::class));
+    }
+
     public function testMappingFalseIsRefused(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -87,10 +99,10 @@ final class MultiAccountConfigurationTest extends TestCase
     /**
      * @param array<string, mixed> $config
      */
-    private function load(array $config): ContainerBuilder
+    private function load(array $config, bool $debug = false): ContainerBuilder
     {
         $container = new ContainerBuilder();
-        $container->setParameter('kernel.debug', false);
+        $container->setParameter('kernel.debug', $debug);
         (new NowoAuthKitExtension())->load([['user_class' => 'App\\Entity\\User'] + $config], $container);
 
         return $container;

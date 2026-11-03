@@ -94,7 +94,7 @@ final class MultiAccountUnitTest extends TestCase
         self::assertTrue($gate->isComplete(new UsernamePasswordToken(new InMemoryUser('a', null), 'main')));
         self::assertFalse($gate->isComplete(new NullToken()));
         $now = new DateTimeImmutable();
-        self::assertInstanceOf(AccountVaultEntry::class, new AccountVaultEntry('p', 'default', 'a', 'h', null, $now, null, null, $now, $now, $now));
+        self::assertInstanceOf(AccountVaultEntry::class, new AccountVaultEntry('p', 'default', 'a', 'h', null, $now, null, null, null, $now, $now, $now));
     }
 
     public function testStore(): void

@@ -10,10 +10,6 @@
             "options": {
                 "symlink": true
             }
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/nowo-tech/UserKitBundle"
         }
     ],
     "require": {
@@ -28,7 +24,7 @@
         "nowo-tech/form-kit-bundle": "^2.0",
         "nowo-tech/password-toggle-bundle": "^2.0",
         "nowo-tech/ui-kit-bundle": "^2.2",
-        "nowo-tech/user-kit-bundle": "dev-fix/1.11.1-session-states as 1.11.1",
+        "nowo-tech/user-kit-bundle": "^1.11.1",
         "symfony/asset": "8.1.*",
         "symfony/console": "8.1.*",
         "symfony/dotenv": "8.1.*",

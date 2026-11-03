@@ -44,7 +44,7 @@ id. UserKit 1.11 tells whether parked sessions are alive. Defaults unchanged.
 - **FR-009** Entries expire `max_lifetime` (30 days, D10) after the last full sign-in; purge command.
 - **FR-010** Audit DE hardening: a revoked parked session never revives (UserKit ≥ 1.11.1 keeps a purged revoked row
   revoked); a previous token after `rotation_grace` removes the entry and signs the account out everywhere, within it
-  the entry opens under a fresh token; unknown tokens never disable a vault; a failing switch rolls back to the previous
+  the rotating browser learns the current token (no re-rotation) and another browser is ignored; unknown tokens never disable a vault; a failing switch rolls back to the previous
   session and token; the AD binds the user identifier; identifiers masked for anonymous browsers; `_target_path`
   without control characters or backslashes; re-bound parked sessions ended; D8 kept through MFA completion;
   `cookie.secure`; per-firewall user provider; `configure-security` makes the switcher routes public.

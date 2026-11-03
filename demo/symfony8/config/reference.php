@@ -1874,6 +1874,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 name?: scalar|Param|null, // Default: "nowo_auth_kit_accounts"
  *                 lifetime?: int|Param, // null (D3): a browser-session cookie; seconds: persistent. // Default: null
  *                 samesite?: "lax"|"strict"|Param, // Default: "lax"
+ *                 secure?: "auto"|true|false|Param, // auto: Secure and the __Host- prefix on HTTPS requests; true: always (behind TLS termination without trusted_proxies); false: never (local HTTP only). // Default: "auto"
  *             },
  *             chooser?: array{
  *                 on_login_page?: bool|Param, // Default: true
