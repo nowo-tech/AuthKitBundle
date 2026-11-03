@@ -19,6 +19,8 @@ return RectorConfig::configure()
             __DIR__ . '/tests/Stub',
             __DIR__ . '/tests/Unit/SocialLogin/SocialAccountLinkerTest.php',
             __DIR__ . '/tests/Unit/MagicLogin/MagicLoginRequestHandlerTest.php',
+            // TokenInterface::eraseCredentials() on Symfony 7.4.
+            __DIR__ . '/src/Mfa/Security/MfaPendingToken.php',
         ],
     ])
     // Machine-wide cap: at most 2 worker processes; generous timeout for slow (WSL2 / CI) hosts.

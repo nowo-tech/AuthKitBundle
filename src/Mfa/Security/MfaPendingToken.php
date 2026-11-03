@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Mfa\Security;
 
+use Deprecated;
 use Nowo\AuthKitBundle\Mfa\MfaLoginCompleter;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -191,6 +192,14 @@ final class MfaPendingToken implements TokenInterface
     /**
      * @return array<int, mixed>
      */
+    /**
+     * Nothing to erase (Symfony < 8 interface method; no-op).
+     */
+    #[Deprecated]
+    public function eraseCredentials(): void
+    {
+    } // @codeCoverageIgnore
+
     public function __serialize(): array
     {
         return [$this->inner, $this->firewall, $this->profile, $this->firstFactor, $this->mode, $this->createdAt, $this->attributes, $this->rememberMe, $this->targetPath, $this->id, $this->enrolled];
