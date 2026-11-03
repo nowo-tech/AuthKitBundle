@@ -119,7 +119,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   switcher; remember-me cookies follow their account; host events (`MultiAccount\Event\*`), gate and presenter;
   switcher partial and `auth_kit_accounts()`, chooser page, accounts on the sign-in page with masked identifiers,
   optional cross-tab notice, rate limits, purge command `nowo:auth-kit:accounts:purge`; 7 locales. Requires UserKit ≥ 1.11
-  sessions. New table `auth_kit_account_vault`. See [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md).
+  sessions (1.11.1 recommended). New table `auth_kit_account_vault`. Audit DE hardening: revoked accounts never revive
+  (UserKit ≥ 1.11.1 also after the revoked row is purged), a reused vault token signs the account out everywhere,
+  unknown tokens never disable a vault, a failing switch rolls back, identifiers masked for anonymous browsers,
+  `_target_path` without control characters, previous token accepted within `rotation_grace`, replaced parked
+  sessions ended, admin-issued links never enrol through MFA completion, `cookie.secure`, per-firewall user provider,
+  `configure-security` adds the switcher's public rules. See [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md).
 - `docs/ROADMAP.md` (WebAuthn and e-mail codes as later second factors).
 
 ### Changed

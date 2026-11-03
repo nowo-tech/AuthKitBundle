@@ -83,7 +83,7 @@
         "nowo-tech/password-toggle-bundle": "^2.0.0",
         "nowo-tech/phpstan-frankenphp": "^1.0",
         "nowo-tech/slide-to-confirm-bundle": "^1.0",
-        "nowo-tech/user-kit-bundle": "^1.11",
+        "nowo-tech/user-kit-bundle": "dev-fix/1.11.1-session-states as 1.11.1",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",
@@ -151,5 +151,11 @@
         "rector-dry": "Run Rector in dry-run mode",
         "qa": "Run all quality assurance checks",
         "igor": "Run Igor FrankenPHP worker-state audit (REQ-CS-008)"
-    }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/nowo-tech/UserKitBundle"
+        }
+    ]
 }

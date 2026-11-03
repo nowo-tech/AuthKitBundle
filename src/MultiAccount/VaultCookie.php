@@ -23,7 +23,7 @@ use function time;
 
 /**
  * The vault cookie (1.34): one opaque token per account, joined by dots, no identity inside; httpOnly, SameSite
- * Lax (or Strict), Secure and `__Host-` on HTTPS, path `/`, browser-session by default (D3). Changes are queued on
+ * Lax (or Strict), Secure and `__Host-` on HTTPS (`cookie.secure`), path `/`, browser-session by default (D3). Changes are queued on
  * the request and written on the response ({@see self::write()}).
  */
 final class VaultCookie
@@ -35,7 +35,17 @@ final class VaultCookie
     {
         $name = (string) ($profile->multiAccount['cookie']['name'] ?? 'nowo_auth_kit_accounts');
 
-        return ($request->isSecure() ? '__Host-' : '') . $name . ($profile->name !== 'default' ? '_' . $profile->name : '');
+        return (self::secure($request, $profile) ? '__Host-' : '') . $name . ($profile->name !== 'default' ? '_' . $profile->name : '');
+    }
+
+    /**
+     * `cookie.secure` (DE-L6): `auto` follows the request scheme, `true` / `false` force it.
+     */
+    public static function secure(Request $request, ProfileSettings $profile): bool
+    {
+        $secure = $profile->multiAccount['cookie']['secure'] ?? 'auto';
+
+        return $secure === 'auto' ? $request->isSecure() : $secure === true;
     }
 
     /**
@@ -94,7 +104,7 @@ final class VaultCookie
                 $expires,
                 '/',
                 null,
-                $request->isSecure(),
+                self::secure($request, $profile),
                 true,
                 false,
                 ($cookie['samesite'] ?? 'lax') === 'strict' ? Cookie::SAMESITE_STRICT : Cookie::SAMESITE_LAX,

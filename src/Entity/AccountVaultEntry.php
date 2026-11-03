@@ -46,6 +46,8 @@ class AccountVaultEntry
         protected DateTimeImmutable $rotatedAt,
         #[ORM\Column(type: Types::TEXT, nullable: true)]
         protected ?string $sealed,
+        #[ORM\Column(name: 'previous_sealed', type: Types::TEXT, nullable: true)]
+        protected ?string $previousSealed,
         #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
         protected DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'last_used_at', type: Types::DATETIME_IMMUTABLE)]

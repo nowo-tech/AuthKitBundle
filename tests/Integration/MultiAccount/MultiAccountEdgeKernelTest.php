@@ -52,7 +52,7 @@ final class MultiAccountEdgeKernelTest extends MultiAccountKernelTestCase
         $this->signOutOf('admin@example.com');
         self::assertResponseRedirects('/accounts');
         self::assertStringStartsWith('anonymous|', $this->whoami());
-        self::assertSame(['member@example.com|signed_in'], $this->accounts());
+        self::assertSame(['m•••@example.com|signed_in'], $this->accounts(), 'Masked for the anonymous browser.');
     }
 
     public function testAReusedRotatedTokenRemovesTheAccount(): void
@@ -86,7 +86,7 @@ final class MultiAccountEdgeKernelTest extends MultiAccountKernelTestCase
         self::assertSame(AccountRemovalReason::Expired, $this->eventsOf(AccountRemovedEvent::class)[0]->reason);
     }
 
-    public function testUnknownTokensAreRateLimitedPerClient(): void
+    public function testUnknownTokensAreCountedButKnownTokensStillWork(): void
     {
         $this->signIn('member@example.com', 'member-password-123');
         $this->add();
@@ -99,7 +99,7 @@ final class MultiAccountEdgeKernelTest extends MultiAccountKernelTestCase
         }
         $this->client->getCookieJar()->expire('nowo_auth_kit_accounts');
         $this->client->getCookieJar()->set(new Cookie('nowo_auth_kit_accounts', $good, null, '/', 'localhost'));
-        self::assertSame([], $this->accounts(), 'Over the limit the vault is ignored for this client.');
+        self::assertSame(['admin@example.com|active', 'member@example.com|signed_in'], $this->accounts(), 'Over the limit the known tokens still work (DE-M3).');
     }
 
     public function testAnExpiredParkedSessionComesBackThroughItsRememberMeCookie(): void

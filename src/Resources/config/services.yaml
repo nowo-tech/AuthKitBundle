@@ -174,6 +174,7 @@ services:
             $unlocalizedMode: '%nowo_auth_kit.locale.unlocalized%'
             $unlocalizedRouteSuffix: '%nowo_auth_kit.locale.unlocalized_route_suffix%'
             $localizedLogoutRedirect: '%nowo_auth_kit.locale.localized_logout_redirect%'
+            $multiAccountRoutes: '%nowo_auth_kit.multi_account.public_routes%'
 
     Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter:
         arguments:

@@ -112,6 +112,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.css', $defaultProfile['css']);
         $container->setParameter('nowo_auth_kit.embed', $defaultProfile['embed']);
         $container->setParameter('nowo_auth_kit.routes', $defaultProfile['routes']);
+        // Multi-account routes of the default profile, made public by nowo:auth-kit:configure-security (an anonymous
+        // browser still reaches the chooser and switches to a parked account).
+        $container->setParameter('nowo_auth_kit.multi_account.public_routes', ($defaultProfile['multi_account']['enabled'] ?? false) === true ? $defaultProfile['multi_account']['routes'] : []);
         $container->setParameter('nowo_auth_kit.password_reset', $defaultProfile['password_reset']);
         $container->setParameter('nowo_auth_kit.password_reset.mode', $defaultProfile['password_reset']['mode']);
         $container->setParameter('nowo_auth_kit.password_reset.delivery', $defaultProfile['password_reset']['delivery']);

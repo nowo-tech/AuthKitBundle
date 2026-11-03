@@ -39,6 +39,7 @@ final class MultiAccountPass implements CompilerPassInterface
         /** @var list<string> $firewalls */
         $firewalls  = $container->getParameter(self::FIREWALLS_PARAMETER);
         $checkers   = [];
+        $providers  = [];
         $contexts   = [];
         $rememberMe = [];
         foreach ($firewalls as $firewall) {
@@ -50,9 +51,14 @@ final class MultiAccountPass implements CompilerPassInterface
             if (($arguments[4] ?? false) === true) {
                 throw new LogicException(sprintf('NowoAuthKitBundle: multi_account needs a stateful firewall; "%s" is stateless.', $firewall));
             }
-            $context               = $arguments[6] ?? null;
-            $contexts[$firewall]   = is_string($context) && $context !== '' ? $context : $firewall;
-            $checkers[$firewall]   = new Reference('security.user_checker.' . $firewall);
+            $context             = $arguments[6] ?? null;
+            $contexts[$firewall] = is_string($context) && $context !== '' ? $context : $firewall;
+            $checkers[$firewall] = new Reference('security.user_checker.' . $firewall);
+            // The firewall's own user provider (DE-I5): several user classes may share identifiers.
+            $provider = $arguments[5] ?? null;
+            if (is_string($provider) && $container->has($provider)) {
+                $providers[$firewall] = new Reference($provider);
+            }
             $rememberMe[$firewall] = null;
         }
         foreach ($container->findTaggedServiceIds('security.remember_me_handler') as $id => $tags) {
@@ -78,5 +84,6 @@ final class MultiAccountPass implements CompilerPassInterface
         $vault->setArgument('$userCheckers', ServiceLocatorTagPass::register($container, $checkers));
         $vault->setArgument('$rememberMe', $rememberMe);
         $vault->setArgument('$contexts', $contexts);
+        $vault->setArgument('$userProviders', ServiceLocatorTagPass::register($container, $providers));
     }
 }
