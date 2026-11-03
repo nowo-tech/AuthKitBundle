@@ -556,7 +556,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         enabled?: bool|Param, // Default: false
  *     },
  *     lock?: Param|bool|string|array{ // Lock configuration
- *         enabled?: bool|Param, // Default: false
+ *         enabled?: bool|Param, // Default: true
  *         resources?: Param|string|array<string, Param|string|list<scalar|Param|null>>,
  *     },
  *     semaphore?: Param|bool|string|array{ // Semaphore configuration
@@ -1795,6 +1795,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             policy?: scalar|Param|null, // Service id of a Mfa\MfaPolicyInterface (host rules, e.g. organisations that require MFA), asked after required_roles. // Default: null
  *             grace_period?: int|Param, // Seconds a required user may still sign in without MFA (from the first such sign-in); 0 = enrol at the next sign-in. // Default: 604800
  *             pending_lifetime?: int|Param, // Seconds a sign-in may wait for its second step. // Default: 300
+ *             recent_sign_in?: int|Param, // Seconds after a full sign-in during which the account page may set up the second factor (DD-I1); later the user signs in again first. // Default: 900
  *             max_attempts?: int|Param, // Wrong codes per pending sign-in; then the sign-in ends (the session is invalidated). // Default: 5
  *             rate_limit?: array{
  *                 account?: array{
@@ -1819,6 +1820,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             trusted_devices?: array{
  *                 lifetime?: int|Param, // Seconds a trusted device skips the second step (0 = no "trust this device" option). // Default: 2592000
  *                 max?: int|Param, // Trusted devices per user when UserKit gives no maxTrustedDevices (the least recently used one is forgotten). // Default: 5
+ *                 password_field?: scalar|Param|null, // Mapped field of the user entity holding the password hash: a change forgets the trusted devices (DD-I6). // Default: "password"
  *             },
  *             allowed_routes?: list<scalar|Param|null>,
  *             hash_secret?: scalar|Param|null, // HMAC key of recovery codes and trusted-device tokens (null: %kernel.secret% when enabled). // Default: null

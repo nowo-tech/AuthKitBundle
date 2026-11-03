@@ -10,7 +10,8 @@ import { totp } from './totp';
  */
 const BOB_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 const PASSWORD = 'demo-password-123';
-let lastStep = 0;
+// The seed enables bob with a code of the current step: start after it (a used step is refused).
+let lastStep = Math.floor(Date.now() / 1000 / 30);
 
 /**
  * A fresh TOTP code for each use: a used time step is refused, so take the oldest step of the ±1 window not used yet,
@@ -100,11 +101,11 @@ test.describe('MFA and several accounts', () => {
     await passChallenge(page);
     await expect(accounts(page)).toHaveCount(2);
     await expect(accounts(page).first()).toHaveAttribute('data-state', 'active');
-    await expect(page.locator('main')).toContainText('bob@example.com');
+    await expect(page.locator('body')).toContainText('Logged in as bob@example.com');
 
     await accounts(page).filter({ hasText: 'carol@example.com' }).locator('[data-testid="auth-kit-account-switch"]').click();
     await expect(page).toHaveURL(/\/en\/home$/);
-    await expect(page.locator('main')).toContainText('carol@example.com');
+    await expect(page.locator('body')).toContainText('Logged in as carol@example.com');
     await expect(page.locator('[data-testid="auth-kit-mfa_challenge"]')).toHaveCount(0);
 
     await page.goto('/en/accounts');
@@ -134,11 +135,12 @@ test.describe('MFA and several accounts', () => {
     await signIn(other, 'bob@example.com');
     await passChallenge(other);
     await other.goto('/account/sessions');
-    await other.locator('form[action*="revoke-others"] button[type="submit"]').click();
-    const confirm = other.locator('dialog[open] button[type="submit"], [data-nowo-ui-confirm] button[type="submit"]');
-    if (await confirm.count()) {
-      await confirm.first().click();
-    }
+    await other.getByRole('button', { name: /sign out all other sessions/i }).first().click();
+    // UiKit confirm dialog of the destructive action.
+    await Promise.all([
+      other.waitForResponse((response) => response.request().method() === 'POST'),
+      other.locator('dialog[open]').getByRole('button', { name: /sign out all other sessions/i }).click(),
+    ]);
     await other.close();
 
     await page.goto('/en/home');
