@@ -13,7 +13,7 @@
             <directory>tests</directory>
         </testsuite>
     </testsuites>
-    <source baseline="phpunit-baseline.xml" restrictDeprecations="false" ignoreSuppressionOfDeprecations="true">
+    <source baseline="phpunit-baseline.xml" ignoreSuppressionOfDeprecations="true">
         <include>
             <directory>src</directory>
         </include>
@@ -25,7 +25,7 @@
 
     <php>
         <!-- REQ-SF-005: the deprecation gate is PHPUnit's own (failOnDeprecation + ignoreSuppressionOfDeprecations,
-             restrictDeprecations="false"): any deprecation, including Symfony's silenced trigger_deprecation() calls,
+             deprecations not restricted to src/, the default): any deprecation, including Symfony's silenced trigger_deprecation() calls,
              fails the run. symfony/phpunit-bridge does nothing with PHPUnit >= 10; the setting below is kept for
              runs that load it. -->
         <env name="SYMFONY_DEPRECATIONS_HELPER" value="max[direct]=0"/>
