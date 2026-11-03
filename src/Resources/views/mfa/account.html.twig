@@ -1,7 +1,8 @@
 {#
   Account page of the second factor (1.34, nowo_auth_kit_mfa_account) on the UiKit admin layout. Off: enrolment (QR,
   secret, confirm code). On: status, disable (current code), new recovery codes (current code), trusted devices.
-  Variables: mfa_status (MfaStatus), mfa_profile, mfa_enrolment + mfa_enable_form (off), mfa_disable_form +
+  Variables: mfa_status (MfaStatus), mfa_profile, mfa_enrolment + mfa_enable_form (off; or mfa_sign_in_again minutes +
+  mfa_logout_route when the session did not sign in recently, DD-I1), mfa_disable_form +
   mfa_codes_form + mfa_device_forms (on). Override with the Twig path @NowoAuthKitBundle/mfa/account.html.twig.
 #}
 {% extends nowo_ui_layout.admin %}
@@ -22,8 +23,13 @@
                     {% if mfa_status.required %}
                         <p role="status">{{ mfa_status.graceEndsAt ? 'mfa.account.required_until'|trans({'%date%': mfa_status.graceEndsAt|date('Y-m-d')}, _b) : 'mfa.account.required_now'|trans({}, _b) }}</p>
                     {% endif %}
-                    {{ include('@NowoAuthKitBundle/mfa/_enrolment.html.twig', {enrolment: mfa_enrolment}) }}
-                    {{ include('@NowoAuthKitBundle/mfa/_code_form.html.twig', {form: mfa_enable_form, submit: 'mfa.account.enable'}) }}
+                    {% if mfa_sign_in_again is defined %}
+                        <p role="status" data-testid="auth-kit-mfa-sign-in-again">{{ 'mfa.account.sign_in_again'|trans({'%minutes%': mfa_sign_in_again}, _b) }}</p>
+                        <p><a href="{{ path(mfa_logout_route, {_csrf_token: csrf_token('logout')}) }}" data-testid="auth-kit-mfa-sign-in-again-link">{{ 'mfa.account.sign_in_again_action'|trans({}, _b) }}</a></p>
+                    {% else %}
+                        {{ include('@NowoAuthKitBundle/mfa/_enrolment.html.twig', {enrolment: mfa_enrolment}) }}
+                        {{ include('@NowoAuthKitBundle/mfa/_code_form.html.twig', {form: mfa_enable_form, submit: 'mfa.account.enable'}) }}
+                    {% endif %}
                 </div>
             </section>
         {% else %}

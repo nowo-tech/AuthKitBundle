@@ -296,6 +296,8 @@ mfa:
         devices_count: '%count% vertrouwde apparaten.'
         manage: Beheren
         set_up: Verificatie in twee stappen instellen
+        sign_in_again: 'Log voor uw veiligheid opnieuw in (binnen de laatste %minutes% minuten) voordat u verificatie in twee stappen instelt.'
+        sign_in_again_action: 'Opnieuw inloggen'
         required_until: 'Verplicht voor je account: stel het in vóór %date%.'
         required_now: 'Verplicht voor je account: stel het nu in.'
         enable: Inschakelen

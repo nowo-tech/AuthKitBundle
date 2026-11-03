@@ -119,6 +119,9 @@ To enable MFA ([MFA.md](MFA.md)):
 4. Host `LoginSuccessEvent` listeners that must not run for a half-authenticated user: skip
    `$event->getAuthenticatedToken() instanceof MfaPendingToken`, or listen to `MfaLoginCompletedEvent`.
 5. With UserKit sessions, use UserKit ≥ 1.11 (pending sign-ins are registered once complete).
+6. `composer require symfony/lock` (MFA refuses to compile without `lock.factory`; on several hosts use a shared
+   store). If your user entity keeps its password hash in another field than `password`, set
+   `mfa.trusted_devices.password_field`. Setting up the second factor needs a sign-in within `mfa.recent_sign_in`.
 
 ## To 1.33.1
 

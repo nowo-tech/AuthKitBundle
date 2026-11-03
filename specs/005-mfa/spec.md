@@ -57,6 +57,8 @@ UserKit session integration. Defaults unchanged (no service, route, entity mappi
 - **FR-014** Owners keyed by Doctrine root class + id; UserKit `forgetUser()` deletes the factor.
 - **FR-015** Pages on the UiKit contract (`web_ui.templates.mfa_*`), `no-store`, `X-Frame-Options: DENY`,
   `Referrer-Policy: no-referrer`; translations in de, en, es, fr, it, nl, pt.
+- **FR-016** Audit DD follow-up: `symfony/lock` required with MFA (compile-time); setting up the second factor needs a
+  sign-in within `recent_sign_in` (900 s); `trusted_devices.password_field`; only wrong codes count per IP.
 
 ## Success Criteria
 

@@ -294,6 +294,8 @@ mfa:
         devices_count: '%count% dispositivos de confianza.'
         manage: Gestionar
         set_up: Configurar la verificación en dos pasos
+        sign_in_again: 'Por seguridad, vuelve a iniciar sesión (en los últimos %minutes% minutos) antes de configurar la verificación en dos pasos.'
+        sign_in_again_action: 'Volver a iniciar sesión'
         required_until: 'Obligatoria para tu cuenta: configúrala antes del %date%.'
         required_now: 'Obligatoria para tu cuenta: configúrala ahora.'
         enable: Activar

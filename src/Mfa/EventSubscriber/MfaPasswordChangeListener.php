@@ -17,7 +17,7 @@ use function spl_object_id;
 
 /**
  * A changed password forgets the user's trusted devices (1.34, DD-L2; CONTRACT-MFA §6), also without UserKit: the
- * `password` field of an MFA user changed in a flush (account page, reset link or code, admin, CLI) → after the flush
+ * password field (`mfa.trusted_devices.password_field`, default `password`) of an MFA user changed in a flush (account page, reset link or code, admin, CLI) → after the flush
  * {@see MfaManager::forgetDevices()} with reason `password_changed`. Holds the users of one flush only (reset between
  * requests in worker mode).
  */
@@ -35,7 +35,9 @@ final class MfaPasswordChangeListener implements ResetInterface
     {
         $unitOfWork = $args->getObjectManager()->getUnitOfWork();
         foreach ($unitOfWork->getScheduledEntityUpdates() as $entity) {
-            if ($entity instanceof UserInterface && array_key_exists('password', $unitOfWork->getEntityChangeSet($entity)) && $this->manager->profileFor($entity) instanceof ProfileSettings) {
+            $profile = $entity instanceof UserInterface ? $this->manager->profileFor($entity) : null;
+            $field   = (string) ($profile?->mfa['trusted_devices']['password_field'] ?? 'password');
+            if ($entity instanceof UserInterface && $profile instanceof ProfileSettings && array_key_exists($field, $unitOfWork->getEntityChangeSet($entity))) {
                 // @igor-ignore - Users of the current flush, emptied in postFlush and by reset().
                 $this->changed[spl_object_id($entity)] = $entity;
             }

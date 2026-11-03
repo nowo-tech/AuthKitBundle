@@ -296,6 +296,8 @@ mfa:
         devices_count: '%count% appareils de confiance.'
         manage: Gérer
         set_up: Configurer la validation en deux étapes
+        sign_in_again: 'Pour votre sécurité, reconnectez-vous (au cours des %minutes% dernières minutes) avant de configurer la validation en deux étapes.'
+        sign_in_again_action: 'Se reconnecter'
         required_until: 'Obligatoire pour votre compte : configurez-la avant le %date%.'
         required_now: 'Obligatoire pour votre compte : configurez-la maintenant.'
         enable: Activer

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Mfa;
 
 use Nowo\AuthKitBundle\Mfa\Totp\Base32;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\QrLogin\QrCodeGeneratorInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -25,6 +26,9 @@ final readonly class MfaEnrolment
 
     /** Seconds the unconfirmed secret stays in the session (DD-I4: short, the session store holds it in clear). */
     public const LIFETIME = 300;
+
+    /** Session attribute: time of the session's last full sign-in (first factor, plus the second when asked). */
+    public const SIGNED_IN_AT = '_nowo_auth_kit_mfa_signed_in_at';
 
     public function __construct(
         private MfaManager $manager,
@@ -51,6 +55,27 @@ final readonly class MfaEnrolment
         $session->set(self::SESSION_KEY, ['owner' => $owner, 'secret' => $secret, 'at' => $now]);
 
         return $secret;
+    }
+
+    /**
+     * Records a full sign-in of the request's session (not a remember-me one) at `$now`.
+     */
+    public static function signedIn(Request $request, int $now): void
+    {
+        if ($request->hasSession()) {
+            $request->getSession()->set(self::SIGNED_IN_AT, $now);
+        }
+    }
+
+    /**
+     * Whether the session signed in within `mfa.recent_sign_in` seconds (DD-I1: setting up a second factor from a
+     * long-lived session asks for a fresh sign-in, so a hijacked session cannot bind the attacker's authenticator).
+     */
+    public function isRecent(Request $request, ProfileSettings $profile): bool
+    {
+        $at = $request->hasSession() ? $request->getSession()->get(self::SIGNED_IN_AT) : null;
+
+        return is_int($at) && $this->manager->now()->getTimestamp() - $at <= (int) ($profile->mfa['recent_sign_in'] ?? 900);
     }
 
     public function clear(Request $request): void

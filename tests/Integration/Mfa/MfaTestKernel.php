@@ -68,6 +68,8 @@ class MfaTestKernel extends AuthKitTestKernel
     protected function configureContainer(ContainerBuilder $container, LoaderInterface $loader): void
     {
         parent::configureContainer($container, $loader);
+        // MFA requires a lock factory (audit DD-L3).
+        $container->loadFromExtension('framework', ['lock' => 'flock']);
         $container->loadFromExtension('nowo_auth_kit', [
             'remember_me' => ['enabled' => true],
             'mfa'         => static::MFA + [

@@ -294,6 +294,8 @@ mfa:
         devices_count: '%count% trusted devices.'
         manage: Manage
         set_up: Set up two-step verification
+        sign_in_again: 'For your security, sign in again (within the last %minutes% minutes) before setting up two-step verification.'
+        sign_in_again_action: 'Sign in again'
         required_until: 'Required for your account: set it up before %date%.'
         required_now: 'Required for your account: set it up now.'
         enable: Turn on

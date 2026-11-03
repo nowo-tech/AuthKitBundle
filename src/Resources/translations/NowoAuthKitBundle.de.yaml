@@ -296,6 +296,8 @@ mfa:
         devices_count: '%count% vertrauenswürdige Geräte.'
         manage: Verwalten
         set_up: Bestätigung in zwei Schritten einrichten
+        sign_in_again: 'Melden Sie sich zu Ihrer Sicherheit erneut an (innerhalb der letzten %minutes% Minuten), bevor Sie die Bestätigung in zwei Schritten einrichten.'
+        sign_in_again_action: 'Erneut anmelden'
         required_until: 'Für Ihr Konto erforderlich: richten Sie sie vor dem %date% ein.'
         required_now: 'Für Ihr Konto erforderlich: richten Sie sie jetzt ein.'
         enable: Aktivieren

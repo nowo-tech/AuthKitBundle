@@ -70,7 +70,7 @@
         "nowo-tech/slide-to-confirm-bundle": "Slide-to-confirm on registration consent and QR login approve (^1.0)",
         "symfony/ux-icons": "Required for password visibility toggle icons (^2.0 || ^3.0)",
         "symfony/http-client": "Required with symfony/ux-icons to fetch toggle icons on demand",
-        "symfony/lock": "Serializes AuthKitAttemptLimiter read-modify-write so concurrent requests cannot exceed rate limits (^7.4 || ^8.0; use a shared store on multi-host setups)",
+        "symfony/lock": "Serializes AuthKitAttemptLimiter read-modify-write so concurrent requests cannot exceed rate limits; required with MFA (^7.4 || ^8.0; use a shared store on multi-host setups)",
         "symfony/mailer": "Sends the invitation e-mails (invitations.mode: enabled; ^7.4 || ^8.0). Without it the inviter can be shown the link once (invitations.show_link_when_undelivered)",
         "endroid/qr-code": "PNG/SVG data-URI QR codes for QR phone login (^6.0; PNG needs ext-gd)"
     },

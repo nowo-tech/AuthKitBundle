@@ -33,6 +33,8 @@ WebAuthn and e-mail codes are on the [roadmap](ROADMAP.md).
 2. The pending token has **no roles** and wraps the first factor's token. Every request is sent to
    `/login/mfa` (HTML: redirect, the GET target is kept; JSON / XHR: `401 {"error":"mfa_required"}`), except the
    challenge, the enrolment page, logout and `mfa.allowed_routes`. `access_control` and voters refuse it anyway.
+   Note: `MfaPendingToken::getUser()` returns the real user, so on those routes (and in kernel listeners) test roles
+   or `IS_AUTHENTICATED_FULLY`, not `app.user` / `getUser() !== null`, to know whether the sign-in is complete.
 3. A valid code restores the first factor's token, migrates the session id, issues the remember-me cookie the user
    asked for, dispatches `MfaChallengePassedEvent` + `MfaLoginCompletedEvent` and redirects to the original target.
 4. A pending sign-in expires after `pending_lifetime` (300 s) and ends after `max_attempts` (5) wrong codes.
@@ -65,7 +67,8 @@ nowo_auth_kit:
 - The TOTP secret is stored with `#[Encrypted]`: register and configure `nowo-tech/doctrine-encrypt-bundle`
   (`mfa.require_encryption: true` refuses to compile without it; set it to `false` only for tests and demos).
 - Install `endroid/qr-code` for the server-rendered QR code (without it the page shows the key for manual entry).
-- MFA needs form CSRF protection (the container refuses to compile without it).
+- MFA needs form CSRF protection and `symfony/lock` (`lock.factory`, so attempt limits are atomic; use a shared store
+  such as Redis or a database on several hosts): the container refuses to compile without them.
 - Create the tables: `php bin/console doctrine:migrations:diff` then migrate.
 - `access_control`: the challenge lives under `/login` (`PUBLIC_ACCESS` like the login page; the pending token has
   no roles); the account page under `/account/security/mfa` (`ROLE_USER`).
@@ -84,10 +87,12 @@ nowo_auth_kit:
 | `mfa.grace_period` | `604800` | Seconds a required user may still sign in without MFA; `0` = enrol at the next sign-in |
 | `mfa.pending_lifetime` | `300` | Seconds a sign-in may wait for its code |
 | `mfa.max_attempts` | `5` | Wrong codes per pending sign-in |
-| `mfa.rate_limit.account` / `ip` | `10`/`900`, `30`/`900` | Failures per account / client IP and window; at the account limit codes are refused (lockout) |
+| `mfa.recent_sign_in` | `900` | Seconds after a full sign-in during which the account page may set up the second factor; later the user signs in again first |
+| `mfa.rate_limit.account` / `ip` | `10`/`900`, `30`/`900` | Failures per account / client IP and window (valid codes give their IP slot back); at the account limit codes are refused (lockout) |
 | `mfa.first_factors.*` | see [First factors](#first-factors) | `required` or `exempt` per first factor |
 | `mfa.remember_me` | `trusted` | `trusted` or `challenge` (see [Remember-me](#remember-me)) |
 | `mfa.trusted_devices.lifetime` / `max` | `2592000` / `5` | "Trust this device" duration (0 = off) and maximum (UserKit's `maxTrustedDevices` wins) |
+| `mfa.trusted_devices.password_field` | `password` | Mapped user field holding the password hash; a change forgets the trusted devices |
 | `mfa.allowed_routes` | `[]` | Extra routes reachable while pending (locale switch…) |
 | `mfa.hash_secret` | `null` → `%kernel.secret%` | HMAC key of recovery codes and device tokens |
 | `mfa.admin.routes` / `access_roles` | `false` / `[ROLE_ADMIN]` | Optional administrator reset page |
@@ -234,12 +239,16 @@ factor.
 - Replay: a time step is accepted once (conditional `UPDATE … last_used_step < :step`); window ±1 step.
 - Rate limits: attempts per pending sign-in (a server-side counter keyed by the pending sign-in's random id), per
   account (lockout, `MfaLockedOutEvent`) and per client IP, each attempt **consumed atomically before** the code is
-  verified (concurrent guesses cannot share a check-then-act window); constant-time comparisons; the challenge is only
+  verified under `symfony/lock` (concurrent guesses cannot share a check-then-act window; required at compile time);
+  only wrong codes keep their IP slot (a busy shared NAT is not locked out); constant-time comparisons; the challenge is only
   reachable with a pending token (no "does this account have MFA" oracle).
 - The forced enrolment is bound to its pending sign-in: if MFA was turned on elsewhere meanwhile, the sign-in restarts.
-- The account page needs a full sign-in (`IS_AUTHENTICATED_FULLY`; a remember-me session signs in again first).
+- The account page needs a full sign-in (`IS_AUTHENTICATED_FULLY`; a remember-me session signs in again first), and
+  setting up the second factor needs a sign-in within `mfa.recent_sign_in` (15 min): a hijacked long-lived session
+  cannot bind the attacker's authenticator. Disable and new recovery codes ask for a current code.
 - The admin reset refuses accounts holding a role the administrator does not hold.
-- A password change (any flush of the user's `password`) forgets the trusted devices, with or without UserKit.
+- A password change (any flush of `mfa.trusted_devices.password_field`, default `password`) forgets the trusted
+  devices, with or without UserKit.
 - The unconfirmed enrolment secret stays in the session for at most 300 s (in clear in the session store: protect the
   session storage as you protect sessions).
 - Session id migrated on completion; every POST CSRF-protected.

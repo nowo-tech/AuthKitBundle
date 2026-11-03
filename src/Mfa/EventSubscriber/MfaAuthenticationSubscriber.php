@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Mfa\EventSubscriber;
 
 use Nowo\AuthKitBundle\DependencyInjection\MfaConfiguration;
 use Nowo\AuthKitBundle\Mfa\Event\MfaChallengePassedEvent;
+use Nowo\AuthKitBundle\Mfa\MfaEnrolment;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\MfaTrustedDevices;
@@ -84,6 +85,11 @@ final readonly class MfaAuthenticationSubscriber
     {
         $token = $event->getAuthenticatedToken();
         if (!$token instanceof MfaPendingToken) {
+            if (!$token instanceof RememberMeToken) {
+                // DD-I1: a full sign-in without a second step (MFA off, not required yet, trusted device).
+                MfaEnrolment::signedIn($event->getRequest(), $this->manager->now()->getTimestamp());
+            }
+
             return;
         }
         $badge = $event->getPassport()->getBadge(RememberMeBadge::class);

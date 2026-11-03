@@ -296,6 +296,8 @@ mfa:
         devices_count: '%count% dispositivi attendibili.'
         manage: Gestisci
         set_up: Configura la verifica in due passaggi
+        sign_in_again: 'Per sicurezza, accedi di nuovo (negli ultimi %minutes% minuti) prima di configurare la verifica in due passaggi.'
+        sign_in_again_action: 'Accedi di nuovo'
         required_until: 'Obbligatoria per il tuo account: configurala entro il %date%.'
         required_now: 'Obbligatoria per il tuo account: configurala ora.'
         enable: Attiva

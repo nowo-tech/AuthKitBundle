@@ -108,7 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   See [MFA.md](MFA.md). Audit DD hardening: attempts consumed atomically before verification and a server-side
   counter per pending sign-in, forced enrolment bound to its pending sign-in, full sign-in for the account page,
   admin reset limited to accounts whose roles the administrator holds, trusted devices forgotten on password change
-  without UserKit, enrolment secret kept 300 s.
+  without UserKit, enrolment secret kept 300 s; follow-up: `symfony/lock` required with MFA (compile-time check),
+  `mfa.recent_sign_in` (900 s) before setting up the second factor, `mfa.trusted_devices.password_field`, only wrong
+  codes count per IP.
 - `docs/ROADMAP.md` (WebAuthn and e-mail codes as later second factors).
 
 ### Changed

@@ -47,6 +47,7 @@ final readonly class MfaLoginCompleter
         if ($request->hasSession()) {
             $request->getSession()->migrate(true);
         }
+        MfaEnrolment::signedIn($request, $this->manager->now()->getTimestamp());
         $profile = $this->manager->profileNamed($pending->profile());
         if ($user instanceof UserInterface) {
             if ($pending->wantsRememberMe() && $this->rememberMeHandlers->has($pending->firewall())) {

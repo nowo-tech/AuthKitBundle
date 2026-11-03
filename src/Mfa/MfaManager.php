@@ -247,6 +247,8 @@ final readonly class MfaManager
             : $this->checkTotp($profile, $credential, $secret, $code);
         if ($result->isValid()) {
             $this->limiter->reset($accountKey);
+            // DD-I7: the per-IP key counts wrong codes only (a busy shared NAT is not locked out by valid sign-ins).
+            $this->limiter->release($ipKey, $ip[1]);
 
             return $result;
         }

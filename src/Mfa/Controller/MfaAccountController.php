@@ -31,6 +31,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Twig\Environment;
 
 use function array_column;
+use function ceil;
 
 /**
  * The signed-in user's second factor (1.34): status, enrolment (QR + confirm), disable, new recovery codes and trusted
@@ -58,7 +59,10 @@ final class MfaAccountController
     {
         [$user, $profile, $status] = $this->context();
         $variables                 = ['mfa_status' => $status, 'mfa_profile' => $profile->name];
-        if (!$status->enabled) {
+        if (!$status->enabled && !$this->enrolment->isRecent($request, $profile)) {
+            // DD-I1: no secret is generated for a session that did not sign in recently.
+            $variables += ['mfa_sign_in_again' => (int) ceil((int) ($profile->mfa['recent_sign_in'] ?? 900) / 60), 'mfa_logout_route' => $profile->routes['logout']['name']];
+        } elseif (!$status->enabled) {
             $secret = $this->enrolment->secret($request, $user);
             $variables += [
                 'mfa_enrolment'   => $this->enrolment->view($user, $secret),
@@ -79,7 +83,10 @@ final class MfaAccountController
     public function enable(Request $request): Response
     {
         [$user, $profile] = $this->context();
-        $form             = $this->submitted($request, $this->codeForm($profile, 'enable'));
+        if (!$this->enrolment->isRecent($request, $profile)) {
+            return $this->back($profile);
+        }
+        $form = $this->submitted($request, $this->codeForm($profile, 'enable'));
         if ($form instanceof FormInterface) {
             // @igor-ignore - Stateless service call (the second factor is stored in the database), not a mutation of worker state.
             $codes = $this->manager->enable($user, $this->enrolment->secret($request, $user), MfaCodeFormType::submittedCode($form), $request);
