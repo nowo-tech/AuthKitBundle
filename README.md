@@ -38,7 +38,8 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 - **Enterprise SSO (OIDC)** via social credentials + `enterpriseSso` flag (see [SSO.md](docs/SSO.md))
 - **QR phone login** (opt-in; see [QR-LOGIN.md](docs/QR-LOGIN.md))
 - **Invitations** (opt-in, 1.32): invite by e-mail instead of open registration (`registration_mode: invite_only`), hashed single-use expiring links, administration pages (list, invite, resend, revoke) on the UiKit scaffolds, acceptance on the registration form, Symfony Mailer delivery, audit events, grant SPI and purge command (see [INVITATIONS.md](docs/INVITATIONS.md))
-- **WebAuthn / passkeys** — design locked for a later release (see [WEBAUTHN.md](docs/WEBAUTHN.md))
+- **Two-factor authentication** (opt-in, 1.34): TOTP authenticator apps with a server-rendered QR code, single-use recovery codes, a firewall-level two-step token after every first factor, remember-me only after the second step, trusted devices, required roles with a grace period, admin reset, UserKit session integration (see [MFA.md](docs/MFA.md))
+- **WebAuthn / passkeys** — design locked for a later release (see [WEBAUTHN.md](docs/WEBAUTHN.md), [ROADMAP.md](docs/ROADMAP.md))
 - **Embedded auth dropdown** (`auth_kit_dropdown()`) for navbars and layouts
 - **Locale in URL paths** (`/en/login`, `/es/register`, …)
 - **Remember me** (optional persistent login cookie)
@@ -124,6 +125,8 @@ make release-check
 - [Social login](docs/SOCIAL-LOGIN.md)
 - [QR phone login](docs/QR-LOGIN.md) — opt-in (`mode: disabled` by default; shipped since v1.12)
 - [Invitations](docs/INVITATIONS.md) — opt-in (`invitations.mode: disabled` by default; since v1.32)
+- [Two-factor authentication](docs/MFA.md) — opt-in (`mfa.enabled: false` by default; since v1.34)
+- [Roadmap](docs/ROADMAP.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
 - [FrankenPHP worker audit (no kernel reset)](docs/FRANKENPHP-WORKER-AUDIT.md)
 

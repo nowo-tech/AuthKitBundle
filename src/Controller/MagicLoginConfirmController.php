@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Controller;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\FormCsrf;
 use Nowo\AuthKitBundle\Form\MagicLoginConfirmType;
+use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -127,6 +128,7 @@ final class MagicLoginConfirmController
             return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
         }
 
+        MfaFirstFactor::mark($request, 'login_link');
         $response = $this->security->login($user, 'login_link', $profile->firewall);
         if ($response instanceof Response) {
             return $response;

@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusal;
 use Nowo\AuthKitBundle\Invitation\InvitationTokens;
+use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -146,7 +147,7 @@ final class InvitationAcceptController
                     return $this->notice($profile, 'not_accepted', Response::HTTP_OK, $acceptance->refusal);
                 }
 
-                return $this->signIn($profile, $acceptance->user);
+                return $this->signIn($request, $profile, $acceptance->user);
             }
         }
 
@@ -209,13 +210,14 @@ final class InvitationAcceptController
         return $data;
     }
 
-    private function signIn(ProfileSettings $profile, UserInterface $user): Response
+    private function signIn(Request $request, ProfileSettings $profile, UserInterface $user): Response
     {
         $login  = $this->urlGenerator->generate($profile->routes['login']['name']);
         $target = $profile->loginSuccessRoute !== null ? $this->urlGenerator->generate($profile->loginSuccessRoute) : $login;
 
         // SEC-004 L6: a regular authentication (user checker, LoginSuccessEvent, session fixation strategy).
         try {
+            MfaFirstFactor::mark($request, 'invitation');
             $response = $this->security->login($user, 'form_login', $profile->firewall);
         } catch (AuthenticationException) {
             return $this->redirect($login);

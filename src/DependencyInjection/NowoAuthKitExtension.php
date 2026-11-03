@@ -17,9 +17,13 @@ use Nowo\AuthKitBundle\Invitation\Security\RoleInvitationsAccessChecker;
 use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
+use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaAuthenticationSubscriber;
+use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaSessionsSubscriber;
+use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -28,8 +32,12 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Security\Http\Event\AuthenticationTokenCreatedEvent;
+use Symfony\Component\Security\Http\Event\CheckPassportEvent;
+use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 
 use function array_key_exists;
+use function array_keys;
 use function array_values;
 use function class_exists;
 use function in_array;
@@ -160,6 +168,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         $this->registerInvitations($container, $profiles);
+        $this->registerMfa($container, $profiles, $loader, is_array($bundles) ? $bundles : null);
 
         if ($config['flash']['twig_filter'] !== true) {
             $container->removeDefinition(AuthKitFlashExtension::class);
@@ -272,6 +281,14 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                     $routes['invitations.' . $routeKey] = $route;
                 }
             }
+            if (($profile['mfa']['enabled'] ?? false) === true) {
+                foreach ($profile['mfa']['routes'] as $routeKey => $route) {
+                    if ($routeKey === 'admin_reset' && ($profile['mfa']['admin']['routes'] ?? false) !== true) {
+                        continue;
+                    }
+                    $routes['mfa.' . $routeKey] = $route;
+                }
+            }
 
             foreach ($routes as $routeKey => $route) {
                 $routeName = $route['name'];
@@ -380,7 +397,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         if ($registerMapping === false && $needed) {
-            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode and invitations.mode to be "disabled" in every profile (their entities would not be mapped).');
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode and invitations.mode to be "disabled" and mfa.enabled false in every profile (their entities would not be mapped).');
         }
 
         return (bool) $registerMapping;
@@ -400,6 +417,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 if (is_array($settings) && ($settings['mode'] ?? null) === 'enabled') {
                     return true;
                 }
+            }
+            $mfa = $profile['mfa'] ?? null;
+            if (is_array($mfa) && ($mfa['enabled'] ?? false) === true) {
+                return true;
             }
         }
 
@@ -508,6 +529,56 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             if ($allow && (!$container->hasParameter('kernel.debug') || $container->getParameter('kernel.debug') !== true)) {
                 throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.security.allow_unauthenticated: true" is a DEV/DEMO setting and is refused when kernel.debug is false.', $name));
             }
+        }
+    }
+
+    /**
+     * Native MFA (1.34): with at least one `mfa.enabled` profile, loads `mfa.yaml`, one
+     * {@see MfaAuthenticationSubscriber} per MFA firewall (on that firewall's event dispatcher) and the `mfa.policy`
+     * locator. A profile needs an `issuer`, and nowo-tech/doctrine-encrypt-bundle unless `require_encryption: false`.
+     * Nothing is registered otherwise (defaults unchanged).
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     * @param array<string, string>|null $bundles
+     */
+    private function registerMfa(ContainerBuilder $container, array $profiles, YamlFileLoader $loader, ?array $bundles): void
+    {
+        $firewalls = [];
+        $policies  = [];
+        foreach ($profiles as $name => $profile) {
+            $mfa = $profile['mfa'];
+            if ($mfa['enabled'] !== true) {
+                continue;
+            }
+            if (!is_string($mfa['issuer']) || trim($mfa['issuer']) === '') {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.mfa.issuer" is required: it is the name authenticator apps show.', $name));
+            }
+            if ($mfa['require_encryption'] === true && $bundles !== null && !isset($bundles['NowoDoctrineEncryptBundle'])) {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.mfa" stores the TOTP secret with #[Encrypted]: register nowo-tech/doctrine-encrypt-bundle (or set mfa.require_encryption: false for tests and demos only).', $name));
+            }
+            $firewalls[$profile['firewall']] = true;
+            if (is_string($mfa['policy']) && $mfa['policy'] !== '') {
+                $policies[$name] = new Reference($mfa['policy']);
+            }
+        }
+        if ($firewalls === []) {
+            return;
+        }
+        $loader->load('mfa.yaml');
+        $container->getDefinition(MfaManager::class)->setArgument('$policies', ServiceLocatorTagPass::register($container, $policies));
+        foreach (array_keys($firewalls) as $firewall) {
+            $dispatcher = 'security.event_dispatcher.' . $firewall;
+            $container->register(MfaAuthenticationSubscriber::class . '.' . $firewall, MfaAuthenticationSubscriber::class)
+                ->setAutowired(true)
+                ->setArgument('$firewall', $firewall)
+                ->setArgument('$dispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE))
+                ->addTag('kernel.event_listener', ['event' => CheckPassportEvent::class, 'method' => 'onCheckPassport', 'dispatcher' => $dispatcher, 'priority' => -1024])
+                ->addTag('kernel.event_listener', ['event' => AuthenticationTokenCreatedEvent::class, 'method' => 'onTokenCreated', 'dispatcher' => $dispatcher, 'priority' => -1024])
+                ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLoginSuccess', 'dispatcher' => $dispatcher, 'priority' => -48]);
+        }
+        // Without UserKit there are no session events to follow.
+        if (!class_exists(UserSessionsRevokedEvent::class)) {
+            $container->removeDefinition(MfaSessionsSubscriber::class);
         }
     }
 

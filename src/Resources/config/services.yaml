@@ -14,6 +14,7 @@ services:
             - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
             - '../../Invitation/Security/RoleInvitationsAccessChecker.php'
+            - '../../Mfa/'
             - '../../NowoAuthKitBundle.php'
 
     # REQ-SF-004 rule 7: the controllers carry #[Route] and must not be autoconfigured. On Symfony >= 7.3

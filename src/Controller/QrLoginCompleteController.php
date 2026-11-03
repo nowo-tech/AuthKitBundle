@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Controller;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
+use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
@@ -92,6 +93,7 @@ final class QrLoginCompleteController
             return $this->redirectToLogin($profile->routes['login']['name']);
         }
 
+        MfaFirstFactor::mark($request, 'qr');
         $this->security->login($user, null, $profile->firewall);
 
         $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];

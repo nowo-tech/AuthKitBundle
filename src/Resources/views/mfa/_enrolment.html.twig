@@ -1,0 +1,16 @@
+{#
+  Enrolment step (1.34): the QR code rendered server-side (data URI; no external QR service) and the secret in
+  groups of four for manual entry. Variable: enrolment {qr, secret, issuer, label}. The secret is shown only here.
+#}
+<div class="nowo-auth-kit-mfa__enrol" data-testid="auth-kit-mfa-enrolment">
+    <ol class="nowo-auth-kit-mfa__steps">
+        <li>{{ 'mfa.enrol.step_app'|trans({}, 'NowoAuthKitBundle') }}</li>
+        <li>{{ 'mfa.enrol.step_scan'|trans({}, 'NowoAuthKitBundle') }}</li>
+        <li>{{ 'mfa.enrol.step_code'|trans({}, 'NowoAuthKitBundle') }}</li>
+    </ol>
+    {% if enrolment.qr %}
+        <img class="nowo-auth-kit-mfa__qr" src="{{ enrolment.qr }}" width="200" height="200" alt="{{ 'mfa.enrol.qr_alt'|trans({'%issuer%': enrolment.issuer}, 'NowoAuthKitBundle') }}" data-testid="auth-kit-mfa-qr">
+    {% endif %}
+    <p class="nowo-auth-kit-mfa__manual">{{ 'mfa.enrol.manual'|trans({'%issuer%': enrolment.issuer, '%account%': enrolment.label}, 'NowoAuthKitBundle') }}</p>
+    <p><code class="nowo-auth-kit-mfa__secret" data-testid="auth-kit-mfa-secret" translate="no">{{ enrolment.secret }}</code></p>
+</div>

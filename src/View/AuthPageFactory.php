@@ -46,6 +46,9 @@ final class AuthPageFactory
         'qr_login_approve'    => ['qr_login.approve.heading', 'qr_login.approve.title', 'qr_login.approve.warning', 'qr_login.approve.submit'],
         'invitation_accept'   => ['invitation.accept.heading', 'invitation.accept.title', 'invitation.accept.intro', 'invitation.accept.submit'],
         'invitation_invalid'  => ['invitation.page.invalid_title', 'invitation.page.invalid_title', 'invitation.page.invalid_body', null],
+        'mfa_challenge'       => ['mfa.challenge.heading', 'mfa.challenge.title', 'mfa.challenge.intro', 'mfa.challenge.submit'],
+        'mfa_setup'           => ['mfa.setup.heading', 'mfa.setup.title', 'mfa.setup.intro', 'mfa.setup.submit'],
+        'mfa_recovery_codes'  => ['mfa.recovery.heading', 'mfa.recovery.title', 'mfa.recovery.intro', 'mfa.recovery.continue'],
     ];
 
     /**

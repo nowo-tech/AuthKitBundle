@@ -1,0 +1,16 @@
+{#
+  Forced enrolment of a required user whose grace period is over (1.34, nowo_auth_kit_mfa_setup): enrol or sign out,
+  nothing else. Variables: page (AuthPage with the code form), mfa_enrolment, mfa_logout_route.
+#}
+{% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
+
+{% block nowo_ui_auth_fields %}
+    {{ include('@NowoAuthKitBundle/mfa/_enrolment.html.twig', {enrolment: mfa_enrolment}) }}
+    {{ parent() }}
+{% endblock %}
+
+{% block nowo_auth_kit_footer_before %}
+    <p class="nowo-auth-kit-mfa__signout">
+        <a href="{{ path(mfa_logout_route, {_csrf_token: csrf_token('logout')}) }}" data-testid="auth-kit-mfa-signout">{{ 'mfa.challenge.sign_out'|trans({}, 'NowoAuthKitBundle') }}</a>
+    </p>
+{% endblock %}

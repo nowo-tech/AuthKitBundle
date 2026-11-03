@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\DeviceIntelligence\DeviceIntelligenceContext;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
+use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
@@ -116,6 +117,7 @@ final class RegisterController
             // login throttling listeners) instead of a hand-built token.
             if ($this->security instanceof Security) {
                 try {
+                    MfaFirstFactor::mark($request, 'registration');
                     $response = $this->security->login($user, 'form_login', $profile->firewall);
                 } catch (AuthenticationException) {
                     return new Response('', Response::HTTP_FOUND, [

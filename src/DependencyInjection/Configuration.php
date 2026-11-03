@@ -79,6 +79,9 @@ final class Configuration implements ConfigurationInterface
         'qr_login_approve'    => '@NowoAuthKitBundle/security/qr_login_approve.html.twig',
         'invitation_accept'   => '@NowoAuthKitBundle/security/invitation_accept.html.twig',
         'invitation_invalid'  => '@NowoAuthKitBundle/security/invitation_invalid.html.twig',
+        'mfa_challenge'       => '@NowoAuthKitBundle/mfa/challenge.html.twig',
+        'mfa_setup'           => '@NowoAuthKitBundle/mfa/setup.html.twig',
+        'mfa_recovery_codes'  => '@NowoAuthKitBundle/mfa/recovery_codes.html.twig',
     ];
 
     /** @var list<string> */
@@ -106,6 +109,7 @@ final class Configuration implements ConfigurationInterface
         'social_login',
         'qr_login',
         'invitations',
+        'mfa',
         'routes',
         'firewall',
         'login_success_route',
@@ -389,6 +393,7 @@ final class Configuration implements ConfigurationInterface
                             ->append($this->createSocialLoginNode())
                             ->append($this->createQrLoginNode())
                             ->append(InvitationsConfiguration::createNode())
+                            ->append(MfaConfiguration::createNode())
                             ->append($this->createRoutesNode())
                             ->scalarNode('firewall')
                                 ->info('Symfony firewall name where form_login should point (documented for security.yaml).')

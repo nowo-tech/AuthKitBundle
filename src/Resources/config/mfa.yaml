@@ -1,0 +1,54 @@
+# Native two-factor authentication (1.34). Loaded only when a profile sets mfa.enabled: true
+# (NowoAuthKitExtension::registerMfa()); the per-firewall MfaAuthenticationSubscriber services are added there.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: false
+        public: false
+
+    Nowo\AuthKitBundle\Mfa\MfaStore: ~
+    Nowo\AuthKitBundle\Mfa\MfaOwnerResolver: ~
+
+    Nowo\AuthKitBundle\Mfa\MfaManager:
+        public: true
+        arguments:
+            $roleHierarchy: '@?security.role_hierarchy'
+            $dispatcher: '@?event_dispatcher'
+            $policies: ~
+            $sessions: '@?Nowo\UserKitBundle\Sessions\UserSessionManager'
+            $logger: '@?logger'
+
+    Nowo\AuthKitBundle\Mfa\MfaTrustedDevices:
+        arguments:
+            $dispatcher: '@?event_dispatcher'
+            $sessions: '@?Nowo\UserKitBundle\Sessions\UserSessionManager'
+            $clients: '@?Nowo\UserKitBundle\Sessions\Client\SessionClientFactory'
+
+    Nowo\AuthKitBundle\Mfa\MfaEnrolment: ~
+
+    Nowo\AuthKitBundle\Mfa\MfaLoginCompleter:
+        arguments:
+            $rememberMeHandlers: !tagged_locator { tag: security.remember_me_handler, index_by: firewall }
+            $dispatcher: '@?event_dispatcher'
+
+    Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaContainmentSubscriber:
+        arguments:
+            $unlocalizedSuffix: '%nowo_auth_kit.locale.unlocalized_route_suffix%'
+        tags: [kernel.event_subscriber]
+
+    Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaSessionsSubscriber:
+        tags: [kernel.event_subscriber]
+
+    Nowo\AuthKitBundle\Mfa\Security\MfaVoter:
+        tags: [security.voter]
+
+    Nowo\AuthKitBundle\Mfa\Twig\MfaExtension:
+        tags: [twig.extension]
+
+    Nowo\AuthKitBundle\Mfa\Form\MfaCodeFormType:
+        tags: [form.type]
+
+    Nowo\AuthKitBundle\Mfa\Controller\:
+        resource: '../../Mfa/Controller/'
+        public: true
+        tags: [controller.service_arguments]

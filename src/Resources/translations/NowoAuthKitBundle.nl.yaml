@@ -237,3 +237,83 @@ invitation:
         button: "Uitnodiging accepteren"
         expires: "Deze link werkt één keer en verloopt op %expires%."
         ignore: "Verwachtte je deze uitnodiging niet, negeer deze e-mail dan."
+mfa:
+    field:
+        code: Verificatiecode
+        code_help: De 6-cijferige code uit je authenticator-app.
+        recovery_code: Herstelcode
+        recovery_code_help: 'Een van je opgeslagen herstelcodes, bijvoorbeeld ABCDE-12345.'
+        trust_device: Dit apparaat vertrouwen
+        trust_device_help: 'Vraag %days% dagen geen code in deze browser.'
+    error:
+        code_format: De code heeft niet het juiste formaat.
+        code_required: Voer de code uit je authenticator-app of een herstelcode in.
+        invalid_code: Deze code is niet geldig. Controleer de tijd op je telefoon en probeer het opnieuw.
+    challenge:
+        title: Verificatie in twee stappen
+        heading: Verificatie in twee stappen
+        intro: Voer de code uit je authenticator-app in om het inloggen af te ronden.
+        submit: Verifiëren
+        use_recovery: Een herstelcode gebruiken
+        sign_out: Annuleren en uitloggen
+    setup:
+        title: Verificatie in twee stappen instellen
+        heading: Verificatie in twee stappen instellen
+        intro: Je account moet verificatie in twee stappen gebruiken. Stel het nu in om verder te gaan.
+        submit: Inschakelen
+    enrol:
+        step_app: Installeer een authenticator-app op je telefoon (bijvoorbeeld Google Authenticator, Microsoft Authenticator of 1Password).
+        step_scan: Scan de QR-code met de app of typ de sleutel hieronder.
+        step_code: Voer de 6-cijferige code in die de app toont.
+        qr_alt: 'QR-code om %issuer% aan je authenticator-app toe te voegen'
+        manual: 'Sleutel voor %issuer% (%account%):'
+    recovery:
+        title: Herstelcodes
+        heading: Bewaar je herstelcodes
+        intro: Gebruik een van deze codes om in te loggen als je je telefoon kwijtraakt. Elke code werkt één keer.
+        once: Deze codes worden alleen nu getoond. Bewaar ze op een veilige plek voordat je verdergaat.
+        download: Downloaden als tekstbestand
+        continue: Doorgaan
+        done: Ik heb ze bewaard
+    flash:
+        expired: De verificatie duurde te lang. Log opnieuw in.
+        locked_out: Te veel onjuiste codes. Wacht een paar minuten en log opnieuw in.
+        too_many_attempts: Te veel onjuiste codes. Log opnieuw in.
+        enabled: Verificatie in twee stappen is ingeschakeld.
+        disabled: Verificatie in twee stappen is uitgeschakeld.
+        codes_regenerated: Er zijn nieuwe herstelcodes gemaakt. De oude werken niet meer.
+        device_forgotten: Het apparaat vraagt weer om een code.
+        device_unknown: Dat apparaat was al vergeten.
+    account:
+        title: Verificatie in twee stappen
+        intro: Bescherm je account naast je wachtwoord met een code van je telefoon.
+        status: Status
+        status_on: 'Ingeschakeld sinds %date%.'
+        status_off: Uitgeschakeld.
+        codes_left: '%count% ongebruikte herstelcodes.'
+        codes_low: Maak binnenkort nieuwe.
+        devices_count: '%count% vertrouwde apparaten.'
+        manage: Beheren
+        set_up: Verificatie in twee stappen instellen
+        required_until: 'Verplicht voor je account: stel het in vóór %date%.'
+        required_now: 'Verplicht voor je account: stel het nu in.'
+        enable: Inschakelen
+        regenerate: Nieuwe herstelcodes
+        regenerate_help: Voer een huidige code in om al je herstelcodes te vervangen.
+        devices: Vertrouwde apparaten
+        devices_none: Geen vertrouwde apparaten.
+        device_until: 'vertrouwd tot %date%'
+        forget: Vergeten
+        forget_all: Alle apparaten vergeten
+        disable: Uitschakelen
+        disable_help: Voer een huidige code in om verificatie in twee stappen uit te schakelen. Je andere sessies worden uitgelogd.
+        disable_required: Je account vereist verificatie in twee stappen; na uitschakelen moet je het bij de volgende keer inloggen opnieuw instellen.
+    admin:
+        title: Verificatie in twee stappen resetten
+        status_on: '%user% heeft verificatie in twee stappen ingeschakeld.'
+        status_off: '%user% heeft verificatie in twee stappen uitgeschakeld.'
+        reset_help: Resetten verwijdert de authenticator, de herstelcodes en de vertrouwde apparaten en logt de gebruiker overal uit. De gebruiker stelt het bij de volgende keer inloggen opnieuw in.
+        reset: 'Resetten voor %user%'
+        flash:
+            reset: 'Verificatie in twee stappen van %user% is gereset.'
+            not_enabled: '%user% heeft geen verificatie in twee stappen om te resetten.'

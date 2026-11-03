@@ -1,0 +1,17 @@
+{#
+  New recovery codes on the account page (1.34): shown once. Variables: mfa_codes, mfa_account_url.
+#}
+{% extends nowo_ui_layout.admin %}
+{% set nowo_ui_bundle = 'NowoAuthKitBundle' %}
+{% set _b = 'NowoAuthKitBundle' %}
+
+{% block nowo_ui_document_title %}{{ 'mfa.recovery.title'|trans({}, _b) }}{% endblock %}
+
+{% block nowo_ui_content %}
+    <div class="nowo-auth-kit-mfa-account" data-testid="auth-kit-mfa-account-codes">
+        <h1 class="{{ nowo_ui_class('page_title', _b) }}">{{ 'mfa.recovery.heading'|trans({}, _b) }}</h1>
+        <p class="{{ nowo_ui_class('page_intro', _b) }}">{{ 'mfa.recovery.intro'|trans({}, _b) }}</p>
+        {{ include('@NowoAuthKitBundle/mfa/_codes.html.twig', {codes: mfa_codes}) }}
+        <p><a class="{{ nowo_ui_class('btn_primary', _b) }}" href="{{ mfa_account_url }}">{{ 'mfa.recovery.done'|trans({}, _b) }}</a></p>
+    </div>
+{% endblock %}
