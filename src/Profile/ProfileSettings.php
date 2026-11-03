@@ -36,6 +36,7 @@ final readonly class ProfileSettings
      * @param array{layout_template?: ?string, templates?: array<string, string>, form_themes?: list<string>, brand?: ?string, qr_login?: array{stimulus_controller?: ?string}} $webUi page contract settings (REQ-UI-003)
      * @param array<string, mixed> $invitations `invitations` node (1.32; empty = disabled)
      * @param array<string, mixed> $mfa `mfa` node (1.34; empty = disabled)
+     * @param array<string, mixed> $multiAccount `multi_account` node (1.34; empty = disabled)
      */
     public function __construct(
         public string $name,
@@ -65,6 +66,7 @@ final readonly class ProfileSettings
         public array $webUi = [],
         public array $invitations = [],
         public array $mfa = [],
+        public array $multiAccount = [],
     ) {
     }
 
@@ -74,6 +76,14 @@ final readonly class ProfileSettings
     public function mfaEnabled(): bool
     {
         return ($this->mfa['enabled'] ?? false) === true;
+    }
+
+    /**
+     * Whether `multi_account.enabled` is true (1.34).
+     */
+    public function multiAccountEnabled(): bool
+    {
+        return ($this->multiAccount['enabled'] ?? false) === true;
     }
 
     /**
@@ -216,6 +226,7 @@ final readonly class ProfileSettings
             webUi: $config['web_ui'] ?? [],
             invitations: $config['invitations'] ?? [],
             mfa: $config['mfa'] ?? [],
+            multiAccount: $config['multi_account'] ?? [],
         );
     }
 }

@@ -1,0 +1,2 @@
+# Encrypts the AuthKit TOTP secrets at rest (#[Encrypted]). The demo key is generated under var/ on first use (dev).
+nowo_doctrine_encrypt: ~

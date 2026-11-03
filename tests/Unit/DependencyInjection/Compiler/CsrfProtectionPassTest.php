@@ -22,6 +22,18 @@ final class CsrfProtectionPassTest extends TestCase
         (new CsrfProtectionPass())->process($this->container(['default' => ['qr_login' => ['mode' => 'enabled']]], csrf: false));
     }
 
+    public function testRefusesMfaAndTheAccountSwitcherWithoutCsrf(): void
+    {
+        foreach (['mfa' => ['mfa' => ['enabled' => true]], 'multi_account' => ['multi_account' => ['enabled' => true]]] as $feature => $profile) {
+            try {
+                (new CsrfProtectionPass())->process($this->container(['default' => $profile], csrf: false));
+                self::fail($feature);
+            } catch (LogicException $e) {
+                self::assertStringContainsString('profiles.default.' . $feature . ' requires CSRF protection', $e->getMessage());
+            }
+        }
+    }
+
     public function testRefusesTheConfirmInterstitialWhenFormCsrfIsDisabled(): void
     {
         $container = $this->container(['admin' => ['magic_login' => ['mode' => 'enabled', 'confirm_interstitial' => true]]], csrf: true);

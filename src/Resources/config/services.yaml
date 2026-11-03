@@ -15,6 +15,7 @@ services:
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
             - '../../Invitation/Security/RoleInvitationsAccessChecker.php'
             - '../../Mfa/'
+            - '../../MultiAccount/'
             - '../../NowoAuthKitBundle.php'
 
     # REQ-SF-004 rule 7: the controllers carry #[Route] and must not be autoconfigured. On Symfony >= 7.3
@@ -173,6 +174,7 @@ services:
             $unlocalizedMode: '%nowo_auth_kit.locale.unlocalized%'
             $unlocalizedRouteSuffix: '%nowo_auth_kit.locale.unlocalized_route_suffix%'
             $localizedLogoutRedirect: '%nowo_auth_kit.locale.localized_logout_redirect%'
+            $multiAccountRoutes: '%nowo_auth_kit.multi_account.public_routes%'
 
     Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter:
         arguments:

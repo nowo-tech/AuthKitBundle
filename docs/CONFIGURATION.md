@@ -9,6 +9,7 @@
 - [Registration modes](#registration-modes)
 - [Invitations](#invitations)
 - [Two-factor authentication (MFA)](#two-factor-authentication-mfa)
+- [Several accounts at once](#several-accounts-at-once)
 - [Field configuration](#field-configuration)
   - [Login](#login)
   - [Remember me](#remember-me)
@@ -348,6 +349,23 @@ Requires DoctrineEncryptBundle (the secret is `#[Encrypted]`; `require_encryptio
 protection and, for the QR code, `endroid/qr-code`. Full reference, pages, events and security notes:
 [MFA.md](MFA.md). Host firewall layer: `/login/mfa` like the login page (`PUBLIC_ACCESS`), `/account/security/mfa`
 for `ROLE_USER`.
+
+## Several accounts at once
+
+Opt-in per profile (1.34, `multi_account.enabled: false` by default; requires UserKit ≥ 1.11 sessions):
+
+```yaml
+nowo_auth_kit:
+    multi_account:
+        enabled: true
+        # max_accounts: 5
+        # logout_scope: all              # all | current
+        # cookie: { lifetime: null }     # browser-session cookie
+        # chooser: { identifier_display: masked, cross_tab_notice: false }
+```
+
+Reference, menu partial, events and security: [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md). Host firewall layer: `/accounts`
+reachable anonymously (`PUBLIC_ACCESS`).
 
 ## Field configuration
 

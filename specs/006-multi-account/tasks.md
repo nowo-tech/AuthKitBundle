@@ -1,0 +1,12 @@
+# Tasks — 006 multi-account
+
+- [x] T001 S0 spike
+- [x] T002 UserKit 1.11 API
+- [x] T003 Configuration, DI, compile checks, routes
+- [x] T004 Vault (entity, store, crypto, cookie, hopper, AccountVault)
+- [x] T005 Subscriber (enrol, logout scopes, cookies, UserKit events), admin-link marker
+- [x] T006 Controller, Twig, templates, translations, purge
+- [x] T007 Tests, 100 % coverage, QA
+- [x] T008 Docs (MULTI-ACCOUNT, CONFIGURATION, SECURITY, TEMPLATES, README, CHANGELOG, UPGRADING, ROADMAP)
+- [x] T010 Audit DE fixes with regression tests (MultiAccountAuditDeKernelTest)
+- [x] T009 Demo + Playwright / axe (M4): 12/12 e2e green with axe (WCAG 2 A/AA)

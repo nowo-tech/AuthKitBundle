@@ -1,0 +1,70 @@
+{#
+  Account switcher (1.34, multi_account): the accounts of this browser for a user menu (variant 'menu') or the
+  chooser / sign-in page (variant 'list'). Variables: switcher (AccountSwitcherView, default auth_kit_accounts()),
+  variant ('menu' | 'list'), target_path (optional same-origin path after a switch).
+  Each switch / sign-out is a CSRF POST form; the active account has no switch button (aria-current="true").
+#}
+{% set _b = 'NowoAuthKitBundle' %}
+{% set _s = switcher|default(auth_kit_accounts()) %}
+{% set _variant = variant|default('menu') %}
+{% if _s %}
+<div class="nowo-auth-kit-accounts nowo-auth-kit-accounts--{{ _variant }}" data-testid="auth-kit-accounts" data-nowo-auth-kit-accounts="{{ _s.activeId ?? '' }}"{% if _s.crossTabNotice %} data-nowo-auth-kit-accounts-notice{% endif %}>
+    {% if _s.accounts is not empty %}
+        <ul class="nowo-auth-kit-accounts__list" aria-label="{{ 'accounts.list_label'|trans({}, _b) }}">
+            {% for account in _s.accounts %}
+                <li class="nowo-auth-kit-accounts__item nowo-auth-kit-accounts__item--{{ account.state }}" data-testid="auth-kit-account" data-state="{{ account.state }}"{% if account.active %} aria-current="true"{% endif %}>
+                    <span class="nowo-auth-kit-accounts__avatar" aria-hidden="true">
+                        {%- if account.avatarUrl %}<img src="{{ account.avatarUrl }}" alt="" width="32" height="32">{% else %}{{ account.initials }}{% endif -%}
+                    </span>
+                    <span class="nowo-auth-kit-accounts__who">
+                        <span class="nowo-auth-kit-accounts__name">{{ account.name }}</span>
+                        {% if account.identifier and account.identifier != account.name %}<span class="nowo-auth-kit-accounts__identifier">{{ account.identifier }}</span>{% endif %}
+                        <span class="nowo-auth-kit-accounts__state">{{ ('accounts.state.' ~ account.state)|trans({}, _b) }}</span>
+                    </span>
+                    {% if account.switchForm %}
+                        {{ form_start(account.switchForm, {attr: {class: 'nowo-auth-kit-accounts__switch'}}) }}
+                            {{ form_widget(account.switchForm) }}
+                            {% if target_path|default(null) %}<input type="hidden" name="_target_path" value="{{ target_path }}">{% endif %}
+                            <button type="submit" class="{{ nowo_ui_class(_variant == 'list' ? 'btn_primary' : 'btn_secondary', _b) }}" data-testid="auth-kit-account-switch">{{ (account.state == 'signed_out' ? 'accounts.action.resume' : 'accounts.action.switch')|trans({}, _b) }}<span class="nowo-auth-kit-sr-only"> {{ account.name }}</span></button>
+                        {{ form_end(account.switchForm) }}
+                    {% endif %}
+                    {{ form_start(account.signOutForm, {attr: {class: 'nowo-auth-kit-accounts__sign-out'}}) }}
+                        {{ form_widget(account.signOutForm) }}
+                        <button type="submit" class="{{ nowo_ui_class('btn_secondary', _b) }}" data-testid="auth-kit-account-sign-out">{{ 'accounts.action.sign_out'|trans({}, _b) }}<span class="nowo-auth-kit-sr-only"> {{ account.name }}</span></button>
+                    {{ form_end(account.signOutForm) }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <div class="nowo-auth-kit-accounts__actions">
+        {% if _s.addForm %}
+            {{ form_start(_s.addForm) }}
+                {{ form_widget(_s.addForm) }}
+                <button type="submit" class="{{ nowo_ui_class('btn_secondary', _b) }}" data-testid="auth-kit-account-add">{{ 'accounts.action.add'|trans({}, _b) }}</button>
+            {{ form_end(_s.addForm) }}
+        {% endif %}
+        {% if _s.signOutAllForm and _s.accounts|length > 1 %}
+            {{ form_start(_s.signOutAllForm) }}
+                {{ form_widget(_s.signOutAllForm) }}
+                <button type="submit" class="{{ nowo_ui_class('btn_secondary', _b) }}" data-testid="auth-kit-account-sign-out-all">{{ 'accounts.action.sign_out_all'|trans({}, _b) }}</button>
+            {{ form_end(_s.signOutAllForm) }}
+        {% endif %}
+        {% if _variant == 'menu' %}<a class="nowo-auth-kit-accounts__manage" href="{{ _s.chooserUrl }}">{{ 'accounts.action.manage'|trans({}, _b) }}</a>{% endif %}
+    </div>
+    {% if _s.crossTabNotice %}
+        <p class="nowo-auth-kit-accounts__notice" role="status" hidden data-nowo-auth-kit-accounts-changed>{{ 'accounts.notice.other_tab'|trans({}, _b) }} <a href="">{{ 'accounts.notice.reload'|trans({}, _b) }}</a></p>
+        {% set _csp_nonce = app is defined and app and app.request ? app.request.attributes.get('csp_nonce')|default('') : '' %}
+        <script{% if _csp_nonce %} nonce="{{ _csp_nonce }}"{% endif %}>
+            (function () {
+                var root = document.currentScript.parentNode, active = root.getAttribute('data-nowo-auth-kit-accounts');
+                if (!('BroadcastChannel' in window)) { return; }
+                var channel = new BroadcastChannel('nowo-auth-kit-accounts');
+                channel.postMessage(active);
+                channel.onmessage = function (event) {
+                    if (event.data !== active) { root.querySelector('[data-nowo-auth-kit-accounts-changed]').hidden = false; }
+                };
+            })();
+        </script>
+    {% endif %}
+</div>
+{% endif %}

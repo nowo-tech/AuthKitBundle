@@ -17,11 +17,11 @@ Planned direction for Auth Kit Bundle. Items are grouped by horizon and may chan
   QR phone login, invitations host API, embedded widget, UiKit page contract, FrankenPHP worker safe.
 - **Two-factor authentication** (1.34, opt-in): TOTP authenticator apps + recovery codes, trusted devices, required
   roles with a grace period, administrator reset — [MFA.md](MFA.md).
+- **Several accounts at once** (1.34, opt-in): account switcher with per-account sessions — [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md).
 
 ## Short term
 
-- **Several accounts signed in at once** (account switcher, per-account sessions, UserKit integration; requested by
-  symfony-beacon D-20261103-05), on top of MFA.
+- Account switcher: recognise older rotated tokens as reuse (token chain), optional device binding of the vault.
 
 ## Medium term
 

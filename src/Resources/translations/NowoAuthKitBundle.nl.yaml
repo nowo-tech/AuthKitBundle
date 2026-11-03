@@ -320,3 +320,33 @@ mfa:
         flash:
             reset: 'Verificatie in twee stappen van %user% is gereset.'
             not_enabled: '%user% heeft geen verificatie in twee stappen om te resetten.'
+accounts:
+    list_label: 'Accounts in deze browser'
+    state:
+        active: 'Ingelogd (huidig)'
+        signed_in: 'Ingelogd'
+        signed_out: 'Uitgelogd'
+    action:
+        switch: 'Wisselen'
+        resume: 'Opnieuw inloggen'
+        sign_out: 'Uitloggen'
+        add: 'Nog een account toevoegen'
+        sign_out_all: 'Uitloggen bij alle accounts'
+        manage: 'Accounts beheren'
+    notice:
+        other_tab: 'Je hebt in een ander tabblad van account gewisseld.'
+        reload: 'Opnieuw laden'
+    chooser:
+        title: 'Kies een account'
+        heading: 'Kies een account'
+        intro: 'Accounts die in deze browser zijn ingelogd. Wisselen vraagt geen wachtwoord.'
+        back: 'Doorgaan'
+        on_login: 'Accounts in deze browser'
+    flash:
+        not_now: 'Rond het huidige inloggen af voordat je van account wisselt.'
+        gone: 'Dat account is uitgelogd. Log opnieuw in om het te gebruiken.'
+        unknown: 'Dat account is niet ingelogd in deze browser.'
+        switched: 'Je gebruikt nu %account%.'
+        full: 'Er kunnen geen accounts meer worden toegevoegd in deze browser. Log er eerst een uit.'
+        rate_limited: 'Te veel pogingen. Probeer het over een paar minuten opnieuw.'
+        signed_out: 'Het account is uitgelogd.'

@@ -111,13 +111,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without UserKit, enrolment secret kept 300 s; follow-up: `symfony/lock` required with MFA (compile-time check),
   `mfa.recent_sign_in` (900 s) before setting up the second factor, `mfa.trusted_devices.password_field`, only wrong
   codes count per IP.
+- **Several accounts at once** (opt-in per profile, `multi_account.enabled: false` by default; symfony-beacon
+  D-20261103-05, spec 006): up to `max_accounts` (5) accounts per browser, each in its own session (parked sessions
+  sealed in a vault keyed by an opaque, rotated, HMAC-stored cookie token per account), added through a complete
+  sign-in (MFA included), switched without a password with the user checker re-run, the session id regenerated and
+  UserKit's row moved; sign out one account or all (`logout_scope: all` by default); revoked accounts leave the
+  switcher; remember-me cookies follow their account; host events (`MultiAccount\Event\*`), gate and presenter;
+  switcher partial and `auth_kit_accounts()`, chooser page, accounts on the sign-in page with masked identifiers,
+  optional cross-tab notice, rate limits, purge command `nowo:auth-kit:accounts:purge`; 7 locales. Requires UserKit ≥ 1.11
+  sessions (1.11.1 recommended). New table `auth_kit_account_vault`. Audit DE hardening: revoked accounts never revive
+  (UserKit ≥ 1.11.1 also after the revoked row is purged), a reused vault token signs the account out everywhere,
+  unknown tokens never disable a vault, a failing switch rolls back, identifiers masked for anonymous browsers,
+  `_target_path` without control characters, previous token accepted within `rotation_grace` from the browser that rotated it only (no re-rotation; another browser's
+  token is kept as theft evidence), replaced parked
+  sessions ended, admin-issued links never enrol through MFA completion, `cookie.secure`, per-firewall user provider,
+  `configure-security` adds the switcher's public rules. See [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md).
 - `docs/ROADMAP.md` (WebAuthn and e-mail codes as later second factors).
 
 ### Changed
 
 - AuthKit's own `Security::login()` calls (social, QR, sign-up, invitation, magic-link confirm) name their first
   factor on the request (`_nowo_auth_kit_first_factor`); no effect without MFA.
-- `web_ui.templates` gains `mfa_challenge`, `mfa_setup` and `mfa_recovery_codes`.
+- `web_ui.templates` gains `mfa_challenge`, `mfa_setup`, `mfa_recovery_codes` and `accounts_chooser`.
+- With `multi_account` on, magic links issued by an administrator are recorded (cache) so they never add an account
+  to a browser's switcher; the sign-in page can list the browser's accounts (`LoginController` takes an optional
+  `MultiAccountExtension`).
 
 ## [1.33.1] - 2026-11-02
 
