@@ -52,6 +52,7 @@ abstract class MfaKernelTestCase extends WebTestCase
         $em->persist((new KernelUser())->setEmail('member@example.com')->setPassword('member-password-123'));
         $em->persist((new KernelUser())->setEmail('admin@example.com')->setPassword('admin-password-123')->setRoles(['ROLE_ADMIN']));
         $em->persist((new KernelUser())->setEmail('support@example.com')->setPassword('support-password-123')->setRoles(['ROLE_SUPPORT']));
+        $em->persist((new KernelUser())->setEmail('boss@example.com')->setPassword('boss-password-123')->setRoles(['ROLE_SUPERVISOR']));
         $em->flush();
         $em->clear();
 

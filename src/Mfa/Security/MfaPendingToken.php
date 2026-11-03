@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Mfa\Security;
 
-use Deprecated;
 use Nowo\AuthKitBundle\Mfa\MfaLoginCompleter;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+
+use function bin2hex;
+use function random_bytes;
 
 /**
  * Firewall token of a sign-in waiting for its second step (1.34). It wraps the token of the first factor (restored by
@@ -36,7 +38,11 @@ final class MfaPendingToken implements TokenInterface
 
     private ?string $targetPath = null;
 
-    private int $failures = 0;
+    /** Random id of this pending sign-in (server-side attempt counter, DD-M1). */
+    private string $id;
+
+    /** This pending sign-in enrolled the second factor itself (forced enrolment, DD-L1). */
+    private bool $enrolled = false;
 
     public function __construct(
         private TokenInterface $inner,
@@ -46,6 +52,23 @@ final class MfaPendingToken implements TokenInterface
         private readonly string $mode,
         private readonly int $createdAt,
     ) {
+        $this->id = bin2hex(random_bytes(16));
+    }
+
+    public function id(): string
+    {
+        return $this->id;
+    }
+
+    public function enrolled(): bool
+    {
+        return $this->enrolled;
+    }
+
+    public function markEnrolled(): void
+    {
+        // @igor-ignore - Token of one session (serialized into it), not a shared service.
+        $this->enrolled = true;
     }
 
     public function inner(): TokenInterface
@@ -100,17 +123,6 @@ final class MfaPendingToken implements TokenInterface
         $this->targetPath = $path;
     }
 
-    public function failures(): int
-    {
-        return $this->failures;
-    }
-
-    public function fail(): int
-    {
-        // @igor-ignore - Token of one session (serialized into it), not a shared service.
-        return ++$this->failures;
-    }
-
     public function __toString(): string
     {
         return 'MfaPendingToken(user="' . $this->getUserIdentifier() . '")';
@@ -139,14 +151,6 @@ final class MfaPendingToken implements TokenInterface
     public function setUser(UserInterface $user): void
     {
         $this->inner->setUser($user);
-    }
-
-    /**
-     * Nothing to erase (Symfony < 8 interface method; no-op).
-     */
-    #[Deprecated]
-    public function eraseCredentials(): void
-    {
     }
 
     /**
@@ -189,7 +193,7 @@ final class MfaPendingToken implements TokenInterface
      */
     public function __serialize(): array
     {
-        return [$this->inner, $this->firewall, $this->profile, $this->firstFactor, $this->mode, $this->createdAt, $this->attributes, $this->rememberMe, $this->targetPath, $this->failures];
+        return [$this->inner, $this->firewall, $this->profile, $this->firstFactor, $this->mode, $this->createdAt, $this->attributes, $this->rememberMe, $this->targetPath, $this->id, $this->enrolled];
     }
 
     /**
@@ -198,6 +202,6 @@ final class MfaPendingToken implements TokenInterface
     public function __unserialize(array $data): void
     {
         // @igor-ignore - Token of one session (serialized into it), not a shared service.
-        [$this->inner, $this->firewall, $this->profile, $this->firstFactor, $this->mode, $this->createdAt, $this->attributes, $this->rememberMe, $this->targetPath, $this->failures] = $data;
+        [$this->inner, $this->firewall, $this->profile, $this->firstFactor, $this->mode, $this->createdAt, $this->attributes, $this->rememberMe, $this->targetPath, $this->id, $this->enrolled] = $data;
     }
 }

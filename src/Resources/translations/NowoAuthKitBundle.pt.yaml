@@ -276,6 +276,7 @@ mfa:
         continue: Continuar
         done: Já os guardei
     flash:
+        restart: 'A verificação em dois passos mudou entretanto. Inicie sessão novamente.'
         expired: A verificação demorou demasiado. Inicie sessão novamente.
         locked_out: Demasiados códigos errados. Aguarde alguns minutos e inicie sessão novamente.
         too_many_attempts: Demasiados códigos errados. Inicie sessão novamente.

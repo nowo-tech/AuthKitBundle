@@ -36,6 +36,12 @@ services:
             $unlocalizedSuffix: '%nowo_auth_kit.locale.unlocalized_route_suffix%'
         tags: [kernel.event_subscriber]
 
+    Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaPasswordChangeListener:
+        tags:
+            - { name: doctrine.event_listener, event: onFlush }
+            - { name: doctrine.event_listener, event: postFlush }
+            - { name: kernel.reset, method: reset }
+
     Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaSessionsSubscriber:
         tags: [kernel.event_subscriber]
 

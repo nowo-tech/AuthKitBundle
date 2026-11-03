@@ -23,7 +23,8 @@ final readonly class MfaEnrolment
 {
     public const SESSION_KEY = '_nowo_auth_kit_mfa_enrolment';
 
-    public const LIFETIME = 900;
+    /** Seconds the unconfirmed secret stays in the session (DD-I4: short, the session store holds it in clear). */
+    public const LIFETIME = 300;
 
     public function __construct(
         private MfaManager $manager,

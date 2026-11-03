@@ -59,6 +59,12 @@ final class MfaAdminController
         if ($target->getUserIdentifier() === $actor->getUserIdentifier()) {
             throw new AccessDeniedHttpException('Use the account page for your own second factor.');
         }
+        foreach ($target->getRoles() as $role) {
+            if (!$this->authorization->isGranted($role)) {
+                // DD-I2: never reset the factor of an account holding a role the administrator does not hold.
+                throw new AccessDeniedHttpException('The account holds a role you do not hold.');
+            }
+        }
         $url  = $this->urls->generate((string) $profile->mfa['routes']['admin_reset']['name'], ['user' => $target->getUserIdentifier()]);
         $form = $this->csrfForms->createNamed($url, 'nowo_auth_kit_mfa_admin_reset.' . $profile->name . '.' . $target->getUserIdentifier());
         if ($request->isMethod('POST')) {

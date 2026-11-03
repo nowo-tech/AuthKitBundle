@@ -18,6 +18,10 @@ final class MfaAdminKernelTest extends MfaKernelTestCase
         $this->client->request('GET', '/logout');
 
         $this->client->loginUser($this->user('support@example.com'));
+        $this->client->request('GET', '/admin/mfa/admin@example.com');
+        self::assertResponseStatusCodeSame(403, 'DD-I2: support does not hold ROLE_ADMIN.');
+
+        $this->client->loginUser($this->user('boss@example.com'));
         $crawler = $this->client->request('GET', '/admin/mfa/admin@example.com');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('[data-testid="auth-kit-mfa-admin-status"]', 'admin@example.com has two-step verification on.');
@@ -30,13 +34,13 @@ final class MfaAdminKernelTest extends MfaKernelTestCase
         self::assertResponseRedirects('/admin/mfa/admin@example.com', 303);
         $reset = $this->eventsOf(MfaResetByAdminEvent::class);
         self::assertCount(1, $reset);
-        self::assertSame('support@example.com', $reset[0]->actor->getUserIdentifier());
+        self::assertSame('boss@example.com', $reset[0]->actor->getUserIdentifier());
         self::assertFalse($this->manager()->isEnabled($this->user('admin@example.com')));
 
         $crawler = $this->client->request('GET', '/admin/mfa/admin@example.com');
         self::assertSelectorTextContains('[data-testid="auth-kit-mfa-admin-status"]', 'off');
         self::assertStringContainsString('Two-step verification of admin@example.com was reset.', $crawler->text());
-        self::assertFalse($this->manager()->reset($this->user('admin@example.com'), $this->user('support@example.com')), 'Nothing to reset any more.');
+        self::assertFalse($this->manager()->reset($this->user('admin@example.com'), $this->user('boss@example.com')), 'Nothing to reset any more.');
 
         // The required administrator enrols at the next sign-in (no grace after a reset).
         $this->client->request('GET', '/logout');

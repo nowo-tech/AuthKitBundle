@@ -276,6 +276,7 @@ mfa:
         continue: Continuer
         done: Je les ai enregistrés
     flash:
+        restart: 'La validation en deux étapes a changé entre-temps. Reconnectez-vous.'
         expired: La vérification a pris trop de temps. Reconnectez-vous.
         locked_out: Trop de codes incorrects. Patientez quelques minutes puis reconnectez-vous.
         too_many_attempts: Trop de codes incorrects. Reconnectez-vous.

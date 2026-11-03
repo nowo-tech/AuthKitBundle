@@ -276,6 +276,7 @@ mfa:
         continue: Weiter
         done: Ich habe sie gespeichert
     flash:
+        restart: 'Die Bestätigung in zwei Schritten wurde inzwischen geändert. Melden Sie sich erneut an.'
         expired: Die Bestätigung hat zu lange gedauert. Melden Sie sich erneut an.
         locked_out: Zu viele falsche Codes. Warten Sie einige Minuten und melden Sie sich erneut an.
         too_many_attempts: Zu viele falsche Codes. Melden Sie sich erneut an.

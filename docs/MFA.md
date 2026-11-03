@@ -232,7 +232,15 @@ factor.
   page; the QR code is rendered on the server (no third-party QR service); the `otpauth://` URI is never logged,
   flashed, cached or put in a URL.
 - Replay: a time step is accepted once (conditional `UPDATE … last_used_step < :step`); window ±1 step.
-- Rate limits: attempts per pending sign-in, per account (lockout, `MfaLockedOutEvent`) and per client IP; constant-time
-  comparisons; the challenge is only reachable with a pending token (no "does this account have MFA" oracle).
+- Rate limits: attempts per pending sign-in (a server-side counter keyed by the pending sign-in's random id), per
+  account (lockout, `MfaLockedOutEvent`) and per client IP, each attempt **consumed atomically before** the code is
+  verified (concurrent guesses cannot share a check-then-act window); constant-time comparisons; the challenge is only
+  reachable with a pending token (no "does this account have MFA" oracle).
+- The forced enrolment is bound to its pending sign-in: if MFA was turned on elsewhere meanwhile, the sign-in restarts.
+- The account page needs a full sign-in (`IS_AUTHENTICATED_FULLY`; a remember-me session signs in again first).
+- The admin reset refuses accounts holding a role the administrator does not hold.
+- A password change (any flush of the user's `password`) forgets the trusted devices, with or without UserKit.
+- The unconfirmed enrolment secret stays in the session for at most 300 s (in clear in the session store: protect the
+  session storage as you protect sessions).
 - Session id migrated on completion; every POST CSRF-protected.
 - New-device notifications (Device Intelligence) still fire at the first factor (an alert when a password is used).

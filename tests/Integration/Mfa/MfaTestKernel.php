@@ -79,7 +79,7 @@ class MfaTestKernel extends AuthKitTestKernel
             ],
         ]);
         $container->loadFromExtension('security', [
-            'role_hierarchy' => ['ROLE_SUPPORT' => ['ROLE_ALLOWED_TO_SWITCH']],
+            'role_hierarchy' => ['ROLE_SUPPORT' => ['ROLE_ALLOWED_TO_SWITCH'], 'ROLE_SUPERVISOR' => ['ROLE_SUPPORT', 'ROLE_ADMIN']],
             'firewalls'      => ['main' => [
                 'remember_me' => ['secret' => 'auth-kit-test', 'remember_me_parameter' => 'login_form[_remember_me]'],
                 'switch_user' => true,

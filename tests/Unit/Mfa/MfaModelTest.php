@@ -149,12 +149,15 @@ final class MfaModelTest extends TestCase
         $token->setUser(new InMemoryUser('ana', null, ['ROLE_USER']));
         $token->requestRememberMe();
         $token->setTargetPath('/x');
-        self::assertSame(1, $token->fail());
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $token->id());
+        self::assertFalse($token->enrolled());
+        $token->markEnrolled();
         $copy = unserialize(serialize($token));
         self::assertInstanceOf(MfaPendingToken::class, $copy);
         self::assertTrue($copy->wantsRememberMe());
         self::assertSame('/x', $copy->targetPath());
-        self::assertSame(1, $copy->failures());
+        self::assertSame($token->id(), $copy->id());
+        self::assertTrue($copy->enrolled());
         self::assertSame(MfaPendingToken::MODE_CHALLENGE, $copy->mode());
 
         $voter = new MfaVoter();

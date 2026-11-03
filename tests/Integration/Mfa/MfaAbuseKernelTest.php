@@ -18,12 +18,12 @@ final class MfaAbuseKernelTest extends MfaKernelTestCase
         $this->client->request('GET', '/logout');
 
         $this->signIn('member@example.com', 'member-password-123');
-        for ($i = 1; $i < 5; ++$i) {
+        for ($i = 1; $i <= 5; ++$i) {
             $this->challenge(['code' => '000000']);
             self::assertResponseStatusCodeSame(422);
         }
         $this->challenge(['code' => '000000']);
-        self::assertResponseRedirects('/login', 303);
+        self::assertResponseRedirects('/login', 303, 'The 6th code of one pending sign-in ends it (server-side counter).');
         $this->client->followRedirect();
         self::assertStringContainsString('Too many wrong codes. Sign in again.', (string) $this->client->getResponse()->getContent());
         $this->client->request('GET', '/login/mfa');
@@ -34,6 +34,7 @@ final class MfaAbuseKernelTest extends MfaKernelTestCase
             $this->challenge(['code' => '000000']);
         }
         self::assertCount(1, $this->eventsOf(MfaLockedOutEvent::class), 'The 10th failure locks the account.');
+        $this->challenge(['code' => '000000']);
         $this->signIn('member@example.com', 'member-password-123');
         $this->challenge(['code' => $this->code($secret)]);
         self::assertResponseRedirects('/login', 303, 'Even a valid code is refused while locked out.');

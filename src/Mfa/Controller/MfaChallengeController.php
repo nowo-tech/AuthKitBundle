@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -49,6 +50,7 @@ final class MfaChallengeController
         private readonly AuthPageFactory $pages,
         private readonly AuthKitUrlGenerator $urls,
         private readonly RequestProfileResolver $profileResolver,
+        private readonly AuthKitAttemptLimiter $limiter,
     ) {
     }
 
@@ -76,6 +78,8 @@ final class MfaChallengeController
                 $code = MfaCodeFormType::submittedCode($form);
                 if ($code === '') {
                     $error = 'mfa.error.code_required';
+                } elseif (!$this->attempt($pending, $profile)) {
+                    return $this->completer->abort($request, $pending, 'mfa.flash.too_many_attempts');
                 } else {
                     $result = $this->manager->check($user, $code, $request->getClientIp(), 'challenge');
                     if ($result->isValid()) {
@@ -87,9 +91,6 @@ final class MfaChallengeController
                     }
                     if ($result === MfaCheck::LockedOut) {
                         return $this->completer->abort($request, $pending, 'mfa.flash.locked_out');
-                    }
-                    if ($pending->fail() >= (int) ($profile->mfa['max_attempts'] ?? 5)) {
-                        return $this->completer->abort($request, $pending, 'mfa.flash.too_many_attempts');
                     }
                     $error = 'mfa.error.invalid_code';
                 }
@@ -111,10 +112,15 @@ final class MfaChallengeController
         $profile = $this->manager->profileNamed($pending->profile());
         $user    = $this->user($pending);
         $action  = $this->urls->generate((string) $profile->mfa['routes']['setup']['name']);
+        if (!$pending->enrolled() && $this->manager->isEnabled($user)) {
+            // DD-L1: MFA was turned on elsewhere since this sign-in began (maybe by the owner): never complete or
+            // re-enrol over it from here; sign in again and pass the challenge.
+            return $this->completer->abort($request, $pending, 'mfa.flash.restart');
+        }
         if ($request->isMethod('POST') && $request->request->has('csrf_only')) {
             $continue = $this->csrfForms->createNamed($action, 'nowo_auth_kit_mfa_continue');
             $continue->handleRequest($request);
-            if ($continue->isSubmitted() && $continue->isValid() && $this->manager->isEnabled($user)) {
+            if ($continue->isSubmitted() && $continue->isValid() && $pending->enrolled()) {
                 return $this->completer->complete($request, $pending, 'enrolment');
             }
 
@@ -129,11 +135,15 @@ final class MfaChallengeController
         if ($request->isMethod('POST')) {
             $form->handleRequest($request);
             if ($form->isSubmitted() && $form->isValid()) {
+                if (!$this->attempt($pending, $profile)) {
+                    return $this->completer->abort($request, $pending, 'mfa.flash.too_many_attempts');
+                }
                 // @igor-ignore - Stateless service call (the second factor is stored in the database), not a mutation of worker state.
                 $codes = $this->manager->enable($user, $secret, MfaCodeFormType::submittedCode($form), $request);
                 if ($codes !== null) {
                     // @igor-ignore - Removes the enrolment secret from the request's own session.
                     $this->enrolment->clear($request);
+                    $pending->markEnrolled();
 
                     return $this->recoveryCodes($profile, $codes, $action);
                 }
@@ -145,6 +155,15 @@ final class MfaChallengeController
             'mfa_enrolment'    => $this->enrolment->view($user, $secret),
             'mfa_logout_route' => $profile->routes['logout']['name'],
         ]);
+    }
+
+    /**
+     * Consumes one code attempt of this pending sign-in (server-side, shared by concurrent requests: DD-M1). False
+     * once `mfa.max_attempts` were used: the next code ends the sign-in.
+     */
+    private function attempt(MfaPendingToken $pending, ProfileSettings $profile): bool
+    {
+        return $this->limiter->consume('mfa:pending:' . $pending->id(), (int) ($profile->mfa['max_attempts'] ?? 5), (int) ($profile->mfa['pending_lifetime'] ?? 300));
     }
 
     /**

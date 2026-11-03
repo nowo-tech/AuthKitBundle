@@ -25,6 +25,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\SwitchUserToken;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Twig\Environment;
@@ -48,6 +49,7 @@ final class MfaAccountController
         private readonly MfaEnrolment $enrolment,
         private readonly AuthKitUrlGenerator $urls,
         private readonly AuthKitFlashMessenger $flash,
+        private readonly AuthorizationCheckerInterface $authorization,
     ) {
     }
 
@@ -146,6 +148,10 @@ final class MfaAccountController
         }
         if ($token instanceof SwitchUserToken) {
             throw new AccessDeniedHttpException('Two-factor authentication cannot be managed while impersonating.');
+        }
+        if (!$this->authorization->isGranted('IS_AUTHENTICATED_FULLY')) {
+            // DD-I1: a remember-me session signs in again before changing its second factor.
+            throw new AccessDeniedException('Sign in again to manage two-factor authentication.');
         }
         $status = $this->manager->status($user);
         if (!$status instanceof MfaStatus) {

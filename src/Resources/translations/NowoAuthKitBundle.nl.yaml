@@ -276,6 +276,7 @@ mfa:
         continue: Doorgaan
         done: Ik heb ze bewaard
     flash:
+        restart: 'Verificatie in twee stappen is intussen gewijzigd. Log opnieuw in.'
         expired: De verificatie duurde te lang. Log opnieuw in.
         locked_out: Te veel onjuiste codes. Wacht een paar minuten en log opnieuw in.
         too_many_attempts: Te veel onjuiste codes. Log opnieuw in.

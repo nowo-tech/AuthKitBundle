@@ -235,7 +235,9 @@ final readonly class MfaManager
         $ipKey      = 'mfa:ip:' . ($clientIp ?? 'unknown');
         $account    = $this->limit($limits, 'account', 10, 900);
         $ip         = $this->limit($limits, 'ip', 30, 900);
-        if (!$this->limiter->isAllowed($accountKey, $account[0]) || !$this->limiter->isAllowed($ipKey, $ip[0])) {
+        // DD-M1: one attempt is consumed atomically (under the limiter lock) BEFORE the code is verified, so concurrent
+        // guesses cannot all pass a check-then-act window.
+        if (!$this->limiter->consume($accountKey, $account[0], $account[1]) || !$this->limiter->consume($ipKey, $ip[0], $ip[1])) {
             return MfaCheck::LockedOut;
         }
         $recovery = RecoveryCodes::normalize($code);
@@ -248,8 +250,6 @@ final readonly class MfaManager
 
             return $result;
         }
-        $this->limiter->hit($accountKey, $account[1]);
-        $this->limiter->hit($ipKey, $ip[1]);
         $this->dispatch(new MfaChallengeFailedEvent($profile->name, $user, $kind, $context));
         if ($this->limiter->count($accountKey) === $account[0]) {
             $this->dispatch(new MfaLockedOutEvent($profile->name, $user));

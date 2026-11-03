@@ -276,6 +276,7 @@ mfa:
         continue: Continua
         done: Li ho salvati
     flash:
+        restart: 'La verifica in due passaggi è cambiata nel frattempo. Accedi di nuovo.'
         expired: La verifica ha richiesto troppo tempo. Accedi di nuovo.
         locked_out: Troppi codici errati. Attendi qualche minuto e accedi di nuovo.
         too_many_attempts: Troppi codici errati. Accedi di nuovo.

@@ -274,6 +274,7 @@ mfa:
         continue: Continue
         done: I saved them
     flash:
+        restart: 'Two-step verification changed in the meantime. Sign in again.'
         expired: The verification took too long. Sign in again.
         locked_out: Too many wrong codes. Wait a few minutes and sign in again.
         too_many_attempts: Too many wrong codes. Sign in again.
