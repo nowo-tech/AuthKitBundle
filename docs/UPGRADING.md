@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.34.0](#to-1340)
 - [To 1.33.1](#to-1331)
 - [To 1.33.0](#to-1330)
 - [To 1.32.2](#to-1322)
@@ -99,6 +100,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.34.0
+
+From **1.33.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 No action unless you enable MFA or the account switcher (`mfa.enabled` / `multi_account.enabled` stay `false`: no
 service, route, cookie or listener). Notes:
