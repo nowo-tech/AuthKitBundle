@@ -9,4 +9,4 @@
 - [x] T007 Tests, 100 % coverage, QA
 - [x] T008 Docs (MULTI-ACCOUNT, CONFIGURATION, SECURITY, TEMPLATES, README, CHANGELOG, UPGRADING, ROADMAP)
 - [x] T010 Audit DE fixes with regression tests (MultiAccountAuditDeKernelTest)
-- [ ] T009 Demo + Playwright / axe (M4)
+- [x] T009 Demo + Playwright / axe (M4): 12/12 e2e green with axe (WCAG 2 A/AA)
