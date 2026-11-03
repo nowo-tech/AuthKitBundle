@@ -100,6 +100,29 @@
 
 ## Unreleased
 
+No action unless you enable MFA (`mfa.enabled` stays `false`: no service, route, cookie or listener). Notes:
+
+- **Schema:** the MFA entities live in `src/Entity`, so with the default `doctrine.register_mapping: true` your next
+  `doctrine:migrations:diff` adds `auth_kit_mfa`, `auth_kit_mfa_recovery_code` and `auth_kit_mfa_trusted_device`
+  (empty); `register_mapping: auto` keeps them out until a profile enables MFA. `register_mapping: false` with
+  `mfa.enabled: true` is refused.
+- The profile configuration (`nowo_auth_kit.profiles` parameter) gains an `mfa` node and three `web_ui.templates`
+  keys.
+
+To enable MFA ([MFA.md](MFA.md)):
+
+1. Set `mfa.enabled: true` and `mfa.issuer`; register `nowo-tech/doctrine-encrypt-bundle` (the secret is
+   `#[Encrypted]`) and `endroid/qr-code` (QR code); keep form CSRF protection on.
+2. Generate and run the migration.
+3. `access_control`: `/login/mfa` reachable like the login page (`PUBLIC_ACCESS`), `/account/security/mfa` for
+   `ROLE_USER`.
+4. Host `LoginSuccessEvent` listeners that must not run for a half-authenticated user: skip
+   `$event->getAuthenticatedToken() instanceof MfaPendingToken`, or listen to `MfaLoginCompletedEvent`.
+5. With UserKit sessions, use UserKit ≥ 1.11 (pending sign-ins are registered once complete).
+6. `composer require symfony/lock` (MFA refuses to compile without `lock.factory`; on several hosts use a shared
+   store). If your user entity keeps its password hash in another field than `password`, set
+   `mfa.trusted_devices.password_field`. Setting up the second factor needs a sign-in within `mfa.recent_sign_in`.
+
 ## To 1.33.1
 
 From **1.33.0**:

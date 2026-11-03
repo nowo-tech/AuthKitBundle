@@ -1,0 +1,23 @@
+{#
+  Optional administrator page (1.34, mfa.admin.routes): whether a user has a second factor (never the secret) and the
+  CSRF reset form. Variables: mfa_user (identifier), mfa_status (MfaStatus), mfa_reset_form.
+#}
+{% extends nowo_ui_layout.admin %}
+{% set nowo_ui_bundle = 'NowoAuthKitBundle' %}
+{% set _b = 'NowoAuthKitBundle' %}
+
+{% block nowo_ui_document_title %}{{ 'mfa.admin.title'|trans({}, _b) }}{% endblock %}
+
+{% block nowo_ui_content %}
+    <div class="nowo-auth-kit-mfa-admin" data-testid="auth-kit-mfa-admin">
+        <h1 class="{{ nowo_ui_class('page_title', _b) }}">{{ 'mfa.admin.title'|trans({}, _b) }}</h1>
+        <p data-testid="auth-kit-mfa-admin-status">{{ (mfa_status.enabled ? 'mfa.admin.status_on' : 'mfa.admin.status_off')|trans({'%user%': mfa_user}, _b) }}</p>
+        {% if mfa_status.enabled %}
+            <p>{{ 'mfa.admin.reset_help'|trans({}, _b) }}</p>
+            {{ form_start(mfa_reset_form) }}
+                {{ form_widget(mfa_reset_form) }}
+                <button type="submit" class="{{ nowo_ui_class('btn_danger', _b) }}">{{ 'mfa.admin.reset'|trans({'%user%': mfa_user}, _b) }}</button>
+            {{ form_end(mfa_reset_form) }}
+        {% endif %}
+    </div>
+{% endblock %}

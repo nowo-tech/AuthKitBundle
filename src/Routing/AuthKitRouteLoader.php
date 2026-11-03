@@ -29,6 +29,9 @@ use Nowo\AuthKitBundle\DependencyInjection\InvitationsConfiguration;
 use Nowo\AuthKitBundle\Enum\LocaleInPathMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Enum\UnlocalizedLocaleMode;
+use Nowo\AuthKitBundle\Mfa\Controller\MfaAccountController;
+use Nowo\AuthKitBundle\Mfa\Controller\MfaAdminController;
+use Nowo\AuthKitBundle\Mfa\Controller\MfaChallengeController;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use ReflectionMethod;
 use Symfony\Component\Config\Loader\Loader;
@@ -155,6 +158,22 @@ final class AuthKitRouteLoader extends Loader
                 foreach (InvitationsConfiguration::ADMIN_ROUTE_KEYS as $action) {
                     $this->addControllerRoute($collection, $invitationRoutes[$action], InvitationAdminController::class, $action, $profileDefaults);
                 }
+            }
+        }
+
+        // MFA (1.34): opt-in, registered only with mfa.enabled; the admin reset page only with mfa.admin.routes.
+        if (($profile['mfa']['enabled'] ?? false) === true) {
+            /** @var array<string, array{path: string, name: string}> $mfaRoutes */
+            $mfaRoutes = $profile['mfa']['routes'];
+            $this->addControllerRoute($collection, $mfaRoutes['challenge'], MfaChallengeController::class, 'challenge', $profileDefaults);
+            $this->addControllerRoute($collection, $mfaRoutes['setup'], MfaChallengeController::class, 'setup', $profileDefaults);
+            $this->addControllerRoute($collection, $mfaRoutes['account'], MfaAccountController::class, 'account', $profileDefaults);
+            $this->addControllerRoute($collection, $mfaRoutes['enable'], MfaAccountController::class, 'enable', $profileDefaults);
+            $this->addControllerRoute($collection, $mfaRoutes['disable'], MfaAccountController::class, 'disable', $profileDefaults);
+            $this->addControllerRoute($collection, $mfaRoutes['recovery_codes'], MfaAccountController::class, 'recoveryCodes', $profileDefaults);
+            $this->addControllerRoute($collection, $mfaRoutes['forget_device'], MfaAccountController::class, 'forgetDevice', $profileDefaults);
+            if (($profile['mfa']['admin']['routes'] ?? false) === true) {
+                $this->addControllerRoute($collection, $mfaRoutes['admin_reset'], MfaAdminController::class, 'reset', $profileDefaults);
             }
         }
     }

@@ -90,6 +90,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Two-factor authentication** (opt-in per profile, `mfa.enabled: false` by default; symfony-beacon D-20261103-07,
+  spec 005): TOTP authenticator apps (RFC 6238, ±1 step, replay-proof conditional `UPDATE`) enrolled with a
+  server-rendered QR code and confirmed by a code; ten single-use recovery codes (HMAC, shown once, downloadable,
+  regenerable with a current code); a firewall-level two-step token (`Mfa\Security\MfaPendingToken`, no roles)
+  after any first factor (`mfa.first_factors`: QR login exempt, the rest required), containment of every other
+  request (redirect or `401 mfa_required`), remember-me only after the second step (`mfa.remember_me: trusted |
+  challenge`); "trust this device" (`mfa.trusted_devices`, 30 days, max 5 or UserKit's `maxTrustedDevices`, rotated
+  token cookie); required roles / `MfaPolicyInterface` with a grace period then forced enrolment; attempts per
+  sign-in, account lockout and per-IP limits; account page and UiKit card partial (`auth_kit_mfa_status()`,
+  `auth_kit_mfa_notice()`), administrator reset (`MfaManager::reset()`, optional page with `mfa.admin.routes`);
+  audit events (`Mfa\Event\*`); UserKit 1.11 integration (pending sign-ins registered once complete, `revokeOthers`
+  / `revokeAll` with the remember-me epoch, trusted devices forgotten on sign-out everywhere, `revokeDevice()`);
+  translations in 7 locales. New tables `auth_kit_mfa`, `auth_kit_mfa_recovery_code`, `auth_kit_mfa_trusted_device`.
+  See [MFA.md](MFA.md). Audit DD hardening: attempts consumed atomically before verification and a server-side
+  counter per pending sign-in, forced enrolment bound to its pending sign-in, full sign-in for the account page,
+  admin reset limited to accounts whose roles the administrator holds, trusted devices forgotten on password change
+  without UserKit, enrolment secret kept 300 s; follow-up: `symfony/lock` required with MFA (compile-time check),
+  `mfa.recent_sign_in` (900 s) before setting up the second factor, `mfa.trusted_devices.password_field`, only wrong
+  codes count per IP.
+- `docs/ROADMAP.md` (WebAuthn and e-mail codes as later second factors).
+
+### Changed
+
+- AuthKit's own `Security::login()` calls (social, QR, sign-up, invitation, magic-link confirm) name their first
+  factor on the request (`_nowo_auth_kit_first_factor`); no effect without MFA.
+- `web_ui.templates` gains `mfa_challenge`, `mfa_setup` and `mfa_recovery_codes`.
+
 ## [1.33.1] - 2026-11-02
 
 Invitations hardening: the link shown after an undelivered mail needs a non-null actor and every action authorizer granting return_link; expired invitations no longer count toward the 500-open cap; merge_key values must be string, int or null. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.33.1/docs/UPGRADING.md#to-1331).

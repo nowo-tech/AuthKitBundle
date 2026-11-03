@@ -237,3 +237,86 @@ invitation:
         button: "Aceitar o convite"
         expires: "Esta ligação funciona uma vez e expira em %expires%."
         ignore: "Se não esperava este convite, ignore este e-mail."
+mfa:
+    field:
+        code: Código de verificação
+        code_help: O código de 6 dígitos da sua aplicação de autenticação.
+        recovery_code: Código de recuperação
+        recovery_code_help: 'Um dos seus códigos de recuperação guardados, por exemplo ABCDE-12345.'
+        trust_device: Confiar neste dispositivo
+        trust_device_help: 'Não pedir código neste navegador durante %days% dias.'
+    error:
+        code_format: O código não tem o formato correto.
+        code_required: Introduza o código da sua aplicação de autenticação ou um código de recuperação.
+        invalid_code: O código não é válido. Verifique a hora do telemóvel e tente novamente.
+    challenge:
+        title: Verificação em dois passos
+        heading: Verificação em dois passos
+        intro: Introduza o código da sua aplicação de autenticação para concluir o início de sessão.
+        submit: Verificar
+        use_recovery: Usar um código de recuperação
+        sign_out: Cancelar e terminar sessão
+    setup:
+        title: Configurar a verificação em dois passos
+        heading: Configurar a verificação em dois passos
+        intro: A sua conta tem de usar a verificação em dois passos. Configure-a agora para continuar.
+        submit: Ativar
+    enrol:
+        step_app: Instale uma aplicação de autenticação no telemóvel (por exemplo Google Authenticator, Microsoft Authenticator ou 1Password).
+        step_scan: Leia o código QR com a aplicação ou escreva a chave abaixo.
+        step_code: Introduza o código de 6 dígitos apresentado pela aplicação.
+        qr_alt: 'Código QR para adicionar %issuer% à sua aplicação de autenticação'
+        manual: 'Chave para %issuer% (%account%):'
+    recovery:
+        title: Códigos de recuperação
+        heading: Guarde os seus códigos de recuperação
+        intro: Use um destes códigos para iniciar sessão se perder o telemóvel. Cada código só funciona uma vez.
+        once: Estes códigos só são mostrados agora. Guarde-os num local seguro antes de continuar.
+        download: Transferir como ficheiro de texto
+        continue: Continuar
+        done: Já os guardei
+    flash:
+        restart: 'A verificação em dois passos mudou entretanto. Inicie sessão novamente.'
+        expired: A verificação demorou demasiado. Inicie sessão novamente.
+        locked_out: Demasiados códigos errados. Aguarde alguns minutos e inicie sessão novamente.
+        too_many_attempts: Demasiados códigos errados. Inicie sessão novamente.
+        enabled: A verificação em dois passos está ativada.
+        disabled: A verificação em dois passos está desativada.
+        codes_regenerated: Foram criados novos códigos de recuperação. Os anteriores já não funcionam.
+        device_forgotten: O dispositivo voltará a pedir um código.
+        device_unknown: Esse dispositivo já tinha sido esquecido.
+    account:
+        title: Verificação em dois passos
+        intro: Proteja a sua conta com um código do telemóvel além da palavra-passe.
+        status: Estado
+        status_on: 'Ativada desde %date%.'
+        status_off: Desativada.
+        codes_left: '%count% códigos de recuperação por usar.'
+        codes_low: Crie novos em breve.
+        devices_count: '%count% dispositivos de confiança.'
+        manage: Gerir
+        set_up: Configurar a verificação em dois passos
+        sign_in_again: 'Por segurança, inicie sessão novamente (nos últimos %minutes% minutos) antes de configurar a verificação em dois passos.'
+        sign_in_again_action: 'Iniciar sessão novamente'
+        required_until: 'Obrigatória para a sua conta: configure-a antes de %date%.'
+        required_now: 'Obrigatória para a sua conta: configure-a agora.'
+        enable: Ativar
+        regenerate: Novos códigos de recuperação
+        regenerate_help: Introduza um código atual para substituir todos os seus códigos de recuperação.
+        devices: Dispositivos de confiança
+        devices_none: Sem dispositivos de confiança.
+        device_until: 'de confiança até %date%'
+        forget: Esquecer
+        forget_all: Esquecer todos os dispositivos
+        disable: Desativar
+        disable_help: Introduza um código atual para desativar a verificação em dois passos. As suas outras sessões serão terminadas.
+        disable_required: A sua conta exige a verificação em dois passos; depois de a desativar terá de a configurar novamente no próximo início de sessão.
+    admin:
+        title: Repor a verificação em dois passos
+        status_on: '%user% tem a verificação em dois passos ativada.'
+        status_off: '%user% tem a verificação em dois passos desativada.'
+        reset_help: Repor remove o autenticador, os códigos de recuperação e os dispositivos de confiança e termina todas as sessões do utilizador, que a configurará novamente no próximo início de sessão.
+        reset: 'Repor para %user%'
+        flash:
+            reset: 'A verificação em dois passos de %user% foi reposta.'
+            not_enabled: '%user% não tem verificação em dois passos para repor.'

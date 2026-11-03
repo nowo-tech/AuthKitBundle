@@ -8,6 +8,7 @@
 - [Reference (per profile)](#reference-per-profile)
 - [Registration modes](#registration-modes)
 - [Invitations](#invitations)
+- [Two-factor authentication (MFA)](#two-factor-authentication-mfa)
 - [Field configuration](#field-configuration)
   - [Login](#login)
   - [Remember me](#remember-me)
@@ -326,6 +327,27 @@ nowo_auth_kit:
 
 Every key, the administration and accept pages, the mailer, the grant SPI, the events and the purge command:
 [INVITATIONS.md](INVITATIONS.md). Host firewall layer: `access_control: - { path: ^/admin/invitations, roles: ROLE_ADMIN }`.
+
+## Two-factor authentication (MFA)
+
+Opt-in per profile (1.34, `mfa.enabled: false` by default). Copy-paste:
+
+```yaml
+nowo_auth_kit:
+    mfa:
+        enabled: true
+        issuer: 'Acme'                 # required: the name authenticator apps show
+        required_roles: [ROLE_ADMIN]   # optional: grace period (7 days), then forced enrolment
+        # trusted_devices: { lifetime: 2592000, max: 5 }
+        # first_factors: { qr: exempt, social: required }   # defaults
+        # remember_me: trusted                               # or challenge
+        # admin: { routes: true, access_roles: [ROLE_ADMIN] } # optional reset page
+```
+
+Requires DoctrineEncryptBundle (the secret is `#[Encrypted]`; `require_encryption: false` for tests only), form CSRF
+protection and, for the QR code, `endroid/qr-code`. Full reference, pages, events and security notes:
+[MFA.md](MFA.md). Host firewall layer: `/login/mfa` like the login page (`PUBLIC_ACCESS`), `/account/security/mfa`
+for `ROLE_USER`.
 
 ## Field configuration
 

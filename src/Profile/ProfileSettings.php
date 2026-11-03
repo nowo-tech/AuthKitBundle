@@ -35,6 +35,7 @@ final readonly class ProfileSettings
      * @param array<string, array{path: string, name: string, methods?: list<string>}> $routes
      * @param array{layout_template?: ?string, templates?: array<string, string>, form_themes?: list<string>, brand?: ?string, qr_login?: array{stimulus_controller?: ?string}} $webUi page contract settings (REQ-UI-003)
      * @param array<string, mixed> $invitations `invitations` node (1.32; empty = disabled)
+     * @param array<string, mixed> $mfa `mfa` node (1.34; empty = disabled)
      */
     public function __construct(
         public string $name,
@@ -63,7 +64,16 @@ final readonly class ProfileSettings
         public int $registrationRateWindow = 900,
         public array $webUi = [],
         public array $invitations = [],
+        public array $mfa = [],
     ) {
+    }
+
+    /**
+     * Whether `mfa.enabled` is true (1.34).
+     */
+    public function mfaEnabled(): bool
+    {
+        return ($this->mfa['enabled'] ?? false) === true;
     }
 
     /**
@@ -205,6 +215,7 @@ final readonly class ProfileSettings
             registrationRateWindow: (int) ($config['registration_rate_window'] ?? 900),
             webUi: $config['web_ui'] ?? [],
             invitations: $config['invitations'] ?? [],
+            mfa: $config['mfa'] ?? [],
         );
     }
 }

@@ -1,0 +1,16 @@
+{#- One step-up / confirm form of the account page (1.34). Variables: form, submit (translation key), danger (bool). -#}
+{% set _b = 'NowoAuthKitBundle' %}
+{{ form_start(form, {attr: {class: nowo_ui_class('form', _b)}}) }}
+    {{ form_errors(form) }}
+    {{ form_row(form.code) }}
+    {% if form.recovery_code is defined %}
+        <details class="nowo-auth-kit-mfa__recovery">
+            <summary>{{ 'mfa.challenge.use_recovery'|trans({}, _b) }}</summary>
+            {{ form_row(form.recovery_code) }}
+        </details>
+    {% endif %}
+    {{ form_rest(form) }}
+    <div class="{{ nowo_ui_class('form_actions', _b) }}">
+        <button type="submit" class="{{ nowo_ui_class(danger|default(false) ? 'btn_danger' : 'btn_primary', _b) }}">{{ submit|trans({}, _b) }}</button>
+    </div>
+{{ form_end(form) }}

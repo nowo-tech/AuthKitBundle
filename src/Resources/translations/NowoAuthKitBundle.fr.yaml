@@ -237,3 +237,86 @@ invitation:
         button: "Accepter l’invitation"
         expires: "Ce lien ne fonctionne qu’une fois et expire le %expires%."
         ignore: "Si vous n’attendiez pas cette invitation, ignorez cet e-mail."
+mfa:
+    field:
+        code: Code de vérification
+        code_help: Le code à 6 chiffres de votre application d’authentification.
+        recovery_code: Code de récupération
+        recovery_code_help: 'L’un de vos codes de récupération enregistrés, par exemple ABCDE-12345.'
+        trust_device: Faire confiance à cet appareil
+        trust_device_help: 'Ne plus demander de code sur ce navigateur pendant %days% jours.'
+    error:
+        code_format: Le code n’a pas le bon format.
+        code_required: Saisissez le code de votre application d’authentification ou un code de récupération.
+        invalid_code: Ce code n’est pas valide. Vérifiez l’heure de votre téléphone et réessayez.
+    challenge:
+        title: Validation en deux étapes
+        heading: Validation en deux étapes
+        intro: Saisissez le code de votre application d’authentification pour terminer la connexion.
+        submit: Vérifier
+        use_recovery: Utiliser un code de récupération
+        sign_out: Annuler et se déconnecter
+    setup:
+        title: Configurer la validation en deux étapes
+        heading: Configurer la validation en deux étapes
+        intro: Votre compte doit utiliser la validation en deux étapes. Configurez-la maintenant pour continuer.
+        submit: Activer
+    enrol:
+        step_app: Installez une application d’authentification sur votre téléphone (par exemple Google Authenticator, Microsoft Authenticator ou 1Password).
+        step_scan: Scannez le code QR avec l’application ou saisissez la clé ci-dessous.
+        step_code: Saisissez le code à 6 chiffres affiché par l’application.
+        qr_alt: 'Code QR pour ajouter %issuer% à votre application d’authentification'
+        manual: 'Clé pour %issuer% (%account%) :'
+    recovery:
+        title: Codes de récupération
+        heading: Enregistrez vos codes de récupération
+        intro: Utilisez l’un de ces codes pour vous connecter si vous perdez votre téléphone. Chaque code ne fonctionne qu’une fois.
+        once: Ces codes ne sont affichés qu’une seule fois. Conservez-les en lieu sûr avant de continuer.
+        download: Télécharger en fichier texte
+        continue: Continuer
+        done: Je les ai enregistrés
+    flash:
+        restart: 'La validation en deux étapes a changé entre-temps. Reconnectez-vous.'
+        expired: La vérification a pris trop de temps. Reconnectez-vous.
+        locked_out: Trop de codes incorrects. Patientez quelques minutes puis reconnectez-vous.
+        too_many_attempts: Trop de codes incorrects. Reconnectez-vous.
+        enabled: La validation en deux étapes est activée.
+        disabled: La validation en deux étapes est désactivée.
+        codes_regenerated: De nouveaux codes de récupération ont été créés. Les anciens ne fonctionnent plus.
+        device_forgotten: L’appareil demandera de nouveau un code.
+        device_unknown: Cet appareil était déjà oublié.
+    account:
+        title: Validation en deux étapes
+        intro: Protégez votre compte avec un code de votre téléphone en plus de votre mot de passe.
+        status: État
+        status_on: 'Activée depuis le %date%.'
+        status_off: Désactivée.
+        codes_left: '%count% codes de récupération inutilisés.'
+        codes_low: Créez-en de nouveaux bientôt.
+        devices_count: '%count% appareils de confiance.'
+        manage: Gérer
+        set_up: Configurer la validation en deux étapes
+        sign_in_again: 'Pour votre sécurité, reconnectez-vous (au cours des %minutes% dernières minutes) avant de configurer la validation en deux étapes.'
+        sign_in_again_action: 'Se reconnecter'
+        required_until: 'Obligatoire pour votre compte : configurez-la avant le %date%.'
+        required_now: 'Obligatoire pour votre compte : configurez-la maintenant.'
+        enable: Activer
+        regenerate: Nouveaux codes de récupération
+        regenerate_help: Saisissez un code actuel pour remplacer tous vos codes de récupération.
+        devices: Appareils de confiance
+        devices_none: Aucun appareil de confiance.
+        device_until: 'de confiance jusqu’au %date%'
+        forget: Oublier
+        forget_all: Oublier tous les appareils
+        disable: Désactiver
+        disable_help: Saisissez un code actuel pour désactiver la validation en deux étapes. Vos autres sessions seront déconnectées.
+        disable_required: Votre compte exige la validation en deux étapes ; après l’avoir désactivée, vous devrez la configurer de nouveau à la prochaine connexion.
+    admin:
+        title: Réinitialiser la validation en deux étapes
+        status_on: '%user% a la validation en deux étapes activée.'
+        status_off: '%user% a la validation en deux étapes désactivée.'
+        reset_help: La réinitialisation supprime l’authentificateur, les codes de récupération et les appareils de confiance, et déconnecte l’utilisateur partout. Il la configurera de nouveau à sa prochaine connexion.
+        reset: 'Réinitialiser pour %user%'
+        flash:
+            reset: 'La validation en deux étapes de %user% a été réinitialisée.'
+            not_enabled: '%user% n’a pas de validation en deux étapes à réinitialiser.'

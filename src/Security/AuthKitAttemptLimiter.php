@@ -69,6 +69,26 @@ final class AuthKitAttemptLimiter
         });
     }
 
+    /**
+     * Gives back one slot taken by {@see self::consume()} (e.g. the attempt succeeded and only failures should count),
+     * under the same per-key lock; never below zero. The window restarts.
+     */
+    public function release(string $key, int $windowSeconds): void
+    {
+        $this->synchronized($key, function () use ($key, $windowSeconds): void {
+            $item  = $this->cache->getItem($this->normalizeKey($key));
+            $count = $item->isHit() ? (int) $item->get() : 0;
+            if ($count <= 1) {
+                $this->cache->deleteItem($this->normalizeKey($key));
+
+                return;
+            }
+            $item->set($count - 1);
+            $item->expiresAfter($windowSeconds < 1 ? 60 : $windowSeconds);
+            $this->cache->save($item);
+        });
+    }
+
     public function reset(string $key): void
     {
         $this->cache->deleteItem($this->normalizeKey($key));

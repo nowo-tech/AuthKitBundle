@@ -1,0 +1,29 @@
+{#
+  Second-factor card for a host account page (1.34): status, recovery codes left, trusted devices, and a link to the
+  AuthKit page that enrols / disables / regenerates. Optional variable: status (MfaStatus; default
+  auth_kit_mfa_status()). Renders nothing for users without an MFA profile.
+#}
+{% set _b = 'NowoAuthKitBundle' %}
+{% set _status = status|default(auth_kit_mfa_status()) %}
+{% set _url = auth_kit_mfa_account_path() %}
+{% if _status and _url %}
+    <section class="{{ nowo_ui_class('card', _b) }} nowo-auth-kit-mfa-card" data-testid="auth-kit-mfa-card" aria-labelledby="nowo-auth-kit-mfa-card-title">
+        <header class="{{ nowo_ui_class('card_header', _b) }}">
+            <h2 id="nowo-auth-kit-mfa-card-title" class="{{ nowo_ui_class('card_title', _b) }}">{{ 'mfa.account.title'|trans({}, _b) }}</h2>
+        </header>
+        <div class="{{ nowo_ui_class('card_body', _b) }}">
+            {% if _status.enabled %}
+                <p data-testid="auth-kit-mfa-card-status">{{ 'mfa.account.status_on'|trans({'%date%': _status.enabledAt ? _status.enabledAt|date('Y-m-d') : ''}, _b) }}</p>
+                <p>{{ 'mfa.account.codes_left'|trans({'%count%': _status.recoveryCodesLeft}, _b) }}{% if _status.recoveryCodesLow() %} <strong>{{ 'mfa.account.codes_low'|trans({}, _b) }}</strong>{% endif %}</p>
+                <p>{{ 'mfa.account.devices_count'|trans({'%count%': _status.trustedDevices|length}, _b) }}</p>
+                <p><a class="{{ nowo_ui_class('btn_secondary', _b) }}" href="{{ _url }}">{{ 'mfa.account.manage'|trans({}, _b) }}</a></p>
+            {% else %}
+                <p data-testid="auth-kit-mfa-card-status">{{ 'mfa.account.status_off'|trans({}, _b) }}</p>
+                {% if _status.required %}
+                    <p role="status">{{ _status.graceEndsAt ? 'mfa.account.required_until'|trans({'%date%': _status.graceEndsAt|date('Y-m-d')}, _b) : 'mfa.account.required_now'|trans({}, _b) }}</p>
+                {% endif %}
+                <p><a class="{{ nowo_ui_class('btn_primary', _b) }}" href="{{ _url }}">{{ 'mfa.account.set_up'|trans({}, _b) }}</a></p>
+            {% endif %}
+        </div>
+    </section>
+{% endif %}

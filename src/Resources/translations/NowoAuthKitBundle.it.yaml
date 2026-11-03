@@ -237,3 +237,86 @@ invitation:
         button: "Accetta l’invito"
         expires: "Questo link funziona una sola volta e scade il %expires%."
         ignore: "Se non ti aspettavi questo invito, ignora questa e-mail."
+mfa:
+    field:
+        code: Codice di verifica
+        code_help: Il codice a 6 cifre della tua app di autenticazione.
+        recovery_code: Codice di recupero
+        recovery_code_help: 'Uno dei codici di recupero che hai salvato, per esempio ABCDE-12345.'
+        trust_device: Considera attendibile questo dispositivo
+        trust_device_help: 'Non chiedere il codice su questo browser per %days% giorni.'
+    error:
+        code_format: Il codice non ha il formato corretto.
+        code_required: Inserisci il codice della tua app di autenticazione o un codice di recupero.
+        invalid_code: Il codice non è valido. Controlla l’ora del telefono e riprova.
+    challenge:
+        title: Verifica in due passaggi
+        heading: Verifica in due passaggi
+        intro: Inserisci il codice della tua app di autenticazione per completare l’accesso.
+        submit: Verifica
+        use_recovery: Usa invece un codice di recupero
+        sign_out: Annulla ed esci
+    setup:
+        title: Configura la verifica in due passaggi
+        heading: Configura la verifica in due passaggi
+        intro: Il tuo account deve usare la verifica in due passaggi. Configurala ora per continuare.
+        submit: Attiva
+    enrol:
+        step_app: Installa un’app di autenticazione sul telefono (per esempio Google Authenticator, Microsoft Authenticator o 1Password).
+        step_scan: Scansiona il codice QR con l’app oppure digita la chiave qui sotto.
+        step_code: Inserisci il codice a 6 cifre mostrato dall’app.
+        qr_alt: 'Codice QR per aggiungere %issuer% alla tua app di autenticazione'
+        manual: 'Chiave per %issuer% (%account%):'
+    recovery:
+        title: Codici di recupero
+        heading: Salva i tuoi codici di recupero
+        intro: Usa uno di questi codici per accedere se perdi il telefono. Ogni codice funziona una sola volta.
+        once: Questi codici vengono mostrati solo ora. Conservali in un luogo sicuro prima di continuare.
+        download: Scarica come file di testo
+        continue: Continua
+        done: Li ho salvati
+    flash:
+        restart: 'La verifica in due passaggi è cambiata nel frattempo. Accedi di nuovo.'
+        expired: La verifica ha richiesto troppo tempo. Accedi di nuovo.
+        locked_out: Troppi codici errati. Attendi qualche minuto e accedi di nuovo.
+        too_many_attempts: Troppi codici errati. Accedi di nuovo.
+        enabled: La verifica in due passaggi è attiva.
+        disabled: La verifica in due passaggi è disattivata.
+        codes_regenerated: Sono stati creati nuovi codici di recupero. Quelli vecchi non funzionano più.
+        device_forgotten: Il dispositivo chiederà di nuovo un codice.
+        device_unknown: Quel dispositivo era già stato dimenticato.
+    account:
+        title: Verifica in due passaggi
+        intro: Proteggi il tuo account con un codice del telefono oltre alla password.
+        status: Stato
+        status_on: 'Attiva dal %date%.'
+        status_off: Disattivata.
+        codes_left: '%count% codici di recupero non usati.'
+        codes_low: Creane di nuovi presto.
+        devices_count: '%count% dispositivi attendibili.'
+        manage: Gestisci
+        set_up: Configura la verifica in due passaggi
+        sign_in_again: 'Per sicurezza, accedi di nuovo (negli ultimi %minutes% minuti) prima di configurare la verifica in due passaggi.'
+        sign_in_again_action: 'Accedi di nuovo'
+        required_until: 'Obbligatoria per il tuo account: configurala entro il %date%.'
+        required_now: 'Obbligatoria per il tuo account: configurala ora.'
+        enable: Attiva
+        regenerate: Nuovi codici di recupero
+        regenerate_help: Inserisci un codice attuale per sostituire tutti i codici di recupero.
+        devices: Dispositivi attendibili
+        devices_none: Nessun dispositivo attendibile.
+        device_until: 'attendibile fino al %date%'
+        forget: Dimentica
+        forget_all: Dimentica tutti i dispositivi
+        disable: Disattiva
+        disable_help: Inserisci un codice attuale per disattivare la verifica in due passaggi. Le altre sessioni verranno chiuse.
+        disable_required: Il tuo account richiede la verifica in due passaggi; dopo averla disattivata dovrai configurarla di nuovo al prossimo accesso.
+    admin:
+        title: Reimposta la verifica in due passaggi
+        status_on: '%user% ha la verifica in due passaggi attiva.'
+        status_off: '%user% ha la verifica in due passaggi disattivata.'
+        reset_help: La reimpostazione rimuove l’autenticatore, i codici di recupero e i dispositivi attendibili e chiude tutte le sessioni dell’utente, che la configurerà di nuovo al prossimo accesso.
+        reset: 'Reimposta per %user%'
+        flash:
+            reset: 'La verifica in due passaggi di %user% è stata reimpostata.'
+            not_enabled: '%user% non ha una verifica in due passaggi da reimpostare.'

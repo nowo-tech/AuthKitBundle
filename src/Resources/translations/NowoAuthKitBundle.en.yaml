@@ -235,3 +235,86 @@ invitation:
         button: "Accept the invitation"
         expires: "This link works once and expires on %expires%."
         ignore: "If you did not expect this invitation, ignore this email."
+mfa:
+    field:
+        code: Authentication code
+        code_help: The 6-digit code from your authenticator app.
+        recovery_code: Recovery code
+        recovery_code_help: 'One of your saved recovery codes, for example ABCDE-12345.'
+        trust_device: Trust this device
+        trust_device_help: 'Do not ask for a code on this browser for %days% days.'
+    error:
+        code_format: The code has the wrong format.
+        code_required: Enter the code from your authenticator app or a recovery code.
+        invalid_code: That code is not valid. Check the time on your phone and try again.
+    challenge:
+        title: Two-step verification
+        heading: Two-step verification
+        intro: Enter the code from your authenticator app to finish signing in.
+        submit: Verify
+        use_recovery: Use a recovery code instead
+        sign_out: Cancel and sign out
+    setup:
+        title: Set up two-step verification
+        heading: Set up two-step verification
+        intro: Your account must use two-step verification. Set it up now to continue.
+        submit: Turn on
+    enrol:
+        step_app: Install an authenticator app on your phone (for example Google Authenticator, Microsoft Authenticator or 1Password).
+        step_scan: Scan the QR code with the app, or type the key below.
+        step_code: Enter the 6-digit code the app shows.
+        qr_alt: 'QR code to add %issuer% to your authenticator app'
+        manual: 'Key for %issuer% (%account%):'
+    recovery:
+        title: Recovery codes
+        heading: Save your recovery codes
+        intro: Use one of these codes to sign in if you lose your phone. Each code works once.
+        once: These codes are shown only now. Save them somewhere safe before you continue.
+        download: Download as a text file
+        continue: Continue
+        done: I saved them
+    flash:
+        restart: 'Two-step verification changed in the meantime. Sign in again.'
+        expired: The verification took too long. Sign in again.
+        locked_out: Too many wrong codes. Wait a few minutes and sign in again.
+        too_many_attempts: Too many wrong codes. Sign in again.
+        enabled: Two-step verification is on.
+        disabled: Two-step verification is off.
+        codes_regenerated: New recovery codes created. The old ones no longer work.
+        device_forgotten: The device will ask for a code again.
+        device_unknown: That device was already forgotten.
+    account:
+        title: Two-step verification
+        intro: Protect your account with a code from your phone in addition to your password.
+        status: Status
+        status_on: 'On since %date%.'
+        status_off: Off.
+        codes_left: '%count% unused recovery codes.'
+        codes_low: Create new ones soon.
+        devices_count: '%count% trusted devices.'
+        manage: Manage
+        set_up: Set up two-step verification
+        sign_in_again: 'For your security, sign in again (within the last %minutes% minutes) before setting up two-step verification.'
+        sign_in_again_action: 'Sign in again'
+        required_until: 'Required for your account: set it up before %date%.'
+        required_now: 'Required for your account: set it up now.'
+        enable: Turn on
+        regenerate: New recovery codes
+        regenerate_help: Enter a current code to replace all your recovery codes.
+        devices: Trusted devices
+        devices_none: No trusted devices.
+        device_until: 'trusted until %date%'
+        forget: Forget
+        forget_all: Forget all devices
+        disable: Turn off
+        disable_help: Enter a current code to turn two-step verification off. Your other sessions will be signed out.
+        disable_required: Your account requires two-step verification; after turning it off you must set it up again at your next sign-in.
+    admin:
+        title: Two-step verification reset
+        status_on: '%user% has two-step verification on.'
+        status_off: '%user% has two-step verification off.'
+        reset_help: Resetting removes the authenticator, the recovery codes and the trusted devices, and signs the user out everywhere. The user sets it up again at the next sign-in.
+        reset: 'Reset for %user%'
+        flash:
+            reset: 'Two-step verification of %user% was reset.'
+            not_enabled: '%user% has no two-step verification to reset.'

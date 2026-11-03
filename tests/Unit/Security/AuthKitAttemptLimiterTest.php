@@ -11,10 +11,30 @@ use Psr\Cache\CacheItemInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use RuntimeException;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Lock\Key;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\PersistingStoreInterface;
+use Symfony\Component\Lock\Store\FlockStore;
 use Symfony\Component\Lock\Store\InMemoryStore;
+
+use function bin2hex;
+use function file_get_contents;
+use function file_put_contents;
+use function function_exists;
+use function getmypid;
+use function mkdir;
+use function pcntl_fork;
+use function pcntl_waitpid;
+use function posix_kill;
+use function random_bytes;
+use function strlen;
+use function sys_get_temp_dir;
+
+use const FILE_APPEND;
+use const LOCK_EX;
+use const SIGKILL;
 
 final class AuthKitAttemptLimiterTest extends TestCase
 {
@@ -26,6 +46,51 @@ final class AuthKitAttemptLimiterTest extends TestCase
         self::assertTrue($limiter->consume('k', 2, 60));
         self::assertFalse($limiter->consume('k', 2, 60));
         self::assertSame(2, $limiter->count('k'));
+    }
+
+    public function testReleaseGivesBackOneSlot(): void
+    {
+        $limiter = new AuthKitAttemptLimiter(new ArrayAdapter(), new LockFactory(new InMemoryStore()));
+        $limiter->release('k', 60);
+        self::assertSame(0, $limiter->count('k'));
+        self::assertTrue($limiter->consume('k', 2, 60));
+        self::assertTrue($limiter->consume('k', 2, 60));
+        $limiter->release('k', 0);
+        self::assertSame(1, $limiter->count('k'));
+        $limiter->release('k', 60);
+        self::assertSame(0, $limiter->count('k'));
+    }
+
+    /**
+     * DD-L3: with symfony/lock, concurrent processes never take more slots than the limit.
+     */
+    public function testConcurrentConsumesStayWithinTheLimitUnderTheLock(): void
+    {
+        if (!function_exists('pcntl_fork') || !function_exists('posix_kill')) {
+            self::markTestSkipped('pcntl / posix are needed to run concurrent processes.'); // @codeCoverageIgnore
+        }
+        $dir = sys_get_temp_dir() . '/ak-limiter-' . bin2hex(random_bytes(6));
+        mkdir($dir);
+        $passed = $dir . '/passed';
+        $pids   = [];
+        for ($i = 0; $i < 20; ++$i) {
+            $pid = pcntl_fork();
+            if ($pid === 0) {
+                // @codeCoverageIgnoreStart
+                $limiter = new AuthKitAttemptLimiter(new FilesystemAdapter('ak', 0, $dir . '/cache'), new LockFactory(new FlockStore($dir)));
+                if ($limiter->consume('mfa:account:x', 5, 900)) {
+                    file_put_contents($passed, 'x', FILE_APPEND | LOCK_EX);
+                }
+                posix_kill((int) getmypid(), SIGKILL);
+                // @codeCoverageIgnoreEnd
+            }
+            $pids[] = $pid;
+        }
+        foreach ($pids as $pid) {
+            pcntl_waitpid($pid, $status);
+        }
+        self::assertSame(5, strlen((string) file_get_contents($passed)));
+        (new Filesystem())->remove($dir);
     }
 
     public function testZeroMaxAttemptsDisablesLimit(): void

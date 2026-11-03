@@ -237,3 +237,86 @@ invitation:
         button: "Einladung annehmen"
         expires: "Dieser Link funktioniert einmal und läuft am %expires% ab."
         ignore: "Wenn du diese Einladung nicht erwartet hast, ignoriere diese E-Mail."
+mfa:
+    field:
+        code: Bestätigungscode
+        code_help: Der 6-stellige Code aus Ihrer Authenticator-App.
+        recovery_code: Wiederherstellungscode
+        recovery_code_help: 'Einer Ihrer gespeicherten Wiederherstellungscodes, zum Beispiel ABCDE-12345.'
+        trust_device: Diesem Gerät vertrauen
+        trust_device_help: 'In diesem Browser %days% Tage lang keinen Code abfragen.'
+    error:
+        code_format: Der Code hat das falsche Format.
+        code_required: Geben Sie den Code aus Ihrer Authenticator-App oder einen Wiederherstellungscode ein.
+        invalid_code: Dieser Code ist ungültig. Prüfen Sie die Uhrzeit Ihres Telefons und versuchen Sie es erneut.
+    challenge:
+        title: Bestätigung in zwei Schritten
+        heading: Bestätigung in zwei Schritten
+        intro: Geben Sie den Code aus Ihrer Authenticator-App ein, um die Anmeldung abzuschließen.
+        submit: Bestätigen
+        use_recovery: Stattdessen einen Wiederherstellungscode verwenden
+        sign_out: Abbrechen und abmelden
+    setup:
+        title: Bestätigung in zwei Schritten einrichten
+        heading: Bestätigung in zwei Schritten einrichten
+        intro: Ihr Konto muss die Bestätigung in zwei Schritten verwenden. Richten Sie sie jetzt ein, um fortzufahren.
+        submit: Aktivieren
+    enrol:
+        step_app: Installieren Sie eine Authenticator-App auf Ihrem Telefon (zum Beispiel Google Authenticator, Microsoft Authenticator oder 1Password).
+        step_scan: Scannen Sie den QR-Code mit der App oder geben Sie den Schlüssel unten ein.
+        step_code: Geben Sie den 6-stelligen Code ein, den die App anzeigt.
+        qr_alt: 'QR-Code, um %issuer% zu Ihrer Authenticator-App hinzuzufügen'
+        manual: 'Schlüssel für %issuer% (%account%):'
+    recovery:
+        title: Wiederherstellungscodes
+        heading: Speichern Sie Ihre Wiederherstellungscodes
+        intro: Melden Sie sich mit einem dieser Codes an, wenn Sie Ihr Telefon verlieren. Jeder Code funktioniert nur einmal.
+        once: Diese Codes werden nur jetzt angezeigt. Bewahren Sie sie sicher auf, bevor Sie fortfahren.
+        download: Als Textdatei herunterladen
+        continue: Weiter
+        done: Ich habe sie gespeichert
+    flash:
+        restart: 'Die Bestätigung in zwei Schritten wurde inzwischen geändert. Melden Sie sich erneut an.'
+        expired: Die Bestätigung hat zu lange gedauert. Melden Sie sich erneut an.
+        locked_out: Zu viele falsche Codes. Warten Sie einige Minuten und melden Sie sich erneut an.
+        too_many_attempts: Zu viele falsche Codes. Melden Sie sich erneut an.
+        enabled: Die Bestätigung in zwei Schritten ist aktiviert.
+        disabled: Die Bestätigung in zwei Schritten ist deaktiviert.
+        codes_regenerated: Neue Wiederherstellungscodes wurden erstellt. Die alten funktionieren nicht mehr.
+        device_forgotten: Das Gerät fragt wieder nach einem Code.
+        device_unknown: Dieses Gerät wurde bereits vergessen.
+    account:
+        title: Bestätigung in zwei Schritten
+        intro: Schützen Sie Ihr Konto zusätzlich zum Passwort mit einem Code von Ihrem Telefon.
+        status: Status
+        status_on: 'Aktiviert seit %date%.'
+        status_off: Deaktiviert.
+        codes_left: '%count% unbenutzte Wiederherstellungscodes.'
+        codes_low: Erstellen Sie bald neue.
+        devices_count: '%count% vertrauenswürdige Geräte.'
+        manage: Verwalten
+        set_up: Bestätigung in zwei Schritten einrichten
+        sign_in_again: 'Melden Sie sich zu Ihrer Sicherheit erneut an (innerhalb der letzten %minutes% Minuten), bevor Sie die Bestätigung in zwei Schritten einrichten.'
+        sign_in_again_action: 'Erneut anmelden'
+        required_until: 'Für Ihr Konto erforderlich: richten Sie sie vor dem %date% ein.'
+        required_now: 'Für Ihr Konto erforderlich: richten Sie sie jetzt ein.'
+        enable: Aktivieren
+        regenerate: Neue Wiederherstellungscodes
+        regenerate_help: Geben Sie einen aktuellen Code ein, um alle Wiederherstellungscodes zu ersetzen.
+        devices: Vertrauenswürdige Geräte
+        devices_none: Keine vertrauenswürdigen Geräte.
+        device_until: 'vertrauenswürdig bis %date%'
+        forget: Vergessen
+        forget_all: Alle Geräte vergessen
+        disable: Deaktivieren
+        disable_help: Geben Sie einen aktuellen Code ein, um die Bestätigung in zwei Schritten zu deaktivieren. Ihre anderen Sitzungen werden abgemeldet.
+        disable_required: Ihr Konto erfordert die Bestätigung in zwei Schritten; nach dem Deaktivieren müssen Sie sie bei der nächsten Anmeldung erneut einrichten.
+    admin:
+        title: Bestätigung in zwei Schritten zurücksetzen
+        status_on: '%user% hat die Bestätigung in zwei Schritten aktiviert.'
+        status_off: '%user% hat die Bestätigung in zwei Schritten deaktiviert.'
+        reset_help: Das Zurücksetzen entfernt den Authenticator, die Wiederherstellungscodes und die vertrauenswürdigen Geräte und meldet den Benutzer überall ab. Er richtet sie bei der nächsten Anmeldung neu ein.
+        reset: 'Für %user% zurücksetzen'
+        flash:
+            reset: 'Die Bestätigung in zwei Schritten von %user% wurde zurückgesetzt.'
+            not_enabled: '%user% hat keine Bestätigung in zwei Schritten zum Zurücksetzen.'

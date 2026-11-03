@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Controller;
 
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
+use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -84,6 +85,7 @@ final class SocialLoginCheckController
             $tokens = $this->oauth2Client->exchangeCode($credential, $code, $redirectUri, $pending['code_verifier']);
             $social = $this->oauth2Client->fetchUserProfile($credential, $tokens['access_token']);
             $user   = $this->accountLinker->linkOrCreate($profile, $provider, $social, $tokens);
+            MfaFirstFactor::mark($request, 'social');
             $this->security->login($user, null, $profile->firewall);
         } catch (RuntimeException) {
             $this->flashMessenger->flash($request, 'error', 'social.error.failed');

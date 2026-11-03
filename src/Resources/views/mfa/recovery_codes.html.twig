@@ -1,0 +1,13 @@
+{#
+  Recovery codes after the forced enrolment (1.34): shown once, then the CSRF "Continue" form finishes the sign-in.
+  Variables: page (AuthPage without form), mfa_codes, mfa_continue_form.
+#}
+{% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
+
+{% block nowo_auth_kit_footer_before %}
+    {{ include('@NowoAuthKitBundle/mfa/_codes.html.twig', {codes: mfa_codes}) }}
+    {{ form_start(mfa_continue_form, {attr: {'data-testid': 'auth-kit-mfa-continue'}}) }}
+        {{ form_widget(mfa_continue_form) }}
+        <button type="submit" class="{{ nowo_ui_class('btn_primary', 'NowoAuthKitBundle') }}">{{ 'mfa.recovery.continue'|trans({}, 'NowoAuthKitBundle') }}</button>
+    {{ form_end(mfa_continue_form) }}
+{% endblock %}
