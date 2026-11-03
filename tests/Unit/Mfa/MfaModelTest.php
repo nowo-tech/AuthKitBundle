@@ -146,7 +146,6 @@ final class MfaModelTest extends TestCase
         self::assertSame([MfaPendingToken::PENDING_ATTRIBUTE => true, 'y' => 2], $token->getAttributes());
         self::assertTrue($token->hasAttribute('y'));
         self::assertNull($token->getAttribute('x'));
-        $token->eraseCredentials();
         $token->setUser(new InMemoryUser('ana', null, ['ROLE_USER']));
         $token->requestRememberMe();
         $token->setTargetPath('/x');
