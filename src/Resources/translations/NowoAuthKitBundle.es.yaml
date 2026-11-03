@@ -318,3 +318,33 @@ mfa:
         flash:
             reset: 'Se ha restablecido la verificación en dos pasos de %user%.'
             not_enabled: '%user% no tiene verificación en dos pasos que restablecer.'
+accounts:
+    list_label: 'Cuentas en este navegador'
+    state:
+        active: 'Sesión iniciada (actual)'
+        signed_in: 'Sesión iniciada'
+        signed_out: 'Sesión cerrada'
+    action:
+        switch: 'Cambiar'
+        resume: 'Volver a iniciar sesión'
+        sign_out: 'Cerrar sesión'
+        add: 'Añadir otra cuenta'
+        sign_out_all: 'Cerrar sesión en todas las cuentas'
+        manage: 'Gestionar cuentas'
+    notice:
+        other_tab: 'Has cambiado de cuenta en otra pestaña.'
+        reload: 'Recargar'
+    chooser:
+        title: 'Elige una cuenta'
+        heading: 'Elige una cuenta'
+        intro: 'Cuentas con sesión iniciada en este navegador. Cambiar no pide contraseña.'
+        back: 'Continuar'
+        on_login: 'Cuentas en este navegador'
+    flash:
+        not_now: 'Termina el inicio de sesión actual antes de cambiar de cuenta.'
+        gone: 'Esa cuenta tiene la sesión cerrada. Vuelve a iniciar sesión para usarla.'
+        unknown: 'Esa cuenta no tiene sesión en este navegador.'
+        switched: 'Ahora estás usando %account%.'
+        full: 'No se pueden añadir más cuentas en este navegador. Cierra la sesión de alguna primero.'
+        rate_limited: 'Demasiados intentos. Vuelve a probar en unos minutos.'
+        signed_out: 'Se ha cerrado la sesión de la cuenta.'

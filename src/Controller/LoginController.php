@@ -9,6 +9,8 @@ use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
 use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
+use Nowo\AuthKitBundle\MultiAccount\Twig\AccountSwitcherView;
+use Nowo\AuthKitBundle\MultiAccount\Twig\MultiAccountExtension;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -51,6 +53,7 @@ final class LoginController
         private readonly RequestProfileResolver $profileResolver,
         private readonly OutboundMailReadyCheckerInterface $outboundMailReadyChecker = new AlwaysOutboundMailReadyChecker(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
+        private readonly ?MultiAccountExtension $accounts = null,
     ) {
     }
 
@@ -120,7 +123,13 @@ final class LoginController
             $this->urlGenerator->generate($profile->routes['social_login_start']['name'], ['provider' => $credential->getProvider()]),
         );
 
+        // 1.34 multi_account: the accounts of this browser above the form (name + masked identifier, D4).
+        $accounts = $this->accounts instanceof MultiAccountExtension && $profile->multiAccountEnabled() && ($profile->multiAccount['chooser']['on_login_page'] ?? true) === true
+            ? $this->accounts->view($request, $profile, (string) ($profile->multiAccount['chooser']['identifier_display'] ?? 'masked'))
+            : null;
+
         $content = $this->twig->render($profile->template('login'), $this->pages->context('login', $page, $profile, [
+            'accounts_switcher'      => $accounts instanceof AccountSwitcherView && !$accounts->isEmpty() ? $accounts : null,
             'login_form'             => $formView,
             'error'                  => $error,
             'register_route'         => $profile->routes['register']['name'],

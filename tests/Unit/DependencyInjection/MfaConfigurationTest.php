@@ -71,7 +71,7 @@ final class MfaConfigurationTest extends TestCase
     public function testMappingFalseIsRefusedWithMfa(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('mfa.enabled false');
+        $this->expectExceptionMessage('multi_account.enabled false');
         $this->load(['doctrine' => ['register_mapping' => false], 'mfa' => ['enabled' => true, 'issuer' => 'Acme']]);
     }
 

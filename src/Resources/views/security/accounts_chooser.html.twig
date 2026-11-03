@@ -1,0 +1,9 @@
+{#
+  Account chooser (1.34, web_ui.templates.accounts_chooser): the accounts of this browser (switch / resume / sign
+  out), add another account, sign out of all accounts. Variables: page (AuthPage without form), accounts_switcher.
+#}
+{% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
+
+{% block nowo_auth_kit_footer_before %}
+    {{ include('@NowoAuthKitBundle/accounts/_switcher.html.twig', {switcher: accounts_switcher, variant: 'list'}) }}
+{% endblock %}

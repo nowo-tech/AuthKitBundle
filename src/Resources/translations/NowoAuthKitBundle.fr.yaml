@@ -320,3 +320,33 @@ mfa:
         flash:
             reset: 'La validation en deux étapes de %user% a été réinitialisée.'
             not_enabled: '%user% n’a pas de validation en deux étapes à réinitialiser.'
+accounts:
+    list_label: 'Comptes dans ce navigateur'
+    state:
+        active: 'Connecté (actuel)'
+        signed_in: 'Connecté'
+        signed_out: 'Déconnecté'
+    action:
+        switch: 'Changer'
+        resume: 'Se reconnecter'
+        sign_out: 'Se déconnecter'
+        add: 'Ajouter un autre compte'
+        sign_out_all: 'Se déconnecter de tous les comptes'
+        manage: 'Gérer les comptes'
+    notice:
+        other_tab: 'Vous avez changé de compte dans un autre onglet.'
+        reload: 'Recharger'
+    chooser:
+        title: 'Choisir un compte'
+        heading: 'Choisir un compte'
+        intro: 'Comptes connectés dans ce navigateur. Changer ne demande pas de mot de passe.'
+        back: 'Continuer'
+        on_login: 'Comptes dans ce navigateur'
+    flash:
+        not_now: 'Terminez la connexion en cours avant de changer de compte.'
+        gone: 'Ce compte est déconnecté. Reconnectez-vous pour l’utiliser.'
+        unknown: 'Ce compte n’est pas connecté dans ce navigateur.'
+        switched: 'Vous utilisez maintenant %account%.'
+        full: 'Impossible d’ajouter d’autres comptes dans ce navigateur. Déconnectez-en un d’abord.'
+        rate_limited: 'Trop de tentatives. Réessayez dans quelques minutes.'
+        signed_out: 'Le compte a été déconnecté.'

@@ -2,11 +2,18 @@
   Sign in (web_ui.templates.login) — @NowoUiKit/page/auth through _auth_page.html.twig. page (View\AuthPage): heading,
   security error of the last attempt, the form_login form (fields in form order: identifier, password, remember me,
   CSRF), submit, footer links (magic link, QR, forgot password, register). Social / SSO providers render in the
-  footer before the links (block nowo_auth_kit_providers; social_links / sso_links: list<View\Link>).
+  footer before the links (block nowo_auth_kit_providers; social_links / sso_links: list<View\Link>). With
+  multi_account (1.34) the accounts of this browser come first (accounts_switcher, masked identifiers).
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
 
 {% block nowo_auth_kit_footer_before %}
+    {%- if accounts_switcher|default(null) -%}
+        <div class="nowo-auth-kit-login-accounts" data-testid="auth-kit-login-accounts">
+            <p class="{{ nowo_ui_class('muted', page.bundle) }}">{{ 'accounts.chooser.on_login'|trans({}, 'NowoAuthKitBundle') }}</p>
+            {{ include('@NowoAuthKitBundle/accounts/_switcher.html.twig', {switcher: accounts_switcher, variant: 'list'}) }}
+        </div>
+    {%- endif -%}
     {% block nowo_auth_kit_providers %}
         {% for _group in [
             {region: 'social', heading: 'social.heading', links: social_links|default([])},

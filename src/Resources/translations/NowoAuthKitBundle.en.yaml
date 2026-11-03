@@ -318,3 +318,33 @@ mfa:
         flash:
             reset: 'Two-step verification of %user% was reset.'
             not_enabled: '%user% has no two-step verification to reset.'
+accounts:
+    list_label: 'Accounts in this browser'
+    state:
+        active: 'Signed in (current)'
+        signed_in: 'Signed in'
+        signed_out: 'Signed out'
+    action:
+        switch: 'Switch'
+        resume: 'Sign in again'
+        sign_out: 'Sign out'
+        add: 'Add another account'
+        sign_out_all: 'Sign out of all accounts'
+        manage: 'Manage accounts'
+    notice:
+        other_tab: 'You switched account in another tab.'
+        reload: 'Reload'
+    chooser:
+        title: 'Choose an account'
+        heading: 'Choose an account'
+        intro: 'Accounts signed in in this browser. Switching needs no password.'
+        back: 'Continue'
+        on_login: 'Accounts in this browser'
+    flash:
+        not_now: 'Finish the current sign-in before switching accounts.'
+        gone: 'That account is signed out. Sign in again to use it.'
+        unknown: 'That account is not signed in in this browser.'
+        switched: 'You are now using %account%.'
+        full: 'No more accounts can be added in this browser. Sign one out first.'
+        rate_limited: 'Too many attempts. Try again in a few minutes.'
+        signed_out: 'The account was signed out.'
