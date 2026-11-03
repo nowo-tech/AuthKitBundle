@@ -570,6 +570,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             if (!function_exists('sodium_crypto_aead_xchacha20poly1305_ietf_encrypt')) {
                 throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.multi_account" needs the PHP sodium extension (sealed vault entries).', $name)); // @codeCoverageIgnore
             }
+            if ($settings['cookie']['secure'] === false && (!$container->hasParameter('kernel.debug') || $container->getParameter('kernel.debug') !== true)) {
+                // DE-I10: without Secure / __Host- the vault cookie travels over HTTP and can be planted from a sibling host.
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.multi_account.cookie.secure: false" is a local HTTP setting and is refused when kernel.debug is false.', $name));
+            }
             $firewalls[$profile['firewall']] = true;
             if (is_string($settings['enrolment_gate']) && $settings['enrolment_gate'] !== '') {
                 $gates[$name] = new Reference($settings['enrolment_gate']);

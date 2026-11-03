@@ -32,6 +32,7 @@ use function array_map;
 use function chr;
 use function explode;
 use function hash;
+use function sort;
 use function str_repeat;
 
 /**
@@ -141,43 +142,81 @@ final class MultiAccountAuditDeKernelTest extends MultiAccountKernelTestCase
         self::assertResponseRedirects('/mfa-home', 303);
     }
 
-    /** DE-L3: a concurrent request holding the previous token still opens the entry, under a fresh token. */
-    public function testThePreviousTokenWorksWithinTheGracePeriod(): void
+    /** DE-L3 / DE-L7: a request of the same browser that left before a switch learns the current tokens, no false theft. */
+    public function testOverlappingRequestsOfOneBrowserWriteTheCurrentTokens(): void
     {
         $this->twoAccounts();
+        $sid = (string) $this->client->getCookieJar()->get('MOCKSESSID')?->getValue();
         $old = (string) $this->vaultCookie();
         $this->switchTo('member@example.com');
-        // A tab whose request left before the switch's response came back writes the old cookie again.
-        $this->client->getCookieJar()->expire('nowo_auth_kit_accounts');
-        $this->client->getCookieJar()->set(new Cookie('nowo_auth_kit_accounts', $old, null, '/', 'localhost'));
-        $this->clock()->modify('+10 seconds');
-        self::assertSame(['member@example.com|active', 'admin@example.com|signed_in'], $this->accounts());
-        self::assertNotSame($old, $this->vaultCookie());
+        $afterSwitch = (string) $this->vaultCookie();
+        $tab         = $this->tab($sid, $old);
+        $this->clock()->modify('+1 second');
+        $tab->request('GET', '/accounts-menu');
+        $written = explode('.', (string) $tab->getCookieJar()->get('nowo_auth_kit_accounts')?->getValue());
+        $current = explode('.', $afterSwitch);
+        sort($written);
+        sort($current);
+        self::assertSame($current, $written, 'Both racing responses write the same tokens.');
 
+        $this->client->getCookieJar()->set(new Cookie('nowo_auth_kit_accounts', $afterSwitch));
         $this->clock()->modify('+60 seconds');
-        self::assertSame(['member@example.com|active', 'admin@example.com|signed_in'], $this->accounts(), 'No false reuse once the cookie caught up.');
-        $this->switchTo('admin@example.com');
-        self::assertStringStartsWith('admin@example.com|', $this->whoami());
+        self::assertSame(['member@example.com|active', 'admin@example.com|signed_in'], $this->accounts());
+        self::assertSame([], $this->em()->getConnection()->fetchAllAssociative('SELECT user_id FROM user_kit_session WHERE revoked_at IS NOT NULL'));
         self::assertNotContains(AccountRemovalReason::TokenReuse, $this->reasons());
     }
 
-    /** DE-L3: a previous token whose blob cannot be opened now stays in the cookie; a forged blob drops it. */
+    /** DE-M5: within the grace period, a token rotated by another browser (a thief) is ignored, then counts as reuse. */
+    public function testTheGracePeriodDoesNotHideATheft(): void
+    {
+        $this->twoAccounts();
+        $stolen = (string) $this->vaultCookie();
+        $thief  = new KernelBrowser($this->client->getKernel());
+        $thief->disableReboot();
+        $thief->getCookieJar()->set(new Cookie('nowo_auth_kit_accounts', $stolen));
+        $crawler = $thief->request('GET', '/accounts');
+        $thief->submit($crawler->filter('form.nowo-auth-kit-accounts__switch')->first()->form());
+        $thief->getCookieJar()->expire('nowo_auth_kit_accounts');
+        $this->clock()->modify('+10 seconds');
+        self::assertSame(['admin@example.com|active'], $this->accounts(), 'Not caught up from another browser.');
+        self::assertCount(2, explode('.', (string) $this->vaultCookie()), 'The rotated-away token is kept as evidence.');
+
+        $this->clock()->modify('+120 seconds');
+        $this->accounts();
+        self::assertContains(AccountRemovalReason::TokenReuse, $this->reasons());
+        $thief->request('GET', '/mfa-home');
+        self::assertTrue($thief->getResponse()->isRedirect(), 'The thief is signed out.');
+    }
+
+    /** DE-L3: a previous token whose blob cannot be opened stays in the cookie; a forged blob drops it. */
     public function testPreviousTokensThatCannotCatchUp(): void
     {
         $this->twoAccounts();
+        $sid = (string) $this->client->getCookieJar()->get('MOCKSESSID')?->getValue();
+        $old = (string) $this->vaultCookie();
         $this->switchTo('member@example.com');
-        $middle = (string) $this->vaultCookie();
-        $this->switchTo('admin@example.com');
         $conn = $this->em()->getConnection();
-        $conn->executeStatement("UPDATE auth_kit_account_vault SET previous_sealed = NULL WHERE user_identifier = 'member@example.com'");
-        $this->client->getCookieJar()->expire('nowo_auth_kit_accounts');
-        $this->client->getCookieJar()->set(new Cookie('nowo_auth_kit_accounts', $middle, null, '/', 'localhost'));
-        self::assertSame(['admin@example.com|active'], $this->accounts());
-        self::assertCount(2, explode('.', (string) $this->vaultCookie()), 'The member token is kept for a later request.');
+        $conn->executeStatement("UPDATE auth_kit_account_vault SET previous_sealed = NULL WHERE user_identifier = 'admin@example.com'");
+        $tab = $this->tab($sid, $old);
+        $tab->request('GET', '/accounts-menu');
+        self::assertCount(2, explode('.', (string) $tab->getCookieJar()->get('nowo_auth_kit_accounts')?->getValue()), 'The admin token is kept for a later request.');
 
-        $conn->executeStatement("UPDATE auth_kit_account_vault SET previous_sealed = 'forged' WHERE user_identifier = 'member@example.com'");
-        self::assertSame(['admin@example.com|active'], $this->accounts());
-        self::assertCount(1, explode('.', (string) $this->vaultCookie()), 'A forged blob drops the token.');
+        $conn->executeStatement("UPDATE auth_kit_account_vault SET previous_sealed = 'forged' WHERE user_identifier = 'admin@example.com'");
+        $tab->request('GET', '/accounts-menu');
+        self::assertCount(1, explode('.', (string) $tab->getCookieJar()->get('nowo_auth_kit_accounts')?->getValue()), 'A forged blob drops the token.');
+    }
+
+    /**
+     * Another tab of the same browser whose request carries the given session and vault cookies.
+     */
+    private function tab(string $sessionId, string $vault): KernelBrowser
+    {
+        $tab = new KernelBrowser($this->client->getKernel());
+        $tab->disableReboot();
+        $tab->getCookieJar()->set(new Cookie('MOCKSESSID', $sessionId));
+        $tab->getCookieJar()->set(new Cookie('nowo_auth_kit_accounts', $vault));
+
+        return $tab;
     }
 
     /** DE-L5: an admin-issued link stays an admin-issued link when the second factor completes on another request. */

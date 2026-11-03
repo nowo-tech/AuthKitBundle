@@ -28,7 +28,9 @@ without a password. Requires **UserKit ≥ 1.11 sessions** (separate, revocable 
   token, bound to the profile, entry and user identifier: the parked session id and its remember-me cookie. The
   database alone opens nothing.
 - Tokens rotate on every park, switch and sign-in. During `rotation_grace` the previous token still opens its entry
-  (a concurrent tab), under a fresh token; later it counts as **reuse** (a copied cookie): the entry goes and the
+  for the browser that rotated it (a concurrent tab of the same session learns the current token, so racing
+  responses write the same cookie); from another browser it is ignored during the grace period; later it counts as
+  **reuse** (a copied cookie): the entry goes and the
   account is signed out everywhere (UserKit `revokeAll`, reason `vault_token_reuse`, remember-me epoch bumped), so a
   thief who switched first loses the session too.
 - **Add another account** parks the current account, clears the remember-me cookie and opens an empty session in
@@ -41,7 +43,10 @@ without a password. Requires **UserKit ≥ 1.11 sessions** (separate, revocable 
   (from its own sign-in and MFA) is restored.
 - A parked account whose session was **revoked** (UserKit: one session, everywhere, administrator, password change,
   disabled; also once the revoked row was purged, UserKit ≥ 1.11.1) leaves the switcher and never comes back through
-  its remember-me cookie; only one whose session **expired** does (`revive_with_remember_me`), else it leaves.
+  its remember-me cookie; only one whose session **expired** does (`revive_with_remember_me`), else it leaves. A
+  session the registry no longer knows (`unknown`, e.g. a revoked row evicted from the cache store) counts as revoked.
+  With UserKit's database store an expired parked session can be revived only until the registry purge
+  (`nowo:user-kit:sessions:purge`) deletes its row; it then reads as revoked and the account leaves.
 - A switch that fails half-way (a throwing host listener, a storage error) rolls back to the previous session and
   token; the target stays parked.
 - An account that is active in another browser holding a copy of the cookie is not listed (nor removed) here.
@@ -72,12 +77,12 @@ switcher routes), keep form CSRF on, and the PHP `sodium` extension.
 | `max_accounts` | `5` | Accounts per browser (2–10) |
 | `max_lifetime` | `2592000` | Seconds an account stays after its last full sign-in in this browser |
 | `logout_scope` | `all` | What the firewall sign-out ends: `all` (every account, Google behaviour) or `current` (then the chooser) |
-| `revive_with_remember_me` | `true` | An expired parked account comes back through its own remember-me cookie |
+| `revive_with_remember_me` | `true` | An expired parked account comes back through its own remember-me cookie (until the registry purge removes its row) |
 | `after_switch` | `null` | Route after a switch (default: the profile `login_success_route`); a same-origin `_target_path` wins |
-| `rotation_grace` | `30` | Seconds a rotated token is still accepted (concurrent tabs); later it counts as reuse |
+| `rotation_grace` | `30` | Seconds a rotated token is still accepted from the browser that rotated it (concurrent tabs); later it counts as reuse |
 | `hash_secret` | `null` → `%kernel.secret%` | HMAC key of the tokens |
 | `cookie.name` / `lifetime` / `samesite` | `nowo_auth_kit_accounts` / `null` / `lax` | `lifetime: null` = browser-session cookie; seconds = persistent; `strict` allowed |
-| `cookie.secure` | `auto` | `auto`: `Secure` and `__Host-` on HTTPS requests; `true`: always (TLS terminated by a proxy without `trusted_proxies`); `false`: never (local HTTP) |
+| `cookie.secure` | `auto` | `auto`: `Secure` and `__Host-` on HTTPS requests; `true`: always (TLS terminated by a proxy without `trusted_proxies`); `false`: never (local HTTP; refused when `kernel.debug` is false) |
 | `chooser.on_login_page` | `true` | List the browser's accounts above the sign-in form |
 | `chooser.identifier_display` | `masked` | On anonymous pages: `full`, `masked` (`a•••@example.com`) or `none` |
 | `chooser.cross_tab_notice` | `false` | Other tabs show "you switched account in another tab" (`BroadcastChannel`, CSP nonce aware) |
@@ -162,11 +167,13 @@ automatically). Users load through the user provider of the profile's firewall.
 Residuals: the vault token is a bearer credential, not bound to a browser: a thief who copies the whole cookie jar
 before the owner uses the browser again holds the parked sessions until they expire or are revoked (as with any
 session cookie); hosts with stateless CSRF lose the per-account form binding; only the immediately previous token is
-recognised (during `rotation_grace` it is accepted, later it is reuse; an older one is just unknown); when two tabs'
-responses cross, the browser may keep the older of two fresh tokens, which works within `rotation_grace`.
+recognised (during `rotation_grace` it is accepted from the rotating browser and ignored from another one, later it
+is reuse; an older one is just unknown); a tab idle for longer than `rotation_grace` whose request left before a
+switch can still be taken for reuse.
 
 ## Database schema
 
 `auth_kit_account_vault` (table-prefix aware): `public_id`, `profile`, `user_identifier`, `token_hash`,
-`previous_token_hash`, `rotated_at`, `sealed`, `previous_sealed`, `created_at`, `last_used_at`, `expires_at`. No IP, user agent, session
+`previous_token_hash`, `rotated_at`, `rotated_by` (keyed hash of the rotating session), `sealed`, `previous_sealed`
+(the current token sealed under the previous one), `created_at`, `last_used_at`, `expires_at`. No IP, user agent, session
 id or cookie in clear. `nowo:auth-kit:accounts:purge` deletes expired entries (they are also removed lazily).

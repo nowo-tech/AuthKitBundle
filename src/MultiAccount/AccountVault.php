@@ -39,6 +39,7 @@ use function array_map;
 use function array_values;
 use function bin2hex;
 use function count;
+use function hash_equals;
 use function in_array;
 use function is_array;
 use function is_string;
@@ -157,9 +158,17 @@ final readonly class AccountVault
 
                 continue;
             }
-            // A concurrent request (another tab) rotated this entry a moment ago: the previous token still opens it,
-            // under a fresh token of this request, so the cookie this response writes holds a current token (DE-L3).
-            $entry = $this->catchUp($profile, $row, $token, $now);
+            // Within the grace period. Another browser rotated it (a thief's switch with a copied cookie): ignored,
+            // the token stays, so presenting it after the grace period still reveals the reuse (DE-M5).
+            $browser = $this->browser($request, $profile);
+            if ($row['rotated_by'] === null || $browser === null || !hash_equals($row['rotated_by'], $browser)) {
+                $kept[] = $token;
+
+                continue;
+            }
+            // This browser's concurrent request rotated it a moment ago: the cookie takes the current token, so both
+            // racing responses write the same value (DE-L3, DE-L7).
+            $entry = $this->catchUp($profile, $row, $token);
             if ($entry instanceof VaultEntry) {
                 $entries[] = $entry;
             } elseif ($entry === true) {
@@ -230,7 +239,7 @@ final readonly class AccountVault
             } elseif ($state->status === SessionStatus::Expired && $revive && $p['rm'] !== null) {
                 $states[] = new AccountState($publicId, $users[$publicId], $this->presenter($profile)->present($users[$publicId]), AccountState::SIGNED_OUT);
             } else {
-                $this->remove($request, $profile, [$p['entry']->id], $publicId, $p['entry']->userIdentifier, $state->status === SessionStatus::Revoked ? AccountRemovalReason::Revoked : AccountRemovalReason::Expired, $entries, $users[$publicId]);
+                $this->remove($request, $profile, [$p['entry']->id], $publicId, $p['entry']->userIdentifier, $state->status === SessionStatus::Expired ? AccountRemovalReason::Expired : AccountRemovalReason::Revoked, $entries, $users[$publicId]);
             }
         }
         usort($states, static fn (AccountState $a, AccountState $b): int => ($b->state === AccountState::ACTIVE) <=> ($a->state === AccountState::ACTIVE));
@@ -307,7 +316,7 @@ final readonly class AccountVault
         if (!$state->isLive()) {
             // Only an expired session comes back through its remember-me cookie; a revoked one never does (DE-M1).
             if ($state->status !== SessionStatus::Expired || $rm === null || ($profile->multiAccount['revive_with_remember_me'] ?? true) !== true) {
-                $this->remove($request, $profile, [$target->id], $target->publicId, $target->userIdentifier, $state->status === SessionStatus::Revoked ? AccountRemovalReason::Revoked : AccountRemovalReason::Expired, $entries, $user);
+                $this->remove($request, $profile, [$target->id], $target->publicId, $target->userIdentifier, $state->status === SessionStatus::Expired ? AccountRemovalReason::Expired : AccountRemovalReason::Revoked, $entries, $user);
 
                 return SwitchOutcome::gone();
             }
@@ -398,7 +407,7 @@ final readonly class AccountVault
         if ($existing instanceof VaultEntry) {
             // Re-bound to this new sign-in: the parked session it replaces is ended, not orphaned (DE-L4).
             $this->endParked($request, $profile, $existing, $user);
-            if ($this->store->rotate($existing->id, $existing->tokenHash, $crypto->hash($fresh), null, null, $now, $expires)) {
+            if ($this->rotate($request, $profile, $existing, $fresh, null, $now, $expires)) {
                 $this->replaceToken($request, $profile, $existing->token, $fresh);
             }
             $this->setSlot($session, $profile, $existing->publicId);
@@ -477,7 +486,7 @@ final readonly class AccountVault
         $this->sessions->rekey($session, $sid);
         $this->setSlot($session, $profile, $target->publicId);
         $fresh = VaultCrypto::newToken();
-        if ($this->store->rotate($target->id, $target->tokenHash, $this->crypto($profile)->hash($fresh), null, null, $this->now())) {
+        if ($this->rotate($request, $profile, $target, $fresh, null, $this->now())) {
             $this->replaceToken($request, $profile, $target->token, $fresh);
         }
         $this->queueRememberMe($request, $profile, $rm);
@@ -545,7 +554,7 @@ final readonly class AccountVault
         $this->tokens->setToken(null);
         $this->setSlot($request->getSession(), $profile, $target->publicId);
         $fresh = VaultCrypto::newToken();
-        if ($this->store->rotate($target->id, $target->tokenHash, $this->crypto($profile)->hash($fresh), null, null, $this->now())) {
+        if ($this->rotate($request, $profile, $target, $fresh, null, $this->now())) {
             $this->replaceToken($request, $profile, $target->token, $fresh);
         }
         $this->queueRememberMe($request, $profile, $rm);
@@ -601,8 +610,7 @@ final readonly class AccountVault
         $fresh   = VaultCrypto::newToken();
         $now     = $this->now();
         if ($entry instanceof VaultEntry) {
-            $ad = $this->associatedData($profile, $entry->publicId, $entry->userIdentifier);
-            if (!$this->store->rotate($entry->id, $entry->tokenHash, $crypto->hash($fresh), $crypto->seal($fresh, $ad, $payload), $crypto->seal($entry->token, $ad, $payload), $now)) {
+            if (!$this->rotate($request, $profile, $entry, $fresh, $crypto->seal($fresh, $this->associatedData($profile, $entry->publicId, $entry->userIdentifier), $payload), $now)) {
                 // Another request rotated the entry first (a race of two requests): nothing was sealed, the account
                 // cannot be parked.
                 return false; // @codeCoverageIgnore
@@ -668,36 +676,47 @@ final readonly class AccountVault
     }
 
     /**
-     * Opens an entry through its previous token (within `rotation_grace`) under a fresh token: the current blob,
-     * also sealed under the previous token at rotation, is sealed again under the fresh one. True when the blob cannot
-     * be opened with this token (the entry was rotated again meanwhile: the token stays in the cookie); null when it
-     * is forged or another request rotated it at the same time.
+     * Opens an entry through its previous token (within `rotation_grace`, same browser): the current token, sealed
+     * under the previous one at rotation, without rotating again. True when it cannot be opened now (keep the token);
+     * null when the blob is forged.
      *
      * @param array{id: int, public_id: string, user_identifier: string, token_hash: string, sealed: string|null, previous_sealed: string|null, expires_at: DateTimeImmutable} $row
      */
-    private function catchUp(ProfileSettings $profile, array $row, string $token, DateTimeImmutable $now): VaultEntry|true|null
+    private function catchUp(ProfileSettings $profile, array $row, string $token): VaultEntry|true|null
     {
-        $crypto  = $this->crypto($profile);
-        $ad      = $this->associatedData($profile, $row['public_id'], $row['user_identifier']);
-        $payload = null;
-        if ($row['sealed'] !== null) {
-            if ($row['previous_sealed'] === null) {
-                return true;
-            }
-            $payload = $crypto->unseal($token, $ad, $row['previous_sealed']);
-            if ($payload === null) {
-                return null;
-            }
+        if ($row['previous_sealed'] === null) {
+            return true;
         }
-        $fresh  = VaultCrypto::newToken();
-        $sealed = $payload !== null ? $crypto->seal($fresh, $ad, $payload) : null;
-        // The current token is not known here: a request still holding it can open the entry only once rotated again.
-        if (!$this->store->rotate($row['id'], $row['token_hash'], $crypto->hash($fresh), $sealed, null, $now)) {
-            // Another request caught up at the same moment (a race of two requests).
-            return null; // @codeCoverageIgnore
+        $crypto  = $this->crypto($profile);
+        $payload = $crypto->unseal($token, $this->associatedData($profile, $row['public_id'], $row['user_identifier']), $row['previous_sealed']);
+        $current = is_string($payload['t'] ?? null) ? $payload['t'] : null;
+        if ($current === null || !hash_equals($row['token_hash'], $crypto->hash($current))) {
+            return null;
         }
 
-        return new VaultEntry($row['id'], $row['public_id'], $row['user_identifier'], $fresh, $crypto->hash($fresh), $sealed, $row['expires_at']);
+        return new VaultEntry($row['id'], $row['public_id'], $row['user_identifier'], $current, $row['token_hash'], $row['sealed'], $row['expires_at']);
+    }
+
+    /**
+     * Rotates an entry to `$fresh` (conditional on its current token), sealing `$fresh` under the old token for this
+     * browser's concurrent requests and recording which browser rotated it.
+     */
+    private function rotate(Request $request, ProfileSettings $profile, VaultEntry $entry, string $fresh, ?string $sealed, DateTimeImmutable $now, ?DateTimeImmutable $expires = null): bool
+    {
+        $crypto   = $this->crypto($profile);
+        $previous = $crypto->seal($entry->token, $this->associatedData($profile, $entry->publicId, $entry->userIdentifier), ['t' => $fresh]);
+
+        return $this->store->rotate($entry->id, $entry->tokenHash, $crypto->hash($fresh), $sealed, $previous, $this->browser($request, $profile), $now, $expires);
+    }
+
+    /**
+     * Keyed hash of the session id the request arrived with (the browser that rotates), null without one.
+     */
+    private function browser(Request $request, ProfileSettings $profile): ?string
+    {
+        $id = $request->hasSession() ? $request->cookies->get($request->getSession()->getName()) : null;
+
+        return is_string($id) && $id !== '' ? $this->crypto($profile)->hash('browser|' . $id) : null;
     }
 
     /**

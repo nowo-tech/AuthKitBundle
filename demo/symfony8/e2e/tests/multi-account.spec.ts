@@ -10,20 +10,27 @@ import { totp } from './totp';
  */
 const BOB_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 const PASSWORD = 'demo-password-123';
-let step = 0;
+let lastStep = 0;
 
-/** A fresh TOTP code for each use (a used time step is refused): walk forward inside the ±1 window, then wait. */
+/**
+ * A fresh TOTP code for each use: a used time step is refused, so take the oldest step of the ±1 window not used yet,
+ * waiting for the clock when the window is used up.
+ */
 async function nextCode(secret: string): Promise<string> {
-  step = step >= 1 ? -1 : step + 1;
-  if (step === -1) {
-    await new Promise((resolve) => setTimeout(resolve, 31_000));
-    step = 0;
+  for (;;) {
+    const now = Math.floor(Date.now() / 1000 / 30);
+    const step = Math.max(now - 1, lastStep + 1);
+    if (step <= now + 1) {
+      lastStep = step;
+      return totp(secret, step - now);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
-  return totp(secret, step);
 }
 
 async function expectAccessible(page: Page, what: string): Promise<void> {
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+  // The Symfony web debug toolbar of the dev demo is not part of the product.
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).exclude('.sf-toolbar').exclude('.sf-minitoolbar').analyze();
   expect(results.violations, `${what}: ${results.violations.map((v) => v.id).join(', ')}`).toEqual([]);
 }
 
@@ -46,6 +53,9 @@ function accounts(page: Page) {
 }
 
 test.describe('MFA and several accounts', () => {
+  // Several TOTP sign-ins of the same user may wait for the next time step.
+  test.describe.configure({ timeout: 120_000 });
+
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
     await ensureDemoUser(page);
