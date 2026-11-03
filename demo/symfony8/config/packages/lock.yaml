@@ -1,0 +1,3 @@
+# AuthKit MFA requires a lock factory (atomic attempt limits). A single demo container: local flock store.
+framework:
+    lock: 'flock'
