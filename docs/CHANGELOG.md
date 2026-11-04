@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.35.0] - 2026-11-04](#1350---2026-11-04)
 - [[1.34.0] - 2026-11-03](#1340---2026-11-03)
 - [[1.33.1] - 2026-11-02](#1331---2026-11-02)
 - [[1.33.0] - 2026-11-02](#1330---2026-11-02)
@@ -91,7 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Target **1.35.0**: avatars in the account switcher (avatar contract v1.1, §10.5). Requires UiKit **^2.26**.
+## [1.35.0] - 2026-11-04
+
+Avatars in the account switcher (avatar contract v1.1, §10.5). Requires UiKit **^2.26**.
 
 ### Added
 

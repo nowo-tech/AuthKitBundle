@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.35.0](#to-1350)
 - [To 1.34.0](#to-1340)
 - [To 1.33.1](#to-1331)
 - [To 1.33.0](#to-1330)
@@ -101,7 +102,9 @@
 
 ## Unreleased
 
-Target **1.35.0**, from **1.34.x**:
+## To 1.35.0
+
+From **1.34.x**:
 
 ```bash
 composer update nowo-tech/auth-kit-bundle nowo-tech/ui-kit-bundle
