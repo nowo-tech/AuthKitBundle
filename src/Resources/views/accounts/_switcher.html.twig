@@ -3,6 +3,9 @@
   chooser / sign-in page (variant 'list'). Variables: switcher (AccountSwitcherView, default auth_kit_accounts()),
   variant ('menu' | 'list'), target_path (optional same-origin path after a switch).
   Each switch / sign-out is a CSRF POST form; the active account has no switch button (aria-current="true").
+  Avatars (1.35): UiKit's partials/_avatar.html.twig (decorative, the name follows): the presenter's avatarUrl over the
+  initials, after UiKit's avatar URL policy, for the active account only unless chooser.other_account_avatars; a broken
+  picture falls back to the initials (js/nowo-ui-avatar.js).
 #}
 {% set _b = 'NowoAuthKitBundle' %}
 {% set _s = switcher|default(auth_kit_accounts()) %}
@@ -14,7 +17,7 @@
             {% for account in _s.accounts %}
                 <li class="nowo-auth-kit-accounts__item nowo-auth-kit-accounts__item--{{ account.state }}" data-testid="auth-kit-account" data-state="{{ account.state }}"{% if account.active %} aria-current="true"{% endif %}>
                     <span class="nowo-auth-kit-accounts__avatar" aria-hidden="true">
-                        {%- if account.avatarUrl %}<img src="{{ account.avatarUrl }}" alt="" width="32" height="32">{% else %}{{ account.initials }}{% endif -%}
+                        {{- include('@NowoUiKitBundle/partials/_avatar.html.twig', {initials: account.initials, name: account.name, src: account.avatarUrl, decorative: true, attr: {'data-testid': 'auth-kit-account-avatar'}}, false) -}}
                     </span>
                     <span class="nowo-auth-kit-accounts__who">
                         <span class="nowo-auth-kit-accounts__name">{{ account.name }}</span>

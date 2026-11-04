@@ -24,6 +24,7 @@
   - [Twig links](#twig-links)
   - [access_control](#access_control)
 - [Registration link on login page](#registration-link-on-login-page)
+- [Account switcher avatars (1.35)](#account-switcher-avatars-135)
 
 ## Twig template overrides (REQ-TWIG-001)
 
@@ -298,3 +299,35 @@ The login template receives `registration_allowed` from `RegistrationGate` (same
 With `registration_mode: first_user_only`, the link appears only while the user table is empty. With `disabled`, it stays hidden. Custom template overrides must include this check if they render their own footer links.
 
 If your application conditionally enables outbound email, also gate password-reset and magic-login links with `nowo_auth_kit_outbound_mail_ready()` to match the default template behavior.
+
+## Account switcher avatars (1.35)
+
+With `multi_account.enabled`, the switcher (`@NowoAuthKitBundle/accounts/_switcher.html.twig`) shows the avatar your
+`AccountPresenterInterface` returns, through UiKit's avatar partial:
+
+```php
+use Nowo\AuthKitBundle\MultiAccount\AccountPresentation;
+use Nowo\AuthKitBundle\MultiAccount\AccountPresenterInterface;
+
+final class AppAccountPresenter implements AccountPresenterInterface
+{
+    public function present(UserInterface $user): AccountPresentation
+    {
+        // A stable, access-checked, host-generated URL (same-origin /path or https://), never a user-entered one.
+        return new AccountPresentation($user->getDisplayName(), $user->getUserIdentifier(), $this->avatars->urlFor($user, 32));
+    }
+}
+```
+
+```yaml
+nowo_auth_kit:
+    multi_account:
+        enabled: true
+        presenter: App\Security\AppAccountPresenter
+        # chooser: { other_account_avatars: false }   # default: only the active account shows its picture
+```
+
+The picture goes over the initials after UiKit's `AvatarUrlPolicy`; the other accounts of the browser show their
+initials unless `chooser.other_account_avatars: true` (signed-in browsers only: anonymous pages never show a picture); a broken picture falls back to the initials (UiKit's
+`js/nowo-ui-avatar.js`). Details: [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md#avatars-135).
+

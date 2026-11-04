@@ -361,7 +361,7 @@ nowo_auth_kit:
         # max_accounts: 5
         # logout_scope: all              # all | current
         # cookie: { lifetime: null }     # browser-session cookie
-        # chooser: { identifier_display: masked, cross_tab_notice: false }
+        # chooser: { identifier_display: masked, cross_tab_notice: false, other_account_avatars: false }
 ```
 
 Reference, menu partial, events and security: [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md). Host firewall layer: `/accounts`
