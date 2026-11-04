@@ -59,9 +59,12 @@ final class MultiAccountExtension extends AbstractExtension
         $routes = $profile->multiAccount['routes'];
         $rows   = [];
         $active = null;
+        // 1.35 (audit EC-L1): the other accounts' pictures only for a signed-in browser seeing full identifiers, never
+        // on an anonymous page (sign-in page, chooser after sign-out), where the visitor may be someone else.
+        $otherAvatars = ($profile->multiAccount['chooser']['other_account_avatars'] ?? false) === true && $display === 'full' && $this->vault->isSignedIn();
         foreach ($this->vault->accounts($request, $profile) as $account) {
             $active = $account->isActive() ? $account->id : $active;
-            $rows[] = $this->row($profile, $account, $display);
+            $rows[] = $this->row($profile, $account, $display, $otherAvatars);
         }
         $signedIn = $this->tokens->getToken()?->getUser() instanceof UserInterface;
 
@@ -76,7 +79,7 @@ final class MultiAccountExtension extends AbstractExtension
         );
     }
 
-    private function row(ProfileSettings $profile, AccountState $account, string $display): AccountRow
+    private function row(ProfileSettings $profile, AccountState $account, string $display, bool $otherAvatars): AccountRow
     {
         $routes = $profile->multiAccount['routes'];
 
@@ -84,8 +87,8 @@ final class MultiAccountExtension extends AbstractExtension
             $account->id,
             $account->presentation->nameFor($display),
             $account->presentation->identifierFor($display),
-            $account->presentation->avatarUrlFor($account->isActive(), ($profile->multiAccount['chooser']['other_account_avatars'] ?? false) === true),
-            $account->presentation->initials(),
+            $account->presentation->avatarUrlFor($account->isActive(), $otherAvatars),
+            $account->presentation->initialsFor($display),
             $account->state,
             $account->isActive() ? null : $this->csrfForms->createNamed($this->urls->generate((string) $routes['switch']['name'], ['account' => $account->id]), 'nowo_auth_kit_accounts.switch.' . $profile->name . '.' . $account->id)->createView(),
             $this->csrfForms->createNamed($this->urls->generate((string) $routes['sign_out']['name'], ['account' => $account->id]), 'nowo_auth_kit_accounts.sign_out.' . $profile->name . '.' . $account->id)->createView(),

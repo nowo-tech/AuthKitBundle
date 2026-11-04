@@ -86,7 +86,7 @@ switcher routes), keep form CSRF on, and the PHP `sodium` extension.
 | `chooser.on_login_page` | `true` | List the browser's accounts above the sign-in form |
 | `chooser.identifier_display` | `masked` | On anonymous pages: `full`, `masked` (`a•••@example.com`) or `none` |
 | `chooser.cross_tab_notice` | `false` | Other tabs show "you switched account in another tab" (`BroadcastChannel`, CSP nonce aware) |
-| `chooser.other_account_avatars` | `false` | 1.35: also show the presenter's avatar of the other accounts of the browser (fetched with the active session's cookie, which the host may refuse); default: initials, the active account only |
+| `chooser.other_account_avatars` | `false` | 1.35: while the browser is signed in, also show the presenter's avatar of its other accounts (fetched with the active session's cookie, which the host may refuse). Never on anonymous pages (sign-in page, chooser after sign-out): initials there. Default: the active account only |
 | `rate_limit.switch` / `add` / `invalid` | `30/600`, `10/3600`, `20/600` | Per client IP: switches and adds are refused over the limit; unknown tokens are counted and logged only (a shared IP never disables other browsers' vaults) |
 | `enrolment_gate` | `null` | Service id of an `EnrolmentGateInterface` (default: complete once AuthKit MFA passed, never while impersonating) |
 | `presenter` | `null` | Service id of an `AccountPresenterInterface` (name, identifier, avatar; default: the identifier) |
@@ -121,6 +121,12 @@ presenter's `AccountPresentation::avatarUrl` goes over the initials:
 - Only the **active** account shows its picture by default. The other accounts of the browser show their initials:
   their picture would be fetched with the active session's cookie, which the host may refuse. Set
   `chooser.other_account_avatars: true` when the host serves every account's picture to that browser.
+- **Anonymous pages never show a picture.** The sign-in page and the chooser of a browser with no signed-in account
+  (a shared browser after sign-out) show initials only, even with `other_account_avatars: true`: a picture (often a
+  face) and its stable URL would identify a parked account to whoever uses the browser next, despite
+  `identifier_display: masked | none`. The sign-in page that lists accounts is sent `private, no-store`.
+- With `identifier_display: masked | none`, the initials of an account whose name is its identifier are the first
+  letter only (the one the masked value shows), never the domain's.
 - A broken picture (403, 404, expired link) falls back to the initials through UiKit's `js/nowo-ui-avatar.js` (in
   UiKit's default `scripts`; without it the initials stay visible under a broken `<img alt="">`), and that URL is not
   requested again while the page is open.

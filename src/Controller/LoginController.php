@@ -149,6 +149,13 @@ final class LoginController
             'sso_links'              => array_map(static fn (SocialLoginCredential $c): Link => $providerLink($c, 'sso.continue_with'), $ssoProviders),
         ]));
 
-        return new Response($content);
+        $response = new Response($content);
+        if ($accounts instanceof AccountSwitcherView && !$accounts->isEmpty()) {
+            // 1.35 (audit EC-I2): the accounts of a shared browser stay out of any cache, like the /accounts chooser.
+            $response->setPrivate();
+            $response->headers->addCacheControlDirective('no-store');
+        }
+
+        return $response;
     }
 }

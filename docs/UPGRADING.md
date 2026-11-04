@@ -113,8 +113,11 @@ UiKit **2.26** is now required (the avatar partial and URL policy). Read UiKit's
 Behaviour changes of the account switcher (only with `multi_account.enabled` and a presenter that returns an avatar):
 
 - **Only the active account shows its picture.** The other accounts of the browser show their initials. To show every
-  account's picture, set `multi_account.chooser.other_account_avatars: true` (the host must then serve each account's
-  picture to that browser: the request carries the active session's cookie).
+  account's picture while the browser is signed in, set `multi_account.chooser.other_account_avatars: true` (the host
+  must then serve each account's picture to that browser: the request carries the active session's cookie). Anonymous
+  pages (sign-in page, chooser after sign-out) never show a picture.
+- With `identifier_display: masked | none`, an account named by its identifier shows one initial (`A`), not two (`AE`).
+- The sign-in page that lists accounts is now `Cache-Control: private, no-store`.
 - **`http:` and `data:` avatar URLs now show the initials**, and so do relative paths without a leading `/`,
   protocol-relative or `http:` asset URLs (an asset package whose `base_urls` is `//cdn…` or `http://…`), IPv6-literal
   hosts and URLs with quotes, `<`, `>` or backtick. Return `https://` URLs without userinfo or a same-origin `/path`

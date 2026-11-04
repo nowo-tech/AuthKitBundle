@@ -95,9 +95,14 @@ Target **1.35.0**: avatars in the account switcher (avatar contract v1.1, §10.5
 
 ### Added
 
-- `multi_account.chooser.other_account_avatars` (default `false`): also show the avatar of the other accounts of the
-  browser. By default only the active account shows its picture; the others show their initials (their picture would
-  be fetched with the active session's cookie, which the host may refuse).
+- `multi_account.chooser.other_account_avatars` (default `false`): while the browser is signed in, also show the
+  avatar of its other accounts. By default only the active account shows its picture; the others show their initials
+  (their picture would be fetched with the active session's cookie, which the host may refuse). Anonymous pages (the
+  sign-in page, the chooser after sign-out) never show a picture, whatever the option (audit EC-L1).
+- `AccountPresentation::initialsFor($display)`: with a masked or hidden identifier as the name, the initials are its
+  first letter only, not the domain's (audit EC-I1).
+- The sign-in page that lists the browser's accounts is sent `Cache-Control: private, no-store`, like `/accounts`
+  (audit EC-I2).
 - `AccountPresentation::avatarUrlFor(bool $active, bool $otherAccounts = false)`: the URL the switcher may show.
 
 ### Changed

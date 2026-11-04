@@ -116,7 +116,7 @@ final class MultiAccountConfiguration
                             ->defaultFalse()
                         ->end()
                         ->booleanNode('other_account_avatars')
-                            ->info('1.35: show the presenter\'s avatar of the other accounts of the browser too (fetched with the active session\'s cookie, which the host may refuse); default: initials, the active account only.')
+                            ->info('1.35: while the browser is signed in, show the presenter\'s avatar of its other accounts too (fetched with the active session\'s cookie, which the host may refuse). Never on anonymous pages (sign-in page, chooser after sign-out): initials there. Default: the active account only.')
                             ->defaultFalse()
                         ->end()
                     ->end()

@@ -47,9 +47,24 @@ final readonly class AccountPresentation
     }
 
     /**
+     * Initials as shown with `identifier_display` (1.35, audit EC-I1): with `full`, or when the name is the presenter's
+     * own display name (shown in full anyway), {@see initials()}; when the name is the identifier and it is masked or
+     * hidden, only the first letter of the masked value (the letter the page already shows), never the domain's.
+     */
+    public function initialsFor(string $display): string
+    {
+        if ($display === 'full' || $this->name !== $this->identifier) {
+            return $this->initials();
+        }
+
+        return mb_strtoupper(mb_substr($this->identifier, 0, 1));
+    }
+
+    /**
      * The avatar URL the switcher may show (1.35): null unless it passes UiKit's `AvatarUrlPolicy` and the account is
-     * the active one or `$otherAccounts` (`multi_account.chooser.other_account_avatars`) allows the other accounts of
-     * the browser. Their pictures are fetched with the active session's cookie, which the host may refuse.
+     * the active one or `$otherAccounts` allows the other accounts of the browser (`multi_account.chooser
+     * .other_account_avatars`, applied only while the browser is signed in and never on anonymous pages). Their
+     * pictures are fetched with the active session's cookie, which the host may refuse.
      */
     public function avatarUrlFor(bool $active, bool $otherAccounts = false): ?string
     {

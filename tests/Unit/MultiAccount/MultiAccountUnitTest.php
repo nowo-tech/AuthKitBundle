@@ -88,6 +88,18 @@ final class MultiAccountUnitTest extends TestCase
         self::assertSame('u•••', (new AccountPresentation('user', 'user'))->nameFor('none'));
     }
 
+    public function testInitialsFollowTheIdentifierDisplay(): void
+    {
+        $identifier = new AccountPresentation('ada@example.com', 'ada@example.com');
+        self::assertSame('AE', $identifier->initialsFor('full'));
+        self::assertSame('A', $identifier->initialsFor('masked'), 'Only the letter the masked value shows (EC-I1).');
+        self::assertSame('A', $identifier->initialsFor('none'));
+        self::assertSame('Á', (new AccountPresentation('ángel@example.com', 'ángel@example.com'))->initialsFor('none'));
+
+        $named = new AccountPresentation('Ana María López', 'ana@example.com');
+        self::assertSame('AM', $named->initialsFor('none'), 'A presenter name is shown in full, so are its initials.');
+    }
+
     public function testAvatarUrlForTheSwitcher(): void
     {
         $p = new AccountPresentation('Ana', 'ana@example.com', '/files/0b9b/s64');

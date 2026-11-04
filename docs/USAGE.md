@@ -328,6 +328,6 @@ nowo_auth_kit:
 ```
 
 The picture goes over the initials after UiKit's `AvatarUrlPolicy`; the other accounts of the browser show their
-initials unless `chooser.other_account_avatars: true`; a broken picture falls back to the initials (UiKit's
+initials unless `chooser.other_account_avatars: true` (signed-in browsers only: anonymous pages never show a picture); a broken picture falls back to the initials (UiKit's
 `js/nowo-ui-avatar.js`). Details: [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md#avatars-135).
 
