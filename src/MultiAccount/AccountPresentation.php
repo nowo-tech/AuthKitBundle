@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\MultiAccount;
 
+use Nowo\UiKitBundle\Avatar\AvatarUrlPolicy;
+
 use function mb_strlen;
 use function mb_strpos;
 use function mb_strtoupper;
@@ -14,6 +16,10 @@ use const PREG_SPLIT_NO_EMPTY;
 
 /**
  * Display data of one account (name, identifier for the secondary line, optional avatar URL).
+ *
+ * `avatarUrl` (from the host's {@see AccountPresenterInterface}) should be stable and access-checked when the browser
+ * fetches it (no bearer secret). Since 1.35 the switcher renders it only through {@see avatarUrlFor()}: UiKit's avatar
+ * URL policy (`https://` without userinfo, or a same-origin `/path`) and, by default, for the active account only.
  */
 final readonly class AccountPresentation
 {
@@ -38,6 +44,16 @@ final readonly class AccountPresentation
         }
 
         return $initials;
+    }
+
+    /**
+     * The avatar URL the switcher may show (1.35): null unless it passes UiKit's `AvatarUrlPolicy` and the account is
+     * the active one or `$otherAccounts` (`multi_account.chooser.other_account_avatars`) allows the other accounts of
+     * the browser. Their pictures are fetched with the active session's cookie, which the host may refuse.
+     */
+    public function avatarUrlFor(bool $active, bool $otherAccounts = false): ?string
+    {
+        return $active || $otherAccounts ? AvatarUrlPolicy::sanitize($this->avatarUrl) : null;
     }
 
     /**

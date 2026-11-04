@@ -86,6 +86,7 @@ switcher routes), keep form CSRF on, and the PHP `sodium` extension.
 | `chooser.on_login_page` | `true` | List the browser's accounts above the sign-in form |
 | `chooser.identifier_display` | `masked` | On anonymous pages: `full`, `masked` (`a•••@example.com`) or `none` |
 | `chooser.cross_tab_notice` | `false` | Other tabs show "you switched account in another tab" (`BroadcastChannel`, CSP nonce aware) |
+| `chooser.other_account_avatars` | `false` | 1.35: also show the presenter's avatar of the other accounts of the browser (fetched with the active session's cookie, which the host may refuse); default: initials, the active account only |
 | `rate_limit.switch` / `add` / `invalid` | `30/600`, `10/3600`, `20/600` | Per client IP: switches and adds are refused over the limit; unknown tokens are counted and logged only (a shared IP never disables other browsers' vaults) |
 | `enrolment_gate` | `null` | Service id of an `EnrolmentGateInterface` (default: complete once AuthKit MFA passed, never while impersonating) |
 | `presenter` | `null` | Service id of an `AccountPresenterInterface` (name, identifier, avatar; default: the identifier) |
@@ -104,9 +105,27 @@ switcher routes), keep form CSRF on, and the PHP `sodium` extension.
 forms, the add form when one more fits, the sign-out-all form, the chooser URL). The function exists only while the
 feature is on (include the partial behind the same configuration). `display` defaults to `full` for a signed-in
 browser and to `chooser.identifier_display` otherwise. The chooser page `/accounts`
-(`web_ui.templates.accounts_chooser`) and the sign-in page list the accounts with masked identifiers. A presenter's
-avatar URL is rendered as an `img src`: an external avatar host sees who opens the chooser (prefer same-origin
-avatars).
+(`web_ui.templates.accounts_chooser`) and the sign-in page list the accounts with masked identifiers.
+
+### Avatars (1.35)
+
+The switcher draws each account with UiKit's `partials/_avatar.html.twig` (decorative: the name follows), so the
+presenter's `AccountPresentation::avatarUrl` goes over the initials:
+
+- The URL passes UiKit's `AvatarUrlPolicy` first: `https://` without userinfo, or a same-origin `/path`. `http:`,
+  `data:`, `javascript:`, `//host`, relative paths, IPv6-literal hosts, backslashes, quotes, `<`, `>`, backtick and
+  control characters show the initials. Return a stable, access-checked URL with no bearer secret in it (e.g.
+  `/files/<uuid>/s64` redirecting to a short-lived signed link).
+- **Never return a user-entered URL**: generate it from the account (an uploaded file's id). An accepted same-origin
+  path is a credentialed `GET` from the browser, and an accepted `https:` host is fetched by it.
+- Only the **active** account shows its picture by default. The other accounts of the browser show their initials:
+  their picture would be fetched with the active session's cookie, which the host may refuse. Set
+  `chooser.other_account_avatars: true` when the host serves every account's picture to that browser.
+- A broken picture (403, 404, expired link) falls back to the initials through UiKit's `js/nowo-ui-avatar.js` (in
+  UiKit's default `scripts`; without it the initials stay visible under a broken `<img alt="">`), and that URL is not
+  requested again while the page is open.
+- `referrerpolicy="same-origin"`: an external avatar host does not learn the page URL, but it still sees the request
+  (prefer same-origin avatars).
 
 ## Signing out
 

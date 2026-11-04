@@ -1882,6 +1882,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 on_login_page?: bool|Param, // Default: true
  *                 identifier_display?: "full"|"masked"|"none"|Param, // What the login-page chooser shows next to the name (D4: masked e-mail). // Default: "masked"
  *                 cross_tab_notice?: bool|Param, // D7 (opt-in): other tabs show "you switched account" after a switch. // Default: false
+ *                 other_account_avatars?: bool|Param, // 1.35: show the presenter's avatar of the other accounts of the browser too (fetched with the active session's cookie, which the host may refuse); default: initials, the active account only. // Default: false
  *             },
  *             rate_limit?: array{
  *                 switch?: array{

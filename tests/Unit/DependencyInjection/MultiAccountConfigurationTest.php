@@ -39,6 +39,7 @@ final class MultiAccountConfigurationTest extends TestCase
         self::assertNull($config['cookie']['lifetime']);
         self::assertSame('masked', $config['chooser']['identifier_display']);
         self::assertFalse($config['chooser']['cross_tab_notice']);
+        self::assertFalse($config['chooser']['other_account_avatars']);
         self::assertTrue($config['revive_with_remember_me']);
         self::assertSame(2592000, $config['max_lifetime']);
         self::assertNull($config['hash_secret']);

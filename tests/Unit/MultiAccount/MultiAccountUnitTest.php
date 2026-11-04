@@ -88,6 +88,19 @@ final class MultiAccountUnitTest extends TestCase
         self::assertSame('u•••', (new AccountPresentation('user', 'user'))->nameFor('none'));
     }
 
+    public function testAvatarUrlForTheSwitcher(): void
+    {
+        $p = new AccountPresentation('Ana', 'ana@example.com', '/files/0b9b/s64');
+        self::assertSame('/files/0b9b/s64', $p->avatarUrlFor(true));
+        self::assertNull($p->avatarUrlFor(false), 'Other accounts of the browser show initials by default.');
+        self::assertSame('/files/0b9b/s64', $p->avatarUrlFor(false, true));
+        self::assertNull((new AccountPresentation('Ana', 'ana@example.com'))->avatarUrlFor(true));
+        foreach (['http://cdn.example.com/a.png', 'data:image/png;base64,AAAA', '//evil.example/a.png', 'javascript:alert(1)', 'https://good@evil.example/a.png', '/a\\b', "/files/a/s64\n", '/a"/onerror="alert(1)', 'https://[::1]/a.png', 'avatars/1.png', '/' . str_repeat('é', 1024)] as $rejected) {
+            self::assertNull((new AccountPresentation('Ana', 'ana@example.com', $rejected))->avatarUrlFor(true, true), $rejected);
+        }
+        self::assertSame('https://cdn.example.com/a.webp', (new AccountPresentation('Ana', 'a', 'https://cdn.example.com/a.webp'))->avatarUrlFor(true));
+    }
+
     public function testGateAndEntity(): void
     {
         $gate = new DefaultEnrolmentGate();

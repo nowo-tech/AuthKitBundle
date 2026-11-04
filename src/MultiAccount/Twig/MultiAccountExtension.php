@@ -84,7 +84,7 @@ final class MultiAccountExtension extends AbstractExtension
             $account->id,
             $account->presentation->nameFor($display),
             $account->presentation->identifierFor($display),
-            $account->presentation->avatarUrl,
+            $account->presentation->avatarUrlFor($account->isActive(), ($profile->multiAccount['chooser']['other_account_avatars'] ?? false) === true),
             $account->presentation->initials(),
             $account->state,
             $account->isActive() ? null : $this->csrfForms->createNamed($this->urls->generate((string) $routes['switch']['name'], ['account' => $account->id]), 'nowo_auth_kit_accounts.switch.' . $profile->name . '.' . $account->id)->createView(),

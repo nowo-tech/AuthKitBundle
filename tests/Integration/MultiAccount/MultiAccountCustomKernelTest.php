@@ -34,7 +34,13 @@ final class MultiAccountCustomKernelTest extends MultiAccountKernelTestCase
 
         $crawler = $this->menu();
         self::assertSame(['Admin Account', 'Member Account'], $crawler->filter('.nowo-auth-kit-accounts__name')->each(static fn ($n): string => $n->text()));
-        self::assertSame('/avatars/admin@example.com.png', $crawler->filter('.nowo-auth-kit-accounts__avatar img')->first()->attr('src'));
+        // 1.35: UiKit's avatar partial; the active account's picture over its initials, the other account's initials only.
+        self::assertSame(['/avatars/admin@example.com.png'], $crawler->filter('.nowo-auth-kit-accounts__avatar img')->each(static fn ($n): string => (string) $n->attr('src')));
+        $avatars = $crawler->filter('[data-testid="auth-kit-account-avatar"]');
+        self::assertSame(['nowo-ui-avatar has-image', 'nowo-ui-avatar'], $avatars->each(static fn ($n): string => (string) $n->attr('class')));
+        self::assertSame(['AA', 'MA'], $avatars->each(static fn ($n): string => $n->text()));
+        self::assertSame('', $avatars->first()->filter('img')->attr('alt'));
+        self::assertSame('same-origin', $avatars->first()->filter('img')->attr('referrerpolicy'));
         self::assertStringContainsString('admin@example.com', $crawler->text(), 'identifier_display: full.');
         self::assertCount(1, $crawler->filter('[data-nowo-auth-kit-accounts-notice] script'));
 

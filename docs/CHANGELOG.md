@@ -91,6 +91,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target **1.35.0**: avatars in the account switcher (avatar contract v1.1, §10.5). Requires UiKit **^2.26**.
+
+### Added
+
+- `multi_account.chooser.other_account_avatars` (default `false`): also show the avatar of the other accounts of the
+  browser. By default only the active account shows its picture; the others show their initials (their picture would
+  be fetched with the active session's cookie, which the host may refuse).
+- `AccountPresentation::avatarUrlFor(bool $active, bool $otherAccounts = false)`: the URL the switcher may show.
+
+### Changed
+
+- **The account switcher renders avatars through UiKit's `partials/_avatar.html.twig`** (decorative, size 32,
+  `data-testid="auth-kit-account-avatar"`): the presenter's `avatarUrl` goes over the initials instead of replacing
+  them, and passes UiKit's `AvatarUrlPolicy` first (`https://` without userinfo, or a same-origin `/path`; `http:`,
+  `data:`, `javascript:`, `//host`, relative paths, IPv6-literal hosts, backslashes, quotes, `<`, `>`, backtick and
+  control characters show the initials). A broken picture falls
+  back to the initials through UiKit's `js/nowo-ui-avatar.js`. `<img alt="" loading="lazy" decoding="async"
+  referrerpolicy="same-origin">`, no inline style or handler. The `nowo-auth-kit-accounts__avatar` wrapper stays.
+- `nowo-tech/ui-kit-bundle` requirement raised from `^2.2` to `^2.26` (the avatar partial and policy).
+- Demo: a presenter with avatars (carol: a picture, ada: a broken URL, dave: an `http:` URL) and a Playwright + axe
+  spec (`e2e/tests/avatars.spec.ts`).
+
 ## [1.34.0] - 2026-11-03
 
 Two-factor authentication and an account switcher

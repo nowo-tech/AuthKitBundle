@@ -53,6 +53,9 @@ nowo_auth_kit:
     # sessions (config/packages/nowo_user_kit.yaml).
     multi_account:
         enabled: true
+        # 1.35: avatars in the switcher (carol: a picture, ada: a broken URL, dave: an http: URL the policy drops).
+        # The other accounts of the browser show initials (chooser.other_account_avatars: false).
+        presenter: App\Security\DemoAccountPresenter
     # REQ-UI-003 page contract: the auth pages render on nowo_ui_kit.layouts.guest (config/packages/nowo_ui_kit.yaml);
     # per-profile overrides live under web_ui (layout_template, templates.<page>, form_themes, brand, qr_login).
     # Optional: composer require nowo-tech/slide-to-confirm-bundle (PHP 8.2+)
