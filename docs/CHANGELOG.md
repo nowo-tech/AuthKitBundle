@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.36.0] - 2026-11-05](#1360---2026-11-05)
 - [[1.35.0] - 2026-11-04](#1350---2026-11-04)
 - [[1.34.0] - 2026-11-03](#1340---2026-11-03)
 - [[1.33.1] - 2026-11-02](#1331---2026-11-02)
@@ -91,6 +92,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.36.0] - 2026-11-05
+
+Minor release. See [UPGRADING](UPGRADING.md#to-1360).
 
 ### Added
 

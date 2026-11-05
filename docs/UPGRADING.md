@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.36.0](#to-1360)
 - [To 1.35.0](#to-1350)
 - [To 1.34.0](#to-1340)
 - [To 1.33.1](#to-1331)
@@ -101,6 +102,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.36.0
+
+From **1.35.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 No migration. With UserKit personal data enabled (`nowo_user_kit.personal_data.enabled: true`) AuthKit now registers
 two erasers at priority 200 (`auth_kit_mfa`, `auth_kit_account_switcher`) and the export section `mfa`; they run
