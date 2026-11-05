@@ -27,6 +27,10 @@ services:
             - { name: kernel.event_listener, event: Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent, method: onSessionsRevoked }
             - { name: kernel.event_listener, event: Nowo\UserKitBundle\Sessions\Event\UserSessionsDeletedEvent, method: onSessionsDeleted }
 
+    # 1.36: UserKit personal data (removed by the extension without UserKit).
+    Nowo\AuthKitBundle\MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser:
+        tags: [{ name: nowo_user_kit.personal_data.eraser, priority: 200 }]
+
     Nowo\AuthKitBundle\MultiAccount\Twig\MultiAccountExtension:
         public: true
         tags: [twig.extension]

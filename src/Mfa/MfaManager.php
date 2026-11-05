@@ -32,12 +32,14 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_filter;
 use function array_intersect;
+use function array_map;
 use function array_values;
 use function count;
 use function in_array;
 use function is_array;
 use function is_int;
 use function is_string;
+use function mb_strlen;
 use function sprintf;
 
 /**
@@ -346,6 +348,74 @@ final readonly class MfaManager
     }
 
     /**
+     * Personal-data erasure (1.36): deletes the user's TOTP secret, recovery codes and trusted devices in **every**
+     * profile, without flushing (inside UserKit's erasure transaction). Returns whether there was anything to delete.
+     *
+     * Rows are found by the owner reference (user class and id). When that id is the user identifier (an e-mail
+     * natural key, or a user that is not a Doctrine entity), a host identity eraser that ran first has already changed
+     * it: `$originalIdentifier` (UserKit's `ErasureRequest::identifier()`, captured before any eraser ran) is then looked
+     * up as well. It is never used for surrogate ids, so it cannot reach another user's rows.
+     */
+    public function eraseUser(UserInterface $user, ?string $originalIdentifier = null): bool
+    {
+        $erased = false;
+        foreach ($this->erasureOwners($user, $originalIdentifier) as $owner) {
+            foreach ($this->store->credentialsOf($owner) as $credential) {
+                $this->store->deleteWithoutFlush($credential);
+                $erased = true;
+            }
+        }
+
+        return $erased;
+    }
+
+    /**
+     * Whether MFA keeps rows of the user in any profile (1.36, personal data), see {@see self::eraseUser()}.
+     */
+    public function hasStoredCredentials(UserInterface $user, ?string $originalIdentifier = null): bool
+    {
+        foreach ($this->erasureOwners($user, $originalIdentifier) as $owner) {
+            if ($this->store->credentialsOf($owner) !== []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Personal-data export (1.36): what MFA keeps about the user, never the secret or the codes — enrolment date, method,
+     * number of unused recovery codes and the trusted devices (label, created, last used, expiry). Null without a
+     * credential.
+     *
+     * @return array{profile: string, method: string|null, enabled: bool, enabled_at: DateTimeImmutable|null, required_since: DateTimeImmutable|null, reset_at: DateTimeImmutable|null, unused_recovery_codes: int, trusted_devices: list<array{label: string, created_at: DateTimeImmutable, last_used_at: DateTimeImmutable, expires_at: DateTimeImmutable}>}|null
+     */
+    public function exportUser(UserInterface $user): ?array
+    {
+        $credential = $this->credential($user);
+        if (!$credential instanceof MfaCredential) {
+            return null;
+        }
+        $enabled = $credential->isEnabled();
+
+        return [
+            'profile'               => $credential->getProfile(),
+            'method'                => $enabled ? 'totp' : null,
+            'enabled'               => $enabled,
+            'enabled_at'            => $credential->getEnabledAt(),
+            'required_since'        => $credential->getRequiredSince(),
+            'reset_at'              => $credential->getResetAt(),
+            'unused_recovery_codes' => $enabled ? $this->store->unusedRecoveryCodes($credential) : 0,
+            'trusted_devices'       => array_map(static fn (array $device): array => [
+                'label'        => $device['label'],
+                'created_at'   => $device['created_at'],
+                'last_used_at' => $device['last_used_at'],
+                'expires_at'   => $device['expires_at'],
+            ], $credential->getId() !== null ? $this->store->devices($credential, $this->now()) : []),
+        ];
+    }
+
+    /**
      * The credential of a user in its MFA profile (null without one).
      */
     public function credential(UserInterface $user): ?MfaCredential
@@ -457,6 +527,27 @@ final readonly class MfaManager
         $node = is_array($limits[$key] ?? null) ? $limits[$key] : [];
 
         return [is_int($node['limit'] ?? null) ? $node['limit'] : $limit, is_int($node['window'] ?? null) ? $node['window'] : $window];
+    }
+
+    /**
+     * Owner references to erase (1.36): the current one and, when it is keyed by the user identifier and that changed
+     * since the erasure started, the one under the original identifier.
+     *
+     * @return list<MfaOwner>
+     */
+    private function erasureOwners(UserInterface $user, ?string $originalIdentifier): array
+    {
+        $owner = $this->owners->resolve($user);
+        if (!$owner instanceof MfaOwner) {
+            return [];
+        }
+        $owners = [$owner];
+        if ($originalIdentifier !== null && $originalIdentifier !== '' && $originalIdentifier !== $owner->id
+            && $owner->id === $user->getUserIdentifier() && mb_strlen($originalIdentifier) <= MfaOwner::MAX_LENGTH) {
+            $owners[] = new MfaOwner($owner->type, $originalIdentifier);
+        }
+
+        return $owners;
     }
 
     private function requireProfile(UserInterface $user): ProfileSettings

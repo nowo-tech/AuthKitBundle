@@ -40,6 +40,20 @@ final readonly class MfaStore
         ]);
     }
 
+    /**
+     * Every credential of an owner, in every profile (1.36, personal data: also a profile whose MFA was turned off
+     * after enrolment, or that the user class no longer resolves to).
+     *
+     * @return list<MfaCredential>
+     */
+    public function credentialsOf(MfaOwner $owner): array
+    {
+        return $this->entityManager()->getRepository(MfaCredential::class)->findBy([
+            'userType' => $owner->type,
+            'userId'   => $owner->id,
+        ], ['id' => 'ASC']);
+    }
+
     public function credentialOrNew(string $profile, MfaOwner $owner, DateTimeImmutable $now): MfaCredential
     {
         $credential = $this->credential($profile, $owner);
@@ -183,6 +197,25 @@ final readonly class MfaStore
         $this->connection()->executeStatement('DELETE FROM ' . $table . ' WHERE ' . $where, $params, ['id' => ParameterType::INTEGER]);
 
         return array_map(static fn (mixed $id): ?string => $id !== null ? (string) $id : null, $ids);
+    }
+
+    /**
+     * Deletes the credential with its recovery codes and trusted devices by DBAL statements only, never flushing
+     * (1.36, personal-data eraser: runs inside UserKit's erasure transaction, which flushes once). The credential is
+     * detached from the unit of work so the final flush does not write it back.
+     */
+    public function deleteWithoutFlush(MfaCredential $credential): void
+    {
+        $id = $this->id($credential);
+        foreach ([MfaRecoveryCode::class, MfaTrustedDevice::class] as $class) {
+            $this->connection()->executeStatement('DELETE FROM ' . $this->table($class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+        }
+        $this->connection()->executeStatement('DELETE FROM ' . $this->table(MfaCredential::class) . ' WHERE id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+        $em = $this->entityManager();
+        if ($em->contains($credential)) {
+            // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
+            $em->detach($credential);
+        }
     }
 
     /**

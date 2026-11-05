@@ -45,6 +45,13 @@ services:
     Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaSessionsSubscriber:
         tags: [kernel.event_subscriber]
 
+    # 1.36: UserKit personal data (removed by the extension without UserKit).
+    Nowo\AuthKitBundle\Mfa\PersonalData\MfaPersonalDataEraser:
+        tags: [{ name: nowo_user_kit.personal_data.eraser, priority: 200 }]
+
+    Nowo\AuthKitBundle\Mfa\PersonalData\MfaPersonalDataExportProvider:
+        tags: [{ name: nowo_user_kit.personal_data.export_provider, priority: -50 }]
+
     Nowo\AuthKitBundle\Mfa\Security\MfaVoter:
         tags: [security.voter]
 

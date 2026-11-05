@@ -39,7 +39,7 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 - **QR phone login** (opt-in; see [QR-LOGIN.md](docs/QR-LOGIN.md))
 - **Invitations** (opt-in, 1.32): invite by e-mail instead of open registration (`registration_mode: invite_only`), hashed single-use expiring links, administration pages (list, invite, resend, revoke) on the UiKit scaffolds, acceptance on the registration form, Symfony Mailer delivery, audit events, grant SPI and purge command (see [INVITATIONS.md](docs/INVITATIONS.md))
 - **Two-factor authentication** (opt-in, 1.34): TOTP authenticator apps with a server-rendered QR code, single-use recovery codes, a firewall-level two-step token after every first factor, remember-me only after the second step, trusted devices, required roles with a grace period, admin reset, UserKit session integration (see [MFA.md](docs/MFA.md))
-- **Several accounts at once** (opt-in, 1.34): Google-style account switcher, each account in its own session through its own sign-in and MFA, switch without a password, sign out one or all, UserKit revocation (see [MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md))
+- **Several accounts at once** (opt-in, 1.34): Google-style account switcher, each account in its own session through its own sign-in and MFA, switch without a password, sign out one or all, UserKit revocation and personal-data erasure; schedule `nowo:auth-kit:accounts:purge` (nightly) to drop expired entries (see [MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md))
 - **WebAuthn / passkeys** — design locked for a later release (see [WEBAUTHN.md](docs/WEBAUTHN.md), [ROADMAP.md](docs/ROADMAP.md))
 - **Embedded auth dropdown** (`auth_kit_dropdown()`) for navbars and layouts
 - **Locale in URL paths** (`/en/login`, `/es/register`, …)

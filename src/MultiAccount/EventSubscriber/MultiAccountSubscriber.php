@@ -49,6 +49,9 @@ final readonly class MultiAccountSubscriber
     /** Session flag: the first factor of a pending MFA sign-in came from an admin-issued magic link (D8, DE-L5). */
     public const ADMIN_LINK_ATTRIBUTE = '_nowo_auth_kit_accounts_admin_link';
 
+    /** Revoke-context key of UserKit's sessions eraser (`SessionsEraser::CONTEXT_ORIGINAL_IDENTIFIER`, UserKit ≥ 1.12). */
+    public const CONTEXT_ORIGINAL_IDENTIFIER = 'original_identifier';
+
     /** UserKit revocations that sign the user out of every session: the user leaves every browser's switcher. */
     private const FORGET_REASONS = ['everywhere', 'admin', 'account_disabled', 'account_changed', 'password_changed'];
 
@@ -133,7 +136,9 @@ final readonly class MultiAccountSubscriber
         $user    = $event->user;
         $profile = $user instanceof UserInterface ? $this->profileOf($user) : null;
         if ($user instanceof UserInterface && $profile instanceof ProfileSettings && in_array($event->reason->value, self::FORGET_REASONS, true)) {
-            $this->vault->forgetUser($profile, $user->getUserIdentifier());
+            foreach ($this->identifiers($user, $event->context) as $identifier) {
+                $this->vault->forgetUser($profile, $identifier);
+            }
         }
     }
 
@@ -162,6 +167,22 @@ final readonly class MultiAccountSubscriber
     private function adminIssued(Request $request): bool
     {
         return $this->issuedLinks instanceof CacheItemPoolInterface && AdminMagicLinkIssuer::isAdminIssued($this->issuedLinks, $request);
+    }
+
+    /**
+     * The user's current identifier and, during a UserKit erasure (≥ 1.12), the one captured before an identity eraser
+     * anonymised it (`context['original_identifier']`, DATA-AUTHKIT-VAULT-ERASE).
+     *
+     * @param array<string, mixed> $context
+     *
+     * @return list<string>
+     */
+    private function identifiers(UserInterface $user, array $context): array
+    {
+        $original = $context[self::CONTEXT_ORIGINAL_IDENTIFIER] ?? null;
+        $current  = $user->getUserIdentifier();
+
+        return is_string($original) && $original !== '' && $original !== $current ? [$original, $current] : [$current];
     }
 
     private function profileOf(UserInterface $user): ?ProfileSettings
