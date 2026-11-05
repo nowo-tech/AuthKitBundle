@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.36.1](#to-1361)
 - [To 1.36.0](#to-1360)
 - [To 1.35.0](#to-1350)
 - [To 1.34.0](#to-1340)
@@ -103,7 +104,15 @@
 
 ## Unreleased
 
-Planned **1.36.1**. No configuration or schema change.
+## To 1.36.1
+
+From **1.36.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No configuration or schema change.
 
 - The UserKit erasure result now lists `auth_kit_mfa` for every user while the eraser is registered (at least one
   profile with `mfa.enabled`), also for users without a second factor (nothing is deleted for them).
