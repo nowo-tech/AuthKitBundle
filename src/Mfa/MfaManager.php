@@ -355,6 +355,14 @@ final readonly class MfaManager
      * natural key, or a user that is not a Doctrine entity), a host identity eraser that ran first has already changed
      * it: `$originalIdentifier` (UserKit's `ErasureRequest::identifier()`, captured before any eraser ran) is then looked
      * up as well. It is never used for surrogate ids, so it cannot reach another user's rows.
+     *
+     * Trust and natural keys (audit FH-I7 / FH-I8): pass only the identifier captured from **this** user before the
+     * erasure started (UserKit's `PersonalDataEraser` does). It is trusted input: a wrong value deletes the MFA rows of
+     * the user owning that identifier in the same class. The fallback assumes that the owner id **is** the user
+     * identifier whenever the current id equals the current identifier (an e-mail natural key, a non-Doctrine user).
+     * An entity keyed by another free-text field (e.g. `username`) whose identifier eraser sets the e-mail to exactly
+     * that key would also erase `MfaOwner(class, original e-mail)`, i.e. another user only if one has that e-mail as
+     * its primary key. Integer and UUID keys cannot match.
      */
     public function eraseUser(UserInterface $user, ?string $originalIdentifier = null): bool
     {
@@ -370,7 +378,8 @@ final readonly class MfaManager
     }
 
     /**
-     * Whether MFA keeps rows of the user in any profile (1.36, personal data), see {@see self::eraseUser()}.
+     * Whether MFA keeps rows of the user in any profile (1.36, personal data), see {@see self::eraseUser()} (the same
+     * trust rule for `$originalIdentifier`).
      */
     public function hasStoredCredentials(UserInterface $user, ?string $originalIdentifier = null): bool
     {

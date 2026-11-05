@@ -24,16 +24,36 @@ final class MfaPersonalDataEraserTest extends MfaPersonalDataTestCase
         self::assertSame(200, MfaPersonalDataEraser::PRIORITY);
     }
 
-    public function testSupportsUsersOfAnMfaProfileOrWithRowsLeftInAnotherProfile(): void
+    public function testSupportsEveryUser(): void
     {
         $this->add('legacy', 'kept@example.com');
 
         self::assertFalse((new MfaPersonalDataEraser($this->manager()))->supports(new stdClass()));
         self::assertTrue((new MfaPersonalDataEraser($this->manager()))->supports(new TestUser('any@example.com')));
 
+        // 1.36.1 (FH-I6): whatever the profile and the rows, without any lookup.
         $withoutMfa = new MfaPersonalDataEraser($this->manager(mfa: false));
-        self::assertFalse($withoutMfa->supports(new TestUser('nobody@example.com')));
+        self::assertTrue($withoutMfa->supports(new TestUser('nobody@example.com')));
         self::assertTrue($withoutMfa->supports(new TestUser('kept@example.com')), 'MFA turned off after enrolment.');
+        self::assertSame([], $this->statements);
+    }
+
+    public function testANaturalKeyUserOfAProfileWithMfaOffIsErasedAfterAnIdentityEraser(): void
+    {
+        // FH-I6: MFA turned off for the class after enrolment, and a host identity eraser above priority 200 already
+        // anonymised the e-mail (the owner id): supports() must not skip the user, erase() finds the legacy rows by
+        // the original identifier.
+        if (!property_exists(ErasureRequest::class, 'originalIdentifier')) {
+            self::markTestSkipped('UserKit < 1.12 does not carry the original identifier.');
+        }
+        $this->add('legacy', 'member@example.com', enabled: true);
+        $eraser    = new MfaPersonalDataEraser($this->manager(mfa: false));
+        $anonymous = new TestUser('erased-2@invalid.local');
+
+        self::assertTrue($eraser->supports($anonymous));
+        $eraser->erase((new ReflectionClass(ErasureRequest::class))->newInstanceArgs([$anonymous, null, [], 'member@example.com']));
+
+        self::assertCount(3, $this->statements, 'Codes, devices and the credential of the legacy profile.');
     }
 
     public function testEraseDeletesTheUsersRowsInEveryProfileAndNobodyElses(): void
@@ -61,7 +81,7 @@ final class MfaPersonalDataEraserTest extends MfaPersonalDataTestCase
         $eraser->erase(new ErasureRequest(new TestUser(str_repeat('a', 200) . '@example.com')));
 
         self::assertSame([], $this->statements);
-        self::assertFalse((new MfaPersonalDataEraser($this->manager(mfa: false)))->supports(new TestUser(str_repeat('a', 200) . '@example.com')));
+        self::assertTrue((new MfaPersonalDataEraser($this->manager(mfa: false)))->supports(new TestUser(str_repeat('a', 200) . '@example.com')));
     }
 
     public function testEraseFindsAnIdentifierKeyedOwnerByTheOriginalIdentifier(): void

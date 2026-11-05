@@ -93,6 +93,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned **1.36.1** (patch): follow-ups of the REQ-SEC-004 audit of 1.36.0 (appendix FH).
+
+### Fixed
+
+- **MFA erasure of natural-key users after an identity eraser (FH-I6):** `MfaPersonalDataEraser::supports()` returns
+  true for every `UserInterface`. UserKit calls `supports()` with the user only, after the higher-priority erasers ran,
+  so the previous stored-rows check could not use the original identifier and skipped a natural-key user of a
+  profile with MFA off (rows left from an earlier profile) whose identifier a host eraser above priority 200 had
+  already anonymised. `erase()` still deletes nothing for a user without rows; `supports()` no longer queries.
+
+### Documentation
+
+- `MfaManager::eraseUser()` / `hasStoredCredentials()` and MFA.md "Personal data": `$originalIdentifier` is trusted
+  input, pass only the identifier captured from this user (FH-I8); the identifier fallback assumes the owner id is the
+  identifier when they are equal, and the natural-key cases where that can match another user (FH-I7); rows survive
+  when no profile has `mfa.enabled` (the eraser is not registered).
+
 ## [1.36.0] - 2026-11-05
 
 Minor release. See [UPGRADING](UPGRADING.md#to-1360).
