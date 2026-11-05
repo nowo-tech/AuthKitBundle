@@ -49,10 +49,10 @@ final readonly class MultiAccountSubscriber
     /** Session flag: the first factor of a pending MFA sign-in came from an admin-issued magic link (D8, DE-L5). */
     public const ADMIN_LINK_ATTRIBUTE = '_nowo_auth_kit_accounts_admin_link';
 
-    /** UserKit revocations that sign the user out of every session: the user leaves every browser's switcher. */
     /** Revoke-context key of UserKit's sessions eraser (`SessionsEraser::CONTEXT_ORIGINAL_IDENTIFIER`, UserKit ≥ 1.12). */
     public const CONTEXT_ORIGINAL_IDENTIFIER = 'original_identifier';
 
+    /** UserKit revocations that sign the user out of every session: the user leaves every browser's switcher. */
     private const FORGET_REASONS = ['everywhere', 'admin', 'account_disabled', 'account_changed', 'password_changed'];
 
     public function __construct(

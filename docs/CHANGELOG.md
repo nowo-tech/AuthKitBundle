@@ -99,7 +99,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   trusted devices of the erased user (`MfaManager::eraseUser()`, `MfaStore::deleteWithoutFlush()`: DBAL deletes inside
   UserKit's transaction, no flush); the export section `mfa` (`Mfa\PersonalData\MfaPersonalDataExportProvider`,
   priority -50, `MfaManager::exportUser()`): enrolment date, method, unused recovery code count and trusted devices
-  (label, created, last used, expiry), never the secret or the codes.
+  (label, created, last used, expiry), never the secret or the codes. The eraser deletes the user's MFA rows in every
+  profile, and for owners keyed by the user identifier (e-mail natural key, non-Doctrine users) also under the
+  identifier captured when the erasure started, so a host identity eraser above priority 200 no longer leaves the TOTP
+  secret behind (`MfaManager::eraseUser($user, $originalIdentifier)`, `MfaManager::hasStoredCredentials()`,
+  `MfaStore::credentialsOf()`). The export covers the current profile only. **Full coverage needs UserKit ≥ 1.12**
+  (`ErasureRequest::identifier()`); with UserKit 1.11 it holds while host identity erasers stay below priority 200.
 - **Account switcher on erasure (DATA-AUTHKIT-VAULT-ERASE).** The eraser `auth_kit_account_switcher`
   (`MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser`, priority 200) removes the erased person from every
   browser's switcher before a host eraser anonymises the identifier, by `ErasureRequest::identifier()` (UserKit ≥ 1.12)

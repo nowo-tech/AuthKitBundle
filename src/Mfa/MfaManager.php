@@ -39,6 +39,7 @@ use function in_array;
 use function is_array;
 use function is_int;
 use function is_string;
+use function mb_strlen;
 use function sprintf;
 
 /**
@@ -347,18 +348,39 @@ final readonly class MfaManager
     }
 
     /**
-     * Personal-data erasure (1.36): deletes the user's TOTP secret, recovery codes and trusted devices without flushing
-     * (inside UserKit's erasure transaction). Returns whether there was anything to delete.
+     * Personal-data erasure (1.36): deletes the user's TOTP secret, recovery codes and trusted devices in **every**
+     * profile, without flushing (inside UserKit's erasure transaction). Returns whether there was anything to delete.
+     *
+     * Rows are found by the owner reference (user class and id). When that id is the user identifier (an e-mail
+     * natural key, or a user that is not a Doctrine entity), a host identity eraser that ran first has already changed
+     * it: `$originalIdentifier` (UserKit's `ErasureRequest::identifier()`, captured before any eraser ran) is then looked
+     * up as well. It is never used for surrogate ids, so it cannot reach another user's rows.
      */
-    public function eraseUser(UserInterface $user): bool
+    public function eraseUser(UserInterface $user, ?string $originalIdentifier = null): bool
     {
-        $credential = $this->credential($user);
-        if (!$credential instanceof MfaCredential) {
-            return false;
+        $erased = false;
+        foreach ($this->erasureOwners($user, $originalIdentifier) as $owner) {
+            foreach ($this->store->credentialsOf($owner) as $credential) {
+                $this->store->deleteWithoutFlush($credential);
+                $erased = true;
+            }
         }
-        $this->store->deleteWithoutFlush($credential);
 
-        return true;
+        return $erased;
+    }
+
+    /**
+     * Whether MFA keeps rows of the user in any profile (1.36, personal data), see {@see self::eraseUser()}.
+     */
+    public function hasStoredCredentials(UserInterface $user, ?string $originalIdentifier = null): bool
+    {
+        foreach ($this->erasureOwners($user, $originalIdentifier) as $owner) {
+            if ($this->store->credentialsOf($owner) !== []) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -505,6 +527,27 @@ final readonly class MfaManager
         $node = is_array($limits[$key] ?? null) ? $limits[$key] : [];
 
         return [is_int($node['limit'] ?? null) ? $node['limit'] : $limit, is_int($node['window'] ?? null) ? $node['window'] : $window];
+    }
+
+    /**
+     * Owner references to erase (1.36): the current one and, when it is keyed by the user identifier and that changed
+     * since the erasure started, the one under the original identifier.
+     *
+     * @return list<MfaOwner>
+     */
+    private function erasureOwners(UserInterface $user, ?string $originalIdentifier): array
+    {
+        $owner = $this->owners->resolve($user);
+        if (!$owner instanceof MfaOwner) {
+            return [];
+        }
+        $owners = [$owner];
+        if ($originalIdentifier !== null && $originalIdentifier !== '' && $originalIdentifier !== $owner->id
+            && $owner->id === $user->getUserIdentifier() && mb_strlen($originalIdentifier) <= MfaOwner::MAX_LENGTH) {
+            $owners[] = new MfaOwner($owner->type, $originalIdentifier);
+        }
+
+        return $owners;
     }
 
     private function requireProfile(UserInterface $user): ProfileSettings

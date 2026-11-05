@@ -214,4 +214,8 @@ The vault is keyed by `getUserIdentifier()`, which a host identity eraser usuall
 browser's switcher by the identifier captured when the erasure started (`ErasureRequest::identifier()`, UserKit ≥ 1.12)
 and the current one. Independently, with UserKit ≥ 1.12 the revocation of UserKit's `sessions` eraser carries
 `context['original_identifier']`, which the switcher's session listener uses as well, so the order of host erasers no
-longer matters (DATA-AUTHKIT-VAULT-ERASE).
+longer matters (DATA-AUTHKIT-VAULT-ERASE). The vault entries are removed in the user's **current** profile only.
+
+That revocation context carries the erased person's original identifier (usually the e-mail) to every
+`UserSessionsRevokedEvent` listener: a host listener that audits revocations must **not log or store**
+`context['original_identifier']`.

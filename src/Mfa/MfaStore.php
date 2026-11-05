@@ -40,6 +40,20 @@ final readonly class MfaStore
         ]);
     }
 
+    /**
+     * Every credential of an owner, in every profile (1.36, personal data: also a profile whose MFA was turned off
+     * after enrolment, or that the user class no longer resolves to).
+     *
+     * @return list<MfaCredential>
+     */
+    public function credentialsOf(MfaOwner $owner): array
+    {
+        return $this->entityManager()->getRepository(MfaCredential::class)->findBy([
+            'userType' => $owner->type,
+            'userId'   => $owner->id,
+        ], ['id' => 'ASC']);
+    }
+
     public function credentialOrNew(string $profile, MfaOwner $owner, DateTimeImmutable $now): MfaCredential
     {
         $credential = $this->credential($profile, $owner);

@@ -224,13 +224,20 @@ every session of a removed user (`forgetUser()`, eraser) deletes the user's seco
 Since **1.36**, with UserKit installed and `nowo_user_kit.personal_data.enabled: true`, AuthKit registers:
 
 - the eraser `auth_kit_mfa` (`MfaPersonalDataEraser`, tag priority **200**, before host erasers): deletes the
-  user's TOTP secret, recovery codes and trusted devices (`MfaManager::eraseUser()`, DBAL deletes inside UserKit's
-  erasure transaction, no flush). Rows are found by the owner reference (user class and id), so an anonymised e-mail
-  does not hide them;
+  user's TOTP secret, recovery codes and trusted devices in **every** profile (`MfaManager::eraseUser()`, DBAL deletes
+  inside UserKit's erasure transaction, no flush). Rows are found by the owner reference (user class and id). With a
+  surrogate id (integer, UUID) an anonymised e-mail does not hide them. When the id **is** the user identifier (e-mail
+  natural key, or a user that is not a Doctrine entity) and a host identity eraser runs **above** priority 200, the
+  eraser also looks up the identifier captured when the erasure started (`ErasureRequest::identifier()`), which needs
+  **UserKit ≥ 1.12**; with UserKit 1.11 keep host identity erasers below 200. Besides users of an MFA-enabled profile,
+  it also handles users that still have MFA rows in another profile (MFA turned off after enrolment, or the class moved
+  profile); the eraser itself is only registered while at least one profile has `mfa.enabled`;
 - the export section `mfa` (`MfaPersonalDataExportProvider`, priority -50): `profile`, `method` (`totp`), `enabled`,
   `enabled_at`, `required_since`, `reset_at`, `unused_recovery_codes` (a number) and `trusted_devices` (`label`,
   `created_at`, `last_used_at`, `expires_at`). Never the secret, the recovery codes or device tokens; `null` for a user
-  who never enrolled (`MfaManager::exportUser()`).
+  who never enrolled (`MfaManager::exportUser()`). The export covers the credential of the user's **current**
+  MFA-enabled profile only: rows left in a profile whose MFA was turned off are erased but not exported, and only
+  live trusted devices (`expires_at` in the future) are listed.
 
 The MFA tables reference the user by owner type and id without a foreign key (any user class); hosts that delete user
 rows physically keep this eraser in their deletion flow (or call `MfaManager::forgetUser()`).

@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
 use Nowo\AuthKitBundle\Mfa\PersonalData\MfaPersonalDataEraser;
 use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser;
+use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\UserKitBundle\PersonalData\ErasureRequest;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraser;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
@@ -103,6 +104,75 @@ final class MultiAccountErasureKernelTest extends MultiAccountKernelTestCase
         self::assertSame(['identity', 'sessions'], (new PersonalDataEraser([$identity, $sessions], [], $doctrine))->erase($this->user('member@example.com')));
 
         self::assertSame(0, $this->vaultRows('member@example.com'));
+    }
+
+    public function testAnIdentityEraserBeforeAuthKitDoesNotHideTheSecondFactor(): void
+    {
+        // FH-L1: the test user's Doctrine id is its e-mail (the identifier). A host identity eraser above priority 200
+        // anonymises it before `auth_kit_mfa` runs; the rows are still found by the identifier captured when the
+        // erasure started (UserKit >= 1.12). Other users' rows are kept, and a second erasure is a no-op.
+        if (!property_exists(ErasureRequest::class, 'originalIdentifier')) {
+            self::markTestSkipped('UserKit < 1.12 does not carry the original identifier.');
+        }
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->add();
+        $this->signIn('admin@example.com', 'admin-password-123');
+        $this->enableMfa('member@example.com');
+        $this->enableMfa('admin@example.com');
+        $container = self::getContainer();
+        $doctrine  = $container->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $doctrine);
+        $chain = [];
+        foreach ([RenameIdentityEraser::class, MfaPersonalDataEraser::class, AccountSwitcherPersonalDataEraser::class, SessionsEraser::class] as $id) {
+            $eraser = $container->get($id);
+            self::assertInstanceOf(PersonalDataEraserInterface::class, $eraser);
+            $chain[] = $eraser;
+        }
+        $eraser      = new PersonalDataEraser($chain, [], $doctrine);
+        $credentials = $this->rows(MfaCredential::TABLE);
+        $codes       = $this->rows(MfaRecoveryCode::TABLE);
+        $member      = $this->user('member@example.com');
+
+        self::assertSame(['identity', MfaPersonalDataEraser::KEY, AccountSwitcherPersonalDataEraser::KEY, 'sessions'], $eraser->erase($member));
+
+        self::assertSame(0, $this->rows(MfaCredential::TABLE, "user_id = 'member@example.com'"), 'The TOTP secret is gone.');
+        self::assertSame($credentials - 1, $this->rows(MfaCredential::TABLE));
+        self::assertSame($codes - 10, $this->rows(MfaRecoveryCode::TABLE));
+        self::assertSame(0, $this->vaultRows('member@example.com'));
+        self::assertNotNull($this->manager()->credential($this->user('admin@example.com')), 'Other users keep their MFA.');
+        self::assertGreaterThan(0, $this->vaultRows('admin@example.com'));
+
+        $eraser->erase($member);
+        self::assertSame($credentials - 1, $this->rows(MfaCredential::TABLE));
+    }
+
+    public function testEraseUserFindsIdentifierKeyedRowsUnderTheOriginalIdentifierInEveryProfile(): void
+    {
+        // FH-L1 / FH-L2 without the UserKit chain (works with UserKit 1.11): rows of an identifier-keyed owner are
+        // found by the original identifier after the e-mail changed, in the current profile and in any other one.
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->enableMfa('member@example.com');
+        $this->enableMfa('admin@example.com');
+        // A credential left in a profile whose MFA was turned off (or that the class no longer resolves to).
+        $this->em()->persist(new MfaCredential('legacy', KernelUser::class, 'member@example.com', new DateTimeImmutable()));
+        $this->em()->flush();
+        self::assertSame(2, $this->rows(MfaCredential::TABLE, "user_id = 'member@example.com'"));
+        $credentials = $this->rows(MfaCredential::TABLE);
+
+        $member = $this->user('member@example.com');
+        $this->em()->detach($member);
+        $member->setEmail('erased-x@invalid.local');
+        self::assertFalse($this->manager()->hasStoredCredentials($member), 'The anonymised identifier alone finds nothing.');
+        self::assertFalse($this->manager()->eraseUser($member));
+        self::assertTrue($this->manager()->hasStoredCredentials($member, 'member@example.com'));
+
+        self::assertTrue($this->manager()->eraseUser($member, 'member@example.com'));
+        $this->em()->flush();
+
+        self::assertSame(0, $this->rows(MfaCredential::TABLE, "user_id = 'member@example.com'"));
+        self::assertSame($credentials - 2, $this->rows(MfaCredential::TABLE));
+        self::assertNotNull($this->manager()->credential($this->user('admin@example.com')));
+        self::assertFalse($this->manager()->eraseUser($member, 'member@example.com'));
     }
 
     public function testTheSubscriberForgetsTheIdentifierOfTheRevokeContext(): void
