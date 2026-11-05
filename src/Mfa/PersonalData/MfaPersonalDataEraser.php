@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Mfa\PersonalData;
 
 use Nowo\AuthKitBundle\Mfa\MfaManager;
-use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\UserKitBundle\PersonalData\ErasureRequest;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -22,7 +21,10 @@ use function is_string;
  * the id is the user identifier (e-mail natural key, non-Doctrine user) and a host identity eraser ran first, the
  * identifier captured when the erasure started (`ErasureRequest::identifier()`, UserKit ≥ 1.12) is looked up too; with
  * older UserKit only the current one is (enough while host identity erasers stay below {@see self::PRIORITY}).
- * Supports users of an MFA-enabled profile and users with MFA rows left in another profile.
+ * Since 1.36.1 it supports every {@see UserInterface} (audit FH-I6): UserKit asks `supports()` with the user only,
+ * after the higher-priority erasers ran, so a check of the stored rows could not see the original identifier and
+ * skipped a natural-key user of a profile with MFA off whose identifier a host eraser had already anonymised. A user
+ * without rows costs the same lookups as that check did, and `erase()` deletes nothing for them.
  */
 final readonly class MfaPersonalDataEraser implements PersonalDataEraserInterface
 {
@@ -42,8 +44,7 @@ final readonly class MfaPersonalDataEraser implements PersonalDataEraserInterfac
 
     public function supports(object $user): bool
     {
-        return $user instanceof UserInterface
-            && ($this->manager->profileFor($user) instanceof ProfileSettings || $this->manager->hasStoredCredentials($user));
+        return $user instanceof UserInterface;
     }
 
     public function erase(ErasureRequest $request): void

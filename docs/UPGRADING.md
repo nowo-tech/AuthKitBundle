@@ -103,6 +103,15 @@
 
 ## Unreleased
 
+Planned **1.36.1**. No configuration or schema change.
+
+- The UserKit erasure result now lists `auth_kit_mfa` for every user while the eraser is registered (at least one
+  profile with `mfa.enabled`), also for users without a second factor (nothing is deleted for them).
+- Host code that calls `MfaManager::eraseUser($user, $originalIdentifier)` itself must pass only the identifier
+  captured from that same user before the erasure started (see [MFA](MFA.md#personal-data-userkit)).
+- If you turned MFA off in every profile, the eraser is not registered: delete leftover MFA rows of erased users with
+  `MfaManager::eraseUser()` in your own eraser, or keep one profile with `mfa.enabled`.
+
 ## To 1.36.0
 
 From **1.35.0**:

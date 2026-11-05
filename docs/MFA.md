@@ -231,7 +231,18 @@ Since **1.36**, with UserKit installed and `nowo_user_kit.personal_data.enabled:
   eraser also looks up the identifier captured when the erasure started (`ErasureRequest::identifier()`), which needs
   **UserKit ≥ 1.12**; with UserKit 1.11 keep host identity erasers below 200. Besides users of an MFA-enabled profile,
   it also handles users that still have MFA rows in another profile (MFA turned off after enrolment, or the class moved
-  profile); the eraser itself is only registered while at least one profile has `mfa.enabled`;
+  profile): since 1.36.1 it supports every user, so such a user is not skipped after a host eraser changed the
+  identifier (it deletes nothing for a user without rows). The eraser itself is only registered while at least one
+  profile has `mfa.enabled`; with MFA off everywhere, leftover rows of erased users stay unless your own eraser calls
+  `MfaManager::eraseUser()`.
+  **Natural-key cases.** The original identifier is looked up only when the owner id equals the current identifier,
+  which the eraser takes as "the owner is keyed by the identifier" (e-mail natural key, non-Doctrine user). Integer
+  and UUID keys never match an e-mail. An entity keyed by another free-text field (e.g. `username`) whose identity
+  eraser sets the e-mail to **exactly** that key would also erase `MfaOwner(class, original e-mail)`, which is another
+  user's only if a user of that class has the subject's e-mail as its primary key: anonymise to a value that cannot
+  be a key (e.g. `erased-<uuid>@invalid`). `$originalIdentifier` is trusted input: host code calling
+  `MfaManager::eraseUser()` directly must pass only the identifier captured from that same user (UserKit's
+  `PersonalDataEraser` does);
 - the export section `mfa` (`MfaPersonalDataExportProvider`, priority -50): `profile`, `method` (`totp`), `enabled`,
   `enabled_at`, `required_since`, `reset_at`, `unused_recovery_codes` (a number) and `trusted_devices` (`label`,
   `created_at`, `last_used_at`, `expires_at`). Never the secret, the recovery codes or device tokens; `null` for a user
