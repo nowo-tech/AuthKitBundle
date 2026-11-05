@@ -23,6 +23,7 @@ use Nowo\UserKitBundle\Sessions\Model\RevocationReason;
 use Nowo\UserKitBundle\Sessions\Model\SessionUser;
 use Nowo\UserKitBundle\Sessions\PersonalData\SessionsEraser;
 use Nowo\UserKitBundle\Sessions\UserSessionManager;
+use stdClass;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_search;
@@ -127,6 +128,21 @@ final class MultiAccountErasureKernelTest extends MultiAccountKernelTestCase
         $dispatcher->dispatch(new UserSessionsRevokedEvent($owner, $member, null, RevocationReason::AccountChanged, [], context: [MultiAccountSubscriber::CONTEXT_ORIGINAL_IDENTIFIER => 'member@example.com']));
         self::assertSame(0, $this->vaultRows('member@example.com'));
         self::assertGreaterThan(0, $this->vaultRows('admin@example.com'));
+    }
+
+    public function testErasersIgnoreUsersTheyDoNotHandle(): void
+    {
+        $switcher = self::getContainer()->get(AccountSwitcherPersonalDataEraser::class);
+        self::assertInstanceOf(AccountSwitcherPersonalDataEraser::class, $switcher);
+        self::assertFalse($switcher->supports(new stdClass()));
+        $switcher->erase(new ErasureRequest(new stdClass()));
+        $mfa = self::getContainer()->get(MfaPersonalDataEraser::class);
+        self::assertInstanceOf(MfaPersonalDataEraser::class, $mfa);
+        self::assertFalse($mfa->supports(new stdClass()));
+        $mfa->erase(new ErasureRequest(new stdClass()));
+        // A user without a second factor: nothing to delete.
+        self::assertFalse($this->manager()->eraseUser($this->user('admin@example.com')));
+        self::assertNull($this->manager()->exportUser($this->user('admin@example.com')));
     }
 
     public function testTheExportHasAnMfaSectionWithoutSecrets(): void

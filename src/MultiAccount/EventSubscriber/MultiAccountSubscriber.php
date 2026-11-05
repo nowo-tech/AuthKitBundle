@@ -136,7 +136,7 @@ final readonly class MultiAccountSubscriber
         $user    = $event->user;
         $profile = $user instanceof UserInterface ? $this->profileOf($user) : null;
         if ($user instanceof UserInterface && $profile instanceof ProfileSettings && in_array($event->reason->value, self::FORGET_REASONS, true)) {
-            foreach (self::identifiers($user, $event->context) as $identifier) {
+            foreach ($this->identifiers($user, $event->context) as $identifier) {
                 $this->vault->forgetUser($profile, $identifier);
             }
         }
@@ -177,7 +177,7 @@ final readonly class MultiAccountSubscriber
      *
      * @return list<string>
      */
-    private static function identifiers(UserInterface $user, array $context): array
+    private function identifiers(UserInterface $user, array $context): array
     {
         $original = $context[self::CONTEXT_ORIGINAL_IDENTIFIER] ?? null;
         $current  = $user->getUserIdentifier();
