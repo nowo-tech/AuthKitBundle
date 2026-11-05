@@ -102,6 +102,16 @@
 
 ## Unreleased
 
+No migration. With UserKit personal data enabled (`nowo_user_kit.personal_data.enabled: true`) AuthKit now registers
+two erasers at priority 200 (`auth_kit_mfa`, `auth_kit_account_switcher`) and the export section `mfa`; they run
+before host erasers. Update UserKit to **≥ 1.12** as well, so the `sessions` eraser carries the original identifier.
+
+- **Host workarounds can go:** an eraser that called `AccountVault::forgetUser()` before the identity eraser (Beacon's
+  `AccountSwitcherEraser`, priority 93) or deleted the MFA rows keeps working (it finds nothing left, `forgetUser()` is
+  idempotent) and can be deleted; keep a functional test that an erased account leaves the switcher.
+- List the `mfa` section in the privacy text if the host documents the export sections.
+- Schedule `nowo:auth-kit:accounts:purge` (nightly) if not done yet.
+
 ## To 1.35.0
 
 From **1.34.x**:

@@ -32,6 +32,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_filter;
 use function array_intersect;
+use function array_map;
 use function array_values;
 use function count;
 use function in_array;
@@ -343,6 +344,53 @@ final readonly class MfaManager
         if ($credential instanceof MfaCredential) {
             $this->store->delete($credential);
         }
+    }
+
+    /**
+     * Personal-data erasure (1.36): deletes the user's TOTP secret, recovery codes and trusted devices without flushing
+     * (inside UserKit's erasure transaction). Returns whether there was anything to delete.
+     */
+    public function eraseUser(UserInterface $user): bool
+    {
+        $credential = $this->credential($user);
+        if (!$credential instanceof MfaCredential) {
+            return false;
+        }
+        $this->store->deleteWithoutFlush($credential);
+
+        return true;
+    }
+
+    /**
+     * Personal-data export (1.36): what MFA keeps about the user, never the secret or the codes — enrolment date, method,
+     * number of unused recovery codes and the trusted devices (label, created, last used, expiry). Null without a
+     * credential.
+     *
+     * @return array{profile: string, method: string|null, enabled: bool, enabled_at: DateTimeImmutable|null, required_since: DateTimeImmutable|null, reset_at: DateTimeImmutable|null, unused_recovery_codes: int, trusted_devices: list<array{label: string, created_at: DateTimeImmutable, last_used_at: DateTimeImmutable, expires_at: DateTimeImmutable}>}|null
+     */
+    public function exportUser(UserInterface $user): ?array
+    {
+        $credential = $this->credential($user);
+        if (!$credential instanceof MfaCredential) {
+            return null;
+        }
+        $enabled = $credential->isEnabled();
+
+        return [
+            'profile'               => $credential->getProfile(),
+            'method'                => $enabled ? 'totp' : null,
+            'enabled'               => $enabled,
+            'enabled_at'            => $credential->getEnabledAt(),
+            'required_since'        => $credential->getRequiredSince(),
+            'reset_at'              => $credential->getResetAt(),
+            'unused_recovery_codes' => $enabled ? $this->store->unusedRecoveryCodes($credential) : 0,
+            'trusted_devices'       => array_map(static fn (array $device): array => [
+                'label'        => $device['label'],
+                'created_at'   => $device['created_at'],
+                'last_used_at' => $device['last_used_at'],
+                'expires_at'   => $device['expires_at'],
+            ], $credential->getId() !== null ? $this->store->devices($credential, $this->now()) : []),
+        ];
     }
 
     /**

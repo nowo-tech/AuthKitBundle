@@ -20,6 +20,7 @@ WebAuthn and e-mail codes are on the [roadmap](ROADMAP.md).
 - [PHP API](#php-api)
 - [Audit events](#audit-events)
 - [UserKit sessions](#userkit-sessions)
+- [Personal data (UserKit)](#personal-data-userkit)
 - [Impersonation](#impersonation)
 - [Database schema](#database-schema)
 - [Security notes](#security-notes)
@@ -217,6 +218,22 @@ registers the session (concurrent-session limit included) only once the second s
 re-enrolling signs the user's other sessions out (`revokeOthers`, epoch); an admin reset signs every session out
 (`revokeAll`, epoch); "sign out everywhere", account disabled, password changed forget trusted devices; deleting
 every session of a removed user (`forgetUser()`, eraser) deletes the user's second factor.
+
+## Personal data (UserKit)
+
+Since **1.36**, with UserKit installed and `nowo_user_kit.personal_data.enabled: true`, AuthKit registers:
+
+- the eraser `auth_kit_mfa` (`MfaPersonalDataEraser`, tag priority **200**, before host erasers): deletes the
+  user's TOTP secret, recovery codes and trusted devices (`MfaManager::eraseUser()`, DBAL deletes inside UserKit's
+  erasure transaction, no flush). Rows are found by the owner reference (user class and id), so an anonymised e-mail
+  does not hide them;
+- the export section `mfa` (`MfaPersonalDataExportProvider`, priority -50): `profile`, `method` (`totp`), `enabled`,
+  `enabled_at`, `required_since`, `reset_at`, `unused_recovery_codes` (a number) and `trusted_devices` (`label`,
+  `created_at`, `last_used_at`, `expires_at`). Never the secret, the recovery codes or device tokens; `null` for a user
+  who never enrolled (`MfaManager::exportUser()`).
+
+The MFA tables reference the user by owner type and id without a foreign key (any user class); hosts that delete user
+rows physically keep this eraser in their deletion flow (or call `MfaManager::forgetUser()`).
 
 ## Impersonation
 

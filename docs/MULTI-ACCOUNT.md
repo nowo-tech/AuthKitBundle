@@ -17,6 +17,7 @@ without a password. Requires **UserKit ≥ 1.11 sessions** (separate, revocable 
 - [Host hooks](#host-hooks)
 - [Security](#security)
 - [Database schema](#database-schema)
+- [Personal data (UserKit)](#personal-data-userkit)
 
 ## How it works
 
@@ -202,3 +203,15 @@ switch can still be taken for reuse.
 `previous_token_hash`, `rotated_at`, `rotated_by` (keyed hash of the rotating session), `sealed`, `previous_sealed`
 (the current token sealed under the previous one), `created_at`, `last_used_at`, `expires_at`. No IP, user agent, session
 id or cookie in clear. `nowo:auth-kit:accounts:purge` deletes expired entries (they are also removed lazily).
+**Schedule it** (e.g. nightly cron or Symfony Scheduler): entries of people who never come back to that browser stay
+until purged.
+
+## Personal data (UserKit)
+
+The vault is keyed by `getUserIdentifier()`, which a host identity eraser usually anonymises (the e-mail). Since
+**1.36**, with UserKit personal data enabled, AuthKit registers the eraser `auth_kit_account_switcher`
+(`AccountSwitcherPersonalDataEraser`, tag priority **200**, before host erasers): it removes the person from every
+browser's switcher by the identifier captured when the erasure started (`ErasureRequest::identifier()`, UserKit ≥ 1.12)
+and the current one. Independently, with UserKit ≥ 1.12 the revocation of UserKit's `sessions` eraser carries
+`context['original_identifier']`, which the switcher's session listener uses as well, so the order of host erasers no
+longer matters (DATA-AUTHKIT-VAULT-ERASE).

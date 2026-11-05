@@ -186,6 +186,25 @@ final readonly class MfaStore
     }
 
     /**
+     * Deletes the credential with its recovery codes and trusted devices by DBAL statements only, never flushing
+     * (1.36, personal-data eraser: runs inside UserKit's erasure transaction, which flushes once). The credential is
+     * detached from the unit of work so the final flush does not write it back.
+     */
+    public function deleteWithoutFlush(MfaCredential $credential): void
+    {
+        $id = $this->id($credential);
+        foreach ([MfaRecoveryCode::class, MfaTrustedDevice::class] as $class) {
+            $this->connection()->executeStatement('DELETE FROM ' . $this->table($class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+        }
+        $this->connection()->executeStatement('DELETE FROM ' . $this->table(MfaCredential::class) . ' WHERE id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+        $em = $this->entityManager();
+        if ($em->contains($credential)) {
+            // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
+            $em->detach($credential);
+        }
+    }
+
+    /**
      * Deletes the credential with its recovery codes and trusted devices (user removal / personal data).
      */
     public function delete(MfaCredential $credential): void

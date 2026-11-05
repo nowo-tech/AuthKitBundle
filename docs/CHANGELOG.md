@@ -92,6 +92,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MFA personal data (DATA-AUTHKIT-MFA-ERASE-EXPORT).** With UserKit personal data enabled: the eraser
+  `auth_kit_mfa` (`Mfa\PersonalData\MfaPersonalDataEraser`, priority 200) deletes the TOTP secret, recovery codes and
+  trusted devices of the erased user (`MfaManager::eraseUser()`, `MfaStore::deleteWithoutFlush()`: DBAL deletes inside
+  UserKit's transaction, no flush); the export section `mfa` (`Mfa\PersonalData\MfaPersonalDataExportProvider`,
+  priority -50, `MfaManager::exportUser()`): enrolment date, method, unused recovery code count and trusted devices
+  (label, created, last used, expiry), never the secret or the codes.
+- **Account switcher on erasure (DATA-AUTHKIT-VAULT-ERASE).** The eraser `auth_kit_account_switcher`
+  (`MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser`, priority 200) removes the erased person from every
+  browser's switcher before a host eraser anonymises the identifier, by `ErasureRequest::identifier()` (UserKit ≥ 1.12)
+  and the current identifier.
+
+### Fixed
+
+- **Erased people stayed in the account switcher** when a host eraser rewrote the e-mail before UserKit's `sessions`
+  eraser: `MultiAccountSubscriber::onSessionsRevoked()` now also forgets `context['original_identifier']` of the
+  revocation (UserKit ≥ 1.12, `MultiAccountSubscriber::CONTEXT_ORIGINAL_IDENTIFIER`).
+- Docs: `nowo:auth-kit:accounts:purge` must be scheduled.
+
 ## [1.35.0] - 2026-11-04
 
 Avatars in the account switcher (avatar contract v1.1, §10.5). Requires UiKit **^2.26**.

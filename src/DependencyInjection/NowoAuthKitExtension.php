@@ -22,11 +22,15 @@ use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaAuthenticationSubscriber;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaSessionsSubscriber;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
+use Nowo\AuthKitBundle\Mfa\PersonalData\MfaPersonalDataEraser;
+use Nowo\AuthKitBundle\Mfa\PersonalData\MfaPersonalDataExportProvider;
 use Nowo\AuthKitBundle\MultiAccount\AccountVault;
 use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
+use Nowo\AuthKitBundle\MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
@@ -47,6 +51,7 @@ use function array_values;
 use function class_exists;
 use function function_exists;
 use function in_array;
+use function interface_exists;
 use function is_array;
 use function is_bool;
 use function is_string;
@@ -586,6 +591,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             return;
         }
         $loader->load('multi_account.yaml');
+        if (!interface_exists(PersonalDataEraserInterface::class)) {
+            $container->removeDefinition(AccountSwitcherPersonalDataEraser::class); // @codeCoverageIgnore
+        }
         $container->setParameter(MultiAccountPass::FIREWALLS_PARAMETER, array_keys($firewalls));
         $vault = $container->getDefinition(AccountVault::class);
         $vault->setArgument('$gates', ServiceLocatorTagPass::register($container, $gates));
@@ -647,6 +655,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         // Without UserKit there are no session events to follow (UserKit is a dev dependency: always installed in tests).
         if (!class_exists(UserSessionsRevokedEvent::class)) {
             $container->removeDefinition(MfaSessionsSubscriber::class); // @codeCoverageIgnore
+        }
+        if (!interface_exists(PersonalDataEraserInterface::class)) {
+            $container->removeDefinition(MfaPersonalDataEraser::class); // @codeCoverageIgnore
+            $container->removeDefinition(MfaPersonalDataExportProvider::class); // @codeCoverageIgnore
         }
     }
 
