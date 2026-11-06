@@ -155,6 +155,11 @@ services:
             $checkers: null
             $logger: '@?logger'
 
+    Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback:
+        arguments:
+            $userSessions: '@?Nowo\UserKitBundle\Sessions\UserSessionManager'
+            $vault: '@?Nowo\AuthKitBundle\MultiAccount\AccountVault'
+
     Nowo\AuthKitBundle\Controller\SocialLoginCheckController:
         autoconfigure: false
         public: true

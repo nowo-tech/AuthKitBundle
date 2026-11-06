@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
+use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -15,6 +16,7 @@ use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
 use Psr\Log\LoggerInterface;
@@ -26,6 +28,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Http\RememberMe\ResponseListener as RememberMeResponseListener;
 use Throwable;
 
 /**
@@ -49,6 +53,7 @@ final class SocialLoginCheckController
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
         private readonly iterable $callbackHandlers = [],
         private readonly ?LoggerInterface $logger = null,
+        private readonly ?SocialHandlerSignInRollback $signInRollback = null,
     ) {
     }
 
@@ -125,20 +130,23 @@ final class SocialLoginCheckController
     }
 
     /**
-     * Runs the handler. Whatever it throws, a sign-in it already made does not survive (GY-L1): the visitor must not see
-     * a failure while the session stays signed in. HTTP exceptions keep their status (the handler's own 403, 404, 429);
+     * Runs the handler. Whatever it throws, a sign-in it already made does not survive (GY-L1, GY-L6): the visitor must
+     * not see a failure while the session is signed in as that account. HTTP exceptions keep their status (the handler's own 403, 404, 429);
      * anything else takes the failure path, logged by class because the message may hold provider data (GY-I1).
      */
     private function handled(Request $request, SocialCallbackHandlerInterface $handler, SocialCallbackContext $context, string $loginUrl): Response
     {
         $tokenBefore = $this->security->getToken();
+        $snapshot    = $this->signInRollback?->snapshot($request) ?? [];
         MfaFirstFactor::mark($request, 'social');
 
         try {
             return $handler->handle($request, $context);
         } catch (Throwable $exception) {
-            if ($this->security->getToken() !== $tokenBefore) {
-                $this->security->logout(false);
+            // Null: the handler signed out by itself, there is nothing to undo (GY-I10).
+            $token = $this->security->getToken();
+            if ($token instanceof TokenInterface && $token !== $tokenBefore) {
+                $this->undoSignIn($request, $tokenBefore, $token, $snapshot);
             }
             $this->logger?->error('AuthKit social callback handler {handler} failed for provider {provider}.', ['handler' => $handler::class, 'provider' => $context->provider, 'exception' => $exception::class]);
             if ($exception instanceof HttpExceptionInterface) {
@@ -147,6 +155,25 @@ final class SocialLoginCheckController
 
             return $this->failed($request, $context->provider, $handler, SocialCallbackFailure::Failed, $loginUrl, 'social.error.failed');
         }
+    }
+
+    /**
+     * The handler's sign-in does not survive. Its remember-me cookie never leaves (it waits on the request), an earlier
+     * session goes on (GY-L6), and a visitor who was anonymous stays anonymous, with the other accounts of the browser
+     * still in the switcher.
+     *
+     * @param array<string, mixed> $snapshot
+     */
+    private function undoSignIn(Request $request, ?TokenInterface $tokenBefore, TokenInterface $failed, array $snapshot): void
+    {
+        $request->attributes->remove(RememberMeResponseListener::COOKIE_ATTR_NAME);
+        if ($tokenBefore instanceof TokenInterface && $this->signInRollback instanceof SocialHandlerSignInRollback) {
+            $this->signInRollback->restore($request, $tokenBefore, $failed, $snapshot);
+
+            return;
+        }
+        $request->attributes->set(MultiAccountSubscriber::SCOPE_ATTRIBUTE, 'current');
+        $this->security->logout(false);
     }
 
     private function burnsState(string $provider, string $state): bool

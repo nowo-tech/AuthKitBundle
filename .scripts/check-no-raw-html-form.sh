@@ -16,8 +16,21 @@ if [[ ${#paths[@]} -eq 0 ]]; then
   exit 0
 fi
 
-matches="$(grep -RInE '<(form|input|textarea|select)[[:space:]>]' "${paths[@]}" --include='*.twig' || true)"
-if [[ -n "$matches" ]]; then
+# find + grep without GNU options: BusyBox grep refuses --include. Exit 1 means no match, anything else is a failure
+# of the check itself, and must never read as a pass.
+mapfile -t files < <(find "${paths[@]}" -type f -name '*.twig')
+if [[ ${#files[@]} -eq 0 ]]; then
+  echo "check-no-raw-html-form: no Twig files — OK"
+  exit 0
+fi
+
+status=0
+matches="$(grep -HnE '<(form|input|textarea|select)[[:space:]>]' "${files[@]}")" || status=$?
+if [[ $status -gt 1 ]]; then
+  echo "ERROR: check-no-raw-html-form could not run grep (exit $status)." >&2
+  exit 2
+fi
+if [[ $status -eq 0 ]]; then
   echo "ERROR: raw <form> / <input> / <textarea> / <select> in Twig (REQ-TWIG-005):" >&2
   echo "$matches" >&2
   exit 1

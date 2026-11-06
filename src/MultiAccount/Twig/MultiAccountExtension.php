@@ -11,7 +11,6 @@ use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
-use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
@@ -51,14 +50,13 @@ final class MultiAccountExtension extends AbstractExtension
 
     /**
      * The hidden `_target_path` of a switch form (REQ-TWIG-005: rendered through a form widget). The controller checks
-     * the value; here it is only escaped by the form theme. The id carries the account, one per row.
+     * the value; here it is only escaped by the form theme. The id carries the account, one per row. A form of a single
+     * non-compound field gets no CSRF token (GY-I11): rendering this must not write to the session, and it also works
+     * without the form CSRF extension, where a `csrf_protection` option would be refused.
      */
     public function targetPathField(string $path, string $account): FormView
     {
-        $view = $this->forms->createNamedBuilder('', FormType::class)
-            ->add('_target_path', HiddenType::class, ['data' => $path])
-            ->getForm()
-            ->createView()['_target_path'];
+        $view             = $this->forms->createNamed('_target_path', HiddenType::class, $path)->createView();
         $view->vars['id'] = '_target_path_' . $account;
 
         return $view;

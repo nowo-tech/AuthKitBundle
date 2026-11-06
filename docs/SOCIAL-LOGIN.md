@@ -128,7 +128,11 @@ call it, each one is yours:
 And in every case:
 
 - **Sign in last, with `Security::login()`,** never by writing a token. If the handler throws after signing in, AuthKit
-  signs that session out, but side effects you made before the exception are yours to undo. The first factor is already
+  undoes that sign-in: an earlier session goes on (its token and session attributes restored, session id changed, the
+  failed account out of this browser's switcher, its remember-me cookie never sent), and a visitor who was anonymous
+  stays anonymous with the browser's other accounts still in the switcher. Still not undone: side effects you made
+  before the exception, and what `LoginSuccessEvent` listeners already did outside the session (a new-device mail, an
+  audit row). The first factor is already
   marked `social`, so MFA applies by `mfa.first_factors.social` as in the default flow.
 - **Return the response of `Security::login()` if it has one, otherwise a redirect.** A page answered directly stays on
   the URL holding `code` and `state` (already burned), and with MFA the next page goes to the challenge anyway.
@@ -142,7 +146,11 @@ And in every case:
 Exceptions from `handle()`: every one undoes a sign-in made by the handler and is logged by class. An HTTP exception
 (`HttpExceptionInterface`: your 403, 404, 429) is rethrown with its status. Anything else, including
 `AuthenticationException`, `LogicException` and `TypeError`, becomes `SocialCallbackFailure::Failed` and reaches
-`handleFailure()`. Handlers are shared services: no per-request state on properties (FrankenPHP worker mode).
+`handleFailure()`.
+
+`handleFailure()` does not run for an HTTP exception, so clear your pending entry before you throw one, or remove it first thing in `handle()` as in the example; otherwise the next social sign-in in that session reaches your handler.
+
+Handlers are shared services: no per-request state on properties (FrankenPHP worker mode).
 
 ## Login template variables
 

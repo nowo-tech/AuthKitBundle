@@ -12,11 +12,14 @@ use Nowo\AuthKitBundle\Mfa\MfaOwner;
 use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\UserKitBundle\PersonalData\ErasureRequest;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function array_filter;
 use function array_map;
+use function array_values;
 use function get_object_vars;
 use function is_string;
 
@@ -57,16 +60,30 @@ final readonly class SocialAccountPersonalDataEraser implements PersonalDataEras
         if (!$user instanceof UserInterface || !$profile instanceof ProfileSettings || !$manager instanceof EntityManagerInterface) {
             return;
         }
-        $original = get_object_vars($request)['originalIdentifier'] ?? null;
-        $ids      = array_map(static fn (MfaOwner $owner): string => $owner->id, $this->owners->erasureOwners($user, is_string($original) ? $original : null));
-        $table    = $manager->getClassMetadata(SocialLoginAccount::class)->getTableName();
-        if ($ids === [] || !$manager->getConnection()->createSchemaManager()->tablesExist([$table])) {
+        $original   = get_object_vars($request)['originalIdentifier'] ?? null;
+        $original   = is_string($original) ? $original : null;
+        $ids        = array_map(static fn (MfaOwner $owner): string => $owner->id, $this->owners->erasureOwners($user, $original));
+        $table      = $manager->getClassMetadata(SocialLoginAccount::class)->getTableName();
+        $connection = $manager->getConnection();
+        if ($ids === [] || !$connection->createSchemaManager()->tablesExist([$table])) {
             return;
         }
-        $manager->getConnection()->executeStatement(
-            'DELETE FROM ' . $table . ' WHERE user_class = :class AND user_id IN (:ids)',
-            ['class' => $profile->userClass, 'ids' => $ids],
+        // GY-I9: before 1.37 the linker stored the identifier for an object id (a Uid), so those rows carry it as user_id.
+        $wanted = [];
+        foreach ([...$ids, $user->getUserIdentifier(), $original] as $id) {
+            if ($id !== null && $id !== '') {
+                $wanted[UserIdentifierMatcher::normalize($id)] = $id;
+            }
+        }
+        $rows = $connection->fetchAllAssociative(
+            'SELECT id, user_id FROM ' . $table . ' WHERE user_class = :class AND user_id IN (:ids)',
+            ['class' => $profile->userClass, 'ids' => array_values($wanted)],
             ['ids' => ArrayParameterType::STRING],
         );
+        // GY-I8: an accent-insensitive collation also returns look-alikes of a natural key (jose@ for josé@).
+        $rows = array_filter($rows, static fn (array $row): bool => isset($wanted[UserIdentifierMatcher::normalize((string) $row['user_id'])]));
+        if ($rows !== []) {
+            $connection->executeStatement('DELETE FROM ' . $table . ' WHERE id IN (:rows)', ['rows' => array_map(static fn (array $row): int => (int) $row['id'], array_values($rows))], ['rows' => ArrayParameterType::INTEGER]);
+        }
     }
 }

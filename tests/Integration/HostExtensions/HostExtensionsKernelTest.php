@@ -238,6 +238,21 @@ final class HostExtensionsKernelTest extends WebTestCase
         self::assertNull($this->tokens()->getToken());
     }
 
+    /** GY-I10: nothing to undo; the failure path still answers. */
+    public function testHandlerThatSignsOutAndThenThrowsGetsTheFailurePath(): void
+    {
+        $this->handler()->signInFirst  = true;
+        $this->handler()->signOutFirst = true;
+        $this->handler()->throw        = new RuntimeException('refused');
+        $this->persistAda();
+        $this->client->request('GET', '/test/pending');
+        $state = $this->startAuthorization();
+
+        $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
+
+        self::assertSame('failed|google|failed', $this->client->getResponse()->getContent());
+    }
+
     public function testUnknownProviderNeverReachesTheHandler(): void
     {
         $this->client->request('GET', '/test/pending');

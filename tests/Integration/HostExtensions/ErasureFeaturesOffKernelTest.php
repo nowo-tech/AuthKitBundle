@@ -7,11 +7,16 @@ namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
+use Nowo\AuthKitBundle\MultiAccount\AccountVaultStore;
+use Nowo\AuthKitBundle\PersonalData\DormantAccountSwitcherPersonalDataEraser;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\UserKitBundle\PersonalData\ErasureRequest;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraser;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -68,6 +73,53 @@ final class ErasureFeaturesOffKernelTest extends KernelTestCase
         self::assertSame('other@example.com', $this->em->getConnection()->fetchOne('SELECT user_identifier FROM auth_kit_social_account'));
     }
 
+    /** GY-I13: the same id under another user class is another person. */
+    public function testASocialRowOfAnotherUserClassWithTheSameIdStays(): void
+    {
+        $ids = $this->em->getClassMetadata(KernelUser::class)->getIdentifierValues($this->subject);
+        $this->em->persist((new SocialLoginAccount())
+            ->setProvider('github')
+            ->setProviderUserId('other-class')
+            ->setUserClass('App\\Entity\\Customer')
+            ->setUserId((string) reset($ids))
+            ->setUserIdentifier('customer@example.com')
+            ->setRawProfile([]));
+        $this->em->flush();
+
+        $this->eraser()->erase($this->subject);
+
+        self::assertSame('App\\Entity\\Customer', $this->em->getConnection()->fetchOne("SELECT user_class FROM auth_kit_social_account WHERE provider = 'github'"));
+    }
+
+    /** GY-I13: a host eraser may already have rewritten the identifier the vault is keyed by. */
+    public function testTheDormantSwitcherEraserUsesTheOriginalIdentifier(): void
+    {
+        $this->subject->setEmail('erased-1@example.invalid');
+
+        $eraser = new DormantAccountSwitcherPersonalDataEraser(new AccountVaultStore($this->doctrine()), $this->profiles());
+        $eraser->erase(new ErasureRequest($this->subject, null, [], 'subject@example.com'));
+
+        self::assertSame(1, $this->rowCount(AccountVaultEntry::TABLE));
+        self::assertSame('other@example.com', $this->em->getConnection()->fetchOne('SELECT user_identifier FROM ' . AccountVaultEntry::TABLE));
+    }
+
+    /** GY-I9: a row stored by the linker before 1.37 for an object id carries the identifier as user_id. */
+    public function testASocialRowKeyedByTheIdentifierGoesToo(): void
+    {
+        $this->em->persist((new SocialLoginAccount())
+            ->setProvider('github')
+            ->setProviderUserId('legacy')
+            ->setUserClass(KernelUser::class)
+            ->setUserId('subject@example.com')
+            ->setUserIdentifier('subject@example.com')
+            ->setRawProfile([]));
+        $this->em->flush();
+
+        $this->eraser()->erase($this->subject);
+
+        self::assertSame(1, $this->rowCount('auth_kit_social_account'));
+    }
+
     public function testMissingTablesAreTolerated(): void
     {
         foreach ([MfaRecoveryCode::TABLE, 'auth_kit_mfa_trusted_device', MfaCredential::TABLE, AccountVaultEntry::TABLE, 'auth_kit_social_account'] as $table) {
@@ -94,6 +146,22 @@ final class ErasureFeaturesOffKernelTest extends KernelTestCase
             ->setUserId($id)
             ->setUserIdentifier($user->getEmail())
             ->setRawProfile([]));
+    }
+
+    private function doctrine(): ManagerRegistry
+    {
+        $doctrine = self::getContainer()->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $doctrine);
+
+        return $doctrine;
+    }
+
+    private function profiles(): ProfileRegistry
+    {
+        $profiles = self::getContainer()->get(ProfileRegistry::class);
+        self::assertInstanceOf(ProfileRegistry::class, $profiles);
+
+        return $profiles;
     }
 
     private function rowCount(string $table): int

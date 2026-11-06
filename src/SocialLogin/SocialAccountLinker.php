@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Psr\Clock\ClockInterface;
 use RuntimeException;
+use Stringable;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -230,14 +231,14 @@ final class SocialAccountLinker
     {
         if (method_exists($user, 'getId')) {
             $id = $user->getId();
-            if (is_int($id) || (is_string($id) && $id !== '')) {
+            if (is_int($id) || $id instanceof Stringable || (is_string($id) && $id !== '')) {
                 return (string) $id;
             }
         }
 
         if ($this->propertyAccessor->isReadable($user, 'id')) {
             $id = $this->propertyAccessor->getValue($user, 'id');
-            if (is_int($id) || (is_string($id) && $id !== '')) {
+            if (is_int($id) || $id instanceof Stringable || (is_string($id) && $id !== '')) {
                 return (string) $id;
             }
         }

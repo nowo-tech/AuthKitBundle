@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge;
 use Throwable;
 
 /**
@@ -28,6 +29,12 @@ final class PendingStepCallbackHandler implements SocialCallbackHandlerInterface
     public ?Throwable $throw = null;
 
     public bool $signInFirst = false;
+
+    public string $signInAs = 'ada@example.com';
+
+    public bool $rememberMe = false;
+
+    public bool $signOutFirst = false;
 
     public bool $defaultOnFailure = false;
 
@@ -46,11 +53,14 @@ final class PendingStepCallbackHandler implements SocialCallbackHandlerInterface
     {
         $request->getSession()->remove(self::SESSION_KEY);
         if ($this->signInFirst) {
-            $user = $this->entityManager->getRepository(KernelUser::class)->findOneBy(['email' => 'ada@example.com']);
+            $user = $this->entityManager->getRepository(KernelUser::class)->findOneBy(['email' => $this->signInAs]);
             if (!$user instanceof KernelUser) {
                 throw new LogicException('Persist the user first.');
             }
-            $this->security->login($user, 'form_login', 'main');
+            $this->security->login($user, 'form_login', 'main', $this->rememberMe ? [(new RememberMeBadge())->enable()] : []);
+        }
+        if ($this->signOutFirst) {
+            $this->security->logout(false);
         }
         if ($this->throw instanceof Throwable) {
             throw $this->throw;
