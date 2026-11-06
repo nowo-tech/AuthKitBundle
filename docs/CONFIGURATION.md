@@ -622,7 +622,7 @@ declares a `NowoAuthKitBundle` mapping). `doctrine:schema:validate` / `doctrine:
 
 ## Routes of disabled features
 
-Since 1.30. By default every route is registered and the controllers of a disabled feature redirect to the login page.
+Since 1.30. By default every route is registered and the controllers of a disabled feature redirect to the login page (for magic login, signed links too since 1.37, see [MAGIC-LOGIN.md](MAGIC-LOGIN.md#turning-the-feature-off)).
 To register only what is enabled:
 
 ```yaml

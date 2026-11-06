@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\MagicLogin;
 
 use DateTimeImmutable;
+use Nowo\AuthKitBundle\Enum\MagicLoginMode;
 use Nowo\AuthKitBundle\Locale\RecipientLocale;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
@@ -170,6 +171,10 @@ final class AdminMagicLinkIssuer
         }
         if (array_intersect($target->getRoles(), $this->protectedRoles) !== []) {
             return AdminMagicLinkRefusedException::PROTECTED_ROLE;
+        }
+        $mode = $this->profileRegistry?->resolveForObject($target)?->magicLogin['mode'] ?? null;
+        if ($mode !== null && $mode !== MagicLoginMode::Enabled->value) {
+            return AdminMagicLinkRefusedException::FEATURE_DISABLED;
         }
 
         return null;

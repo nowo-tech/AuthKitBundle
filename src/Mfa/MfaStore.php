@@ -238,8 +238,13 @@ final readonly class MfaStore
     }
 
     /**
-     * @param class-string $class
+     * Whether the MFA tables exist: a host that never enabled MFA may not have created them (GY-L5).
      */
+    public function hasTables(): bool
+    {
+        return $this->connection()->createSchemaManager()->tablesExist([$this->table(MfaCredential::class), $this->table(MfaRecoveryCode::class), $this->table(MfaTrustedDevice::class)]);
+    }
+
     private function table(string $class): string
     {
         return $this->entityManager()->getClassMetadata($class)->getTableName();

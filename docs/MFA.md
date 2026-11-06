@@ -253,6 +253,12 @@ Since **1.36**, with UserKit installed and `nowo_user_kit.personal_data.enabled:
 The MFA tables reference the user by owner type and id without a foreign key (any user class); hosts that delete user
 rows physically keep this eraser in their deletion flow (or call `MfaManager::forgetUser()`).
 
+Since 1.37 erasure no longer depends on the feature being on today: with UserKit installed and the entities mapped, a
+host with no MFA or switcher profile gets dormant erasers with the same keys (`auth_kit_mfa`,
+`auth_kit_account_switcher`), and `auth_kit_social_account` always runs. Missing tables are tolerated. Keep
+`doctrine.register_mapping: true` after turning every feature off, because `auto` then unmaps the entities and nothing
+can erase them. The export sections still need the feature on.
+
 ## Impersonation
 
 `switch_user` builds its token without the authenticator manager, so it gets no second step: the impersonator already

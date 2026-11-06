@@ -132,6 +132,14 @@ final readonly class AccountVaultStore
         return (int) $this->connection()->executeStatement('DELETE FROM ' . $this->table() . ' WHERE expires_at < :before', ['before' => $before], ['before' => Types::DATETIME_IMMUTABLE]);
     }
 
+    /**
+     * Whether the vault table exists: a host that never enabled the switcher may not have created it (GY-L5).
+     */
+    public function hasTable(): bool
+    {
+        return $this->connection()->createSchemaManager()->tablesExist([$this->table()]);
+    }
+
     private function table(): string
     {
         return $this->entityManager()->getClassMetadata(AccountVaultEntry::class)->getTableName();

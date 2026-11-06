@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\DependencyInjection\Compiler;
 
+use Nowo\AuthKitBundle\MagicLogin\MagicLoginDisabledListener;
 use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Security\Http\Event\CheckPassportEvent;
 
 use function array_keys;
 use function array_merge;
@@ -34,6 +36,13 @@ final class LoginLinkHandlerLocatorPass implements CompilerPassInterface
             if (str_starts_with($id, self::PREFIX)) {
                 $handlers[substr($id, strlen(self::PREFIX))] = new Reference($id);
             }
+        }
+
+        // GY-L4: only firewalls with `login_link` have the dispatcher and something to refuse.
+        foreach (array_keys($handlers) as $firewall) {
+            $container->register(MagicLoginDisabledListener::class . '.' . $firewall, MagicLoginDisabledListener::class)
+                ->setAutowired(true)
+                ->addTag('kernel.event_listener', ['event' => CheckPassportEvent::class, 'method' => 'onCheckPassport', 'dispatcher' => 'security.event_dispatcher.' . $firewall, 'priority' => 1024]);
         }
 
         $container->getDefinition(LoginLinkHandlerLocator::class)

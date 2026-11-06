@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Availability\FeatureAvailabilityCheckerInterface;
 use Nowo\AuthKitBundle\Controller\MagicLoginConfirmController;
+use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
@@ -31,6 +32,27 @@ final class MagicLoginConfirmAvailabilityTest extends TestCase
     public function testKeepsTheRequestPageOtherwise(): void
     {
         self::assertSame('/nowo_auth_kit_magic_login_request', $this->location(true));
+    }
+
+    public function testADisabledModeNeverShowsTheForm(): void
+    {
+        $urls = $this->createStub(UrlGeneratorInterface::class);
+        $urls->method('generate')->willReturnCallback(static fn (string $route): string => '/' . $route);
+        $overrides = ['magic_login' => ['mode' => 'disabled', 'confirm_interstitial' => true]];
+        $twig      = $this->createMock(Environment::class);
+        $twig->expects(self::never())->method('render');
+
+        $controller = new MagicLoginConfirmController(
+            $twig,
+            $this->createStub(FormFactoryInterface::class),
+            AuthKitTestUrlGenerator::fromMock($urls),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $overrides),
+            $this->createStub(Security::class),
+            magicLoginGate: new MagicLoginGate(ProfileRegistryFactory::single(TestUser::class, $overrides)),
+        );
+
+        self::assertSame('/nowo_auth_kit_login', $controller->check(Request::create('/magic-login/check?user=u&expires=1&hash=h'))->headers->get('Location'));
+        self::assertSame('/nowo_auth_kit_login', $controller->confirm(Request::create('/magic-login/confirm', 'POST'))->headers->get('Location'));
     }
 
     private function location(bool $available): ?string

@@ -15,28 +15,34 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * AuthKit still verifies the callback. {@see self::handle()} runs only after the OAuth state, PKCE and the code exchange
  * succeeded, in place of the default link-and-sign-in, so a handler never parses `code` or `state` and cannot skip them.
- * It does replace {@see SocialAccountLinker}: `require_verified_email`, the stored-identifier match and the
- * `registration_mode` gate are then the handler's job. See docs/SOCIAL-LOGIN.md.
+ * It does replace {@see SocialAccountLinker}: call the linker from the handler when you can, because the identity rules
+ * live there; otherwise they are the handler's job. See docs/SOCIAL-LOGIN.md.
  *
  * Implementations are shared services: keep them stateless (worker safe) and keep pending data in the session.
  */
 interface SocialCallbackHandlerInterface
 {
     /**
-     * Whether this handler owns the callback. Asked first on every callback, before any check, so an answer cannot
-     * depend on the provider's data. Decide from server-side state (the session), never from the query string.
+     * Whether this handler owns the callback. Host code that runs first, on every callback, before any check and
+     * without authentication: keep it cheap and decide from server-side state (the session), never from the query
+     * string. Compare the provider with the one stored in your pending entry. If it throws, the visitor gets a 500.
      */
     public function supports(Request $request, string $provider): bool;
 
     /**
-     * The verified callback. Sign the user in with `Security::login()` if needed: the first factor is already marked
-     * `social`, so MFA applies as in the default flow. A RuntimeException becomes {@see SocialCallbackFailure::Failed}.
+     * The verified callback. Sign the user in last, with `Security::login()`, and return its response if it has one (the
+     * MFA challenge); otherwise answer with a redirect, so the URL holding `code` and `state` leaves the address bar. The
+     * first factor is already marked `social`, so MFA applies as in the default flow.
+     *
+     * Anything thrown here signs out a user the handler had signed in, and is logged by class. An HTTP exception is
+     * rethrown; anything else becomes {@see SocialCallbackFailure::Failed}.
      */
     public function handle(Request $request, SocialCallbackContext $context): Response;
 
     /**
-     * The callback failed before {@see self::handle()} or inside it. Null keeps the default answer (flash and redirect
-     * to the sign-in page). The request is unverified here, so clean up pending state and answer, and grant nothing.
+     * The callback proved its OAuth state and then failed. A callback that does not prove it never gets here (a crafted
+     * link cannot drop a pending step), so expire an abandoned pending entry yourself. Null keeps the default answer
+     * (flash and redirect to the sign-in page).
      */
     public function handleFailure(Request $request, string $provider, SocialCallbackFailure $reason): ?Response;
 }

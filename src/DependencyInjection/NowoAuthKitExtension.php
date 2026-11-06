@@ -24,11 +24,17 @@ use Nowo\AuthKitBundle\Mailer\OutboundMailReadyCheckerInterface;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaAuthenticationSubscriber;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaSessionsSubscriber;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
+use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
+use Nowo\AuthKitBundle\Mfa\MfaStore;
 use Nowo\AuthKitBundle\Mfa\PersonalData\MfaPersonalDataEraser;
 use Nowo\AuthKitBundle\Mfa\PersonalData\MfaPersonalDataExportProvider;
 use Nowo\AuthKitBundle\MultiAccount\AccountVault;
+use Nowo\AuthKitBundle\MultiAccount\AccountVaultStore;
 use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser;
+use Nowo\AuthKitBundle\PersonalData\DormantAccountSwitcherPersonalDataEraser;
+use Nowo\AuthKitBundle\PersonalData\DormantMfaPersonalDataEraser;
+use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataEraser;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
@@ -39,6 +45,7 @@ use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
@@ -189,6 +196,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $this->registerInvitations($container, $profiles);
         $this->registerMfa($container, $profiles, $loader, is_array($bundles) ? $bundles : null);
         $this->registerMultiAccount($container, $profiles, $loader);
+        $this->registerPersonalDataErasers($container, $registerMapping);
         $container->registerForAutoconfiguration(SocialCallbackHandlerInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
 
         if ($config['flash']['twig_filter'] !== true) {
@@ -232,6 +240,32 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
         $container->getDefinition(FeatureAvailability::class)->setArgument('$checkers', ServiceLocatorTagPass::register($container, $checkers));
         $container->setParameter(AvailabilityCheckersPass::PARAMETER, array_values(array_map(strval(...), $checkers)));
+    }
+
+    /**
+     * GY-L5 (1.37): erasure must not depend on a feature being on today. While the entities are mapped and UserKit is
+     * installed, a feature that is off gets its dormant eraser, and social links always get theirs.
+     */
+    private function registerPersonalDataErasers(ContainerBuilder $container, bool $registerMapping): void
+    {
+        if (!$registerMapping || !interface_exists(PersonalDataEraserInterface::class)) {
+            return; // @codeCoverageIgnore
+        }
+        // Inline: the MFA and switcher services stay absent for hosts without those features.
+        $support = static fn (string $class): Definition => (new Definition($class))->setAutowired(true);
+        $erasers = [SocialAccountPersonalDataEraser::class => ['$owners' => $support(MfaOwnerResolver::class)]];
+        if (!$container->hasDefinition(MfaPersonalDataEraser::class)) {
+            $erasers[DormantMfaPersonalDataEraser::class] = ['$store' => $support(MfaStore::class), '$owners' => $support(MfaOwnerResolver::class)];
+        }
+        if (!$container->hasDefinition(AccountSwitcherPersonalDataEraser::class)) {
+            $erasers[DormantAccountSwitcherPersonalDataEraser::class] = ['$store' => $support(AccountVaultStore::class)];
+        }
+        foreach ($erasers as $eraser => $arguments) {
+            $container->register($eraser)
+                ->setAutowired(true)
+                ->setArguments($arguments)
+                ->addTag('nowo_user_kit.personal_data.eraser', ['priority' => SocialAccountPersonalDataEraser::PRIORITY]);
+        }
     }
 
     public function getAlias(): string

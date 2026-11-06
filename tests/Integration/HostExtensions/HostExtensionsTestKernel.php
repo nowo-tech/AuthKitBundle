@@ -43,14 +43,17 @@ final class HostExtensionsTestKernel extends AuthKitTestKernel
         parent::configureContainer($container, $loader);
         $container->loadFromExtension('framework', ['http_client' => ['mock_response_factory' => SocialProviderResponses::class]]);
         $container->loadFromExtension('nowo_auth_kit', [
-            'magic_login'    => ['availability_checker' => 'test.magic_checker'],
-            'password_reset' => ['availability_checker' => 'test.reset_checker'],
-            'social_login'   => ['mode' => 'enabled'],
+            'magic_login'                 => ['availability_checker' => 'test.magic_checker'],
+            'password_reset'              => ['availability_checker' => 'test.reset_checker'],
+            'social_login'                => ['mode' => 'enabled'],
+            'outbound_mail_ready_checker' => ToggleMailReadyChecker::class,
         ]);
         $container->register('test.magic_checker', ToggleAvailabilityChecker::class)->setPublic(true);
         $container->register('test.reset_checker', ToggleAvailabilityChecker::class)->setPublic(true);
         $container->register(SocialProviderResponses::class)->setPublic(true);
-        $container->register(PendingStepCallbackHandler::class)->setAutoconfigured(true)->setPublic(true);
+        $container->register(PendingStepCallbackHandler::class)->setAutowired(true)->setAutoconfigured(true)->setPublic(true);
+        $container->register(ToggleMailReadyChecker::class)->setPublic(true);
+        $container->register('logger', RecordingLogger::class)->setPublic(true);
     }
 
     protected function configureRoutes(RoutingConfigurator $routes): void

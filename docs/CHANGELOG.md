@@ -95,7 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Planned **1.37.0** (minor). Everything is opt-in; hosts that change nothing get the same output. See
-[UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: re-verification pending.
+[UPGRADING](UPGRADING.md#unreleased), which lists the two exceptions for hosts with `magic_login.mode: disabled`.
+REQ-SEC-004: Appendix GY Pass (good) / Low on `9f320e3`; re-verification pending for the fixes below.
 
 ### Added
 
@@ -111,7 +112,27 @@ Planned **1.37.0** (minor). Everything is opt-in; hosts that change nothing get 
   replaces `outbound_mail_ready_checker` for that link.
 - `SocialCallbackHandlerInterface` (tag `nowo_auth_kit.social_callback_handler`, autoconfigured): a host handler takes
   over the last step of the OAuth callback, after AuthKit verified the state, PKCE and the code exchange, in place of
-  the default link-and-sign-in. `handleFailure()` can answer a failed callback.
+  the default link-and-sign-in. `handleFailure()` can answer a callback that proved its state and then failed.
+
+- `SocialCallbackContext::verifiedEmail()`: the provider's e-mail only when it is verified.
+- `auth_kit_social_account` UserKit eraser (social links), with UserKit installed and the entities mapped.
+
+### Security
+
+- A handler that throws after signing in no longer leaves the session signed in, and every handler failure is logged by
+  class. HTTP exceptions keep their status; anything else takes the failure path (GY-L1, GY-I1).
+- A callback that does not prove its OAuth state no longer burns the pending state or reaches `handleFailure()`. This
+  also stops a crafted `?code=x&state=junk` link burning the state in the default flow (GY-L2, partly in 1.36.1).
+- **Behaviour change:** `magic_login.mode: disabled` now stops issued links on AuthKit's check route and confirm page,
+  and `AdminMagicLinkIssuer` refuses with `feature_disabled` (GY-L4, also in 1.36.1).
+- Erasure no longer depends on the feature being on: dormant `auth_kit_mfa` and `auth_kit_account_switcher` erasers run
+  while no profile enables the feature, and missing tables are tolerated (GY-L5, also in 1.36.1).
+
+### Fixed
+
+- `accounts/_switcher.html.twig` renders `_target_path` through a form widget (REQ-TWIG-005). The input gains an `id`
+  and `check-no-raw-html-form` now runs in CI (GY-I6).
+- `AvailabilityCheckersPass` follows parent definitions (GY-I2).
 
 ### Changed
 

@@ -27,7 +27,7 @@
                     {% if account.switchForm %}
                         {{ form_start(account.switchForm, {attr: {class: 'nowo-auth-kit-accounts__switch'}}) }}
                             {{ form_widget(account.switchForm) }}
-                            {% if target_path|default(null) %}<input type="hidden" name="_target_path" value="{{ target_path }}">{% endif %}
+                            {% if target_path|default(null) %}{{ form_widget(auth_kit_accounts_target_path_field(target_path, account.id)) }}{% endif %}
                             <button type="submit" class="{{ nowo_ui_class(_variant == 'list' ? 'btn_primary' : 'btn_secondary', _b) }}" data-testid="auth-kit-account-switch">{{ (account.state == 'signed_out' ? 'accounts.action.resume' : 'accounts.action.switch')|trans({}, _b) }}<span class="nowo-auth-kit-sr-only"> {{ account.name }}</span></button>
                         {{ form_end(account.switchForm) }}
                     {% endif %}

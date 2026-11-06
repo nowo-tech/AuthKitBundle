@@ -14,12 +14,9 @@ enum SocialCallbackFailure: string
     /** Social login is off for the profile, or the provider is unknown or disabled. */
     case Unavailable = 'unavailable';
 
-    /** The provider answered `error=` (the user refused). The request is not proven to come from the provider. */
+    /** The provider answered `error=` (the user refused). */
     case ProviderDenied = 'provider_denied';
 
-    /** Missing code or state, or a state that does not match this session's pending authorization. */
-    case InvalidState = 'invalid_state';
-
-    /** Code exchange or profile fetch failed, or the handler threw a RuntimeException. */
+    /** Code exchange or profile fetch failed, or the handler threw (anything but an HTTP exception). */
     case Failed = 'failed';
 }

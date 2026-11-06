@@ -71,6 +71,7 @@ final class SocialLoginStateStoreTest extends TestCase
 
         $state = $store->issue('google', 'verifier-2');
         self::assertNull($store->consumePending('google', $state . 'x'));
-        self::assertNull($store->consumePending('google', $state), 'A failed attempt must still burn the pending state.');
+        self::assertSame(['code_verifier' => 'verifier-2'], $store->consumePending('google', $state), 'GY-L2: a mismatch leaves the real authorization alone.');
+        self::assertNull($store->consumePending('google', $state), 'A match burns it.');
     }
 }

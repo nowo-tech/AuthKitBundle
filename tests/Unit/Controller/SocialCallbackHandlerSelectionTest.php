@@ -36,7 +36,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
  */
 final class SocialCallbackHandlerSelectionTest extends TestCase
 {
-    public function testFirstSupportingHandlerGetsTheFailureOfADisabledFeature(): void
+    public function testFirstSupportingHandlerGetsTheFailureOfADisabledFeatureWhenTheStateIsProven(): void
     {
         $skipped = $this->createMock(SocialCallbackHandlerInterface::class);
         $skipped->method('supports')->willReturn(false);
@@ -52,12 +52,29 @@ final class SocialCallbackHandlerSelectionTest extends TestCase
         $later = $this->createMock(SocialCallbackHandlerInterface::class);
         $later->expects(self::never())->method('supports');
 
-        self::assertSame('back to the invitation', $this->controller([$skipped, $owner, $later])->check($this->request(), 'google')->getContent());
+        $request = $this->request();
+        $store   = $this->store($request);
+        $request->query->set('state', $store->issue('google'));
+
+        self::assertSame('back to the invitation', $this->controller([$skipped, $owner, $later], $store)->check($request, 'google')->getContent());
+    }
+
+    public function testADisabledFeatureWithoutAProvenStateDoesNotReachTheHandler(): void
+    {
+        $owner = $this->createMock(SocialCallbackHandlerInterface::class);
+        $owner->method('supports')->willReturn(true);
+        $owner->expects(self::never())->method('handleFailure');
+
+        $request = $this->request();
+
+        self::assertSame('/login', $this->controller([$owner], $this->store($request))->check($request, 'google')->headers->get('Location'));
     }
 
     public function testNoHandlersKeepTheRedirect(): void
     {
-        self::assertSame('/login', $this->controller([])->check($this->request(), 'google')->headers->get('Location'));
+        $request = $this->request();
+
+        self::assertSame('/login', $this->controller([], $this->store($request))->check($request, 'google')->headers->get('Location'));
     }
 
     private function request(): Request
@@ -68,10 +85,18 @@ final class SocialCallbackHandlerSelectionTest extends TestCase
         return $request;
     }
 
+    private function store(Request $request): SocialLoginStateStore
+    {
+        $stack = new RequestStack();
+        $stack->push($request);
+
+        return new SocialLoginStateStore($stack);
+    }
+
     /**
      * @param list<SocialCallbackHandlerInterface> $handlers
      */
-    private function controller(array $handlers): SocialLoginCheckController
+    private function controller(array $handlers, SocialLoginStateStore $store): SocialLoginCheckController
     {
         $credentials = $this->createStub(SocialLoginCredentialRepository::class);
         $credentials->method('findEnabledOrdered')->willReturn([]);
@@ -82,7 +107,7 @@ final class SocialCallbackHandlerSelectionTest extends TestCase
             new SocialLoginGate(ProfileRegistryFactory::single(TestUser::class, ['social_login' => ['mode' => 'disabled']]), $credentials),
             $credentials,
             new OAuth2Client(new MockHttpClient(), new ProviderEndpointCatalog()),
-            new SocialLoginStateStore(new RequestStack()),
+            $store,
             new SocialAccountLinker(
                 $this->createStub(EntityManagerInterface::class),
                 $this->createStub(SocialLoginAccountRepository::class),

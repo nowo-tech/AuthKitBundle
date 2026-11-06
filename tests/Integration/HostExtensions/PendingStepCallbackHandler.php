@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 
+use Doctrine\ORM\EntityManagerInterface;
+use LogicException;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
-use RuntimeException;
+use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * What a host's "accept the invitation with Google" handler looks like: owns the callback while its session entry is
@@ -20,9 +24,18 @@ final class PendingStepCallbackHandler implements SocialCallbackHandlerInterface
 {
     public const SESSION_KEY = '_test_pending_step';
 
-    public bool $throwOnHandle = false;
+    /** What `handle()` throws, after signing in when `signInFirst` is set. */
+    public ?Throwable $throw = null;
+
+    public bool $signInFirst = false;
 
     public bool $defaultOnFailure = false;
+
+    public function __construct(
+        private readonly Security $security,
+        private readonly EntityManagerInterface $entityManager,
+    ) {
+    }
 
     public function supports(Request $request, string $provider): bool
     {
@@ -32,8 +45,15 @@ final class PendingStepCallbackHandler implements SocialCallbackHandlerInterface
     public function handle(Request $request, SocialCallbackContext $context): Response
     {
         $request->getSession()->remove(self::SESSION_KEY);
-        if ($this->throwOnHandle) {
-            throw new RuntimeException('refused');
+        if ($this->signInFirst) {
+            $user = $this->entityManager->getRepository(KernelUser::class)->findOneBy(['email' => 'ada@example.com']);
+            if (!$user instanceof KernelUser) {
+                throw new LogicException('Persist the user first.');
+            }
+            $this->security->login($user, 'form_login', 'main');
+        }
+        if ($this->throw instanceof Throwable) {
+            throw $this->throw;
         }
 
         return new Response('handled|' . $context->profile->name . '|' . $context->provider . '|' . $context->socialProfile->email . '|' . $context->tokens['access_token'] . '|' . MfaFirstFactor::of($request));

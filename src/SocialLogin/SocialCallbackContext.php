@@ -25,4 +25,15 @@ final readonly class SocialCallbackContext
         public array $tokens,
     ) {
     }
+
+    /**
+     * The provider's e-mail only when the provider asserts it is verified, otherwise null. Use this, not
+     * `$socialProfile->email`, to match an account or an invitation (GY-L3): that one can be any unverified address.
+     */
+    public function verifiedEmail(): ?string
+    {
+        $email = $this->socialProfile->email;
+
+        return $this->socialProfile->emailVerified === true && $email !== null && $email !== '' ? $email : null;
+    }
 }

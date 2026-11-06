@@ -156,7 +156,8 @@ When it answers false, or throws (logged, class only):
 
 When it answers true the link shows even if `outbound_mail_ready_checker` says mail is not ready: the checker replaces
 that hint for this link. With `mode: disabled` nothing changes (the redirect to the sign-in page stays). A signed-in
-visitor is still redirected as before. The container refuses a missing service or one of another type.
+visitor is still redirected as before. The container refuses a missing service, or one of another type when its class
+is known at compile time; anything else that is not a checker counts as unavailable at runtime (logged).
 
 A person holding a valid link or code cannot use it while the feature is unavailable; it works again if the checker
 turns true before it expires. It is an operational gate: `PasswordResetRequestHandler` called from host code is not

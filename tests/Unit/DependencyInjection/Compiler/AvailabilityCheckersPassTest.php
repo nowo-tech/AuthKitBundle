@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Mailer\AlwaysOutboundMailReadyChecker;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\ToggleAvailabilityChecker;
 use PHPUnit\Framework\TestCase;
 use stdClass;
+use Symfony\Component\DependencyInjection\ChildDefinition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Exception\InvalidArgumentException;
@@ -42,6 +43,17 @@ final class AvailabilityCheckersPassTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('availability checker "wrong" must implement');
+
+        (new AvailabilityCheckersPass())->process($container);
+    }
+
+    public function testFollowsTheParentOfAChildDefinition(): void
+    {
+        $container = $this->container(['child']);
+        $container->register('parent', AlwaysOutboundMailReadyChecker::class);
+        $container->setDefinition('child', new ChildDefinition('parent'));
+
+        $this->expectException(InvalidArgumentException::class);
 
         (new AvailabilityCheckersPass())->process($container);
     }

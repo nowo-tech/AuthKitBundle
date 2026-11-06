@@ -47,7 +47,8 @@ final class SocialLoginStateStore
     }
 
     /**
-     * Burns the pending state (single use) and returns its data when provider and state match.
+     * Burns the pending state (single use) and returns its data when provider and state match. A request that does not
+     * match leaves it alone (GY-L2, 1.37): a crafted callback link must not cancel the visitor's real authorization.
      *
      * @return array{code_verifier: ?string}|null null when there is no matching pending authorization
      */
@@ -56,8 +57,6 @@ final class SocialLoginStateStore
         $session = $this->requestStack->getSession();
         /** @var array{provider?: string, state?: string, code_verifier?: string}|null $payload */
         $payload = $session->get(self::SESSION_KEY);
-        // @igor-ignore - Not shared worker service state.
-        $session->remove(self::SESSION_KEY);
 
         if (!is_array($payload)) {
             return null;
@@ -70,6 +69,8 @@ final class SocialLoginStateStore
             return null;
         }
 
+        // @igor-ignore - Not shared worker service state.
+        $session->remove(self::SESSION_KEY);
         $verifier = $payload['code_verifier'] ?? null;
 
         return ['code_verifier' => is_string($verifier) && $verifier !== '' ? $verifier : null];

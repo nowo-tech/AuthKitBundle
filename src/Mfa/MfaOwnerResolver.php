@@ -44,6 +44,27 @@ final readonly class MfaOwnerResolver
         return $user instanceof UserInterface ? $this->reference($user::class, $user->getUserIdentifier()) : null;
     }
 
+    /**
+     * The owner, plus the owner under the identifier captured when the erasure started when the id is the identifier
+     * (see {@see MfaManager::eraseUser()} for the trust rule).
+     *
+     * @return list<MfaOwner>
+     */
+    public function erasureOwners(UserInterface $user, ?string $originalIdentifier): array
+    {
+        $owner = $this->resolve($user);
+        if (!$owner instanceof MfaOwner) {
+            return [];
+        }
+        $owners = [$owner];
+        if ($originalIdentifier !== null && $originalIdentifier !== '' && $originalIdentifier !== $owner->id
+            && $owner->id === $user->getUserIdentifier() && mb_strlen($originalIdentifier) <= MfaOwner::MAX_LENGTH) {
+            $owners[] = new MfaOwner($owner->type, $originalIdentifier);
+        }
+
+        return $owners;
+    }
+
     private function reference(string $type, string $id): ?MfaOwner
     {
         if ($id === '' || mb_strlen($id) > MfaOwner::MAX_LENGTH || mb_strlen($type) > MfaOwner::MAX_LENGTH) {

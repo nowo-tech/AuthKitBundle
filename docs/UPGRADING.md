@@ -104,8 +104,20 @@
 
 ## Unreleased
 
-Planned **1.37.0**. No action needed: every addition is opt-in and pages render the same bytes when nothing is
-configured. Security re-verification (REQ-SEC-004) is pending.
+Planned **1.37.0**. Security re-verification (REQ-SEC-004) is pending for the fixes after Appendix GY. Additions are
+opt-in, and pages render the same bytes when nothing is configured, with these exceptions:
+
+**Check these (behaviour changes):**
+
+- **`magic_login.mode: disabled` now means off.** A signed link on AuthKit's check route is refused and the confirm page
+  redirects to the sign-in page. `AdminMagicLinkIssuer` throws `AdminMagicLinkRefusedException` (`feature_disabled`) and
+  `canIssue()` is false. If you turned self-service off but use administrator links, set `mode: enabled` and hide the
+  link another way (for example `availability_checker`). A `login_link` on your own route is unaffected.
+- **Erasure runs more erasers** with UserKit installed and the entities mapped: `auth_kit_social_account` always, and
+  `auth_kit_mfa` / `auth_kit_account_switcher` even with the feature off. An eraser of your own for social accounts
+  keeps working (it finds nothing left), and you can drop it. Tests comparing the returned key list need the new keys.
+- **A callback with a wrong `state` no longer burns the pending state.** The answer to the visitor is the same.
+- **`_target_path` on the account switcher** gains an `id` attribute. The name and value are unchanged.
 
 **New options, if you want them:**
 
@@ -119,9 +131,9 @@ configured. Security re-verification (REQ-SEC-004) is pending.
   the sign-in page. Magic login gates its **request** route only: links already issued keep working. See
   [MAGIC-LOGIN.md](MAGIC-LOGIN.md#availability-checker).
 - **Social callback handlers:** replace a subscriber that swaps `_controller` on the callback with a
-  `SocialCallbackHandlerInterface`, and delete your own state and code handling. See
-  [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#callback-handlers). The first factor of a handler's sign-in is `social`, so check
-  `mfa.first_factors.social`.
+  `SocialCallbackHandlerInterface`, and delete your own state and code handling. Call `SocialAccountLinker` if you can,
+  and use `$context->verifiedEmail()` otherwise. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#callback-handlers). The first
+  factor of a handler's sign-in is `social`, so check `mfa.first_factors.social`.
 
 **Only if you call these directly:** `SocialLoginCheckController::check()` now returns `Response`. Tests that compare
 `Configuration::PAGE_TEMPLATES` or `AuthPageFactory::pages()` with a literal list need the two new keys.

@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\FormCsrf;
 use Nowo\AuthKitBundle\Form\MagicLoginConfirmType;
+use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -50,6 +51,7 @@ final class MagicLoginConfirmController
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
         private readonly ?LoginLinkHandlerLocator $loginLinkHandlers = null,
         private readonly FeatureAvailability $availability = new FeatureAvailability(),
+        private readonly ?MagicLoginGate $magicLoginGate = null,
     ) {
     }
 
@@ -57,6 +59,9 @@ final class MagicLoginConfirmController
     public function check(Request $request): Response
     {
         $profile = $this->profileResolver->resolve($request);
+        if ($this->magicLoginGate?->isEnabled($profile->name) === false) {
+            return $this->redirectToRoute($profile->routes['login']['name']);
+        }
         if (!($profile->magicLogin['confirm_interstitial'] ?? false)) {
             return $this->backToRequest($profile);
         }
@@ -77,6 +82,9 @@ final class MagicLoginConfirmController
     public function confirm(Request $request): Response
     {
         $profile = $this->profileResolver->resolve($request);
+        if ($this->magicLoginGate?->isEnabled($profile->name) === false) {
+            return $this->redirectToRoute($profile->routes['login']['name']);
+        }
         if (!($profile->magicLogin['confirm_interstitial'] ?? false)) {
             return $this->backToRequest($profile);
         }

@@ -12,6 +12,7 @@ This is **not** the same as password-reset delivery links.
 - [Events](#events)
 - [Administrator-issued links](#administrator-issued-links)
 - [Availability checker](#availability-checker)
+- [Turning the feature off](#turning-the-feature-off)
 - [Security notes](#security-notes)
 - [Templates](#templates)
 
@@ -114,8 +115,8 @@ $issuer->canIssue($admin, $member);                   // hide the action when fa
 
 - **Never for the issuer's own account** nor for an account with a protected role
   (`magic_login.admin_link.protected_roles`, default `ROLE_ADMIN`, `ROLE_SUPER_ADMIN`): `issue()` / `send()` throw
-  `AdminMagicLinkRefusedException` (`reason()`: `own_account`, `protected_role`, or `not_configured` without a firewall
-  `login_link`).
+  `AdminMagicLinkRefusedException` (`reason()`: `own_account`, `protected_role`, `feature_disabled` with
+  `magic_login.mode: disabled` since 1.37, or `not_configured` without a firewall `login_link`).
 - **Lifetime** `magic_login.admin_link.lifetime` (default 3600 s). **Set the firewall `login_link.lifetime` to at least
   this value**: Symfony remembers a used link only for its own `lifetime`, so a shorter firewall lifetime lets a used
   admin link be replayed until the link expires (`configure-security` does this since 1.31). `password` in
@@ -146,12 +147,21 @@ When it answers false, or throws (logged, class only):
 
 When it answers true the link shows even if `outbound_mail_ready_checker` says mail is not ready: the checker replaces
 that hint for this link. With `mode: disabled` nothing changes (the redirect to the sign-in page stays). A signed-in
-visitor is still redirected as before. The container refuses a missing service or one of another type.
+visitor is still redirected as before. The container refuses a missing service, or one of another type when its class
+is known at compile time; anything else that is not a checker counts as unavailable at runtime (logged).
 
-This is an operational gate, not a kill switch. Only the request route is gated: a link already issued, including an
+This is an operational gate, not a kill switch: `magic_login.mode: disabled` is the kill switch (below). Only the request route is gated: a link already issued, including an
 administrator's copy-and-send link (which needs no mail), still signs in until it expires, because the firewall's
 `login_link` consumes it before any controller runs. While unavailable, a failed confirm goes to the sign-in page.
 `AdminMagicLinkIssuer` and `MagicLoginRequestHandler` called from host code are not gated.
+
+## Turning the feature off
+
+Since 1.37 `magic_login.mode: disabled` also stops links already issued, on the AuthKit check route and confirm page,
+and `AdminMagicLinkIssuer` refuses with `feature_disabled` (`canIssue()` is false). A `login_link` you run on your own
+route, outside AuthKit's routes, is not affected. Before 1.37 an issued link kept working: there, set
+`routing.skip_disabled_features: true` or remove `login_link` from the firewall (`nowo:auth-kit:configure-security`
+does it). To void links for good, rotate the secret or sign `password` in `signature_properties`.
 
 ## Security notes
 
