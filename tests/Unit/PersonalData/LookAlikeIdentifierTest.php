@@ -77,8 +77,8 @@ final class LookAlikeIdentifierTest extends TestCase
         $schema->method('tablesExist')->willReturn(true);
         $connection->method('createSchemaManager')->willReturn($schema);
         $connection->method('fetchAllAssociative')->willReturn([
-            ['id' => 1, 'user_id' => 'jose@example.com'],
-            ['id' => 2, 'user_id' => 'josé@example.com'],
+            ['id' => 1, 'user_id' => 'jose@example.com', 'user_identifier' => 'jose@example.com'],
+            ['id' => 2, 'user_id' => 'josé@example.com', 'user_identifier' => 'josé@example.com'],
         ]);
         $connection->expects(self::once())->method('executeStatement')
             ->with(self::stringContains('DELETE'), ['rows' => [1]], self::anything());
@@ -97,7 +97,7 @@ final class LookAlikeIdentifierTest extends TestCase
         $schema     = $this->createStub(AbstractSchemaManager::class);
         $schema->method('tablesExist')->willReturn(true);
         $connection->method('createSchemaManager')->willReturn($schema);
-        $connection->method('fetchAllAssociative')->willReturn([['id' => 2, 'user_id' => 'josé@example.com']]);
+        $connection->method('fetchAllAssociative')->willReturn([['id' => 2, 'user_id' => 'josé@example.com', 'user_identifier' => 'josé@example.com']]);
         $connection->expects(self::never())->method('executeStatement');
 
         $eraser = new SocialAccountPersonalDataEraser(
@@ -108,7 +108,7 @@ final class LookAlikeIdentifierTest extends TestCase
         $eraser->erase(new ErasureRequest(new TestUser('jose@example.com'), null, []));
     }
 
-    /** GY-I9: a surrogate-key user also loses a row the linker stored under its identifier before 1.37. */
+    /** GY-M1: the identifier only counts together with the same value in `user_identifier`. */
     public function testTheSocialEraserAsksForTheIdAndTheIdentifier(): void
     {
         $connection = $this->createMock(Connection::class);
@@ -116,7 +116,7 @@ final class LookAlikeIdentifierTest extends TestCase
         $schema->method('tablesExist')->willReturn(true);
         $connection->method('createSchemaManager')->willReturn($schema);
         $connection->expects(self::once())->method('fetchAllAssociative')
-            ->with(self::anything(), self::callback(static fn (array $parameters): bool => $parameters['ids'] === ['7', 'someone@example.com']), self::anything())
+            ->with(self::stringContains('user_identifier IN (:legacy)'), self::callback(static fn (array $parameters): bool => $parameters['ids'] === ['7'] && $parameters['legacy'] === ['someone@example.com']), self::anything())
             ->willReturn([]);
 
         $userMetadata = $this->createStub(ClassMetadata::class);
@@ -135,7 +135,7 @@ final class LookAlikeIdentifierTest extends TestCase
             ProfileRegistryFactory::single(TestUser::class),
             new MfaOwnerResolver($userDoctrine),
         );
-        $eraser->erase(new ErasureRequest(new TestUser('someone@example.com'), null, [], null));
+        $eraser->erase(new ErasureRequest(new TestUser('someone@example.com'), null, []));
     }
 
     /**

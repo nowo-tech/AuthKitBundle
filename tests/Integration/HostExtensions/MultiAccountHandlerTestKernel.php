@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
+use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 
 /**
  * The account switcher kernel (UserKit sessions, MFA, remember-me) with social login and a callback handler.
@@ -38,6 +39,9 @@ final class MultiAccountHandlerTestKernel extends MultiAccountTestKernel
         $container->loadFromExtension('framework', ['http_client' => ['mock_response_factory' => SocialProviderResponses::class]]);
         $container->loadFromExtension('nowo_auth_kit', ['social_login' => ['mode' => 'enabled']]);
         $container->register(SocialProviderResponses::class)->setPublic(true);
+        $container->register(ThrowingLoginListener::class)
+            ->setPublic(true)
+            ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLoginSuccess', 'dispatcher' => 'security.event_dispatcher.main', 'priority' => 100]);
         $container->register(PendingStepCallbackHandler::class)->setAutowired(true)->setAutoconfigured(true)->setPublic(true);
     }
 

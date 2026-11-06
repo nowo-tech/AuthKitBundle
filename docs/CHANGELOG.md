@@ -96,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Planned **1.37.0** (minor). Everything is opt-in; hosts that change nothing get the same output. See
 [UPGRADING](UPGRADING.md#unreleased), which lists the two exceptions for hosts with `magic_login.mode: disabled`.
-REQ-SEC-004: Appendix GY Pass (good) / Low on `9f320e3` and `d561240`; re-verification pending for the later fixes.
+REQ-SEC-004: Appendix GY, Pass (conditional) / Medium on `5e661ac`; re-verification pending for the fixes after it.
 
 ### Added
 
@@ -130,15 +130,17 @@ REQ-SEC-004: Appendix GY Pass (good) / Low on `9f320e3` and `d561240`; re-verifi
 
 - A handler failing after signing in over an existing session restores that session and removes only the failed
   account from this browser's switcher; the failed sign-in's remember-me cookie is never sent. A handler that signed out
-  by itself and then throws gets the failure path instead of a 500 (GY-L6, GY-I10).
+  by itself and then throws gets the failure path instead of a 500 (GY-L6, GY-I10). The rollback clears the failed account first, so an error during it cannot leave that account signed
+  in, and a session UserKit already reports revoked or expired is not restored (GY-L8, GY-L7 in part).
 - Erasers and vault deletes compare the fetched identifier in PHP, so a look-alike on an accent-insensitive collation
   is not deleted (GY-I8, also in 1.36.1).
 
 ### Fixed
 
 - `SocialAccountLinker` stores an object id (a `Uid`) as its string, not the user identifier; the social eraser also
-  removes rows stored the old way (GY-I9).
-- `check-no-raw-html-form.sh` works with BusyBox grep and fails closed when grep cannot run (GY-I12).
+  removes rows stored the old way, only where both `user_id` and `user_identifier` hold the identifier.
+- `check-no-raw-html-form.sh` works with BusyBox grep and fails closed when grep or find cannot run, or finds no Twig
+  file (GY-I12, GY-I15).
 - `accounts/_switcher.html.twig` renders `_target_path` through a form widget (REQ-TWIG-005). The input gains an `id`
   and `check-no-raw-html-form` now runs in CI (GY-I6).
 - `AvailabilityCheckersPass` follows parent definitions (GY-I2).

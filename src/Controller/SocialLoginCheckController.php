@@ -138,6 +138,7 @@ final class SocialLoginCheckController
     {
         $tokenBefore = $this->security->getToken();
         $snapshot    = $this->signInRollback?->snapshot($request) ?? [];
+        $restorable  = $this->signInRollback?->canRestore($request, $tokenBefore) ?? false;
         MfaFirstFactor::mark($request, 'social');
 
         try {
@@ -146,7 +147,7 @@ final class SocialLoginCheckController
             // Null: the handler signed out by itself, there is nothing to undo (GY-I10).
             $token = $this->security->getToken();
             if ($token instanceof TokenInterface && $token !== $tokenBefore) {
-                $this->undoSignIn($request, $tokenBefore, $token, $snapshot);
+                $this->undoSignIn($request, $restorable ? $tokenBefore : null, $token, $snapshot);
             }
             $this->logger?->error('AuthKit social callback handler {handler} failed for provider {provider}.', ['handler' => $handler::class, 'provider' => $context->provider, 'exception' => $exception::class]);
             if ($exception instanceof HttpExceptionInterface) {
@@ -173,7 +174,12 @@ final class SocialLoginCheckController
             return;
         }
         $request->attributes->set(MultiAccountSubscriber::SCOPE_ATTRIBUTE, 'current');
-        $this->security->logout(false);
+
+        try {
+            $this->security->logout(false);
+        } finally {
+            $this->signInRollback?->forceAnonymous($request);
+        }
     }
 
     private function burnsState(string $provider, string $state): bool

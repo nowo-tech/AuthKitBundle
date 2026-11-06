@@ -53,6 +53,28 @@ final class SocialHandlerSignInRollbackTest extends TestCase
         self::assertSame($before, $tokens->getToken());
     }
 
+    public function testCanRestoreWithoutUserKitOrAnEarlierToken(): void
+    {
+        [$rollback, , $before] = $this->fixtures();
+
+        self::assertFalse($rollback->canRestore(new Request(), null));
+        self::assertTrue($rollback->canRestore(new Request(), $before));
+    }
+
+    public function testForceAnonymousClearsTheTokenAndTheSession(): void
+    {
+        [$rollback, $tokens] = $this->fixtures();
+        $session             = new Session(new MockArraySessionStorage());
+        $session->set('anything', 1);
+        $request = new Request();
+        $rollback->forceAnonymous($request);
+        $request->setSession($session);
+        $rollback->forceAnonymous($request);
+
+        self::assertNull($tokens->getToken());
+        self::assertSame([], $session->all());
+    }
+
     /**
      * @return array{SocialHandlerSignInRollback, TokenStorage, UsernamePasswordToken, UsernamePasswordToken}
      */

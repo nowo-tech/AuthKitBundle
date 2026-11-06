@@ -18,11 +18,18 @@ fi
 
 # find + grep without GNU options: BusyBox grep refuses --include. Exit 1 means no match, anything else is a failure
 # of the check itself, and must never read as a pass.
-mapfile -t files < <(find "${paths[@]}" -type f -name '*.twig')
-if [[ ${#files[@]} -eq 0 ]]; then
-  echo "check-no-raw-html-form: no Twig files — OK"
-  exit 0
+status=0
+list="$(find "${paths[@]}" -type f -name '*.twig')" || status=$?
+if [[ $status -ne 0 ]]; then
+  echo "ERROR: check-no-raw-html-form could not run find (exit $status)." >&2
+  exit 2
 fi
+# The directories above exist: finding nothing in them means the check looked at nothing, not that the code is clean.
+if [[ -z "$list" ]]; then
+  echo "ERROR: check-no-raw-html-form found no Twig files in: ${paths[*]}" >&2
+  exit 2
+fi
+mapfile -t files <<<"$list"
 
 status=0
 matches="$(grep -HnE '<(form|input|textarea|select)[[:space:]>]' "${files[@]}")" || status=$?

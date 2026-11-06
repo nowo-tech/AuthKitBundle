@@ -36,6 +36,9 @@ final class PendingStepCallbackHandler implements SocialCallbackHandlerInterface
 
     public bool $signOutFirst = false;
 
+    /** Table dropped after signing in: the rollback then fails on the database (GY-L8). */
+    public ?string $dropTable = null;
+
     public bool $defaultOnFailure = false;
 
     public function __construct(
@@ -58,6 +61,9 @@ final class PendingStepCallbackHandler implements SocialCallbackHandlerInterface
                 throw new LogicException('Persist the user first.');
             }
             $this->security->login($user, 'form_login', 'main', $this->rememberMe ? [(new RememberMeBadge())->enable()] : []);
+        }
+        if ($this->dropTable !== null) {
+            $this->entityManager->getConnection()->executeStatement('DROP TABLE ' . $this->dropTable);
         }
         if ($this->signOutFirst) {
             $this->security->logout(false);

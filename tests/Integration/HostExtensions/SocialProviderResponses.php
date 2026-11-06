@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 
+use Closure;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
@@ -21,12 +22,19 @@ final class SocialProviderResponses
 
     public bool $failTokenExchange = false;
 
+    /** Runs while the provider answers (a revocation arriving during the callback). */
+    public ?Closure $whileAnswering = null;
+
     /**
      * @param array<string, mixed> $options
      */
     public function __invoke(string $method, string $url, array $options = []): ResponseInterface
     {
         ++$this->requests;
+        if ($this->whileAnswering instanceof Closure) {
+            ($this->whileAnswering)();
+            $this->whileAnswering = null;
+        }
         if (str_contains($url, 'token')) {
             return $this->failTokenExchange
                 ? new MockResponse('{"error":"invalid_grant"}', ['http_code' => 400])

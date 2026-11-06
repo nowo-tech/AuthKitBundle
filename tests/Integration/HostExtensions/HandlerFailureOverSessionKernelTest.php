@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 
+use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Mfa\MfaEnrolment;
@@ -192,6 +193,93 @@ final class HandlerFailureOverSessionKernelTest extends MultiAccountKernelTestCa
         self::assertStringNotContainsString('@example.com|', $this->home());
     }
 
+    /** GY-L7: signed out everywhere while the provider was answering: the earlier session is not brought back. */
+    public function testASessionRevokedDuringTheExchangeIsNotRestored(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->client->request('GET', '/mfa-home');
+        $member   = $this->user('member@example.com');
+        $sessions = self::getContainer()->get(UserSessionManager::class);
+        self::assertInstanceOf(UserSessionManager::class, $sessions);
+        $provider = self::getContainer()->get(SocialProviderResponses::class);
+        self::assertInstanceOf(SocialProviderResponses::class, $provider);
+        $provider->whileAnswering = static function () use ($sessions, $member): void {
+            $sessions->revokeAll($member);
+        };
+
+        $this->failingSignIn('support@example.com');
+
+        self::assertSame(self::FAILED, $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('@example.com|', $this->home());
+    }
+
+    /** GY-L8: the vault fails during the rollback. A 500, and the next request is the earlier account, never the failed one. */
+    public function testARollbackFailingOnTheDatabaseLeavesTheFailedAccountSignedOut(): void
+    {
+        $this->twoAccounts();
+        $this->handler()->dropTable = AccountVaultEntry::TABLE;
+
+        $this->failingSignIn('support@example.com');
+        self::assertResponseStatusCodeSame(500);
+
+        $this->recreateVaultTable();
+        $this->handler()->dropTable = null;
+        self::assertStringStartsWith('admin@example.com|', $this->home());
+    }
+
+    /** GY-L8: the firewall's logout listeners fail on the anonymous path. Nobody stays signed in. */
+    public function testAFailingLogoutOnTheAnonymousPathLeavesNobodySignedIn(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->add();
+        $this->handler()->dropTable = AccountVaultEntry::TABLE;
+
+        $this->failingSignIn('support@example.com');
+        self::assertResponseStatusCodeSame(500);
+
+        $this->recreateVaultTable();
+        $this->handler()->dropTable = null;
+        self::assertStringNotContainsString('@example.com|', $this->home());
+    }
+
+    /** GY-I16: same user, so the login itself does not migrate: only the rollback moves the id. */
+    public function testTheRollbackMovesTheSessionId(): void
+    {
+        $this->twoAccounts();
+        $before = $this->sessionId();
+
+        $this->failingSignIn('admin@example.com');
+
+        self::assertSame(self::FAILED, $this->client->getResponse()->getContent());
+        self::assertNotSame($before, $this->sessionId());
+    }
+
+    /**
+     * GY-I16: a listener throws before the session strategy and UserKit ran, so the earlier row and marker are still
+     * there. They must follow the new id, or the early check signs the session out on the next request.
+     */
+    public function testTheEarlierRowFollowsTheNewId(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->client->request('GET', '/mfa-home');
+        $listener = self::getContainer()->get(ThrowingLoginListener::class);
+        self::assertInstanceOf(ThrowingLoginListener::class, $listener);
+        $listener->armed = true;
+
+        $this->failingSignIn('support@example.com');
+        $listener->armed = false;
+
+        self::assertSame(self::FAILED, $this->client->getResponse()->getContent());
+        self::assertStringStartsWith('member@example.com|', $this->home());
+        self::assertSame(1, $this->sessionRows('member@example.com'));
+        $sessions = self::getContainer()->get(UserSessionManager::class);
+        self::assertInstanceOf(UserSessionManager::class, $sessions);
+        $markers = $this->sessionAttributes()[UserSessionManager::ATTRIBUTE] ?? null;
+        self::assertIsArray($markers);
+        self::assertIsArray($markers['main'] ?? null);
+        self::assertSame($sessions->hash((string) $this->sessionId()), $markers['main']['h']);
+    }
+
     /** GY-I11: rendering the field writes nothing to the session. */
     public function testTheTargetPathFieldCreatesNoCsrfToken(): void
     {
@@ -219,6 +307,11 @@ final class HandlerFailureOverSessionKernelTest extends MultiAccountKernelTestCa
     private function csrfKeys(): array
     {
         return array_values(array_filter(array_keys($this->sessionAttributes()), static fn (string $name): bool => str_contains($name, 'csrf')));
+    }
+
+    private function recreateVaultTable(): void
+    {
+        (new SchemaTool($this->em()))->createSchema([$this->em()->getClassMetadata(AccountVaultEntry::class)]);
     }
 
     private function twoAccounts(): void

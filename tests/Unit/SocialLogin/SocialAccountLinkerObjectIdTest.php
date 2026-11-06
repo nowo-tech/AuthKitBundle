@@ -16,7 +16,7 @@ use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * GY-I9: a host whose id is an object (a Symfony Uid) gets the id stored, not the user identifier.
+ * A host whose id is an object (a Symfony Uid) gets the id stored, not the user identifier.
  */
 final class SocialAccountLinkerObjectIdTest extends TestCase
 {

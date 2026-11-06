@@ -68,20 +68,29 @@ final readonly class SocialAccountPersonalDataEraser implements PersonalDataEras
         if ($ids === [] || !$connection->createSchemaManager()->tablesExist([$table])) {
             return;
         }
-        // GY-I9: before 1.37 the linker stored the identifier for an object id (a Uid), so those rows carry it as user_id.
-        $wanted = [];
-        foreach ([...$ids, $user->getUserIdentifier(), $original] as $id) {
-            if ($id !== null && $id !== '') {
-                $wanted[UserIdentifierMatcher::normalize($id)] = $id;
+        // Before 1.37 the linker stored the identifier for an object id (a Uid), so those rows hold it in both columns. Both
+        // must match: a username equal to another user's id must never reach that user's link (GY-M1).
+        $wantedIds = [];
+        foreach ($ids as $id) {
+            $wantedIds[UserIdentifierMatcher::normalize($id)] = $id;
+        }
+        $legacy = [];
+        foreach ([$user->getUserIdentifier(), $original] as $identifier) {
+            if ($identifier !== null && $identifier !== '') {
+                $legacy[UserIdentifierMatcher::normalize($identifier)] = $identifier;
             }
         }
         $rows = $connection->fetchAllAssociative(
-            'SELECT id, user_id FROM ' . $table . ' WHERE user_class = :class AND user_id IN (:ids)',
-            ['class' => $profile->userClass, 'ids' => array_values($wanted)],
-            ['ids' => ArrayParameterType::STRING],
+            'SELECT id, user_id, user_identifier FROM ' . $table . ' WHERE user_class = :class AND (user_id IN (:ids) OR (user_id IN (:legacy) AND user_identifier IN (:legacy)))',
+            ['class' => $profile->userClass, 'ids' => array_values($wantedIds), 'legacy' => array_values($legacy)],
+            ['ids' => ArrayParameterType::STRING, 'legacy' => ArrayParameterType::STRING],
         );
         // GY-I8: an accent-insensitive collation also returns look-alikes of a natural key (jose@ for josé@).
-        $rows = array_filter($rows, static fn (array $row): bool => isset($wanted[UserIdentifierMatcher::normalize((string) $row['user_id'])]));
+        $rows = array_filter($rows, static function (array $row) use ($wantedIds, $legacy): bool {
+            $userId = UserIdentifierMatcher::normalize((string) $row['user_id']);
+
+            return isset($wantedIds[$userId]) || (isset($legacy[$userId]) && isset($legacy[UserIdentifierMatcher::normalize((string) $row['user_identifier'])]));
+        });
         if ($rows !== []) {
             $connection->executeStatement('DELETE FROM ' . $table . ' WHERE id IN (:rows)', ['rows' => array_map(static fn (array $row): int => (int) $row['id'], array_values($rows))], ['rows' => ArrayParameterType::INTEGER]);
         }

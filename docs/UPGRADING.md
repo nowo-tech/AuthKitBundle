@@ -118,7 +118,8 @@ opt-in, and pages render the same bytes when nothing is configured, with these e
   keeps working (it finds nothing left), and you can drop it. Tests comparing the returned key list need the new keys.
 - **A callback with a wrong `state` no longer burns the pending state.** The answer to the visitor is the same.
 - **Hosts with an object id (a `Uid`):** `SocialAccountLinker` now stores the id's string. Rows stored before keep the
-  identifier as `user_id`, which never signed in again; such a user links again on the next social sign-in.
+  identifier as `user_id` and still fail with "was not found" on every social sign-in of that user. Delete those rows;
+  the user then links again.
 - **Vault and MFA erasure on `_ai_ci` collations** no longer delete look-alike identifiers; a row whose identifier
   differs only by case still goes.
 - **`_target_path` on the account switcher** gains an `id` attribute. The name and value are unchanged.

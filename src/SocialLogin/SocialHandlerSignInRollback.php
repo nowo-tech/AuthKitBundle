@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
 use Nowo\AuthKitBundle\MultiAccount\AccountVault;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\UserKitBundle\Sessions\Model\SessionStatus;
 use Nowo\UserKitBundle\Sessions\UserSessionManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
@@ -30,6 +31,7 @@ use function array_key_exists;
  * - Switcher: only the failed account's entry goes from this browser, if its sign-in was complete (a pending one never
  *   enrolled, so an entry of that account is an older, healthy one). The account that was signed in keeps its entry.
  * - The session id changes once more, so nothing keyed by the id of the failed sign-in resolves to this session.
+ * - A session UserKit already reports revoked or expired is not brought back ({@see self::canRestore()}).
  *
  * Stateless (worker safe). What listeners did outside the session on `LoginSuccessEvent` (mail, audit rows) is not undone.
  */
@@ -58,18 +60,56 @@ final readonly class SocialHandlerSignInRollback
      */
     public function restore(Request $request, TokenInterface $before, TokenInterface $failed, array $snapshot): void
     {
-        $this->forgetSwitcherEntry($request, $before, $failed);
+        // First: whatever fails below, the failed account is no longer the one signed in (GY-L8). Session work next, the
+        // database last, so an outage leaves at most a row without a session behind.
         $this->tokens->setToken($before);
-        if (!$request->hasSession()) {
-            return;
+        $previousId = null;
+        if ($request->hasSession()) {
+            $session    = $request->getSession();
+            $previousId = $session->getId();
+            $this->forgetMarker($session, $failed);
+            $this->restoreAttributes($session, $snapshot);
+            // @igor-ignore - The request's own session (not an injected service).
+            $session->migrate(true);
+            $this->userSessions?->rekey($session, $previousId);
         }
-        $session = $request->getSession();
-        $this->forgetSessionRow($session, $failed);
-        $this->restoreAttributes($session, $snapshot);
-        $previousId = $session->getId();
-        // @igor-ignore - The request's own session (not an injected service).
-        $session->migrate(true);
-        $this->userSessions?->rekey($session, $previousId);
+        $user = $failed->getUser();
+        if ($previousId !== null && $user instanceof UserInterface) {
+            $this->userSessions?->endSession($previousId, $user);
+        }
+        $this->forgetSwitcherEntry($request, $before, $failed);
+    }
+
+    /**
+     * False when UserKit already reports the earlier session revoked or expired, for instance signed out everywhere while
+     * the provider was answering (GY-L7): it is not brought back, the visitor ends anonymous. Asked before the handler
+     * runs, because `Security::login()` deletes the row. A revocation after this point is missed until the next stateful
+     * request: see docs/SECURITY.md.
+     */
+    public function canRestore(Request $request, ?TokenInterface $before): bool
+    {
+        if (!$before instanceof TokenInterface) {
+            return false;
+        }
+        $user = $before->getUser();
+        if (!$this->userSessions instanceof UserSessionManager || !$user instanceof UserInterface || !$request->hasSession() || $this->userSessions->markers($request) === []) {
+            return true;
+        }
+        $status = $this->userSessions->sessionState($request->getSession()->getId(), $user)->status;
+
+        return $status !== SessionStatus::Revoked && $status !== SessionStatus::Expired;
+    }
+
+    /**
+     * The anonymous path: whatever the firewall's logout listeners did or failed to do, nobody stays signed in (GY-L8).
+     */
+    public function forceAnonymous(Request $request): void
+    {
+        $this->tokens->setToken(null);
+        if ($request->hasSession()) {
+            // @igor-ignore - The request's own session (not an injected service).
+            $request->getSession()->invalidate();
+        }
     }
 
     private function forgetSwitcherEntry(Request $request, TokenInterface $before, TokenInterface $failed): void
@@ -88,13 +128,12 @@ final readonly class SocialHandlerSignInRollback
         }
     }
 
-    private function forgetSessionRow(SessionInterface $session, TokenInterface $failed): void
+    private function forgetMarker(SessionInterface $session, TokenInterface $failed): void
     {
         $user = $failed->getUser();
         if (!$this->userSessions instanceof UserSessionManager || !$user instanceof UserInterface) {
             return;
         }
-        $this->userSessions->endSession($session->getId(), $user);
         $owner   = $this->userSessions->owner($user)?->key();
         $markers = $this->userSessions->markers($session);
         foreach ($markers as $context => $marker) {
