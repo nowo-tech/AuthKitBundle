@@ -75,6 +75,11 @@ class MfaCredential
         return $this->id;
     }
 
+    public function getUserId(): string
+    {
+        return $this->userId;
+    }
+
     public function getProfile(): string
     {
         return $this->profile;

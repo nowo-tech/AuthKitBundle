@@ -11,6 +11,9 @@ use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -33,12 +36,30 @@ final class MultiAccountExtension extends AbstractExtension
         private readonly TokenStorageInterface $tokens,
         private readonly CsrfOnlyFormFactory $csrfForms,
         private readonly AuthKitUrlGenerator $urls,
+        private readonly FormFactoryInterface $forms,
     ) {
     }
 
     public function getFunctions(): array
     {
-        return [new TwigFunction('auth_kit_accounts', $this->switcher(...))];
+        return [
+            new TwigFunction('auth_kit_accounts', $this->switcher(...)),
+            new TwigFunction('auth_kit_accounts_target_path_field', $this->targetPathField(...)),
+        ];
+    }
+
+    /**
+     * The hidden `_target_path` of a switch form (REQ-TWIG-005: rendered through a form widget). The controller checks
+     * the value; here it is only escaped by the form theme. The id carries the account, one per row. A form of a single
+     * non-compound field gets no CSRF token (GY-I11): rendering this must not write to the session, and it also works
+     * without the form CSRF extension, where a `csrf_protection` option would be refused.
+     */
+    public function targetPathField(string $path, string $account): FormView
+    {
+        $view             = $this->forms->createNamed('_target_path', HiddenType::class, $path)->createView();
+        $view->vars['id'] = '_target_path_' . $account;
+
+        return $view;
     }
 
     public function switcher(?string $profile = null, ?string $display = null): ?AccountSwitcherView

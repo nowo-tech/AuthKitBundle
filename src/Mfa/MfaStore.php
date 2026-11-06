@@ -15,8 +15,11 @@ use LogicException;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 
+use function array_filter;
 use function array_map;
+use function array_values;
 
 /**
  * Persistence of the second factor (1.34). The credential goes through the ORM (its secret is `#[Encrypted]`);
@@ -48,10 +51,13 @@ final readonly class MfaStore
      */
     public function credentialsOf(MfaOwner $owner): array
     {
-        return $this->entityManager()->getRepository(MfaCredential::class)->findBy([
+        $credentials = $this->entityManager()->getRepository(MfaCredential::class)->findBy([
             'userType' => $owner->type,
             'userId'   => $owner->id,
         ], ['id' => 'ASC']);
+
+        // GY-I8: an accent-insensitive collation also returns look-alikes of a natural key (jose@ for josé@).
+        return array_values(array_filter($credentials, static fn (MfaCredential $credential): bool => UserIdentifierMatcher::normalize($credential->getUserId()) === UserIdentifierMatcher::normalize($owner->id)));
     }
 
     public function credentialOrNew(string $profile, MfaOwner $owner, DateTimeImmutable $now): MfaCredential
@@ -238,8 +244,13 @@ final readonly class MfaStore
     }
 
     /**
-     * @param class-string $class
+     * Whether the MFA tables exist: a host that never enabled MFA may not have created them (GY-L5).
      */
+    public function hasTables(): bool
+    {
+        return $this->connection()->createSchemaManager()->tablesExist([$this->table(MfaCredential::class), $this->table(MfaRecoveryCode::class), $this->table(MfaTrustedDevice::class)]);
+    }
+
     private function table(string $class): string
     {
         return $this->entityManager()->getClassMetadata($class)->getTableName();

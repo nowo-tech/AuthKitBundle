@@ -64,7 +64,7 @@ final class AdminMagicLinkIssuerTest extends TestCase
     /** SEC-004 L2: the link is signed by the login link handler of the target profile's firewall. */
     public function testUsesTheLoginLinkHandlerOfTheTargetProfileFirewall(): void
     {
-        $registry = ProfileRegistryFactory::single(TestUser::class, ['firewall' => 'members']);
+        $registry = ProfileRegistryFactory::single(TestUser::class, ['firewall' => 'members', 'magic_login' => ['mode' => 'enabled']]);
         $locator  = new LoginLinkHandlerLocator(new ServiceLocator(['members' => fn (): LoginLinkHandlerInterface => $this->handler(3600)]));
         $admin    = $this->user('admin@example.com', ['ROLE_ADMIN']);
         $member   = $this->user('member@example.com', ['ROLE_USER']);

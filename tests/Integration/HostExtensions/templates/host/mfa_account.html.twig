@@ -1,0 +1,2 @@
+{% extends '@!NowoAuthKit/mfa/account.html.twig' %}
+{% block nowo_ui_content %}<nav data-testid="host-nav" data-profile="{{ mfa_profile }}" data-enabled="{{ mfa_status.enabled ? 'yes' : 'no' }}"></nav>{{ parent() }}{% endblock %}

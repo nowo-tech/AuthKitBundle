@@ -166,7 +166,7 @@ current code.
 | Challenge | `web_ui.templates.mfa_challenge` (`@NowoAuthKitBundle/mfa/challenge.html.twig`) | Auth scaffold; code, recovery code (`<details>`), trust device, sign out |
 | Forced enrolment | `web_ui.templates.mfa_setup` | QR + key (`mfa/_enrolment.html.twig`), code |
 | Recovery codes after enrolment | `web_ui.templates.mfa_recovery_codes` | Codes, download, Continue |
-| Account page | `@NowoAuthKitBundle/mfa/account.html.twig` | UiKit admin layout; enrol, disable, new codes, trusted devices |
+| Account page (`web_ui.templates.mfa_account`, 1.37) | `@NowoAuthKitBundle/mfa/account.html.twig` | UiKit admin layout; enrol, disable, new codes, trusted devices |
 | Admin reset | `@NowoAuthKitBundle/mfa/admin_reset.html.twig` | Status (never the secret), reset form |
 
 Account card for the host's own account page:
@@ -252,6 +252,12 @@ Since **1.36**, with UserKit installed and `nowo_user_kit.personal_data.enabled:
 
 The MFA tables reference the user by owner type and id without a foreign key (any user class); hosts that delete user
 rows physically keep this eraser in their deletion flow (or call `MfaManager::forgetUser()`).
+
+Since 1.37 erasure no longer depends on the feature being on today: with UserKit installed and the entities mapped, a
+host with no MFA or switcher profile gets dormant erasers with the same keys (`auth_kit_mfa`,
+`auth_kit_account_switcher`), and `auth_kit_social_account` always runs. Missing tables are tolerated. Keep
+`doctrine.register_mapping: true` after turning every feature off, because `auto` then unmaps the entities and nothing
+can erase them. The export sections still need the feature on.
 
 ## Impersonation
 

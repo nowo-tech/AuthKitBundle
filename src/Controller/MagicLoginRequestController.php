@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\MagicLoginRequestFormType;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
@@ -14,6 +15,7 @@ use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -34,6 +36,7 @@ final class MagicLoginRequestController
         private readonly RequestProfileResolver $profileResolver,
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
+        private readonly FeatureAvailability $availability = new FeatureAvailability(),
     ) {
     }
 
@@ -54,6 +57,10 @@ final class MagicLoginRequestController
             return new Response('', Response::HTTP_FOUND, [
                 'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
             ]);
+        }
+
+        if ($this->availability->isUnavailable(FeatureAvailability::MAGIC_LOGIN, $profile->name)) {
+            throw new NotFoundHttpException();
         }
 
         $form = $this->formFactory->create(MagicLoginRequestFormType::class, null, [

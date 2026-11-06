@@ -50,6 +50,8 @@ final class AuthPageFactory
         'mfa_setup'           => ['mfa.setup.heading', 'mfa.setup.title', 'mfa.setup.intro', 'mfa.setup.submit'],
         'mfa_recovery_codes'  => ['mfa.recovery.heading', 'mfa.recovery.title', 'mfa.recovery.intro', 'mfa.recovery.continue'],
         'accounts_chooser'    => ['accounts.chooser.heading', 'accounts.chooser.title', 'accounts.chooser.intro', null],
+        'mfa_account'         => ['mfa.account.title', 'mfa.account.title', 'mfa.account.intro', null],
+        'mfa_account_codes'   => ['mfa.recovery.heading', 'mfa.recovery.title', 'mfa.recovery.intro', null],
     ];
 
     /**

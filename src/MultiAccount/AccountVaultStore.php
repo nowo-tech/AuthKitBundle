@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 
 use function array_map;
 
@@ -121,7 +122,19 @@ final readonly class AccountVaultStore
      */
     public function deleteForUser(string $profile, string $userIdentifier): int
     {
-        return (int) $this->connection()->executeStatement('DELETE FROM ' . $this->table() . ' WHERE profile = :profile AND user_identifier = :identifier', ['profile' => $profile, 'identifier' => $userIdentifier]);
+        $rows = $this->connection()->fetchAllAssociative('SELECT id, user_identifier FROM ' . $this->table() . ' WHERE profile = :profile AND user_identifier = :identifier', ['profile' => $profile, 'identifier' => $userIdentifier]);
+        $ids  = [];
+        foreach ($rows as $row) {
+            // GY-I8: an accent-insensitive collation also returns look-alikes of the identifier (jose@ for josé@).
+            if (UserIdentifierMatcher::normalize((string) $row['user_identifier']) === UserIdentifierMatcher::normalize($userIdentifier)) {
+                $ids[] = (int) $row['id'];
+            }
+        }
+        if ($ids === []) {
+            return 0;
+        }
+
+        return (int) $this->connection()->executeStatement('DELETE FROM ' . $this->table() . ' WHERE id IN (:ids)', ['ids' => $ids], ['ids' => ArrayParameterType::INTEGER]);
     }
 
     /**
@@ -130,6 +143,14 @@ final readonly class AccountVaultStore
     public function purge(DateTimeImmutable $before): int
     {
         return (int) $this->connection()->executeStatement('DELETE FROM ' . $this->table() . ' WHERE expires_at < :before', ['before' => $before], ['before' => Types::DATETIME_IMMUTABLE]);
+    }
+
+    /**
+     * Whether the vault table exists: a host that never enabled the switcher may not have created it (GY-L5).
+     */
+    public function hasTable(): bool
+    {
+        return $this->connection()->createSchemaManager()->tablesExist([$this->table()]);
     }
 
     private function table(): string

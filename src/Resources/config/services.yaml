@@ -17,6 +17,7 @@ services:
             - '../../Mfa/'
             - '../../MultiAccount/'
             - '../../NowoAuthKitBundle.php'
+            - '../../PersonalData/'
 
     # REQ-SF-004 rule 7: the controllers carry #[Route] and must not be autoconfigured. On Symfony >= 7.3
     # autoconfiguration tags them `routing.controller`, and the host's `controllers: { resource: routing.controllers }`
@@ -148,6 +149,24 @@ services:
             $otpInputAssets: '%nowo_auth_kit.otp_input_assets%'
         tags:
             - { name: twig.extension }
+
+    Nowo\AuthKitBundle\Availability\FeatureAvailability:
+        arguments:
+            $checkers: null
+            $logger: '@?logger'
+
+    Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback:
+        arguments:
+            $userSessions: '@?Nowo\UserKitBundle\Sessions\UserSessionManager'
+            $vault: '@?Nowo\AuthKitBundle\MultiAccount\AccountVault'
+
+    Nowo\AuthKitBundle\Controller\SocialLoginCheckController:
+        autoconfigure: false
+        public: true
+        tags: [controller.service_arguments]
+        arguments:
+            $callbackHandlers: !tagged_iterator nowo_auth_kit.social_callback_handler
+            $logger: '@?logger'
 
     Nowo\AuthKitBundle\Controller\MagicLoginConfirmController:
         autoconfigure: false

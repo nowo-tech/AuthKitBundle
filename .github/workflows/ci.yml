@@ -88,6 +88,8 @@ jobs:
       - run: composer phpstan
       - run: composer igor
       - run: php .scripts/validate-translations.php
+      - name: No raw form elements in Twig (REQ-TWIG-005)
+        run: bash .scripts/check-no-raw-html-form.sh
 
   coverage:
     runs-on: ubuntu-latest

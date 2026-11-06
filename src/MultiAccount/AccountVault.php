@@ -429,6 +429,19 @@ final readonly class AccountVault
     }
 
     /**
+     * Removes one account from this browser's switcher only: a sign-in that failed after it had enrolled (GY-L6). The
+     * account stays in its other browsers, and the other accounts of this browser stay.
+     */
+    public function forgetInBrowser(Request $request, ProfileSettings $profile, string $userIdentifier): void
+    {
+        $entries = $this->entries($request, $profile);
+        $entry   = $this->entryOf($entries, $userIdentifier);
+        if ($entry instanceof VaultEntry) {
+            $this->remove($request, $profile, [$entry->id], $entry->publicId, $entry->userIdentifier, AccountRemovalReason::SignedOut, $entries);
+        }
+    }
+
+    /**
      * Removes a user of a profile from every browser's switcher (signed out everywhere, disabled, removed).
      */
     public function forgetUser(ProfileSettings $profile, string $userIdentifier): int

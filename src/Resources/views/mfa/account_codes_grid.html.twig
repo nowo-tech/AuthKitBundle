@@ -1,0 +1,36 @@
+{#
+  Alternative layout of the new recovery codes page (1.37), opt-in through
+  web_ui.templates.mfa_account_codes: '@NowoAuthKitBundle/mfa/account_codes_grid.html.twig'. Warning panel, the codes
+  in a numbered grid and the actions in one row. Shown once, same variables as account_codes.html.twig: mfa_codes,
+  mfa_profile, mfa_account_url. Block nowo_auth_kit_mfa_codes_before takes the host's account navigation.
+#}
+{% extends nowo_ui_layout.admin %}
+{% set nowo_ui_bundle = 'NowoAuthKitBundle' %}
+{% set _b = 'NowoAuthKitBundle' %}
+
+{% block nowo_ui_document_title %}{{ 'mfa.recovery.title'|trans({}, _b) }}{% endblock %}
+
+{% block nowo_ui_styles %}
+    {{- parent() -}}
+    {{ include('@NowoAuthKitBundle/_auth_kit_styles.html.twig') }}
+{% endblock %}
+
+{% block nowo_ui_content %}
+    <div class="nowo-auth-kit-mfa-account" data-testid="auth-kit-mfa-account-codes">
+        {% block nowo_auth_kit_mfa_codes_before %}{% endblock %}
+        <section class="{{ nowo_ui_class('card', _b) }}" aria-labelledby="mfa-codes-heading">
+            <header class="{{ nowo_ui_class('card_header', _b) }}"><h1 id="mfa-codes-heading" class="{{ nowo_ui_class('card_title', _b) }}">{{ 'mfa.recovery.heading'|trans({}, _b) }}</h1></header>
+            <div class="{{ nowo_ui_class('card_body', _b) }}" data-testid="auth-kit-mfa-codes">
+                <p>{{ 'mfa.recovery.intro'|trans({}, _b) }}</p>
+                <p role="alert" class="nowo-auth-kit-mfa__codes-warning" data-testid="auth-kit-mfa-codes-warning">{{ 'mfa.recovery.once'|trans({}, _b) }}</p>
+                <ol class="nowo-auth-kit-mfa__code-grid" translate="no">
+                    {% for code in mfa_codes %}<li><code>{{ code }}</code></li>{% endfor %}
+                </ol>
+                <div class="nowo-auth-kit-mfa__codes-actions">
+                    <a class="{{ nowo_ui_class('btn_secondary', _b) }}" download="recovery-codes.txt" href="data:text/plain;charset=utf-8,{{ mfa_codes|join('\r\n')|url_encode }}" data-testid="auth-kit-mfa-codes-download">{{ 'mfa.recovery.download'|trans({}, _b) }}</a>
+                    <a class="{{ nowo_ui_class('btn_primary', _b) }}" href="{{ mfa_account_url }}" data-testid="auth-kit-mfa-codes-done">{{ 'mfa.recovery.done'|trans({}, _b) }}</a>
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock %}

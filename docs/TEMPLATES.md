@@ -50,6 +50,11 @@ with `invitations/_cells.html.twig`), `invitations/new.html.twig` (`page/form`, 
 (`page/show`, `ShowPage`; `nowo_ui_show_after` = warning). E-mails: `email/invitation.html.twig` and
 `email/invitation.txt.twig` (`invitations.mail.*_template`). See [INVITATIONS.md](INVITATIONS.md).
 
+MFA account pages (1.37, `web_ui.templates.mfa_account`, `web_ui.templates.mfa_account_codes`; admin layout, no
+`AuthPage`, same variables with a host template, responses stay `no-store`). `mfa/account_codes_grid.html.twig` is a
+bundled opt-in layout for the second one (warning panel, numbered grid, actions row, block
+`nowo_auth_kit_mfa_codes_before` for the host's navigation).
+
 MFA pages on the admin layout (1.34, `nowo_ui_kit.layouts.admin`; override with the Twig path): `mfa/account.html.twig`
 (enrolment, disable, new codes, trusted devices; `mfa/_code_form.html.twig`), `mfa/account_codes.html.twig`,
 `mfa/admin_reset.html.twig`; account card partial `mfa/_account.html.twig`. See [MFA.md](MFA.md). Account switcher
@@ -129,7 +134,7 @@ the UiKit `scripts` partial). Errors use `flash_error`, forms `form`, submits `b
 
 `nowo_auth_kit.profiles.<profile>.web_ui.templates.<page>` with `<page>` = `login`, `register`, `reset_request`,
 `reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`,
-`qr_login_approve`: a host template that extends the shipped one and overrides a data block, e.g. a Stimulus
+`qr_login_approve`, `mfa_account`, `mfa_account_codes` and the other pages in the table above: a host template that extends the shipped one and overrides a data block, e.g. a Stimulus
 controller on the QR challenge:
 
 ```twig

@@ -104,6 +104,45 @@
 
 ## Unreleased
 
+REQ-SEC-004: Appendix GY, Pass (good) / Low. Additions are
+opt-in, and pages render the same bytes when nothing is configured, with these exceptions:
+
+**Check these (behaviour changes):**
+
+- **`magic_login.mode: disabled` now means off.** A signed link on AuthKit's check route is refused and the confirm page
+  redirects to the sign-in page. `AdminMagicLinkIssuer` throws `AdminMagicLinkRefusedException` (`feature_disabled`) and
+  `canIssue()` is false. If you turned self-service off but use administrator links, set `mode: enabled` and hide the
+  link another way (for example `availability_checker`). A `login_link` on your own route is unaffected.
+- **Erasure runs more erasers** with UserKit installed and the entities mapped: `auth_kit_social_account` always, and
+  `auth_kit_mfa` / `auth_kit_account_switcher` even with the feature off. An eraser of your own for social accounts
+  keeps working (it finds nothing left), and you can drop it. Tests comparing the returned key list need the new keys.
+- **A callback with a wrong `state` no longer burns the pending state.** The answer to the visitor is the same.
+- **Hosts with an object id (a `Uid`):** `SocialAccountLinker` now stores the id's string. Rows stored before keep the
+  identifier as `user_id` and still fail with "was not found" on every social sign-in of that user. Delete those rows;
+  the user then links again.
+- **Vault and MFA erasure on `_ai_ci` collations** no longer delete look-alike identifiers; a row whose identifier
+  differs only by case still goes.
+- **`_target_path` on the account switcher** gains an `id` attribute. The name and value are unchanged.
+
+**New options, if you want them:**
+
+- **MFA account pages:** set `web_ui.templates.mfa_account` / `mfa_account_codes` and move a
+  `templates/bundles/NowoAuthKitBundle/mfa/account*.html.twig` override to your own path. Keep
+  `{% extends '@!NowoAuthKit/mfa/account.html.twig' %}`. A bundle-path override keeps working if you leave it.
+- **Recovery codes grid:** `web_ui.templates.mfa_account_codes: '@NowoAuthKitBundle/mfa/account_codes_grid.html.twig'`,
+  or extend it from your template and fill `nowo_auth_kit_mfa_codes_before`. The default layout did not change.
+- **Availability checkers:** replace a `kernel.request` subscriber that gates AuthKit routes with
+  `magic_login.availability_checker` / `password_reset.availability_checker`. The answer is now 404, not a redirect to
+  the sign-in page. Magic login gates its **request** route only: links already issued keep working. See
+  [MAGIC-LOGIN.md](MAGIC-LOGIN.md#availability-checker).
+- **Social callback handlers:** replace a subscriber that swaps `_controller` on the callback with a
+  `SocialCallbackHandlerInterface`, and delete your own state and code handling. Call `SocialAccountLinker` if you can,
+  and use `$context->verifiedEmail()` otherwise. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#callback-handlers). The first
+  factor of a handler's sign-in is `social`, so check `mfa.first_factors.social`.
+
+**Only if you call these directly:** `SocialLoginCheckController::check()` now returns `Response`. Tests that compare
+`Configuration::PAGE_TEMPLATES` or `AuthPageFactory::pages()` with a literal list need the two new keys.
+
 ## To 1.36.1
 
 From **1.36.0**:

@@ -219,3 +219,33 @@ button.nowo-auth-kit-embed__item {
   text-align: center;
   font-size: 0.875rem;
 }
+
+/* Recovery codes, grid layout (mfa/account_codes_grid.html.twig, opt-in). */
+.nowo-auth-kit-mfa__codes-warning {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border: var(--nowo-ui-border-width, 1px) solid var(--nowo-ui-warning-text, currentcolor);
+  border-radius: var(--nowo-ui-radius, 0.375rem);
+  background: var(--nowo-ui-warning-bg, transparent);
+  color: var(--nowo-ui-warning-text, inherit);
+}
+
+.nowo-auth-kit-mfa__code-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.5rem 2rem;
+  margin: 0.75rem 0;
+  padding-inline-start: 2rem;
+}
+
+.nowo-auth-kit-mfa__code-grid code {
+  user-select: all;
+}
+
+.nowo-auth-kit-mfa__codes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}

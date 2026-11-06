@@ -94,6 +94,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned **1.37.0** (minor). Everything is opt-in; hosts that change nothing get the same output. See
+[UPGRADING](UPGRADING.md#unreleased), which lists the two exceptions for hosts with `magic_login.mode: disabled`.
+REQ-SEC-004: Appendix GY, Pass (good) / Low, verified on `7f40257`.
+
+### Added
+
+- `web_ui.templates.mfa_account` and `web_ui.templates.mfa_account_codes`: the account and new-recovery-codes pages
+  render the configured template with the same variables (`MfaAccountController` used fixed paths). The defaults are
+  the current files.
+- `mfa/account_codes_grid.html.twig`: bundled alternative for the recovery codes page (warning panel, numbered grid,
+  one row of actions, block `nowo_auth_kit_mfa_codes_before`). Select it with `web_ui.templates.mfa_account_codes`.
+- `magic_login.availability_checker` and `password_reset.availability_checker` (service id of a
+  `FeatureAvailabilityCheckerInterface`, per profile, default null). False removes the link from the sign-in page and
+  the embed, sets `magic_login_enabled` / `password_reset_enabled` to false and answers 404 on the request route (magic
+  login) or the request, link and code routes (password reset). A checker that throws counts as false. When set, it
+  replaces `outbound_mail_ready_checker` for that link.
+- `SocialCallbackHandlerInterface` (tag `nowo_auth_kit.social_callback_handler`, autoconfigured): a host handler takes
+  over the last step of the OAuth callback, after AuthKit verified the state, PKCE and the code exchange, in place of
+  the default link-and-sign-in. `handleFailure()` can answer a callback that proved its state and then failed.
+
+- `SocialCallbackContext::verifiedEmail()`: the provider's e-mail only when it is verified.
+- `auth_kit_social_account` UserKit eraser (social links), with UserKit installed and the entities mapped.
+
+### Security
+
+- A handler that throws after signing in no longer leaves the session signed in, and every handler failure is logged by
+  class. HTTP exceptions keep their status; anything else takes the failure path (GY-L1, GY-I1).
+- A callback that does not prove its OAuth state no longer burns the pending state or reaches `handleFailure()`. This
+  also stops a crafted `?code=x&state=junk` link burning the state in the default flow (GY-L2, partly in 1.36.1).
+- **Behaviour change:** `magic_login.mode: disabled` now stops issued links on AuthKit's check route and confirm page,
+  and `AdminMagicLinkIssuer` refuses with `feature_disabled` (GY-L4, also in 1.36.1).
+- Erasure no longer depends on the feature being on: dormant `auth_kit_mfa` and `auth_kit_account_switcher` erasers run
+  while no profile enables the feature, and missing tables are tolerated (GY-L5, also in 1.36.1).
+
+- A handler failing after signing in over an existing session restores that session and removes only the failed
+  account from this browser's switcher; the failed sign-in's remember-me cookie is never sent. A handler that signed out
+  by itself and then throws gets the failure path instead of a 500 (GY-L6, GY-I10). The rollback clears the failed account first, so an error during it cannot leave that account signed
+  in, and a session UserKit already reports revoked or expired is not restored (GY-L8, GY-L7 in part).
+- Erasers and vault deletes compare the fetched identifier in PHP, so a look-alike on an accent-insensitive collation
+  is not deleted (GY-I8, also in 1.36.1).
+
+### Fixed
+
+- `SocialAccountLinker` stores an object id (a `Uid`) as its string, not the user identifier; the social eraser also
+  removes rows stored the old way, only where both `user_id` and `user_identifier` hold the identifier.
+- `check-no-raw-html-form.sh` works with BusyBox grep and fails closed when grep or find cannot run, or finds no Twig
+  file (GY-I12, GY-I15).
+- `accounts/_switcher.html.twig` renders `_target_path` through a form widget (REQ-TWIG-005). The input gains an `id`
+  and `check-no-raw-html-form` now runs in CI (GY-I6).
+- `AvailabilityCheckersPass` follows parent definitions (GY-I2).
+
+### Changed
+
+- `SocialLoginCheckController::check()` returns `Response` instead of `RedirectResponse` (the default flow still
+  redirects). The controller is final; only code calling it directly and relying on the narrower type notices.
+- `Configuration::PAGE_TEMPLATES` and `AuthPageFactory::pages()` gain `mfa_account` and `mfa_account_codes`, so the
+  deprecated `templates.<page>` aliases and the resolved `templates` array of a profile have two more keys.
+
 ## [1.36.1] - 2026-11-05
 
 Patch release. See [UPGRADING](UPGRADING.md#to-1361).

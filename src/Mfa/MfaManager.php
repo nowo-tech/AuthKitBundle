@@ -39,7 +39,6 @@ use function in_array;
 use function is_array;
 use function is_int;
 use function is_string;
-use function mb_strlen;
 use function sprintf;
 
 /**
@@ -546,17 +545,7 @@ final readonly class MfaManager
      */
     private function erasureOwners(UserInterface $user, ?string $originalIdentifier): array
     {
-        $owner = $this->owners->resolve($user);
-        if (!$owner instanceof MfaOwner) {
-            return [];
-        }
-        $owners = [$owner];
-        if ($originalIdentifier !== null && $originalIdentifier !== '' && $originalIdentifier !== $owner->id
-            && $owner->id === $user->getUserIdentifier() && mb_strlen($originalIdentifier) <= MfaOwner::MAX_LENGTH) {
-            $owners[] = new MfaOwner($owner->type, $originalIdentifier);
-        }
-
-        return $owners;
+        return $this->owners->erasureOwners($user, $originalIdentifier);
     }
 
     private function requireProfile(UserInterface $user): ProfileSettings
