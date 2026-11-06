@@ -270,10 +270,11 @@ final class HandlerFailureOverSessionKernelTest extends MultiAccountKernelTestCa
         $listener->armed = false;
 
         self::assertSame(self::FAILED, $this->client->getResponse()->getContent());
-        self::assertStringStartsWith('member@example.com|', $this->home());
-        self::assertSame(1, $this->sessionRows('member@example.com'));
         $sessions = self::getContainer()->get(UserSessionManager::class);
         self::assertInstanceOf(UserSessionManager::class, $sessions);
+        self::assertTrue($sessions->sessionState((string) $this->sessionId(), $this->user('member@example.com'))->isLive(), 'The row followed the new id at once, so a revocation before the next request still finds it.');
+        self::assertStringStartsWith('member@example.com|', $this->home());
+        self::assertSame(1, $this->sessionRows('member@example.com'));
         $markers = $this->sessionAttributes()[UserSessionManager::ATTRIBUTE] ?? null;
         self::assertIsArray($markers);
         self::assertIsArray($markers['main'] ?? null);
