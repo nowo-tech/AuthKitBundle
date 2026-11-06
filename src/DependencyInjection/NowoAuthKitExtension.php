@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\DependencyInjection;
 
 use InvalidArgumentException;
+use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Command\PurgeInvitationsCommand;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
@@ -28,6 +30,7 @@ use Nowo\AuthKitBundle\MultiAccount\AccountVault;
 use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
@@ -47,6 +50,7 @@ use Symfony\Component\Security\Http\Event\LogoutEvent;
 
 use function array_key_exists;
 use function array_keys;
+use function array_map;
 use function array_values;
 use function class_exists;
 use function function_exists;
@@ -181,9 +185,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $container->removeDefinition(TablePrefixListener::class);
         }
 
+        $this->registerAvailabilityCheckers($container, $profiles);
         $this->registerInvitations($container, $profiles);
         $this->registerMfa($container, $profiles, $loader, is_array($bundles) ? $bundles : null);
         $this->registerMultiAccount($container, $profiles, $loader);
+        $container->registerForAutoconfiguration(SocialCallbackHandlerInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
 
         if ($config['flash']['twig_filter'] !== true) {
             $container->removeDefinition(AuthKitFlashExtension::class);
@@ -202,6 +208,30 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         $container->setAlias(OutboundMailReadyCheckerInterface::class, AlwaysOutboundMailReadyChecker::class);
+    }
+
+    /**
+     * Per-profile availability checkers (1.37): a locator keyed `<feature>.<profile>`, none when nothing is configured.
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function registerAvailabilityCheckers(ContainerBuilder $container, array $profiles): void
+    {
+        $checkers = [];
+        foreach ($profiles as $name => $profile) {
+            foreach ([FeatureAvailability::MAGIC_LOGIN, FeatureAvailability::PASSWORD_RESET] as $feature) {
+                $settings = $profile[$feature] ?? null;
+                $id       = is_array($settings) ? ($settings['availability_checker'] ?? null) : null;
+                if (is_string($id)) {
+                    $checkers[$feature . '.' . $name] = new Reference($id);
+                }
+            }
+        }
+        if ($checkers === []) {
+            return;
+        }
+        $container->getDefinition(FeatureAvailability::class)->setArgument('$checkers', ServiceLocatorTagPass::register($container, $checkers));
+        $container->setParameter(AvailabilityCheckersPass::PARAMETER, array_values(array_map(strval(...), $checkers)));
     }
 
     public function getAlias(): string

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\FormCsrf;
 use Nowo\AuthKitBundle\Form\MagicLoginConfirmType;
@@ -48,6 +49,7 @@ final class MagicLoginConfirmController
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
         private readonly ?LoginLinkHandlerLocator $loginLinkHandlers = null,
+        private readonly FeatureAvailability $availability = new FeatureAvailability(),
     ) {
     }
 
@@ -56,12 +58,12 @@ final class MagicLoginConfirmController
     {
         $profile = $this->profileResolver->resolve($request);
         if (!($profile->magicLogin['confirm_interstitial'] ?? false)) {
-            return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
+            return $this->backToRequest($profile);
         }
 
         $params = $this->signedParamsFromQuery($request);
         if ($params === []) {
-            return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
+            return $this->backToRequest($profile);
         }
 
         $form = $this->formFactory->create(MagicLoginConfirmType::class, $params, [
@@ -76,7 +78,7 @@ final class MagicLoginConfirmController
     {
         $profile = $this->profileResolver->resolve($request);
         if (!($profile->magicLogin['confirm_interstitial'] ?? false)) {
-            return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
+            return $this->backToRequest($profile);
         }
 
         $form = $this->formFactory->create(MagicLoginConfirmType::class, null, [
@@ -86,7 +88,7 @@ final class MagicLoginConfirmController
         if (!FormCsrf::isProtected($form)) {
             $this->logger->warning('Magic login confirm refused: form CSRF protection is not available.');
 
-            return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
+            return $this->backToRequest($profile);
         }
         $form->handleRequest($request);
 
@@ -117,7 +119,7 @@ final class MagicLoginConfirmController
         if (!$loginLinkHandler instanceof LoginLinkHandlerInterface) {
             $this->logger->warning('Magic login confirm skipped: firewall login_link handler is not configured.');
 
-            return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
+            return $this->backToRequest($profile);
         }
 
         try {
@@ -125,7 +127,7 @@ final class MagicLoginConfirmController
         } catch (InvalidLoginLinkException|ExpiredLoginLinkException) {
             $this->flashMessenger->flash($request, 'error', 'magic_login.confirm.flash_invalid');
 
-            return $this->redirectToRoute($profile->routes['magic_login_request']['name']);
+            return $this->backToRequest($profile);
         }
 
         MfaFirstFactor::mark($request, 'login_link');
@@ -176,6 +178,16 @@ final class MagicLoginConfirmController
         $response->headers->set('Referrer-Policy', 'no-referrer');
 
         return $response;
+    }
+
+    /**
+     * The request page, or the sign-in page while an availability checker makes the request page answer 404.
+     */
+    private function backToRequest(ProfileSettings $profile): Response
+    {
+        $route = $this->availability->isUnavailable(FeatureAvailability::MAGIC_LOGIN, $profile->name) ? 'login' : 'magic_login_request';
+
+        return $this->redirectToRoute($profile->routes[$route]['name']);
     }
 
     private function redirectToRoute(string $routeName): Response

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle;
 
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\DoctrineOrmMappingsPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\InvitationsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginLinkHandlerLocatorPass;
@@ -35,6 +36,7 @@ class NowoAuthKitBundle extends Bundle
         $container->addCompilerPass(new MfaLockRequiredPass());
         $container->addCompilerPass(new InvitationsPass());
         $container->addCompilerPass(new MultiAccountPass());
+        $container->addCompilerPass(new AvailabilityCheckersPass());
 
         $entityDir = __DIR__ . '/Entity';
         if (is_dir($entityDir)) {

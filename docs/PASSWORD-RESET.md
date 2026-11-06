@@ -12,6 +12,7 @@ Auth Kit exposes a **request → deliver credential → complete** flow aligned 
 - [Implement delivery (`PasswordResetNotifierInterface`)](#implement-delivery-passwordresetnotifierinterface)
   - [Bundled samples](#bundled-samples)
 - [Events](#events)
+- [Availability checker](#availability-checker)
 - [Security](#security)
 - [Templates](#templates)
 
@@ -141,6 +142,25 @@ Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface:
 ## Events
 
 Subscribe to `PasswordResetRequestedEvent` to add webhooks, rate limits, or audit logs without implementing the full notifier.
+
+## Availability checker
+
+`password_reset.availability_checker` (1.37, per profile, default null) names a service implementing
+`Nowo\AuthKitBundle\Availability\FeatureAvailabilityCheckerInterface::isAvailable(string $profile): bool`, for hosts
+where the feature depends on runtime state such as a mail transport stored in the database.
+
+When it answers false, or throws (logged, class only):
+
+- the link leaves the sign-in page and the embedded dropdown and the template flag `password_reset_enabled` is false;
+- every reset route (`/reset-password`, `/reset-password/reset/{token}`, `/reset-password/complete`) answers 404, GET and POST.
+
+When it answers true the link shows even if `outbound_mail_ready_checker` says mail is not ready: the checker replaces
+that hint for this link. With `mode: disabled` nothing changes (the redirect to the sign-in page stays). A signed-in
+visitor is still redirected as before. The container refuses a missing service or one of another type.
+
+A person holding a valid link or code cannot use it while the feature is unavailable; it works again if the checker
+turns true before it expires. It is an operational gate: `PasswordResetRequestHandler` called from host code is not
+gated.
 
 ## Security
 

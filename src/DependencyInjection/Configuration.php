@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
+use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -83,6 +84,8 @@ final class Configuration implements ConfigurationInterface
         'mfa_setup'           => '@NowoAuthKitBundle/mfa/setup.html.twig',
         'mfa_recovery_codes'  => '@NowoAuthKitBundle/mfa/recovery_codes.html.twig',
         'accounts_chooser'    => '@NowoAuthKitBundle/security/accounts_chooser.html.twig',
+        'mfa_account'         => '@NowoAuthKitBundle/mfa/account.html.twig',
+        'mfa_account_codes'   => '@NowoAuthKitBundle/mfa/account_codes.html.twig',
     ];
 
     /** @var list<string> */
@@ -847,6 +850,20 @@ final class Configuration implements ConfigurationInterface
         return $node;
     }
 
+    private function createAvailabilityCheckerNode(string $feature): NodeDefinition
+    {
+        $node = (new TreeBuilder('availability_checker', 'scalar'))->getRootNode();
+        $node
+            ->info(sprintf('Optional service id implementing FeatureAvailabilityCheckerInterface. False removes the sign-in page link and answers 404 on the %s routes; when set it replaces outbound_mail_ready_checker for this link. null: no check. Not a security control.', $feature))
+            ->defaultNull()
+            ->validate()
+                ->ifTrue(static fn (mixed $value): bool => $value !== null && (!is_string($value) || $value === ''))
+                ->thenInvalid(sprintf('%s.availability_checker must be a service id or null.', $feature))
+            ->end();
+
+        return $node;
+    }
+
     private function createPasswordResetNode(): ArrayNodeDefinition
     {
         $node = (new TreeBuilder('password_reset'))->getRootNode();
@@ -858,6 +875,7 @@ final class Configuration implements ConfigurationInterface
                     ->info('disabled: hide reset flows. enabled: expose request and completion routes.')
                     ->defaultValue(PasswordResetMode::Disabled->value)
                 ->end()
+                ->append($this->createAvailabilityCheckerNode('password_reset'))
                 ->enumNode('delivery')
                     ->values(array_map(static fn (PasswordResetDeliveryMode $mode): string => $mode->value, PasswordResetDeliveryMode::cases()))
                     ->info('link: URL token. code: OTP/SMS/email code. both: link URL and code for notifiers.')
@@ -950,6 +968,7 @@ final class Configuration implements ConfigurationInterface
                     ->info('disabled: hide magic login. enabled: request form + Symfony login_link check route.')
                     ->defaultValue(MagicLoginMode::Disabled->value)
                 ->end()
+                ->append($this->createAvailabilityCheckerNode('magic_login'))
                 ->integerNode('lifetime')
                     ->info('Seconds until the magic login link expires (Symfony login_link lifetime).')
                     ->defaultValue(600)

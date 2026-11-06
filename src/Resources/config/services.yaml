@@ -149,6 +149,18 @@ services:
         tags:
             - { name: twig.extension }
 
+    Nowo\AuthKitBundle\Availability\FeatureAvailability:
+        arguments:
+            $checkers: null
+            $logger: '@?logger'
+
+    Nowo\AuthKitBundle\Controller\SocialLoginCheckController:
+        autoconfigure: false
+        public: true
+        tags: [controller.service_arguments]
+        arguments:
+            $callbackHandlers: !tagged_iterator nowo_auth_kit.social_callback_handler
+
     Nowo\AuthKitBundle\Controller\MagicLoginConfirmController:
         autoconfigure: false
         public: true

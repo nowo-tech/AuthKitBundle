@@ -166,7 +166,7 @@ current code.
 | Challenge | `web_ui.templates.mfa_challenge` (`@NowoAuthKitBundle/mfa/challenge.html.twig`) | Auth scaffold; code, recovery code (`<details>`), trust device, sign out |
 | Forced enrolment | `web_ui.templates.mfa_setup` | QR + key (`mfa/_enrolment.html.twig`), code |
 | Recovery codes after enrolment | `web_ui.templates.mfa_recovery_codes` | Codes, download, Continue |
-| Account page | `@NowoAuthKitBundle/mfa/account.html.twig` | UiKit admin layout; enrol, disable, new codes, trusted devices |
+| Account page (`web_ui.templates.mfa_account`, 1.37) | `@NowoAuthKitBundle/mfa/account.html.twig` | UiKit admin layout; enrol, disable, new codes, trusted devices |
 | Admin reset | `@NowoAuthKitBundle/mfa/admin_reset.html.twig` | Status (never the secret), reset form |
 
 Account card for the host's own account page:

@@ -1,5 +1,6 @@
 {#
-  New recovery codes on the account page (1.34): shown once. Variables: mfa_codes, mfa_account_url.
+  New recovery codes on the account page (1.34): shown once. Variables: mfa_codes, mfa_profile, mfa_account_url.
+  Override with web_ui.templates.mfa_account_codes (1.37); mfa/account_codes_grid.html.twig is a bundled alternative.
 #}
 {% extends nowo_ui_layout.admin %}
 {% set nowo_ui_bundle = 'NowoAuthKitBundle' %}

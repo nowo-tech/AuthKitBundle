@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
@@ -20,6 +21,7 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -45,6 +47,7 @@ final class ResetPasswordCodeController
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
         private readonly ?TranslatorInterface $translator = null,
         private readonly ?AuthKitAttemptLimiter $attemptLimiter = null,
+        private readonly FeatureAvailability $availability = new FeatureAvailability(),
     ) {
     }
 
@@ -65,6 +68,10 @@ final class ResetPasswordCodeController
             return new Response('', Response::HTTP_FOUND, [
                 'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
             ]);
+        }
+
+        if ($this->availability->isUnavailable(FeatureAvailability::PASSWORD_RESET, $profile->name)) {
+            throw new NotFoundHttpException();
         }
 
         $form = $this->formFactory->create(ResetPasswordCodeFormType::class, null, [

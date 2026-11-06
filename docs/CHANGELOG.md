@@ -94,6 +94,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned **1.37.0** (minor). Everything is opt-in; hosts that change nothing get the same output. See
+[UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: re-verification pending.
+
+### Added
+
+- `web_ui.templates.mfa_account` and `web_ui.templates.mfa_account_codes`: the account and new-recovery-codes pages
+  render the configured template with the same variables (`MfaAccountController` used fixed paths). The defaults are
+  the current files.
+- `mfa/account_codes_grid.html.twig`: bundled alternative for the recovery codes page (warning panel, numbered grid,
+  one row of actions, block `nowo_auth_kit_mfa_codes_before`). Select it with `web_ui.templates.mfa_account_codes`.
+- `magic_login.availability_checker` and `password_reset.availability_checker` (service id of a
+  `FeatureAvailabilityCheckerInterface`, per profile, default null). False removes the link from the sign-in page and
+  the embed, sets `magic_login_enabled` / `password_reset_enabled` to false and answers 404 on the request route (magic
+  login) or the request, link and code routes (password reset). A checker that throws counts as false. When set, it
+  replaces `outbound_mail_ready_checker` for that link.
+- `SocialCallbackHandlerInterface` (tag `nowo_auth_kit.social_callback_handler`, autoconfigured): a host handler takes
+  over the last step of the OAuth callback, after AuthKit verified the state, PKCE and the code exchange, in place of
+  the default link-and-sign-in. `handleFailure()` can answer a failed callback.
+
+### Changed
+
+- `SocialLoginCheckController::check()` returns `Response` instead of `RedirectResponse` (the default flow still
+  redirects). The controller is final; only code calling it directly and relying on the narrower type notices.
+- `Configuration::PAGE_TEMPLATES` and `AuthPageFactory::pages()` gain `mfa_account` and `mfa_account_codes`, so the
+  deprecated `templates.<page>` aliases and the resolved `templates` array of a profile have two more keys.
+
 ## [1.36.1] - 2026-11-05
 
 Patch release. See [UPGRADING](UPGRADING.md#to-1361).

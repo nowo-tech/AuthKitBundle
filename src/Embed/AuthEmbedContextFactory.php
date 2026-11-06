@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Embed;
 
+use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Enum\AuthEmbedMode;
 use Nowo\AuthKitBundle\Enum\PasswordResetMode;
 use Nowo\AuthKitBundle\Form\LoginFormType;
@@ -43,6 +44,7 @@ final class AuthEmbedContextFactory
         private readonly ?RequestStack $requestStack = null,
         private readonly ?Security $security = null,
         private readonly ?CsrfTokenManagerInterface $csrfTokenManager = null,
+        private readonly FeatureAvailability $availability = new FeatureAvailability(),
     ) {
     }
 
@@ -116,7 +118,8 @@ final class AuthEmbedContextFactory
             registerRoute: $profile->routes['register']['name'],
             logoutRoute: $profile->routes['logout']['name'],
             resetPasswordRoute: $profile->routes['reset_request']['name'],
-            passwordResetEnabled: $profile->passwordReset['mode'] === PasswordResetMode::Enabled->value,
+            passwordResetEnabled: $profile->passwordReset['mode'] === PasswordResetMode::Enabled->value
+                && !$this->availability->isUnavailable(FeatureAvailability::PASSWORD_RESET, $profile->name),
             activePanel: $activePanel,
             template: $opts->template ?? $embed['template'],
             loginPanelTemplate: $embed['login_panel'],

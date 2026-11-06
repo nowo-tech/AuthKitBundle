@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Form\LoginFormType;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
@@ -54,6 +55,7 @@ final class LoginController
         private readonly OutboundMailReadyCheckerInterface $outboundMailReadyChecker = new AlwaysOutboundMailReadyChecker(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
         private readonly ?MultiAccountExtension $accounts = null,
+        private readonly FeatureAvailability $availability = new FeatureAvailability(),
     ) {
     }
 
@@ -94,22 +96,26 @@ final class LoginController
             }
         }
 
-        $registrationAllowed  = $this->registrationGate->isRegistrationAllowed($profile->name);
-        $passwordResetEnabled = $this->passwordResetGate->isEnabled($profile->name);
-        $magicLoginEnabled    = $this->magicLoginGate->isEnabled($profile->name);
+        $registrationAllowed = $this->registrationGate->isRegistrationAllowed($profile->name);
+        // A configured availability checker answers for its feature: its route 404s, its link goes, and an answer of
+        // true shows the link whatever the mail hint says (a reset may go by SMS). No checker: as before 1.37.
+        $resetAvailable       = $this->availability->decision(FeatureAvailability::PASSWORD_RESET, $profile->name);
+        $magicAvailable       = $this->availability->decision(FeatureAvailability::MAGIC_LOGIN, $profile->name);
+        $passwordResetEnabled = $resetAvailable !== false && $this->passwordResetGate->isEnabled($profile->name);
+        $magicLoginEnabled    = $magicAvailable !== false && $this->magicLoginGate->isEnabled($profile->name);
         $qrLoginEnabled       = $this->qrLoginGate->isEnabled($profile->name);
         $error                = $this->authenticationUtils->getLastAuthenticationError();
         $formView             = $form->createView();
 
         $mailReady = $this->outboundMailReadyChecker->isReady();
         $links     = [];
-        if ($mailReady && $magicLoginEnabled) {
+        if (($magicAvailable ?? $mailReady) && $magicLoginEnabled) {
             $links[] = $this->pages->link('login.magic_login_link', $this->urlGenerator->generate($profile->routes['magic_login_request']['name']));
         }
         if ($qrLoginEnabled) {
             $links[] = $this->pages->link('login.qr_login_link', $this->urlGenerator->generate($profile->routes['qr_login_start']['name']));
         }
-        if ($mailReady && $passwordResetEnabled) {
+        if (($resetAvailable ?? $mailReady) && $passwordResetEnabled) {
             $links[] = $this->pages->link('login.forgot_password_link', $this->urlGenerator->generate($profile->routes['reset_request']['name']));
         }
         if ($registrationAllowed) {

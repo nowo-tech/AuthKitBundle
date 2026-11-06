@@ -104,6 +104,28 @@
 
 ## Unreleased
 
+Planned **1.37.0**. No action needed: every addition is opt-in and pages render the same bytes when nothing is
+configured. Security re-verification (REQ-SEC-004) is pending.
+
+**New options, if you want them:**
+
+- **MFA account pages:** set `web_ui.templates.mfa_account` / `mfa_account_codes` and move a
+  `templates/bundles/NowoAuthKitBundle/mfa/account*.html.twig` override to your own path. Keep
+  `{% extends '@!NowoAuthKit/mfa/account.html.twig' %}`. A bundle-path override keeps working if you leave it.
+- **Recovery codes grid:** `web_ui.templates.mfa_account_codes: '@NowoAuthKitBundle/mfa/account_codes_grid.html.twig'`,
+  or extend it from your template and fill `nowo_auth_kit_mfa_codes_before`. The default layout did not change.
+- **Availability checkers:** replace a `kernel.request` subscriber that gates AuthKit routes with
+  `magic_login.availability_checker` / `password_reset.availability_checker`. The answer is now 404, not a redirect to
+  the sign-in page. Magic login gates its **request** route only: links already issued keep working. See
+  [MAGIC-LOGIN.md](MAGIC-LOGIN.md#availability-checker).
+- **Social callback handlers:** replace a subscriber that swaps `_controller` on the callback with a
+  `SocialCallbackHandlerInterface`, and delete your own state and code handling. See
+  [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#callback-handlers). The first factor of a handler's sign-in is `social`, so check
+  `mfa.first_factors.social`.
+
+**Only if you call these directly:** `SocialLoginCheckController::check()` now returns `Response`. Tests that compare
+`Configuration::PAGE_TEMPLATES` or `AuthPageFactory::pages()` with a literal list need the two new keys.
+
 ## To 1.36.1
 
 From **1.36.0**:

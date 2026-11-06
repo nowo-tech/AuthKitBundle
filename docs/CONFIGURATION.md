@@ -538,13 +538,13 @@ See [OTPInputBundle](https://github.com/nowo-tech/OTPInputBundle) and [PASSWORD-
 
 ## Password reset
 
-When `password_reset.mode` is `enabled`, the bundle registers request and completion routes. Implement `PasswordResetNotifierInterface` for delivery.
+When `password_reset.mode` is `enabled`, the bundle registers request and completion routes. Implement `PasswordResetNotifierInterface` for delivery. Optional `password_reset.availability_checker` (1.37): see [PASSWORD-RESET.md](PASSWORD-RESET.md#availability-checker).
 
 See [PASSWORD-RESET.md](PASSWORD-RESET.md) for entity fields, notifier wiring, and events.
 
 ## Magic login (passwordless)
 
-When `magic_login.mode` is `enabled`, users can request a one-time sign-in link. Requires Symfony firewall `login_link` with **`signature_properties`** (synced by `nowo:auth-kit:configure-security` from `user_identifier_field`). Implement `MagicLoginNotifierInterface` to email the URL.
+When `magic_login.mode` is `enabled`, users can request a one-time sign-in link. Requires Symfony firewall `login_link` with **`signature_properties`** (synced by `nowo:auth-kit:configure-security` from `user_identifier_field`). Implement `MagicLoginNotifierInterface` to email the URL. Optional `magic_login.availability_checker` (1.37): see [MAGIC-LOGIN.md](MAGIC-LOGIN.md#availability-checker).
 
 Set `magic_login.confirm_interstitial: true` when the firewall uses `login_link.check_post_only`: GET `magic_login_check` renders `templates.magic_login_confirm` (Form CSRF); POST authenticates via `magic_login_confirm`. `nowo:auth-kit:configure-security` writes `check_post_only: true` and public access for both routes in that case.
 
@@ -783,7 +783,7 @@ attributes. Per profile:
 | Key | Purpose |
 | --- | --- |
 | `web_ui.layout_template` | layout override (default null = `nowo_ui_kit.layouts.guest`) |
-| `web_ui.templates.<page>` | per-page template (`login`, `register`, `reset_request`, `reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`, `qr_login_approve`) |
+| `web_ui.templates.<page>` | per-page template (`login`, `register`, `reset_request`, `reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`, `qr_login_approve`, `mfa_challenge`, `mfa_setup`, `mfa_recovery_codes`, `accounts_chooser`, `invitation_accept`, `invitation_invalid`, `mfa_account`, `mfa_account_codes`) |
 | `web_ui.form_themes` | form themes of the auth forms (default UiKit form theme + AuthKit PasswordToggle theme) |
 | `web_ui.brand` | brand line of the panel |
 | `web_ui.qr_login.stimulus_controller` | Stimulus identifier for the QR challenge (values + targets; the bundled poller is not loaded) |

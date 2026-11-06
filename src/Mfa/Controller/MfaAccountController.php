@@ -76,7 +76,7 @@ final class MfaAccountController
             ];
         }
 
-        return $this->render('@NowoAuthKitBundle/mfa/account.html.twig', $variables);
+        return $this->render($profile->template('mfa_account'), $variables);
     }
 
     #[Route(path: '/account/security/mfa/enable', name: 'nowo_auth_kit_mfa_enable', methods: ['POST'])]
@@ -233,7 +233,7 @@ final class MfaAccountController
      */
     private function codesPage(ProfileSettings $profile, array $codes): Response
     {
-        return $this->render('@NowoAuthKitBundle/mfa/account_codes.html.twig', [
+        return $this->render($profile->template('mfa_account_codes'), [
             'mfa_codes'       => $codes,
             'mfa_profile'     => $profile->name,
             'mfa_account_url' => $this->urls->generate((string) $profile->mfa['routes']['account']['name']),

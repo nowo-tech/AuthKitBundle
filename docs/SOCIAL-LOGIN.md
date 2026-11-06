@@ -8,6 +8,7 @@ AuthKit can expose **Continue with …** buttons on the login page. Provider **c
 - [Configuration](#configuration)
 - [Seed credentials (example)](#seed-credentials-example)
 - [Security / routes](#security--routes)
+- [Callback handlers](#callback-handlers)
 - [Login template variables](#login-template-variables)
 
 ## Tables
@@ -68,6 +69,52 @@ Public routes (also locale-prefixed when `locale.in_path` is `always`/`both`):
 - `GET /login/social/{provider}/check` → callback
 
 Add matching `access_control` entries (`PUBLIC_ACCESS`), same pattern as magic login / password reset. The OAuth redirect URI registered at the IdP must match the **absolute** check URL (including locale prefix if you use one). With `absolute_url.base_uri` (1.24+) that URL is `{base_uri}` + check path for start and code exchange alike, independent of the request `Host` — register exactly that.
+
+## Callback handlers
+
+A host with its own pending step (accepting an invitation with Google, for example) keeps the one callback URL
+registered at the provider and implements `Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface` (1.37). Autoconfiguration adds the tag `nowo_auth_kit.social_callback_handler`; a `priority` attribute on a manual tag orders several handlers, and the first whose `supports()` is true owns the callback. Without a handler, or when none supports the request, the default flow runs unchanged.
+
+```php
+final class InvitationSocialHandler implements SocialCallbackHandlerInterface
+{
+    public function supports(Request $request, string $provider): bool
+    {
+        return $request->getSession()->has(self::SESSION_KEY); // server-side state, never the query string
+    }
+
+    public function handle(Request $request, SocialCallbackContext $context): Response
+    {
+        // $context->socialProfile, ->provider, ->profile, ->tokens: already verified by AuthKit.
+    }
+
+    public function handleFailure(Request $request, string $provider, SocialCallbackFailure $reason): ?Response
+    {
+        $request->getSession()->remove(self::SESSION_KEY);
+
+        return null; // null keeps the flash and the redirect to the sign-in page
+    }
+}
+```
+
+What AuthKit still does before `handle()`: the social gate and credential check, the provider `error` answer, the
+single-use OAuth `state` bound to the session, PKCE, the code exchange and the profile fetch. A handler cannot skip
+them and never reads `code` or `state`.
+
+What the handler takes over, because `handle()` replaces `SocialAccountLinker` and `Security::login()`:
+
+- **Check the identity.** `require_verified_email`, the stored-identifier match, `create_user_if_missing` and the
+  `registration_mode` gate live in the linker. Compare a **verified** provider e-mail (`$context->socialProfile->emailVerified === true`) with what you expect, or call the linker yourself.
+- **Sign in with `Security::login()`,** never by writing a token. The first factor is already marked `social`, so MFA
+  applies by `mfa.first_factors.social` as in the default flow.
+- **Clear the pending entry** in both `handle()` and `handleFailure()`, or the next ordinary social sign-in in that
+  session reaches your handler.
+- **Grant nothing in `handleFailure()`.** It also runs for a crafted `?error=` link that proves nothing. Such a link
+  can make a visitor lose a pending step, nothing more.
+- **Never log `$context->tokens`.**
+
+A `RuntimeException` from `handle()` becomes `SocialCallbackFailure::Failed`. Handlers are shared services: no
+per-request state on properties (FrankenPHP worker mode).
 
 ## Login template variables
 

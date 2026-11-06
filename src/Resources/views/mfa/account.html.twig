@@ -3,7 +3,8 @@
   secret, confirm code). On: status, disable (current code), new recovery codes (current code), trusted devices.
   Variables: mfa_status (MfaStatus), mfa_profile, mfa_enrolment + mfa_enable_form (off; or mfa_sign_in_again minutes +
   mfa_logout_route when the session did not sign in recently, DD-I1), mfa_disable_form +
-  mfa_codes_form + mfa_device_forms (on). Override with the Twig path @NowoAuthKitBundle/mfa/account.html.twig.
+  mfa_codes_form + mfa_device_forms (on). Override with web_ui.templates.mfa_account (1.37) or the Twig path
+  @NowoAuthKitBundle/mfa/account.html.twig.
 #}
 {% extends nowo_ui_layout.admin %}
 {% set nowo_ui_bundle = 'NowoAuthKitBundle' %}

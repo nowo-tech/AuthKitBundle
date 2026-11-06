@@ -11,6 +11,7 @@ This is **not** the same as password-reset delivery links.
 - [Delivery (`MagicLoginNotifierInterface`)](#delivery-magicloginnotifierinterface)
 - [Events](#events)
 - [Administrator-issued links](#administrator-issued-links)
+- [Availability checker](#availability-checker)
 - [Security notes](#security-notes)
 - [Templates](#templates)
 
@@ -131,6 +132,26 @@ nowo_auth_kit:
                     lifetime: 3600
                     protected_roles: [ROLE_ADMIN, ROLE_SUPER_ADMIN]
 ```
+
+## Availability checker
+
+`magic_login.availability_checker` (1.37, per profile, default null) names a service implementing
+`Nowo\AuthKitBundle\Availability\FeatureAvailabilityCheckerInterface::isAvailable(string $profile): bool`, for hosts
+where the feature depends on runtime state such as a mail transport stored in the database.
+
+When it answers false, or throws (logged, class only):
+
+- the link leaves the sign-in page and the template flag `magic_login_enabled` is false;
+- `/magic-login` (the request route) answers 404, GET and POST.
+
+When it answers true the link shows even if `outbound_mail_ready_checker` says mail is not ready: the checker replaces
+that hint for this link. With `mode: disabled` nothing changes (the redirect to the sign-in page stays). A signed-in
+visitor is still redirected as before. The container refuses a missing service or one of another type.
+
+This is an operational gate, not a kill switch. Only the request route is gated: a link already issued, including an
+administrator's copy-and-send link (which needs no mail), still signs in until it expires, because the firewall's
+`login_link` consumes it before any controller runs. While unavailable, a failed confirm goes to the sign-in page.
+`AdminMagicLinkIssuer` and `MagicLoginRequestHandler` called from host code are not gated.
 
 ## Security notes
 
