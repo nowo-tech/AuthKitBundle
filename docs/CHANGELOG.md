@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.37.0] - 2026-11-06](#1370---2026-11-06)
 - [[1.36.1] - 2026-11-05](#1361---2026-11-05)
 - [[1.36.0] - 2026-11-05](#1360---2026-11-05)
 - [[1.35.0] - 2026-11-04](#1350---2026-11-04)
@@ -94,8 +95,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.37.0] - 2026-11-06
+
 Planned **1.37.0** (minor). Everything is opt-in; hosts that change nothing get the same output. See
-[UPGRADING](UPGRADING.md#unreleased), which lists the two exceptions for hosts with `magic_login.mode: disabled`.
+[UPGRADING](UPGRADING.md#to-1370), which lists the two exceptions for hosts with `magic_login.mode: disabled`.
 REQ-SEC-004: Appendix GY, Pass (good) / Low, verified on `7f40257`.
 
 ### Added

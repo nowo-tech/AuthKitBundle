@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.37.0](#to-1370)
 - [To 1.36.1](#to-1361)
 - [To 1.36.0](#to-1360)
 - [To 1.35.0](#to-1350)
@@ -103,6 +104,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.37.0
+
+From **1.36.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 REQ-SEC-004: Appendix GY, Pass (good) / Low. Additions are
 opt-in, and pages render the same bytes when nothing is configured, with these exceptions:
