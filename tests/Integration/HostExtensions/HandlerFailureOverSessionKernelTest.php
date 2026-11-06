@@ -60,6 +60,7 @@ final class HandlerFailureOverSessionKernelTest extends MultiAccountKernelTestCa
         $this->failingSignIn('support@example.com');
 
         self::assertSame(self::FAILED, $this->client->getResponse()->getContent());
+        self::assertSame(0, $this->sessionRows('support@example.com'), 'Gone at once, even if the visitor never comes back.');
         self::assertStringStartsWith('member@example.com|', $this->home());
         self::assertNotSame($sessionBefore, $this->sessionId(), 'The session id moved on.');
 

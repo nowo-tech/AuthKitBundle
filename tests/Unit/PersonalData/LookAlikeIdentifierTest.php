@@ -10,6 +10,7 @@ use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
@@ -105,6 +106,36 @@ final class LookAlikeIdentifierTest extends TestCase
             new MfaOwnerResolver(),
         );
         $eraser->erase(new ErasureRequest(new TestUser('jose@example.com'), null, []));
+    }
+
+    /** GY-I9: a surrogate-key user also loses a row the linker stored under its identifier before 1.37. */
+    public function testTheSocialEraserAsksForTheIdAndTheIdentifier(): void
+    {
+        $connection = $this->createMock(Connection::class);
+        $schema     = $this->createStub(AbstractSchemaManager::class);
+        $schema->method('tablesExist')->willReturn(true);
+        $connection->method('createSchemaManager')->willReturn($schema);
+        $connection->expects(self::once())->method('fetchAllAssociative')
+            ->with(self::anything(), self::callback(static fn (array $parameters): bool => $parameters['ids'] === ['7', 'someone@example.com']), self::anything())
+            ->willReturn([]);
+
+        $userMetadata = $this->createStub(ClassMetadata::class);
+        $userMetadata->method('getIdentifierValues')->willReturn(['id' => 7]);
+        $userMetadata->rootEntityName = TestUser::class;
+        $factory                      = $this->createStub(ClassMetadataFactory::class);
+        $factory->method('isTransient')->willReturn(false);
+        $userManager = $this->createStub(EntityManagerInterface::class);
+        $userManager->method('getMetadataFactory')->willReturn($factory);
+        $userManager->method('getClassMetadata')->willReturn($userMetadata);
+        $userDoctrine = $this->createStub(ManagerRegistry::class);
+        $userDoctrine->method('getManagerForClass')->willReturn($userManager);
+
+        $eraser = new SocialAccountPersonalDataEraser(
+            $this->doctrine($connection, SocialLoginAccount::class),
+            ProfileRegistryFactory::single(TestUser::class),
+            new MfaOwnerResolver($userDoctrine),
+        );
+        $eraser->erase(new ErasureRequest(new TestUser('someone@example.com'), null, [], null));
     }
 
     /**

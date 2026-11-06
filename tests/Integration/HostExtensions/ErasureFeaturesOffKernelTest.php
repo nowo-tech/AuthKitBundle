@@ -103,23 +103,6 @@ final class ErasureFeaturesOffKernelTest extends KernelTestCase
         self::assertSame('other@example.com', $this->em->getConnection()->fetchOne('SELECT user_identifier FROM ' . AccountVaultEntry::TABLE));
     }
 
-    /** GY-I9: a row stored by the linker before 1.37 for an object id carries the identifier as user_id. */
-    public function testASocialRowKeyedByTheIdentifierGoesToo(): void
-    {
-        $this->em->persist((new SocialLoginAccount())
-            ->setProvider('github')
-            ->setProviderUserId('legacy')
-            ->setUserClass(KernelUser::class)
-            ->setUserId('subject@example.com')
-            ->setUserIdentifier('subject@example.com')
-            ->setRawProfile([]));
-        $this->em->flush();
-
-        $this->eraser()->erase($this->subject);
-
-        self::assertSame(1, $this->rowCount('auth_kit_social_account'));
-    }
-
     public function testMissingTablesAreTolerated(): void
     {
         foreach ([MfaRecoveryCode::TABLE, 'auth_kit_mfa_trusted_device', MfaCredential::TABLE, AccountVaultEntry::TABLE, 'auth_kit_social_account'] as $table) {
