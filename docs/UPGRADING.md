@@ -104,7 +104,7 @@
 
 ## Unreleased
 
-Planned **1.37.0**. Security re-verification (REQ-SEC-004) is pending for the fixes after Appendix GY. Additions are
+REQ-SEC-004: Appendix GY, Pass (good) / Low. Additions are
 opt-in, and pages render the same bytes when nothing is configured, with these exceptions:
 
 **Check these (behaviour changes):**

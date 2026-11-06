@@ -96,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Planned **1.37.0** (minor). Everything is opt-in; hosts that change nothing get the same output. See
 [UPGRADING](UPGRADING.md#unreleased), which lists the two exceptions for hosts with `magic_login.mode: disabled`.
-REQ-SEC-004: Appendix GY, Pass (conditional) / Medium on `5e661ac`; re-verification pending for the fixes after it.
+REQ-SEC-004: Appendix GY, Pass (good) / Low, verified on `7f40257`.
 
 ### Added
 
