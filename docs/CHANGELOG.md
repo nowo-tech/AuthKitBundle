@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.38.0] - 2026-11-07](#1380---2026-11-07)
 - [[1.37.1] - 2026-11-07](#1371---2026-11-07)
 - [[1.37.0] - 2026-11-06](#1370---2026-11-06)
 - [[1.36.1] - 2026-11-05](#1361---2026-11-05)
@@ -96,7 +97,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned **1.38.0** (minor). See [UPGRADING](UPGRADING.md#unreleased).
+## [1.38.0] - 2026-11-07
+
+Planned **1.38.0** (minor). See [UPGRADING](UPGRADING.md#to-1380).
 REQ-SEC-004: Appendix HP, Pass (good) / Low, verified on `98d988a`.
 
 ### Added

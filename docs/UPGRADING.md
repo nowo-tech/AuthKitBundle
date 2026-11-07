@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.38.0](#to-1380)
 - [To 1.37.1](#to-1371)
 - [To 1.37.0](#to-1370)
 - [To 1.36.1](#to-1361)
@@ -105,6 +106,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.38.0
+
+From **1.37.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 Planned **1.38.0**. REQ-SEC-004: Appendix HP, Pass (good) / Low.
 
