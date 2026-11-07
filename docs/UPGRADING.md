@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.37.1](#to-1371)
 - [To 1.37.0](#to-1370)
 - [To 1.36.1](#to-1361)
 - [To 1.36.0](#to-1360)
@@ -104,6 +105,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.37.1
+
+From **1.37.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 Planned **1.37.1**. No action needed.
 

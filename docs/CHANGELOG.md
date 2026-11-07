@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.37.1] - 2026-11-07](#1371---2026-11-07)
 - [[1.37.0] - 2026-11-06](#1370---2026-11-06)
 - [[1.36.1] - 2026-11-05](#1361---2026-11-05)
 - [[1.36.0] - 2026-11-05](#1360---2026-11-05)
@@ -95,7 +96,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned **1.37.1** (patch). See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: Appendix GY, Pass (good) / Low, verified on `c124852`.
+## [1.37.1] - 2026-11-07
+
+Planned **1.37.1** (patch). See [UPGRADING](UPGRADING.md#to-1371). REQ-SEC-004: Appendix GY, Pass (good) / Low, verified on `c124852`.
 
 ### Fixed
 
