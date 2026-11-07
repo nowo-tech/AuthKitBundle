@@ -97,8 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned **1.39.0** (minor), with UserKit 1.13. See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: re-verification
-pending.
+**1.39.0** (minor), with UserKit 1.13. See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: Pass (good) / Low, Appendix HU (`c93cac1`).
 
 ### Security
 
@@ -109,7 +108,8 @@ pending.
 ### Fixed
 
 - A first social link in add mode keeps the account just added to the switcher when `password_changed` fires after the
-  sign-in. Its entries in other browsers still go (HU-L1).
+  sign-in. Its entries in other browsers still go (HU-L1). If a transaction is open across the response, the event fires
+  at terminate and the account has to be added again.
 
 ### Changed
 

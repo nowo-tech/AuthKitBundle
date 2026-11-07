@@ -6,11 +6,6 @@ on:
   pull_request:
     branches: [main, master]
 
-# Temporary: AuthKit 1.39 needs UserKit 1.13, not tagged yet. Once it is, delete this env block and the steps named
-# "UserKit from the PR branch"; composer.json already asks for ^1.13.
-env:
-  USER_KIT_DEV_REF: 'dev-feat/session-adopt-deferred-revocation#2f9db59 as 1.13.0'
-
 jobs:
   git-hygiene:
     name: Git history (no Cursor co-author)
@@ -55,11 +50,6 @@ jobs:
 
       - run: composer validate --strict
 
-      - name: UserKit from the PR branch
-        run: |
-          composer config repositories.user-kit vcs https://github.com/nowo-tech/UserKitBundle
-          composer require --dev --no-update "nowo-tech/user-kit-bundle:$USER_KIT_DEV_REF"
-
       - name: Install dependencies
         run: |
           # REQ-SF-002: pin every symfony/* package of composer.json to the cell's minor, so a "7.4" cell
@@ -93,10 +83,6 @@ jobs:
         with:
           php-version: '8.4'
           tools: composer:v2
-      - name: UserKit from the PR branch
-        run: |
-          composer config repositories.user-kit vcs https://github.com/nowo-tech/UserKitBundle
-          composer require --dev --no-update "nowo-tech/user-kit-bundle:$USER_KIT_DEV_REF"
       - run: composer update --prefer-dist --no-interaction
       - run: composer cs-check
       - run: composer phpstan
@@ -132,10 +118,6 @@ jobs:
           php-version: '8.4'
           extensions: json, pdo_pgsql, pdo_mysql
           tools: composer:v2
-      - name: UserKit from the PR branch
-        run: |
-          composer config repositories.user-kit vcs https://github.com/nowo-tech/UserKitBundle
-          composer require --dev --no-update "nowo-tech/user-kit-bundle:$USER_KIT_DEV_REF"
       - run: composer update --prefer-dist --no-interaction
       - name: PostgreSQL
         env:
@@ -156,10 +138,6 @@ jobs:
           extensions: json
           coverage: pcov
           tools: composer:v2
-      - name: UserKit from the PR branch
-        run: |
-          composer config repositories.user-kit vcs https://github.com/nowo-tech/UserKitBundle
-          composer require --dev --no-update "nowo-tech/user-kit-bundle:$USER_KIT_DEV_REF"
       - run: composer update --prefer-dist --no-interaction
       - run: composer test-coverage
       - run: php scripts/check-coverage.php coverage.xml --min-percent=100
