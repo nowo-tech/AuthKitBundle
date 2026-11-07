@@ -96,7 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned **1.38.0** (minor). See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: re-verification pending.
+Planned **1.38.0** (minor). See [UPGRADING](UPGRADING.md#unreleased).
+REQ-SEC-004: Appendix HP, Pass (good) / Low, verified on `98d988a`.
 
 ### Added
 
@@ -110,10 +111,8 @@ Planned **1.38.0** (minor). See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-00
 
 ### Security
 
-- A failed social sign-in no longer replaces the local password, creates an account or leaves a link: the link and the
-  sign-in run in one transaction, and a firewall that cannot sign in is refused before linking (GY-L9).
-- A listener throwing during a social, QR, registration or invitation sign-in no longer leaves the session signed in. An
-  earlier session is restored (GY-L10).
+- A failed social sign-in no longer replaces the local password, creates an account or leaves a link: the link and the sign-in run in one transaction, and a firewall that cannot sign in is refused before linking (GY-L9). On PostgreSQL an aborted transaction counts as a failed sign-in, not as a success (HP-L1). Events dispatched inside it have already fired, and a revocation in UserKit's cache store stays (HP-L2).
+- A listener throwing during a social, QR, registration, invitation or magic link confirm sign-in no longer leaves the session signed in, and an earlier session of another user is restored (GY-L10, HP-L3). The QR challenge stays consumed, and the account or accepted invitation stays. The firewall's own authenticators are not covered.
 
 ### Fixed
 
