@@ -159,6 +159,7 @@ services:
         arguments:
             $userSessions: '@?Nowo\UserKitBundle\Sessions\UserSessionManager'
             $vault: '@?Nowo\AuthKitBundle\MultiAccount\AccountVault'
+            $security: '@?security.helper'
 
     Nowo\AuthKitBundle\Controller\SocialLoginCheckController:
         autoconfigure: false

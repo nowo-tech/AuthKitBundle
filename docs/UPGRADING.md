@@ -106,6 +106,26 @@
 
 ## Unreleased
 
+Planned **1.38.0**. Security re-verification (REQ-SEC-004) is pending.
+
+**Behaviour changes, on failure paths only:**
+
+- **Firewall that cannot sign in** (several authenticators and neither `form_login` nor `login_link`): social and QR
+  redirect to the sign-in page instead of a 500, registration shows `register.flash_unavailable`, an invitation shows
+  its "not accepted" notice and stays open. An error is logged. Nothing is written.
+- **A `LoginSuccessEvent` listener throwing during social or QR:** the sign-in is undone. A `RuntimeException` then answers
+  like any failed attempt: QR redirects to the sign-in page instead of a 500. The social link, a new account and the
+  password replacement are rolled back. Other exceptions stay a 500, with nobody signed in. Your listener's own database
+  writes on the same connection roll back too in the social flow.
+- **`mfa/account_codes_grid.html.twig` with a `before` block** now renders its heading as an `h2`, so your block can hold
+  the page's `h1`. Set `nowo_auth_kit_mfa_codes_heading` to keep another level.
+
+**Optional:** handlers that link and then sign in should use `SocialAccountLinker::linkAndSignIn()`, because
+`linkOrCreate()` writes at once. Fill `nowo_auth_kit_mfa_codes_actions` with
+`{{ include('@NowoAuthKitBundle/mfa/_codes_actions_kinds.html.twig') }}` for UiKit actions, and use
+`nowo_auth_kit_mfa_account_before` instead of wrapping `nowo_ui_content`. A host rule setting `list-style` on
+`.nowo-auth-kit-mfa__code-grid` can go.
+
 ## To 1.37.1
 
 From **1.37.0**:

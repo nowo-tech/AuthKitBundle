@@ -48,6 +48,7 @@ register:
     submit: Registar
     login_link: Já tem conta? Inicie sessão
     flash_rate_limited: Demasiadas tentativas de registo. Tente novamente mais tarde.
+    flash_unavailable: O registo não está disponível de momento. Tente novamente mais tarde.
     field:
         email: E-mail
         password: Palavra-passe

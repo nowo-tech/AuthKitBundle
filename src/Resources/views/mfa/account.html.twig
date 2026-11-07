@@ -4,7 +4,7 @@
   Variables: mfa_status (MfaStatus), mfa_profile, mfa_enrolment + mfa_enable_form (off; or mfa_sign_in_again minutes +
   mfa_logout_route when the session did not sign in recently, DD-I1), mfa_disable_form +
   mfa_codes_form + mfa_device_forms (on). Override with web_ui.templates.mfa_account (1.37) or the Twig path
-  @NowoAuthKitBundle/mfa/account.html.twig.
+  @NowoAuthKitBundle/mfa/account.html.twig. Block nowo_auth_kit_mfa_account_before (1.38): the host's account navigation.
 #}
 {% extends nowo_ui_layout.admin %}
 {% set nowo_ui_bundle = 'NowoAuthKitBundle' %}
@@ -13,7 +13,8 @@
 {% block nowo_ui_document_title %}{{ 'mfa.account.title'|trans({}, _b) }}{% endblock %}
 
 {% block nowo_ui_content %}
-    <div class="nowo-auth-kit-mfa-account" data-testid="auth-kit-mfa-account">
+    <div class="nowo-auth-kit-mfa-account" data-testid="auth-kit-mfa-account">{% block nowo_auth_kit_mfa_account_before %}{% endblock %}
+
         <h1 class="{{ nowo_ui_class('page_title', _b) }}">{{ 'mfa.account.title'|trans({}, _b) }}</h1>
         <p class="{{ nowo_ui_class('page_intro', _b) }}">{{ 'mfa.account.intro'|trans({}, _b) }}</p>
 

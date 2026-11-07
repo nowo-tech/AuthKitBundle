@@ -6,7 +6,9 @@ namespace Nowo\AuthKitBundle\Tests\Integration\ProgrammaticLogin;
 
 use Composer\InstalledVersions;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
+use Nowo\AuthKitBundle\Invitation\InvitationMailerInterface;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
+use Nowo\AuthKitBundle\Tests\Integration\Invitation\CapturingInvitationMailer;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\UxIconStubExtension;
 use Nowo\FormKitBundle\NowoFormKitBundle;
@@ -22,6 +24,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
+use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 
 use function dirname;
@@ -74,6 +77,27 @@ abstract class ProgrammaticLoginTestKernel extends Kernel
      */
     abstract protected function authenticators(): array;
 
+    /**
+     * Registration and invitations, only for the kernels that test them (`nowo_auth_kit` keys).
+     *
+     * @return array<string, mixed>
+     */
+    protected function extraConfig(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected static function openAccountFlows(): array
+    {
+        return [
+            'absolute_url' => ['base_uri' => 'https://app.example.test'],
+            'invitations'  => ['mode' => 'enabled', 'accept_rate_limit' => 50],
+        ];
+    }
+
     protected function configureContainer(ContainerBuilder $container, LoaderInterface $loader): void
     {
         $container->loadFromExtension('framework', [
@@ -118,16 +142,21 @@ abstract class ProgrammaticLoginTestKernel extends Kernel
         $container->loadFromExtension('nowo_ui_kit', ['css_framework' => 'none']);
         $container->loadFromExtension('nowo_auth_kit', [
             'user_class'          => KernelUser::class,
-            'registration_mode'   => 'disabled',
+            'registration_mode'   => 'always',
             'login_success_route' => 'kernel_home',
             'remember_me'         => ['enabled' => true],
             'social_login'        => ['mode' => 'enabled'],
             'qr_login'            => ['mode' => 'enabled'],
             'mfa'                 => ['enabled' => true, 'issuer' => 'Acme', 'require_encryption' => false],
-        ]);
+        ] + $this->extraConfig());
         $container->register('logger', NullLogger::class);
         $container->register(UxIconStubExtension::class)->addTag('twig.extension');
         $container->register(VerifiedAdaProvider::class)->setPublic(true);
+        $container->register(ThrowingLoginListener::class)
+            ->setPublic(true)
+            ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLoginSuccess', 'dispatcher' => 'security.event_dispatcher.main']);
+        $container->register(CapturingInvitationMailer::class)->setPublic(true);
+        $container->setAlias(InvitationMailerInterface::class, CapturingInvitationMailer::class)->setPublic(true);
         $container->register(StubAuthenticator::class);
         $container->register(OtherStubAuthenticator::class);
     }

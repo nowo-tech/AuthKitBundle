@@ -236,6 +236,7 @@ button.nowo-auth-kit-embed__item {
   gap: 0.5rem 2rem;
   margin: 0.75rem 0;
   padding-inline-start: 2rem;
+  list-style: decimal;
 }
 
 .nowo-auth-kit-mfa__code-grid code {

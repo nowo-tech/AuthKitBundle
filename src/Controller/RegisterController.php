@@ -12,8 +12,10 @@ use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
+use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -50,6 +52,8 @@ final class RegisterController
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
         private readonly ?Security $security = null,
+        private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
+        private readonly ?SocialHandlerSignInRollback $signInRollback = null,
     ) {
     }
 
@@ -100,6 +104,15 @@ final class RegisterController
                 ]);
             }
 
+            // The sign-in below could not happen: no account is created for it.
+            if ($this->security instanceof Security && !$this->loginAuthenticator->canSignIn($profile->firewall)) {
+                $this->flashMessenger->flash($request, 'error', 'register.flash_unavailable');
+
+                return new Response('', Response::HTTP_FOUND, [
+                    'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),
+                ]);
+            }
+
             try {
                 /** @var array<string, mixed> $data */
                 $data = $form->getData();
@@ -118,7 +131,8 @@ final class RegisterController
             if ($this->security instanceof Security) {
                 try {
                     MfaFirstFactor::mark($request, 'registration');
-                    $response = $this->security->login($user, 'form_login', $profile->firewall);
+                    $signIn   = fn (): ?Response => $this->security->login($user, $this->loginAuthenticator->nameForAccountFlow($profile->firewall), $profile->firewall);
+                    $response = $this->signInRollback instanceof SocialHandlerSignInRollback ? $this->signInRollback->guard($request, $signIn) : $signIn();
                 } catch (AuthenticationException) {
                     return new Response('', Response::HTTP_FOUND, [
                         'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),

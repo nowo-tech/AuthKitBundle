@@ -32,6 +32,7 @@ abstract class SignInKernelTestCase extends ProgrammaticLoginKernelTestCase
         self::assertInstanceOf($this->expectedToken(), $token);
         self::assertSame('ada@example.com', $token->getUserIdentifier());
         self::assertSame('social', MfaFirstFactor::of($this->client->getRequest()));
+        self::assertNotSame('old-password-123', $this->user()->getPassword(), 'SEC-004 M2: a successful first link still replaces the password.');
         $this->assertSessionMovedAndNoRememberMe($sessionBefore);
     }
 

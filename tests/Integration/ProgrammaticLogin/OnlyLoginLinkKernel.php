@@ -12,4 +12,9 @@ final class OnlyLoginLinkKernel extends ProgrammaticLoginTestKernel
     {
         return ['login_link' => self::LOGIN_LINK_CONFIG];
     }
+
+    protected function extraConfig(): array
+    {
+        return self::openAccountFlows();
+    }
 }

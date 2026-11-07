@@ -10,4 +10,9 @@ final class TwoCustomKernel extends ProgrammaticLoginTestKernel
     {
         return ['custom_authenticators' => [StubAuthenticator::class, OtherStubAuthenticator::class], 'entry_point' => StubAuthenticator::class];
     }
+
+    protected function extraConfig(): array
+    {
+        return self::openAccountFlows();
+    }
 }

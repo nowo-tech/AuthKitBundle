@@ -48,6 +48,7 @@ register:
     submit: S'inscrire
     login_link: Vous avez déjà un compte ? Connectez-vous
     flash_rate_limited: Trop de tentatives d'inscription. Veuillez réessayer plus tard.
+    flash_unavailable: "L'inscription n'est pas disponible pour le moment. Veuillez réessayer plus tard."
     field:
         email: E-mail
         password: Mot de passe

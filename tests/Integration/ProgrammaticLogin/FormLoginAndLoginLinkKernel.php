@@ -12,4 +12,9 @@ final class FormLoginAndLoginLinkKernel extends ProgrammaticLoginTestKernel
     {
         return ['form_login' => ['login_path' => 'nowo_auth_kit_login', 'check_path' => 'nowo_auth_kit_login', 'enable_csrf' => true], 'login_link' => self::LOGIN_LINK_CONFIG];
     }
+
+    protected function extraConfig(): array
+    {
+        return self::openAccountFlows();
+    }
 }

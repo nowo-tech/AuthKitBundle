@@ -1,0 +1,23 @@
+{#
+  The actions of the recovery codes page as UiKit kinds (docs/ROW_ACTIONS.md in UiKit): `export` for the download, `save`
+  for "done". Opt-in from a host template: fill nowo_auth_kit_mfa_codes_actions with an include of this partial.
+  Variables: mfa_codes, mfa_account_url.
+#}
+{{ include('@NowoUiKitBundle/partials/_row_actions.html.twig', {
+    display: 'icon_text',
+    bundle: 'NowoAuthKitBundle',
+    actions: [
+        {
+            kind: 'export',
+            href: 'data:text/plain;charset=utf-8,' ~ mfa_codes|join('\r\n')|url_encode,
+            label: 'mfa.recovery.download'|trans({}, 'NowoAuthKitBundle'),
+            attr: {download: 'recovery-codes.txt', 'data-testid': 'auth-kit-mfa-codes-download'},
+        },
+        {
+            kind: 'save',
+            href: mfa_account_url,
+            label: 'mfa.recovery.done'|trans({}, 'NowoAuthKitBundle'),
+            attr: {'data-testid': 'auth-kit-mfa-codes-done'},
+        },
+    ],
+}, with_context=false) }}

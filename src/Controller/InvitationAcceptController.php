@@ -19,7 +19,9 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\UiKitBundle\View\Label;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -71,6 +73,8 @@ final class InvitationAcceptController
         private readonly Security $security,
         private readonly SlideToConfirmTypeResolver $slideToConfirmTypeResolver = new SlideToConfirmTypeResolver(),
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
+        private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
+        private readonly ?SocialHandlerSignInRollback $signInRollback = null,
     ) {
     }
 
@@ -139,6 +143,10 @@ final class InvitationAcceptController
                 $data = (array) $form->getData();
                 if ($locked && $emailField !== null) {
                     $data[$emailField] = $invitation->getEmail();
+                }
+                // The sign-in below could not happen: the invitation stays open and no account is created for it.
+                if (!$this->loginAuthenticator->canSignIn($profile->firewall)) {
+                    return $this->notice($profile, 'not_accepted');
                 }
                 $acceptance = $this->acceptor->attempt($invitation, $tokenHash, $data);
                 $session->remove($key);
@@ -218,7 +226,8 @@ final class InvitationAcceptController
         // SEC-004 L6: a regular authentication (user checker, LoginSuccessEvent, session fixation strategy).
         try {
             MfaFirstFactor::mark($request, 'invitation');
-            $response = $this->security->login($user, 'form_login', $profile->firewall);
+            $signIn   = fn (): ?Response => $this->security->login($user, $this->loginAuthenticator->nameForAccountFlow($profile->firewall), $profile->firewall);
+            $response = $this->signInRollback instanceof SocialHandlerSignInRollback ? $this->signInRollback->guard($request, $signIn) : $signIn();
         } catch (AuthenticationException) {
             return $this->redirect($login);
         }

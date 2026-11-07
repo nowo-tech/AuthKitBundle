@@ -20,6 +20,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Throwable;
 
 use function is_int;
 use function is_string;
@@ -44,6 +45,36 @@ final class SocialAccountLinker
     }
 
     /**
+     * {@see self::linkOrCreate()} and the sign-in as one unit (GY-L9): if `$signIn` throws, the link, a new account and
+     * the `link_existing_account: reset_password` replacement are rolled back with the rest of the transaction. The
+     * order stays: the password goes before the sign-in, so the session of this sign-in survives it.
+     *
+     * @param array{access_token: string, refresh_token: ?string, expires_in: ?int} $tokens
+     * @param callable(UserInterface): mixed $signIn
+     */
+    public function linkAndSignIn(ProfileSettings $profile, string $provider, SocialUserProfile $socialProfile, array $tokens, callable $signIn): void
+    {
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $signIn($this->linkOrCreate($profile, $provider, $socialProfile, $tokens));
+            $connection->commit();
+        } catch (Throwable $exception) {
+            if ($connection->isTransactionActive()) {
+                $connection->rollBack();
+            }
+            // The objects in memory still hold what was rolled back.
+            // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
+            $this->entityManager->clear();
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Writes at once and signs nobody in. A handler that signs in afterwards should prefer {@see self::linkAndSignIn()}.
+     *
      * @param array{access_token: string, refresh_token: ?string, expires_in: ?int} $tokens
      */
     public function linkOrCreate(
