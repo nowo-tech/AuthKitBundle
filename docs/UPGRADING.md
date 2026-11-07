@@ -105,6 +105,23 @@
 
 ## Unreleased
 
+Planned **1.37.1**. No action needed.
+
+Social sign-in and QR completion no longer fail with "Too many authenticators" on a firewall with several
+authenticators. With several, the sign-in goes through `form_login`, else `login_link`. Firewalls with one authenticator
+are unchanged. A firewall with several and neither of those two still gets Symfony's error.
+
+**Affected:** social sign-in from 1.9.0, QR completion from 1.12.0, both through 1.37.0, only on a firewall with two or
+more authenticators (remember-me does not count).
+
+**Until you upgrade:** nothing in configuration selects the authenticator. Keep one authenticator on the firewall social
+and QR run on, or set `social_login.mode` / `qr_login.mode` to `disabled` so visitors do not reach the 500. On 1.37.0,
+social can also go through a `SocialCallbackHandlerInterface` that calls `SocialAccountLinker::linkOrCreate()` and then
+`Security::login($user, 'form_login', $firewall)`; QR has no such hook. A failed attempt may already have linked the
+social account and consumed the QR challenge. Neither signs anyone in, and the next attempt after upgrading works.
+
+**Not changed:** registration and invitation sign-in still name `form_login`, so they fail on a firewall without it.
+
 ## To 1.37.0
 
 From **1.36.1**:

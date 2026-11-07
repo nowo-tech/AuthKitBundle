@@ -95,6 +95,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned **1.37.1** (patch). See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: re-verification pending.
+
+### Fixed
+
+- Social sign-in and QR completion answered 500 ("Too many authenticators") on a firewall with two or more
+  authenticators, such as `form_login` + `login_link`. They now pick `form_login`, else `login_link`. Firewalls with one
+  authenticator behave as before. Affected: social from 1.9.0, QR from 1.12.0, both through 1.37.0.
+
 ## [1.37.0] - 2026-11-06
 
 Planned **1.37.0** (minor). Everything is opt-in; hosts that change nothing get the same output. See

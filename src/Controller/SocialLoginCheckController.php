@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
@@ -54,6 +55,7 @@ final class SocialLoginCheckController
         private readonly iterable $callbackHandlers = [],
         private readonly ?LoggerInterface $logger = null,
         private readonly ?SocialHandlerSignInRollback $signInRollback = null,
+        private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
     ) {
     }
 
@@ -99,7 +101,7 @@ final class SocialLoginCheckController
             if (!$handler instanceof SocialCallbackHandlerInterface) {
                 $user = $this->accountLinker->linkOrCreate($profile, $provider, $social, $tokens);
                 MfaFirstFactor::mark($request, 'social');
-                $this->security->login($user, null, $profile->firewall);
+                $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall);
             }
         } catch (RuntimeException $exception) {
             $this->logger?->warning('AuthKit social callback failed for provider {provider}.', ['provider' => $provider, 'exception' => $exception::class]);
