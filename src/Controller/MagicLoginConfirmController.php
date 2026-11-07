@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\LoginLinkHandlerLocator;
+use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -52,6 +53,7 @@ final class MagicLoginConfirmController
         private readonly ?LoginLinkHandlerLocator $loginLinkHandlers = null,
         private readonly FeatureAvailability $availability = new FeatureAvailability(),
         private readonly ?MagicLoginGate $magicLoginGate = null,
+        private readonly ?SocialHandlerSignInRollback $signInRollback = null,
     ) {
     }
 
@@ -139,7 +141,8 @@ final class MagicLoginConfirmController
         }
 
         MfaFirstFactor::mark($request, 'login_link');
-        $response = $this->security->login($user, 'login_link', $profile->firewall);
+        $signIn   = fn (): ?Response => $this->security->login($user, 'login_link', $profile->firewall);
+        $response = $this->signInRollback instanceof SocialHandlerSignInRollback ? $this->signInRollback->guard($request, $signIn) : $signIn();
         if ($response instanceof Response) {
             return $response;
         }

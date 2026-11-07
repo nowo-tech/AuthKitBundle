@@ -59,6 +59,9 @@ final class SocialAccountLinker
 
         try {
             $signIn($this->linkOrCreate($profile, $provider, $socialProfile, $tokens));
+            // On PostgreSQL a listener that swallowed a database error leaves the transaction aborted, and COMMIT then
+            // rolls back without an error, with the sign-in kept (HP-L1). A statement fails there, so it counts as failed.
+            $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
             $connection->commit();
         } catch (Throwable $exception) {
             if ($connection->isTransactionActive()) {

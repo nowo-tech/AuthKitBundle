@@ -57,6 +57,19 @@ final class SignInListenerFailureKernelTest extends ProgrammaticLoginKernelTestC
         $this->assertAnonymousOnNextRequest();
     }
 
+    /** HP-I3: what the rollback undid must not stay in memory, where the next read in this process would find it. */
+    public function testAFailureLeavesNoRolledBackStateInTheEntityManager(): void
+    {
+        $user                    = $this->user();
+        $this->listener()->throw = new RuntimeException('listener down');
+
+        $this->socialCallback();
+
+        $this->listener()->throw = null;
+        self::assertFalse($this->em()->contains($user), 'Every entity of the request is detached.');
+        self::assertSame('old-password-123', $this->user()->getPassword());
+    }
+
     public function testSocialKeepsAnEarlierSession(): void
     {
         $this->signInAsOther();
