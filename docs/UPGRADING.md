@@ -117,8 +117,7 @@ more authenticators (remember-me does not count).
 **Until you upgrade:** nothing in configuration selects the authenticator. Keep one authenticator on the firewall social
 and QR run on, or set `social_login.mode` / `qr_login.mode` to `disabled` so visitors do not reach the 500. On 1.37.0,
 social can also go through a `SocialCallbackHandlerInterface` that calls `SocialAccountLinker::linkOrCreate()` and then
-`Security::login($user, 'form_login', $firewall)`; QR has no such hook. A failed attempt may already have linked the
-social account and consumed the QR challenge. Neither signs anyone in, and the next attempt after upgrading works.
+`Security::login($user, 'form_login', $firewall)`; QR has no such hook. A failed attempt may already have linked the social account and consumed the QR challenge. With the default `link_existing_account: reset_password`, that link also replaced the local password of an existing account, so a user who tried and failed needs a password reset to use a password again. Nothing signs anyone in, and the next social attempt after upgrading works.
 
 **Not changed:** registration and invitation sign-in still name `form_login`, so they fail on a firewall without it.
 

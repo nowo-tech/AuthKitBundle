@@ -95,7 +95,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Planned **1.37.1** (patch). See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: re-verification pending.
+Planned **1.37.1** (patch). See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: Appendix GY, Pass (good) / Low, verified on `c124852`.
 
 ### Fixed
 
