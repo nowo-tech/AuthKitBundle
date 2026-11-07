@@ -22,6 +22,8 @@ final class SocialProviderResponses
 
     public bool $failTokenExchange = false;
 
+    public string $email = 'new.person@example.com';
+
     /** Runs while the provider answers (a revocation arriving during the callback). */
     public ?Closure $whileAnswering = null;
 
@@ -41,6 +43,6 @@ final class SocialProviderResponses
                 : new MockResponse(json_encode(['access_token' => 'at-placeholder', 'expires_in' => 3600], JSON_THROW_ON_ERROR));
         }
 
-        return new MockResponse(json_encode(['sub' => 'subject-1', 'email' => 'new.person@example.com', 'email_verified' => true, 'name' => 'New Person'], JSON_THROW_ON_ERROR));
+        return new MockResponse(json_encode(['sub' => 'subject-1', 'email' => $this->email, 'email_verified' => true, 'name' => 'New Person'], JSON_THROW_ON_ERROR));
     }
 }

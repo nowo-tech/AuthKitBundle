@@ -97,6 +97,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**1.39.0** (minor), with UserKit 1.13. See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: Pass (good) / Low, Appendix HU (`c93cac1`).
+
+### Security
+
+- A rollback registers the earlier session at once through `UserSessionManager::adopt()`: a revocation waiting on the
+  row, a sign-out everywhere or idle expiry right after it reach the session, and one row remains (GY-L7, HP-I2).
+- With UserKit 1.13, a rolled-back password change no longer fires `password_changed` or ends other sessions (HP-L2).
+
+### Fixed
+
+- A first social link in add mode keeps the account just added to the switcher when `password_changed` fires after the
+  sign-in. Its entries in other browsers still go (HU-L1). If a transaction is open across the response, the event fires
+  at terminate and the account has to be added again.
+
+### Changed
+
+- **Requires UserKit 1.13 when installed** (`conflict: <1.13`): `restore()` calls `adopt()`.
+- A `password_changed` listener failure no longer undoes a first link: it runs after the commit (HU-I2).
+
 ## [1.38.0] - 2026-11-07
 
 Planned **1.38.0** (minor). See [UPGRADING](UPGRADING.md#to-1380).

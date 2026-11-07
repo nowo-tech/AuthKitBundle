@@ -113,7 +113,7 @@ touched. `handleFailure()` runs for `Unavailable`, `ProviderDenied` and `Failed`
 
 What the handler takes over, because `handle()` replaces `SocialAccountLinker` and `Security::login()`:
 
-**Prefer `SocialAccountLinker::linkAndSignIn()` in the handler** (1.38; `linkOrCreate()` writes at once): it enforces the rules below and rolls the link and any password replacement back if the sign-in fails. After a failure every entity of the request is detached: fetch again if your handler goes on. If you do not
+**Prefer `SocialAccountLinker::linkAndSignIn()` in the handler** (1.38; `linkOrCreate()` writes at once): it enforces the rules below and rolls the link and any password replacement back if the sign-in fails, including a `LoginSuccessEvent` listener failing. A `password_changed` listener runs after the commit, so its failure undoes nothing (1.39). After a failure every entity of the request is detached: fetch again if your handler goes on. If you do not
 call it, each one is yours:
 
 - `social_login.require_verified_email`: use `$context->verifiedEmail()`, not `$context->socialProfile->email`, which

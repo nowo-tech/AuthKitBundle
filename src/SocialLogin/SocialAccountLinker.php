@@ -46,7 +46,8 @@ final class SocialAccountLinker
 
     /**
      * {@see self::linkOrCreate()} and the sign-in as one unit (GY-L9): if `$signIn` throws, the link, a new account and
-     * the `link_existing_account: reset_password` replacement are rolled back with the rest of the transaction. The
+     * the `link_existing_account: reset_password` replacement are rolled back with the rest of the transaction. UserKit's
+     * `password_changed` runs after the commit, so a listener on it cannot undo them (HU-I2). The
      * order stays: the password goes before the sign-in, so the session of this sign-in survives it.
      *
      * @param array{access_token: string, refresh_token: ?string, expires_in: ?int} $tokens

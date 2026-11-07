@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 
+use DateTimeImmutable;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
+use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Mfa\MfaEnrolment;
+use Nowo\AuthKitBundle\MultiAccount\AccountVaultStore;
 use Nowo\AuthKitBundle\MultiAccount\Twig\MultiAccountExtension;
 use Nowo\AuthKitBundle\Tests\Integration\MultiAccount\MultiAccountKernelTestCase;
 use Nowo\UserKitBundle\Sessions\UserSessionManager;
@@ -281,6 +284,111 @@ final class HandlerFailureOverSessionKernelTest extends MultiAccountKernelTestCa
         self::assertSame($sessions->hash((string) $this->sessionId()), $markers['main']['h']);
     }
 
+    /** HU-L1 (test A8): a first link in add mode replaces the password, and the account just added stays in the switcher. */
+    public function testAFirstLinkInAddModeKeepsTheAccountJustAdded(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->add();
+        $this->provider()->email = 'admin@example.com';
+
+        $this->defaultCallback();
+
+        self::assertSame(['admin@example.com', 'member@example.com'], $this->vaultIdentifiers());
+        self::assertSame(['admin@example.com|active', 'member@example.com|signed_in'], $this->accounts());
+    }
+
+    /** HU-L1: its entries in other browsers still go on the password change. */
+    public function testAFirstLinkInAddModeForgetsTheOtherBrowsers(): void
+    {
+        $store = self::getContainer()->get(AccountVaultStore::class);
+        self::assertInstanceOf(AccountVaultStore::class, $store);
+        $now = new DateTimeImmutable('2026-11-03 10:00:00');
+        $store->insert(bin2hex(random_bytes(16)), 'default', 'admin@example.com', hash('sha256', 'another browser'), null, $now, $now->modify('+1 day'));
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->add();
+        $this->provider()->email = 'admin@example.com';
+
+        $this->defaultCallback();
+
+        self::assertSame(1, $this->vaultRows('admin@example.com'));
+        self::assertSame(['admin@example.com|active', 'member@example.com|signed_in'], $this->accounts());
+    }
+
+    /** HU-L1: only `password_changed` keeps it: a sign-out everywhere in the same request removes it. */
+    public function testASignOutEverywhereDuringTheSignInStillForgetsIt(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->add();
+        $this->provider()->email    = 'admin@example.com';
+        $this->lateListener()->late = function (): void {
+            $this->sessions()->revokeAll($this->user('admin@example.com'));
+        };
+
+        $this->defaultCallback();
+
+        self::assertSame(0, $this->vaultRows('admin@example.com'));
+    }
+
+    /** GY-L7: revoked while the handler runs, before its sign-in deleted the row: the session comes back revoked. */
+    public function testASessionRevokedDuringTheHandlerIsSignedOut(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->client->request('GET', '/mfa-home');
+        $member                        = $this->user('member@example.com');
+        $this->handler()->beforeSignIn = function () use ($member): void {
+            $this->sessions()->revokeAll($member);
+        };
+
+        $this->failingSignIn('support@example.com');
+
+        self::assertSame(self::FAILED, $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('@example.com|', $this->home());
+    }
+
+    /** GY-L7: the earlier session has its row at once, so a sign-out everywhere right after the rollback reaches it. */
+    public function testASignOutEverywhereRightAfterTheRollbackReachesTheSession(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->client->request('GET', '/mfa-home');
+
+        $this->failingSignIn('support@example.com');
+
+        self::assertSame(1, $this->sessions()->revokeAll($this->user('member@example.com')));
+        self::assertStringNotContainsString('@example.com|', $this->home());
+    }
+
+    /** HP-I2: the rollback brings the row back and the session follows it: one row, not a second one. */
+    public function testALateFailureInTheDefaultFlowLeavesOneRow(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->client->request('GET', '/mfa-home');
+        $this->provider()->email    = 'support@example.com';
+        $this->lateListener()->late = static function (): never {
+            throw new RuntimeException('listener down');
+        };
+
+        $this->defaultCallback();
+
+        self::assertResponseRedirects('/login');
+        self::assertStringStartsWith('member@example.com|', $this->home());
+        self::assertSame(1, $this->sessionRows('member@example.com'));
+        self::assertSame('support-password-123', $this->user('support@example.com')->getPassword());
+    }
+
+    /** HU-I2: a `password_changed` listener runs after the commit, so its failure undoes nothing. */
+    public function testAFailingPasswordChangedListenerDoesNotUndoTheFirstLink(): void
+    {
+        $this->provider()->email         = 'support@example.com';
+        $this->lateListener()->onRevoked = new RuntimeException('listener down');
+
+        $this->defaultCallback();
+
+        self::assertResponseStatusCodeSame(500);
+        $this->lateListener()->onRevoked = null;
+        self::assertNotSame('support-password-123', $this->user('support@example.com')->getPassword());
+        self::assertSame(1, $this->em()->getRepository(SocialLoginAccount::class)->count([]));
+    }
+
     /** GY-I11: rendering the field writes nothing to the session. */
     public function testTheTargetPathFieldCreatesNoCsrfToken(): void
     {
@@ -313,6 +421,44 @@ final class HandlerFailureOverSessionKernelTest extends MultiAccountKernelTestCa
     private function recreateVaultTable(): void
     {
         (new SchemaTool($this->em()))->createSchema([$this->em()->getClassMetadata(AccountVaultEntry::class)]);
+    }
+
+    private function defaultCallback(): void
+    {
+        $state = $this->startAuthorization();
+        $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function vaultIdentifiers(): array
+    {
+        return $this->em()->getConnection()->fetchFirstColumn('SELECT user_identifier FROM ' . AccountVaultEntry::TABLE . ' ORDER BY user_identifier');
+    }
+
+    private function provider(): SocialProviderResponses
+    {
+        $provider = self::getContainer()->get(SocialProviderResponses::class);
+        self::assertInstanceOf(SocialProviderResponses::class, $provider);
+
+        return $provider;
+    }
+
+    private function lateListener(): ThrowingLoginListener
+    {
+        $listener = self::getContainer()->get(ThrowingLoginListener::class);
+        self::assertInstanceOf(ThrowingLoginListener::class, $listener);
+
+        return $listener;
+    }
+
+    private function sessions(): UserSessionManager
+    {
+        $sessions = self::getContainer()->get(UserSessionManager::class);
+        self::assertInstanceOf(UserSessionManager::class, $sessions);
+
+        return $sessions;
     }
 
     private function twoAccounts(): void

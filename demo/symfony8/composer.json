@@ -24,7 +24,7 @@
         "nowo-tech/form-kit-bundle": "^2.0",
         "nowo-tech/password-toggle-bundle": "^2.0",
         "nowo-tech/ui-kit-bundle": "^2.26",
-        "nowo-tech/user-kit-bundle": "^1.11.1",
+        "nowo-tech/user-kit-bundle": "^1.13",
         "symfony/asset": "8.1.*",
         "symfony/console": "8.1.*",
         "symfony/dotenv": "8.1.*",

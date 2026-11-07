@@ -59,7 +59,8 @@
         "twig/string-extra": "^3.12"
     },
     "conflict": {
-        "nowo-tech/password-toggle-bundle": "<2.0.3"
+        "nowo-tech/password-toggle-bundle": "<2.0.3",
+        "nowo-tech/user-kit-bundle": "<1.13"
     },
     "suggest": {
         "nowo-tech/device-intelligence-bundle": "Device observation on auth pages, new-device notify, QR trusted-device step-up (^1.1; PHP 8.3+)",
@@ -83,7 +84,7 @@
         "nowo-tech/password-toggle-bundle": "^2.0.0",
         "nowo-tech/phpstan-frankenphp": "^1.0",
         "nowo-tech/slide-to-confirm-bundle": "^1.0",
-        "nowo-tech/user-kit-bundle": "^1.12",
+        "nowo-tech/user-kit-bundle": "^1.13",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",
