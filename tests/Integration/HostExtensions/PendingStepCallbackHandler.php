@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 
+use Closure;
 use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
@@ -36,6 +37,8 @@ final class PendingStepCallbackHandler implements SocialCallbackHandlerInterface
 
     public bool $signOutFirst = false;
 
+    public ?Closure $beforeSignIn = null;
+
     /** Table dropped after signing in: the rollback then fails on the database (GY-L8). */
     public ?string $dropTable = null;
 
@@ -55,6 +58,9 @@ final class PendingStepCallbackHandler implements SocialCallbackHandlerInterface
     public function handle(Request $request, SocialCallbackContext $context): Response
     {
         $request->getSession()->remove(self::SESSION_KEY);
+        if ($this->beforeSignIn instanceof Closure) {
+            ($this->beforeSignIn)();
+        }
         if ($this->signInFirst) {
             $user = $this->entityManager->getRepository(KernelUser::class)->findOneBy(['email' => $this->signInAs]);
             if (!$user instanceof KernelUser) {

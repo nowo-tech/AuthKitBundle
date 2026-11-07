@@ -107,6 +107,16 @@
 
 ## Unreleased
 
+Planned **1.39.0**. REQ-SEC-004: re-verification pending.
+
+- **Upgrade UserKit with it:** AuthKit now conflicts with `nowo-tech/user-kit-bundle` below 1.13, because a rollback calls
+  `UserSessionManager::adopt()`. Hosts without UserKit are not affected.
+- **`password_changed` runs after the commit.** A rolled-back first link no longer fires it, and with
+  `revocation.store: cache` the user's other sessions now stay signed in. A listener on that event can no longer undo a
+  first link: if it throws, the password stays replaced, the link stays, the user stays signed in and the visitor gets a
+  500 (HU-I2).
+- The 1.38 notes about that event firing before the commit no longer apply.
+
 ## To 1.38.0
 
 From **1.37.1**:

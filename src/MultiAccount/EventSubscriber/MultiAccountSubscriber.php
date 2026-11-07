@@ -19,6 +19,7 @@ use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -49,6 +50,9 @@ final readonly class MultiAccountSubscriber
     /** Session flag: the first factor of a pending MFA sign-in came from an admin-issued magic link (D8, DE-L5). */
     public const ADMIN_LINK_ATTRIBUTE = '_nowo_auth_kit_accounts_admin_link';
 
+    /** Request attribute: the accounts this request's sign-in enrolled, `profile|identifier` (HU-L1). */
+    public const ENROLLED_ATTRIBUTE = '_nowo_auth_kit_accounts_enrolled';
+
     /** Revoke-context key of UserKit's sessions eraser (`SessionsEraser::CONTEXT_ORIGINAL_IDENTIFIER`, UserKit ≥ 1.12). */
     public const CONTEXT_ORIGINAL_IDENTIFIER = 'original_identifier';
 
@@ -60,6 +64,7 @@ final readonly class MultiAccountSubscriber
         private ProfileRegistry $profiles,
         private AuthKitUrlGenerator $urls,
         private ?CacheItemPoolInterface $issuedLinks = null,
+        private ?RequestStack $requests = null,
     ) {
     }
 
@@ -137,6 +142,14 @@ final readonly class MultiAccountSubscriber
         $profile = $user instanceof UserInterface ? $this->profileOf($user) : null;
         if ($user instanceof UserInterface && $profile instanceof ProfileSettings && in_array($event->reason->value, self::FORGET_REASONS, true)) {
             foreach ($this->identifiers($user, $event->context) as $identifier) {
+                $request = $event->reason->value === 'password_changed' ? $this->requestThatEnrolled($profile, $identifier) : null;
+                if ($request instanceof Request) {
+                    // HU-L1: the first link replaced the password and UserKit reports it after the commit, so after this
+                    // sign-in joined the switcher. Its other browsers go; the entry it just made stays.
+                    $this->vault->forgetElsewhere($request, $profile, $identifier);
+
+                    continue;
+                }
                 $this->vault->forgetUser($profile, $identifier);
             }
         }
@@ -161,7 +174,19 @@ final readonly class MultiAccountSubscriber
         }
         if ($profile instanceof ProfileSettings) {
             $this->vault->enrol($request, $profile, $token, $flagged || $this->adminIssued($request));
+            $enrolled                                                     = $request->attributes->get(self::ENROLLED_ATTRIBUTE);
+            $enrolled                                                     = is_array($enrolled) ? $enrolled : [];
+            $enrolled[$profile->name . '|' . $token->getUserIdentifier()] = true;
+            $request->attributes->set(self::ENROLLED_ATTRIBUTE, $enrolled);
         }
+    }
+
+    private function requestThatEnrolled(ProfileSettings $profile, string $identifier): ?Request
+    {
+        $request  = $this->requests?->getMainRequest();
+        $enrolled = $request?->attributes->get(self::ENROLLED_ATTRIBUTE);
+
+        return is_array($enrolled) && isset($enrolled[$profile->name . '|' . $identifier]) ? $request : null;
     }
 
     private function adminIssued(Request $request): bool

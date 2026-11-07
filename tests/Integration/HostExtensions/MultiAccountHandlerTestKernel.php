@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 
 use Nowo\AuthKitBundle\Tests\Integration\MultiAccount\MultiAccountTestKernel;
+use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -13,12 +14,21 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 
+use function getenv;
+use function is_string;
+use function md5;
+
 /**
  * The account switcher kernel (UserKit sessions, MFA, remember-me) with social login and a callback handler.
  */
 final class MultiAccountHandlerTestKernel extends MultiAccountTestKernel
 {
     public const NAME = 'multi-account-handler';
+
+    public function getCacheDir(): string
+    {
+        return parent::getCacheDir() . '/' . md5((string) getenv('AUTH_KIT_TEST_DB_URL'));
+    }
 
     public function pending(Request $request): Response
     {
@@ -41,7 +51,13 @@ final class MultiAccountHandlerTestKernel extends MultiAccountTestKernel
         $container->register(SocialProviderResponses::class)->setPublic(true);
         $container->register(ThrowingLoginListener::class)
             ->setPublic(true)
-            ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLoginSuccess', 'dispatcher' => 'security.event_dispatcher.main', 'priority' => 100]);
+            ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLoginSuccess', 'dispatcher' => 'security.event_dispatcher.main', 'priority' => 100])
+            ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLateLoginSuccess', 'dispatcher' => 'security.event_dispatcher.main', 'priority' => -600])
+            ->addTag('kernel.event_listener', ['event' => UserSessionsRevokedEvent::class, 'method' => 'onRevokedEvent']);
+        $url = getenv('AUTH_KIT_TEST_DB_URL');
+        if (is_string($url) && $url !== '') {
+            $container->loadFromExtension('doctrine', ['dbal' => ['url' => $url]]);
+        }
         $container->register(PendingStepCallbackHandler::class)->setAutowired(true)->setAutoconfigured(true)->setPublic(true);
     }
 

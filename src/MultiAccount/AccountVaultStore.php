@@ -118,15 +118,16 @@ final readonly class AccountVaultStore
     }
 
     /**
-     * Deletes the entries of a user of a profile in every browser (signed out everywhere, removed); returns how many.
+     * Deletes the entries of a user of a profile in every browser (signed out everywhere, removed), but `$exceptId`;
+     * returns how many.
      */
-    public function deleteForUser(string $profile, string $userIdentifier): int
+    public function deleteForUser(string $profile, string $userIdentifier, ?int $exceptId = null): int
     {
         $rows = $this->connection()->fetchAllAssociative('SELECT id, user_identifier FROM ' . $this->table() . ' WHERE profile = :profile AND user_identifier = :identifier', ['profile' => $profile, 'identifier' => $userIdentifier]);
         $ids  = [];
         foreach ($rows as $row) {
             // GY-I8: an accent-insensitive collation also returns look-alikes of the identifier (jose@ for josé@).
-            if (UserIdentifierMatcher::normalize((string) $row['user_identifier']) === UserIdentifierMatcher::normalize($userIdentifier)) {
+            if ((int) $row['id'] !== $exceptId && UserIdentifierMatcher::normalize((string) $row['user_identifier']) === UserIdentifierMatcher::normalize($userIdentifier)) {
                 $ids[] = (int) $row['id'];
             }
         }

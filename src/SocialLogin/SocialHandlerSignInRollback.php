@@ -15,6 +15,7 @@ use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authentication\Token\SwitchUserToken;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\RememberMe\ResponseListener as RememberMeResponseListener;
@@ -30,8 +31,8 @@ use function array_key_exists;
  * - Session attributes the failed sign-in added or changed are undone: the MFA "recent sign-in" time, the switcher slot,
  *   the new-device flag, pending flags. Attributes it removed stay removed, among them the CSRF tokens the session
  *   strategy cleared and the pending entry the handler already took.
- * - UserKit: the failed account's row and marker go. The earlier row went with `Security::login()`, so the earlier
- *   account registers again on its next request.
+ * - UserKit: the failed account's row and marker go, and the earlier account is registered again at once
+ *   (`UserSessionManager::adopt()`, GY-L7), with a session revoked meanwhile coming back as revoked.
  * - Switcher: only the failed account's entry goes from this browser, if its sign-in was complete (a pending one never
  *   enrolled, so an entry of that account is an older, healthy one). The account that was signed in keeps its entry.
  * - The session id changes once more, so nothing keyed by the id of the failed sign-in resolves to this session.
@@ -110,14 +111,18 @@ final readonly class SocialHandlerSignInRollback
         if ($previousId !== null && $user instanceof UserInterface) {
             $this->userSessions?->endSession($previousId, $user);
         }
+        // The registry row belongs to the original user. canRestore() does not let an impersonating session get here today.
+        $earlier = $before instanceof SwitchUserToken ? $before->getOriginalToken()->getUser() : $before->getUser();
+        if ($earlier instanceof UserInterface) {
+            $this->userSessions?->adopt($request, $earlier);
+        }
         $this->forgetSwitcherEntry($request, $before, $failed);
     }
 
     /**
      * False when UserKit already reports the earlier session revoked or expired, for instance signed out everywhere while
      * the provider was answering (GY-L7): it is not brought back, the visitor ends anonymous. Asked before the handler
-     * runs, because `Security::login()` deletes the row. A revocation after this point is missed until the next stateful
-     * request: see docs/SECURITY.md.
+     * runs, for the path that signs out instead. A revocation after this point is `adopt()`'s, see docs/SECURITY.md.
      */
     public function canRestore(Request $request, ?TokenInterface $before): bool
     {

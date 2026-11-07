@@ -442,6 +442,14 @@ final readonly class AccountVault
     }
 
     /**
+     * Removes a user of a profile from every browser's switcher except this one's entry (HU-L1).
+     */
+    public function forgetElsewhere(Request $request, ProfileSettings $profile, string $userIdentifier): int
+    {
+        return $this->store->deleteForUser($profile->name, $userIdentifier, $this->entryOf($this->entries($request, $profile), $userIdentifier)?->id);
+    }
+
+    /**
      * Removes a user of a profile from every browser's switcher (signed out everywhere, disabled, removed).
      */
     public function forgetUser(ProfileSettings $profile, string $userIdentifier): int
