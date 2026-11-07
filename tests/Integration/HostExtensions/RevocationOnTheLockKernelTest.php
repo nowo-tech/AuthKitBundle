@@ -54,7 +54,7 @@ final class RevocationOnTheLockKernelTest extends MultiAccountKernelTestCase
         $this->signIn('admin@example.com', 'admin-password-123');
         $this->client->request('GET', '/mfa-home');
 
-        $base    = sys_get_temp_dir() . '/auth-kit-lock-' . bin2hex(random_bytes(4));
+        $base = sys_get_temp_dir() . '/auth-kit-lock-' . bin2hex(random_bytes(4));
         // @phpstan-ignore frankenphp.classic.noUnlimitedIoTimeout (test helper: waitFor() and the script have their own deadlines)
         $process = proc_open([PHP_BINARY, '-d', 'memory_limit=-1', __DIR__ . '/revoke-everywhere-process.php', $base . '.flag', $base . '.started', 'admin@example.com', $base . '.result'], [], $pipes);
         self::assertIsResource($process);
