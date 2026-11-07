@@ -53,7 +53,9 @@ with `invitations/_cells.html.twig`), `invitations/new.html.twig` (`page/form`, 
 MFA account pages (1.37, `web_ui.templates.mfa_account`, `web_ui.templates.mfa_account_codes`; admin layout, no
 `AuthPage`, same variables with a host template, responses stay `no-store`). `mfa/account_codes_grid.html.twig` is a
 bundled opt-in layout for the second one (warning panel, numbered grid, actions row, block
-`nowo_auth_kit_mfa_codes_before` for the host's navigation).
+`nowo_auth_kit_mfa_codes_before` for the host's navigation, `nowo_auth_kit_mfa_codes_actions`, and the variable
+`nowo_auth_kit_mfa_codes_heading`, `h1` to `h3`; default `h1`, or `h2` with a `before` block). `mfa/account.html.twig` has the
+block `nowo_auth_kit_mfa_account_before` (1.38).
 
 MFA pages on the admin layout (1.34, `nowo_ui_kit.layouts.admin`; override with the Twig path): `mfa/account.html.twig`
 (enrolment, disable, new codes, trusted devices; `mfa/_code_form.html.twig`), `mfa/account_codes.html.twig`,

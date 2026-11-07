@@ -8,7 +8,6 @@ use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
-use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -29,8 +28,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
-use Symfony\Component\Security\Http\RememberMe\ResponseListener as RememberMeResponseListener;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Throwable;
 
 /**
@@ -90,6 +88,11 @@ final class SocialLoginCheckController
             return $this->refused($request, $loginUrl, 'social.error.invalid_state');
         }
 
+        // GY-L9: the sign-in could not happen, so nothing may be linked for it. A handler signs in by itself.
+        if (!$handler instanceof SocialCallbackHandlerInterface && !$this->loginAuthenticator->canSignIn($profile->firewall)) {
+            return $this->refused($request, $loginUrl, 'social.error.failed');
+        }
+
         try {
             $redirectUri = $this->urlGenerator->generate(
                 $profile->routes['social_login_check']['name'],
@@ -99,9 +102,9 @@ final class SocialLoginCheckController
             $tokens = $this->oauth2Client->exchangeCode($credential, $code, $redirectUri, $pending['code_verifier']);
             $social = $this->oauth2Client->fetchUserProfile($credential, $tokens['access_token']);
             if (!$handler instanceof SocialCallbackHandlerInterface) {
-                $user = $this->accountLinker->linkOrCreate($profile, $provider, $social, $tokens);
                 MfaFirstFactor::mark($request, 'social');
-                $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall);
+                // A failed sign-in keeps nothing: no link, no replaced password, no session (GY-L9, GY-L10).
+                $this->guarded($request, fn () => $this->accountLinker->linkAndSignIn($profile, $provider, $social, $tokens, fn (UserInterface $user): ?Response => $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall)));
             }
         } catch (RuntimeException $exception) {
             $this->logger?->warning('AuthKit social callback failed for provider {provider}.', ['provider' => $provider, 'exception' => $exception::class]);
@@ -132,25 +135,17 @@ final class SocialLoginCheckController
     }
 
     /**
-     * Runs the handler. Whatever it throws, a sign-in it already made does not survive (GY-L1, GY-L6): the visitor must
-     * not see a failure while the session is signed in as that account. HTTP exceptions keep their status (the handler's own 403, 404, 429);
-     * anything else takes the failure path, logged by class because the message may hold provider data (GY-I1).
+     * Runs the handler. Whatever it throws, a sign-in it already made does not survive (GY-L1, GY-L6). HTTP exceptions
+     * keep their status (the handler's own 403, 404, 429); anything else takes the failure path, logged by class because
+     * the message may hold provider data (GY-I1).
      */
     private function handled(Request $request, SocialCallbackHandlerInterface $handler, SocialCallbackContext $context, string $loginUrl): Response
     {
-        $tokenBefore = $this->security->getToken();
-        $snapshot    = $this->signInRollback?->snapshot($request) ?? [];
-        $restorable  = $this->signInRollback?->canRestore($request, $tokenBefore) ?? false;
         MfaFirstFactor::mark($request, 'social');
 
         try {
-            return $handler->handle($request, $context);
+            return $this->guarded($request, static fn (): Response => $handler->handle($request, $context));
         } catch (Throwable $exception) {
-            // Null: the handler signed out by itself, there is nothing to undo (GY-I10).
-            $token = $this->security->getToken();
-            if ($token instanceof TokenInterface && $token !== $tokenBefore) {
-                $this->undoSignIn($request, $restorable ? $tokenBefore : null, $token, $snapshot);
-            }
             $this->logger?->error('AuthKit social callback handler {handler} failed for provider {provider}.', ['handler' => $handler::class, 'provider' => $context->provider, 'exception' => $exception::class]);
             if ($exception instanceof HttpExceptionInterface) {
                 throw $exception;
@@ -161,27 +156,15 @@ final class SocialLoginCheckController
     }
 
     /**
-     * The handler's sign-in does not survive. Its remember-me cookie never leaves (it waits on the request), an earlier
-     * session goes on (GY-L6), and a visitor who was anonymous stays anonymous, with the other accounts of the browser
-     * still in the switcher.
+     * @template T
      *
-     * @param array<string, mixed> $snapshot
+     * @param callable(): T $signIn
+     *
+     * @return T
      */
-    private function undoSignIn(Request $request, ?TokenInterface $tokenBefore, TokenInterface $failed, array $snapshot): void
+    private function guarded(Request $request, callable $signIn): mixed
     {
-        $request->attributes->remove(RememberMeResponseListener::COOKIE_ATTR_NAME);
-        if ($tokenBefore instanceof TokenInterface && $this->signInRollback instanceof SocialHandlerSignInRollback) {
-            $this->signInRollback->restore($request, $tokenBefore, $failed, $snapshot);
-
-            return;
-        }
-        $request->attributes->set(MultiAccountSubscriber::SCOPE_ATTRIBUTE, 'current');
-
-        try {
-            $this->security->logout(false);
-        } finally {
-            $this->signInRollback?->forceAnonymous($request);
-        }
+        return $this->signInRollback instanceof SocialHandlerSignInRollback ? $this->signInRollback->guard($request, $signIn) : $signIn();
     }
 
     private function burnsState(string $provider, string $state): bool

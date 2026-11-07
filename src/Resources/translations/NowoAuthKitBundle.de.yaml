@@ -48,6 +48,7 @@ register:
     submit: Registrieren
     login_link: Bereits ein Konto? Anmelden
     flash_rate_limited: Zu viele Registrierungsversuche. Bitte versuchen Sie es später erneut.
+    flash_unavailable: Die Registrierung ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.
     field:
         email: E-Mail
         password: Passwort

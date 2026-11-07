@@ -96,6 +96,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned **1.38.0** (minor). See [UPGRADING](UPGRADING.md#unreleased).
+REQ-SEC-004: Appendix HP, Pass (good) / Low, verified on `98d988a`.
+
+### Added
+
+- `mfa/account.html.twig`: block `nowo_auth_kit_mfa_account_before`.
+- `mfa/account_codes_grid.html.twig`: block `nowo_auth_kit_mfa_codes_actions`, and variable
+  `nowo_auth_kit_mfa_codes_heading` (`h1` to `h3`). Without it the heading is an `h1`, or an `h2` when the `before` block
+  has content.
+- `mfa/_codes_actions_kinds.html.twig`: the codes page actions as UiKit kinds (`export`, `save`). Opt-in.
+- The grid declares `list-style: decimal` on its list.
+- `SocialAccountLinker::linkAndSignIn()`: link and sign-in as one transaction, for callback handlers too.
+
+### Security
+
+- A failed social sign-in no longer replaces the local password, creates an account or leaves a link: the link and the sign-in run in one transaction, and a firewall that cannot sign in is refused before linking (GY-L9). On PostgreSQL an aborted transaction counts as a failed sign-in, not as a success (HP-L1). Events dispatched inside it have already fired, and a revocation in UserKit's cache store stays (HP-L2).
+- A listener throwing during a social, QR, registration, invitation or magic link confirm sign-in no longer leaves the session signed in, and an earlier session of another user is restored (GY-L10, HP-L3). The QR challenge stays consumed, and the account or accepted invitation stays. The firewall's own authenticators are not covered.
+
+### Fixed
+
+- Registration and invitations work on a firewall without `form_login`, through `form_login` else the firewall's only
+  authenticator or `login_link`. On a firewall that cannot sign in they refuse before creating the account or consuming
+  the invitation, instead of a 500 after it. QR likewise keeps the challenge unconsumed.
+
 ## [1.37.1] - 2026-11-07
 
 Planned **1.37.1** (patch). See [UPGRADING](UPGRADING.md#to-1371). REQ-SEC-004: Appendix GY, Pass (good) / Low, verified on `c124852`.

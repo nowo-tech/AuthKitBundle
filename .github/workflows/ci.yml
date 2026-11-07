@@ -91,6 +91,43 @@ jobs:
       - name: No raw form elements in Twig (REQ-TWIG-005)
         run: bash .scripts/check-no-raw-html-form.sh
 
+  real-databases:
+    name: Sign-in transaction on PostgreSQL and MySQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci-placeholder
+          POSTGRES_DB: auth_kit
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-placeholder
+          MYSQL_DATABASE: auth_kit
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pci-placeholder" --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: json, pdo_pgsql, pdo_mysql
+          tools: composer:v2
+      - run: composer update --prefer-dist --no-interaction
+      - name: PostgreSQL
+        env:
+          AUTH_KIT_TEST_DB_URL: postgresql://postgres:ci-placeholder@127.0.0.1:5432/auth_kit?serverVersion=17&charset=utf8
+        run: vendor/bin/phpunit --no-coverage tests/Integration/ProgrammaticLogin/SwallowedDatabaseErrorKernelTest.php
+      - name: MySQL
+        env:
+          AUTH_KIT_TEST_DB_URL: mysql://root:ci-placeholder@127.0.0.1:3306/auth_kit?serverVersion=8.4.0&charset=utf8mb4
+        run: vendor/bin/phpunit --no-coverage tests/Integration/ProgrammaticLogin/SwallowedDatabaseErrorKernelTest.php
+
   coverage:
     runs-on: ubuntu-latest
     steps:

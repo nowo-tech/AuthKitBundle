@@ -7,10 +7,14 @@ namespace Nowo\AuthKitBundle\Tests\Integration\ProgrammaticLogin;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
+use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
+use Nowo\AuthKitBundle\Invitation\InvitationManager;
+use Nowo\AuthKitBundle\Invitation\InvitationRequest;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\Totp\Totp;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
+use Nowo\AuthKitBundle\Tests\Integration\Invitation\CapturingInvitationMailer;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -20,6 +24,7 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use function basename;
 use function parse_str;
 use function parse_url;
+use function str_contains;
 use function time;
 
 use const PHP_URL_PATH;
@@ -87,6 +92,52 @@ abstract class ProgrammaticLoginKernelTestCase extends WebTestCase
         return $session;
     }
 
+    protected function assertAdaKeepsHerPasswordAndHasNoLink(): void
+    {
+        $this->em()->clear();
+        self::assertSame('old-password-123', $this->user()->getPassword(), 'GY-L9: a failed attempt replaces no password.');
+        self::assertSame(0, $this->em()->getRepository(SocialLoginAccount::class)->count([]), 'GY-L9: and links nothing.');
+    }
+
+    /**
+     * Submits the registration form on `/register` or an invitation page.
+     */
+    protected function submitRegistration(string $path, string $email): void
+    {
+        $crawler = $this->client->request('GET', $path);
+        if ($this->client->getResponse()->isRedirect()) {
+            $crawler = $this->client->followRedirect();
+        }
+        $form = $crawler->filter('form')->first()->form();
+        foreach ($form->all() as $name => $field) {
+            if (str_contains($name, 'email') && !$field->isDisabled()) {
+                $form[$name] = $email;
+            }
+            if (str_contains($name, 'password')) {
+                $form[$name] = 'a-long-enough-password-123';
+            }
+        }
+        $this->client->submit($form);
+    }
+
+    protected function userCount(string $email): int
+    {
+        return $this->em()->getRepository(KernelUser::class)->count(['email' => $email]);
+    }
+
+    protected function invitationPath(string $email): string
+    {
+        $manager = self::getContainer()->get(InvitationManager::class);
+        self::assertInstanceOf(InvitationManager::class, $manager);
+        $manager->invite(null, 'default', new InvitationRequest($email));
+        $mailer = self::getContainer()->get(CapturingInvitationMailer::class);
+        self::assertInstanceOf(CapturingInvitationMailer::class, $mailer);
+        $mail = $mailer->last();
+        self::assertNotNull($mail);
+
+        return (string) parse_url($mail->acceptUrl, PHP_URL_PATH);
+    }
+
     protected function enrol(): void
     {
         $manager = self::getContainer()->get(MfaManager::class);
@@ -118,7 +169,7 @@ abstract class ProgrammaticLoginKernelTestCase extends WebTestCase
         return $tokens->getToken();
     }
 
-    private function user(): KernelUser
+    protected function user(): KernelUser
     {
         $user = $this->em()->getRepository(KernelUser::class)->findOneBy(['email' => 'ada@example.com']);
         self::assertInstanceOf(KernelUser::class, $user);
@@ -126,7 +177,7 @@ abstract class ProgrammaticLoginKernelTestCase extends WebTestCase
         return $user;
     }
 
-    private function em(): EntityManagerInterface
+    protected function em(): EntityManagerInterface
     {
         $em = self::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);

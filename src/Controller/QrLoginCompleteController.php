@@ -15,6 +15,8 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
+use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
+use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,6 +39,7 @@ final class QrLoginCompleteController
         private readonly RequestProfileResolver $profileResolver,
         private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
         private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
+        private readonly ?SocialHandlerSignInRollback $signInRollback = null,
     ) {
     }
 
@@ -89,6 +92,11 @@ final class QrLoginCompleteController
             return $this->redirectToLogin($profile->routes['login']['name']);
         }
 
+        // The sign-in could not happen: the challenge stays unconsumed.
+        if (!$this->loginAuthenticator->canSignIn($profile->firewall)) {
+            return $this->redirectToLogin($profile->routes['login']['name']);
+        }
+
         try {
             $this->challengeManager->consume($challenge, $user, $profile->name);
         } catch (QrLoginChallengeConflictException) {
@@ -96,7 +104,14 @@ final class QrLoginCompleteController
         }
 
         MfaFirstFactor::mark($request, 'qr');
-        $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall);
+
+        try {
+            $signIn = fn (): ?Response => $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall);
+            $this->signInRollback instanceof SocialHandlerSignInRollback ? $this->signInRollback->guard($request, $signIn) : $signIn();
+        } catch (RuntimeException) {
+            // GY-L10: undone by the guard. The challenge is consumed: the user starts again.
+            return $this->redirectToLogin($profile->routes['login']['name']);
+        }
 
         $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 

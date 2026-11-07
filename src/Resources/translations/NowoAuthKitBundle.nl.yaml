@@ -48,6 +48,7 @@ register:
     submit: Registreren
     login_link: Heb je al een account? Log in
     flash_rate_limited: Te veel registratiepogingen. Probeer het later opnieuw.
+    flash_unavailable: Registreren is op dit moment niet beschikbaar. Probeer het later opnieuw.
     field:
         email: E-mail
         password: Wachtwoord

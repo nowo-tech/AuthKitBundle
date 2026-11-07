@@ -213,14 +213,14 @@ final class HandlerFailureOverSessionKernelTest extends MultiAccountKernelTestCa
         self::assertStringNotContainsString('@example.com|', $this->home());
     }
 
-    /** GY-L8: the vault fails during the rollback. A 500, and the next request is the earlier account, never the failed one. */
+    /** GY-L8: the vault fails during the rollback. The failure path answers, and the next request is the earlier account. */
     public function testARollbackFailingOnTheDatabaseLeavesTheFailedAccountSignedOut(): void
     {
         $this->twoAccounts();
         $this->handler()->dropTable = AccountVaultEntry::TABLE;
 
         $this->failingSignIn('support@example.com');
-        self::assertResponseStatusCodeSame(500);
+        self::assertSame(self::FAILED, $this->client->getResponse()->getContent());
 
         $this->recreateVaultTable();
         $this->handler()->dropTable = null;
@@ -235,7 +235,7 @@ final class HandlerFailureOverSessionKernelTest extends MultiAccountKernelTestCa
         $this->handler()->dropTable = AccountVaultEntry::TABLE;
 
         $this->failingSignIn('support@example.com');
-        self::assertResponseStatusCodeSame(500);
+        self::assertSame(self::FAILED, $this->client->getResponse()->getContent());
 
         $this->recreateVaultTable();
         $this->handler()->dropTable = null;

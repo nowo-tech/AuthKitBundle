@@ -6,21 +6,25 @@ namespace Nowo\AuthKitBundle\SocialLogin;
 
 use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
 use Nowo\AuthKitBundle\MultiAccount\AccountVault;
+use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\UserKitBundle\Sessions\Model\SessionStatus;
 use Nowo\UserKitBundle\Sessions\UserSessionManager;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Http\RememberMe\ResponseListener as RememberMeResponseListener;
+use Throwable;
 
 use function array_key_exists;
 
 /**
- * A social callback handler signed someone in and then failed, over a session that existed before the callback (GY-L6,
- * 1.37): that session goes on, and nothing of the failed sign-in stays reachable from it.
+ * A sign-in failed after the token was set, whether in a social callback handler, a `LoginSuccessEvent` listener or a
+ * commit (GY-L6, GY-L10): a session that existed before it goes on, and nothing of the failed sign-in stays reachable.
  *
  * - The earlier token is back in the token storage (the firewall stores it in the session on the response).
  * - Session attributes the failed sign-in added or changed are undone: the MFA "recent sign-in" time, the switcher slot,
@@ -42,7 +46,36 @@ final readonly class SocialHandlerSignInRollback
         private ProfileRegistry $profiles,
         private ?UserSessionManager $userSessions = null,
         private ?AccountVault $vault = null,
+        private ?Security $security = null,
     ) {
+    }
+
+    /**
+     * Runs a sign-in. If it throws after the token changed (a handler, a `LoginSuccessEvent` listener, a commit), the
+     * sign-in is undone and the exception goes on. A token that became null is a deliberate sign-out: nothing to undo.
+     *
+     * @template T
+     *
+     * @param callable(): T $signIn
+     *
+     * @return T
+     */
+    public function guard(Request $request, callable $signIn): mixed
+    {
+        $before     = $this->tokens->getToken();
+        $snapshot   = $this->snapshot($request);
+        $restorable = $this->canRestore($request, $before);
+
+        try {
+            return $signIn();
+        } catch (Throwable $exception) {
+            $token = $this->tokens->getToken();
+            if ($token instanceof TokenInterface && $token !== $before) {
+                $this->undo($request, $restorable ? $before : null, $token, $snapshot);
+            }
+
+            throw $exception;
+        }
     }
 
     /**
@@ -98,6 +131,29 @@ final readonly class SocialHandlerSignInRollback
         $status = $this->userSessions->sessionState($request->getSession()->getId(), $user)->status;
 
         return $status !== SessionStatus::Revoked && $status !== SessionStatus::Expired;
+    }
+
+    /**
+     * Its remember-me cookie never leaves (it waits on the request), an earlier session goes on (GY-L6), and a visitor
+     * who was anonymous stays anonymous, with the other accounts of the browser still in the switcher.
+     *
+     * @param array<string, mixed> $snapshot
+     */
+    private function undo(Request $request, ?TokenInterface $before, TokenInterface $failed, array $snapshot): void
+    {
+        $request->attributes->remove(RememberMeResponseListener::COOKIE_ATTR_NAME);
+        if ($before instanceof TokenInterface) {
+            $this->restore($request, $before, $failed, $snapshot);
+
+            return;
+        }
+        $request->attributes->set(MultiAccountSubscriber::SCOPE_ATTRIBUTE, 'current');
+
+        try {
+            $this->security?->logout(false);
+        } finally {
+            $this->forceAnonymous($request);
+        }
     }
 
     /**
