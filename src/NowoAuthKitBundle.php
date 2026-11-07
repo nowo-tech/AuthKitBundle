@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginLinkHandlerLocatorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginThrottleRequiredPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MfaLockRequiredPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\ProgrammaticLoginAuthenticatorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\QrCodeGeneratorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
@@ -36,6 +37,7 @@ class NowoAuthKitBundle extends Bundle
         $container->addCompilerPass(new MfaLockRequiredPass());
         $container->addCompilerPass(new InvitationsPass());
         $container->addCompilerPass(new MultiAccountPass());
+        $container->addCompilerPass(new ProgrammaticLoginAuthenticatorPass());
         $container->addCompilerPass(new AvailabilityCheckersPass());
 
         $entityDir = __DIR__ . '/Entity';

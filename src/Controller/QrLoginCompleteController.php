@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -35,6 +36,7 @@ final class QrLoginCompleteController
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RequestProfileResolver $profileResolver,
         private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
+        private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
     ) {
     }
 
@@ -94,7 +96,7 @@ final class QrLoginCompleteController
         }
 
         MfaFirstFactor::mark($request, 'qr');
-        $this->security->login($user, null, $profile->firewall);
+        $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall);
 
         $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
