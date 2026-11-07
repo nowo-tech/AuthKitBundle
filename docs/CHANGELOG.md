@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.39.0] - 2026-11-07](#1390---2026-11-07)
 - [[1.38.0] - 2026-11-07](#1380---2026-11-07)
 - [[1.37.1] - 2026-11-07](#1371---2026-11-07)
 - [[1.37.0] - 2026-11-06](#1370---2026-11-06)
@@ -97,7 +98,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-**1.39.0** (minor), with UserKit 1.13. See [UPGRADING](UPGRADING.md#unreleased). REQ-SEC-004: Pass (good) / Low, Appendix HU (`c93cac1`).
+## [1.39.0] - 2026-11-07
+
+**1.39.0** (minor), with UserKit 1.13. See [UPGRADING](UPGRADING.md#to-1390). REQ-SEC-004: Pass (good) / Low, Appendix HU (`c93cac1`).
 
 ### Security
 

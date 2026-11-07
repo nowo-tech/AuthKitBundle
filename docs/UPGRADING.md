@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.39.0](#to-1390)
 - [To 1.38.0](#to-1380)
 - [To 1.37.1](#to-1371)
 - [To 1.37.0](#to-1370)
@@ -106,6 +107,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.39.0
+
+From **1.38.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 **1.39.0**. REQ-SEC-004: Pass (good) / Low, Appendix HU.
 
