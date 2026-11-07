@@ -113,8 +113,7 @@ Planned **1.38.0**. REQ-SEC-004: Appendix HP, Pass (good) / Low.
 - **Firewall that cannot sign in** (several authenticators and neither `form_login` nor `login_link`): social and QR
   redirect to the sign-in page instead of a 500, registration shows `register.flash_unavailable`, an invitation shows
   its "not accepted" notice and stays open. An error is logged. Nothing is written.
-- **A `LoginSuccessEvent` listener throwing during social, QR or the magic link confirm:** the sign-in is undone. A `RuntimeException` then answers
-  like any failed attempt: QR redirects to the sign-in page instead of a 500. The social link, a new account and the
+- **A `LoginSuccessEvent` listener throwing during social, QR or the magic link confirm:** the sign-in is undone. On social and QR a `RuntimeException` then answers like any failed attempt: QR redirects to the sign-in page instead of a 500. The magic link confirm stays a 500, with nobody signed in. The social link, a new account and the
   password replacement are rolled back. Other exceptions stay a 500, with nobody signed in. Your listener's own database
   writes on the same connection roll back too in the social flow, but what it did elsewhere does not: mail, messages to a
   non-database transport, and events. `UserSessionsRevokedEvent` (`password_changed`) fires before the commit, also for a
