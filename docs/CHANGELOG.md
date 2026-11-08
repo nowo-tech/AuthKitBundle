@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.40.0] - 2026-11-08](#1400---2026-11-08)
 - [[1.39.0] - 2026-11-07](#1390---2026-11-07)
 - [[1.38.0] - 2026-11-07](#1380---2026-11-07)
 - [[1.37.1] - 2026-11-07](#1371---2026-11-07)
@@ -97,6 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.40.0] - 2026-11-08
+
+Twig blocks for the recovery codes page actions (Beacon AK-1 gap). Audit: Appendix IL, Pass.
 
 Markup only: Twig blocks for the actions of the recovery codes pages. Nothing security-relevant changed (see
 [SECURITY](SECURITY.md#unreleased-markup-only)).

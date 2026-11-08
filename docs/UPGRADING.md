@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.40.0](#to-1400)
 - [To 1.39.0](#to-1390)
 - [To 1.38.0](#to-1380)
 - [To 1.37.1](#to-1371)
@@ -107,6 +108,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.40.0
+
+From **1.39.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 No action required: the recovery codes pages render byte-identical to 1.39 until a host fills the new blocks.
 

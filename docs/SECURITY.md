@@ -8,7 +8,7 @@
 - [Bundle responsibilities](#bundle-responsibilities)
 - [Password-reset poisoning (Host header)](#password-reset-poisoning-host-header)
 - [Content Security Policy (CSP)](#content-security-policy-csp)
-- [Unreleased (markup only)](#unreleased-markup-only)
+- [1.40.0 (markup only)](#1400-markup-only)
 - [AI security audit](#ai-security-audit)
 - [Release security checklist (12.4.1)](#release-security-checklist-1241)
 - [Reporting](#reporting)
@@ -116,13 +116,13 @@ Custom notifiers that build their own URLs (e.g. asset URLs in email templates) 
 
 Every inline `<script>` / `<style>` rendered by the bundle templates carries `nonce="…"` taken from the request attribute **`csp_nonce`** when it is present (nothing is emitted otherwise). Your CSP listener should set it before rendering, e.g. `$request->attributes->set('csp_nonce', $nonce)`, and send the same value in `script-src 'nonce-…'` / `style-src 'nonce-…'`. External scripts (`src=…`) and JSON islands need no nonce, and templates use no inline event handlers (`onclick`, `onsubmit`, …). `tests/Unit/Templates/InlineBlocksDeclareNonceTest.php` enforces this.
 
-## Unreleased (markup only)
+## 1.40.0 (markup only)
 
 The recovery codes blocks (`nowo_auth_kit_mfa_codes_actions`, `nowo_auth_kit_mfa_continue_button`,
 `nowo_auth_kit_mfa_codes_done`) change markup only. Nothing security-relevant changed: no controller, route, form,
 CSRF, session, MFA state or response header was touched; the codes are still shown once with the same `no-store`
 response; the Continue form and its CSRF field are still rendered by the bundle (the block holds only the button); a
-host block sees the same variables the page already had. Default output is byte-identical to 1.39.
+host block sees the same variables the page already had. Default output is byte-identical to 1.39. Audit: Appendix IL, Pass (IL-I8: emptying the Continue-button block removes the submit button — functional only).
 
 ## AI security audit
 
