@@ -1,0 +1,3 @@
+{% extends '@NowoAuthKitBundle/mfa/recovery_codes.html.twig' %}
+{% block nowo_auth_kit_mfa_codes_actions %}<p data-testid="host-codes-actions">{{ include('@NowoAuthKitBundle/mfa/_codes_actions_kinds.html.twig') }}</p>{% endblock %}
+{% block nowo_auth_kit_mfa_continue_button %}<button type="submit" data-testid="host-continue"><svg aria-hidden="true"></svg>Continue</button>{% endblock %}

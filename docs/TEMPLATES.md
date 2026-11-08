@@ -42,7 +42,7 @@ the host's own pages, not a page: it uses theme slots only (see [Widgets](#widge
 | MFA challenge (`mfa_challenge`, 1.34) | `mfa/challenge.html.twig` | `page/auth` | `AuthPage` (`mfa.challenge.*`, form = `MfaCodeFormType`: code, recovery code, trust device); extra variable `mfa_logout_route` | `nowo_ui_auth_fields` (code, `<details>` recovery code, trust device), `nowo_auth_kit_footer_before` (sign out) |
 | MFA forced enrolment (`mfa_setup`, 1.34) | `mfa/setup.html.twig` | `page/auth` | `AuthPage` (`mfa.setup.*`, form = code); extra variables `mfa_enrolment` (`qr`, `secret`, `issuer`, `label`), `mfa_logout_route` | `nowo_ui_auth_fields` (`mfa/_enrolment.html.twig`, then the code) |
 | Account chooser (`accounts_chooser`, 1.34) | `security/accounts_chooser.html.twig` | `page/auth` | `AuthPage` without form (`accounts.chooser.*`, link Continue); extra variable `accounts_switcher` | `nowo_auth_kit_footer_before` (`accounts/_switcher.html.twig`, variant `list`) |
-| MFA recovery codes (`mfa_recovery_codes`, 1.34) | `mfa/recovery_codes.html.twig` | `page/auth` | `AuthPage` without form (`mfa.recovery.*`); extra variables `mfa_codes`, `mfa_continue_form` | `nowo_auth_kit_footer_before` (`mfa/_codes.html.twig` + Continue form) |
+| MFA recovery codes (`mfa_recovery_codes`, 1.34) | `mfa/recovery_codes.html.twig` | `page/auth` | `AuthPage` without form (`mfa.recovery.*`); extra variables `mfa_codes`, `mfa_continue_form` | `nowo_auth_kit_footer_before` (`mfa/_codes.html.twig` + Continue form); inside it (1.40) `nowo_auth_kit_mfa_codes_actions` (replaces the download paragraph; `mfa/_codes_actions_kinds.html.twig` draws it as a UiKit `export` kind) and `nowo_auth_kit_mfa_continue_button` (the submit button; the form and CSRF field stay the bundle's) |
 
 Invitation administration pages (1.32, `invitations.admin.templates.*`, layout `invitations.admin.layout_template`
 or `nowo_ui_kit.layouts.admin`): `invitations/index.html.twig` (`page/list`, `ListPage`; fills `nowo_ui_list_row`
@@ -59,7 +59,7 @@ block `nowo_auth_kit_mfa_account_before` (1.38).
 
 MFA pages on the admin layout (1.34, `nowo_ui_kit.layouts.admin`; override with the Twig path): `mfa/account.html.twig`
 (enrolment, disable, new codes, trusted devices; `mfa/_code_form.html.twig`), `mfa/account_codes.html.twig`,
-`mfa/admin_reset.html.twig`; account card partial `mfa/_account.html.twig`. See [MFA.md](MFA.md). Account switcher
+`mfa/admin_reset.html.twig` (`account_codes` has the blocks `nowo_auth_kit_mfa_codes_actions` and `nowo_auth_kit_mfa_codes_done`, 1.40); account card partial `mfa/_account.html.twig`. See [MFA.md](MFA.md). Account switcher
 partial for the user menu: `accounts/_switcher.html.twig` (variants `menu` / `list`; [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md));
 the sign-in page lists the browser's accounts (`accounts_switcher`) above the providers.
 

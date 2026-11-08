@@ -98,6 +98,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Markup only: Twig blocks for the actions of the recovery codes pages. Nothing security-relevant changed (see
+[SECURITY](SECURITY.md#unreleased-markup-only)).
+
+### Added
+
+- `mfa/recovery_codes.html.twig` (sign-in, after the forced enrolment): block `nowo_auth_kit_mfa_codes_actions` replaces
+  the download paragraph inside the codes panel, block `nowo_auth_kit_mfa_continue_button` holds the submit button of
+  the Continue form (the form and its CSRF field stay the bundle's). Hosts can give the actions their icons
+  (`mfa/_codes_actions_kinds.html.twig`, UiKit `export` kind) without copying the page.
+- `mfa/account_codes.html.twig`: the same `nowo_auth_kit_mfa_codes_actions` block, and `nowo_auth_kit_mfa_codes_done`
+  around the Done link.
+- `mfa/_codes.html.twig`: optional variable `codes_actions` (rendered markup that replaces the download paragraph).
+
+### Changed
+
+- `mfa/_codes_actions_kinds.html.twig` draws the `save` (Done) kind only when `mfa_account_url` is defined, so it also
+  fits the sign-in page. Default output of every page is byte-identical to 1.39 (tests against the 1.39 copies).
+
 ## [1.39.0] - 2026-11-07
 
 **1.39.0** (minor), with UserKit 1.13. See [UPGRADING](UPGRADING.md#to-1390). REQ-SEC-004: Pass (good) / Low, Appendix HU (`c93cac1`).

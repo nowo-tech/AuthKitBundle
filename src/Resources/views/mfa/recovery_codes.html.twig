@@ -1,13 +1,20 @@
 {#
   Recovery codes after the forced enrolment (1.34): shown once, then the CSRF "Continue" form finishes the sign-in.
   Variables: page (AuthPage without form), mfa_codes, mfa_continue_form.
+  Blocks (1.40, markup only; empty by default = today's output): nowo_auth_kit_mfa_codes_actions replaces the download
+  paragraph inside the codes panel (mfa/_codes_actions_kinds.html.twig renders the download as a UiKit `export` kind
+  with its icon); nowo_auth_kit_mfa_continue_button is the submit button inside the Continue form (the form and its
+  CSRF token stay the bundle's).
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
 
 {% block nowo_auth_kit_footer_before %}
-    {{ include('@NowoAuthKitBundle/mfa/_codes.html.twig', {codes: mfa_codes}) }}
+{% set _codes_actions %}{% block nowo_auth_kit_mfa_codes_actions %}{% endblock %}{% endset %}
+    {{ include('@NowoAuthKitBundle/mfa/_codes.html.twig', _codes_actions|trim is empty ? {codes: mfa_codes} : {codes: mfa_codes, codes_actions: _codes_actions}) }}
     {{ form_start(mfa_continue_form, {attr: {'data-testid': 'auth-kit-mfa-continue'}}) }}
         {{ form_widget(mfa_continue_form) }}
+{% block nowo_auth_kit_mfa_continue_button %}
         <button type="submit" class="{{ nowo_ui_class('btn_primary', 'NowoAuthKitBundle') }}">{{ 'mfa.recovery.continue'|trans({}, 'NowoAuthKitBundle') }}</button>
+{% endblock %}
     {{ form_end(mfa_continue_form) }}
 {% endblock %}

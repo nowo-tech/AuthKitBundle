@@ -1,6 +1,10 @@
 {#
   New recovery codes on the account page (1.34): shown once. Variables: mfa_codes, mfa_profile, mfa_account_url.
   Override with web_ui.templates.mfa_account_codes (1.37); mfa/account_codes_grid.html.twig is a bundled alternative.
+  Blocks (1.40, markup only; empty by default = today's output): nowo_auth_kit_mfa_codes_actions replaces the download
+  paragraph inside the codes panel (mfa/_codes_actions_kinds.html.twig renders the download and Done as UiKit kinds
+  with icons); nowo_auth_kit_mfa_codes_done holds the Done link below the panel (override it empty when the actions
+  block already draws Done).
 #}
 {% extends nowo_ui_layout.admin %}
 {% set nowo_ui_bundle = 'NowoAuthKitBundle' %}
@@ -12,7 +16,10 @@
     <div class="nowo-auth-kit-mfa-account" data-testid="auth-kit-mfa-account-codes">
         <h1 class="{{ nowo_ui_class('page_title', _b) }}">{{ 'mfa.recovery.heading'|trans({}, _b) }}</h1>
         <p class="{{ nowo_ui_class('page_intro', _b) }}">{{ 'mfa.recovery.intro'|trans({}, _b) }}</p>
-        {{ include('@NowoAuthKitBundle/mfa/_codes.html.twig', {codes: mfa_codes}) }}
+{% set _codes_actions %}{% block nowo_auth_kit_mfa_codes_actions %}{% endblock %}{% endset %}
+        {{ include('@NowoAuthKitBundle/mfa/_codes.html.twig', _codes_actions|trim is empty ? {codes: mfa_codes} : {codes: mfa_codes, codes_actions: _codes_actions}) }}
+{% block nowo_auth_kit_mfa_codes_done %}
         <p><a class="{{ nowo_ui_class('btn_primary', _b) }}" href="{{ mfa_account_url }}">{{ 'mfa.recovery.done'|trans({}, _b) }}</a></p>
+{% endblock %}
     </div>
 {% endblock %}

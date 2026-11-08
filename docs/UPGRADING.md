@@ -108,6 +108,22 @@
 
 ## Unreleased
 
+No action required: the recovery codes pages render byte-identical to 1.39 until a host fills the new blocks.
+
+To put icons on the recovery codes actions (UI-PATTERNS: export / save kinds), extend the page instead of copying it:
+
+```twig
+{# templates/security/mfa_recovery_codes.html.twig, set as web_ui.templates.mfa_recovery_codes #}
+{% extends '@NowoAuthKitBundle/mfa/recovery_codes.html.twig' %}
+{% block nowo_auth_kit_mfa_codes_actions %}<p>{{ include('@NowoAuthKitBundle/mfa/_codes_actions_kinds.html.twig') }}</p>{% endblock %}
+{% block nowo_auth_kit_mfa_continue_button %}
+    <button type="submit" class="nowo-ui-btn nowo-ui-btn--primary">{{ ux_icon('tabler:check', {'aria-hidden': 'true'}) }}{{ 'mfa.recovery.continue'|trans({}, 'NowoAuthKitBundle') }}</button>
+{% endblock %}
+```
+
+`mfa/account_codes.html.twig` has the same `nowo_auth_kit_mfa_codes_actions` block plus `nowo_auth_kit_mfa_codes_done`
+(override it empty when the actions block already draws Done). `mfa/account_codes_grid.html.twig` is unchanged.
+
 ## To 1.39.0
 
 From **1.38.0**:
