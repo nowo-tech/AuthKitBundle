@@ -22,12 +22,18 @@ interface UserWriterInterface
      */
     public function add(ProfileSettings $profile, UserInterface $user): void;
 
-    /** Removes a user just added (the `first_user_only` race rollback). */
+    /**
+     * Removes a user just added: the `first_user_only` race rollback, and the compensation of a failed invitation
+     * acceptance or social sign-in when this writer stores outside the bundle's transaction (the Doctrine default is
+     * rolled back with it and is not called).
+     */
     public function remove(ProfileSettings $profile, UserInterface $user): void;
 
     /**
-     * Sets the new password hash (already hashed with the user's hasher). The default only writes the property: the
-     * caller's next {@see self::save()} (or the bundle's own flush) stores it. Other implementations may store it at once.
+     * Sets the new password hash (already hashed with the user's hasher). AuthKit always calls {@see self::save()}
+     * afterwards, so an implementation may defer storing to it. With any writer other than the Doctrine default, AuthKit
+     * then dispatches {@see Event\CredentialsChangedEvent} itself (password reset completion, social
+     * `link_existing_account: reset_password`): do not dispatch it again for those changes.
      */
     public function changePassword(ProfileSettings $profile, PasswordAuthenticatedUserInterface $user, string $hashedPassword): void;
 

@@ -130,6 +130,17 @@ final class DefaultUserPortsTest extends TestCase
 
         $social = NewUser::forSocial('s@example.com', 'Sam', 'rnd', []);
         self::assertSame([UserCreationSource::Social, 'Sam'], [$social->source, $social->displayName]);
+
+        // JW-A7: dumps never show the submitted values or the password.
+        self::assertSame([
+            'source'        => UserCreationSource::Form,
+            'roles'         => ['ROLE_USER'],
+            'formData'      => ['email' => '***'],
+            'identifier'    => null,
+            'plainPassword' => null,
+            'displayName'   => null,
+        ], $form->__debugInfo());
+        self::assertSame('***', $admin->__debugInfo()['plainPassword']);
     }
 
     public function testUserIdsAndRegisteredEvent(): void

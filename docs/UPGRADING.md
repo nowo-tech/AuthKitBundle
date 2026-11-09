@@ -126,7 +126,8 @@ releases. Optional:
   instead of `SecurityEvents::INTERACTIVE_LOGIN` / Doctrine lifecycle events.
 - **Password property not named `password`**: set `profiles.<name>.password_reset.password_field` so that a password
   change clears a pending reset credential (and `mfa.trusted_devices.password_field` for MFA trusted devices).
-- **Passwords changed outside Doctrine**: dispatch `User\Event\CredentialsChangedEvent($user)` after your commit.
+- **Passwords changed outside Doctrine** by your own code: dispatch `User\Event\CredentialsChangedEvent($user)` after
+  your commit. AuthKit dispatches it itself for the passwords it changes through a non-Doctrine writer.
 - Behaviour notes: `nowo:auth-kit:create-admin`'s "already exists" check and the MFA admin page now use the exact
   stored-identifier match (no accent-insensitive look-alike). If you construct `MfaAdminController` yourself, pass a
   `UserLookupInterface` as the new last argument.

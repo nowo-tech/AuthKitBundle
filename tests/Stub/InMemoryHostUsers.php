@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\User\UserCreationSource;
 use Nowo\AuthKitBundle\User\UserFactoryInterface;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Nowo\AuthKitBundle\User\UserWriterInterface;
+use RuntimeException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -30,6 +31,15 @@ final class InMemoryHostUsers implements UserFactoryInterface, UserWriterInterfa
 
     /** @var list<string> */
     public array $calls = [];
+
+    /** remove() throws (compensation failure). */
+    public bool $failRemove = false;
+
+    /** Writer that only stores on save() (aggregate + repository shape): changePassword() keeps the hash pending. */
+    public bool $deferUntilSave = false;
+
+    /** @var array<string, string> pending password hashes keyed by uuid */
+    private array $pendingPasswords = [];
 
     private int $sequence = 0;
 
@@ -64,6 +74,9 @@ final class InMemoryHostUsers implements UserFactoryInterface, UserWriterInterfa
     public function remove(ProfileSettings $profile, UserInterface $user): void
     {
         $this->calls[] = 'remove';
+        if ($this->failRemove) {
+            throw new RuntimeException('remove failed');
+        }
         if ($user instanceof HostDomainUser) {
             unset($this->users[$user->getId()]);
         }
@@ -72,14 +85,24 @@ final class InMemoryHostUsers implements UserFactoryInterface, UserWriterInterfa
     public function changePassword(ProfileSettings $profile, PasswordAuthenticatedUserInterface $user, string $hashedPassword): void
     {
         $this->calls[] = 'changePassword';
-        if ($user instanceof HostDomainUser) {
-            $user->changePassword($hashedPassword);
+        if (!$user instanceof HostDomainUser) {
+            return;
         }
+        if ($this->deferUntilSave) {
+            $this->pendingPasswords[$user->getId()] = $hashedPassword;
+
+            return;
+        }
+        $user->changePassword($hashedPassword);
     }
 
     public function save(ProfileSettings $profile, PasswordAuthenticatedUserInterface|UserInterface $user): void
     {
         $this->calls[] = 'save';
+        if ($user instanceof HostDomainUser && isset($this->pendingPasswords[$user->getId()])) {
+            $user->changePassword($this->pendingPasswords[$user->getId()]);
+            unset($this->pendingPasswords[$user->getId()]);
+        }
     }
 
     public function findByIdentifier(ProfileSettings $profile, string $identifier): ?UserInterface

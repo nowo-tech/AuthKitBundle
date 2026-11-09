@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
+use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Nowo\AuthKitBundle\User\UserIds;
 use Nowo\AuthKitBundle\User\UserWriterInterface;
 use SensitiveParameter;
@@ -19,7 +20,8 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Applies a new password and clears the reset credential. The hash is stored through {@see UserWriterInterface}
- * (1.41; default: the password property + flush), then {@see PasswordResetCompletedEvent} is dispatched.
+ * (1.41; default: the password property + flush), then {@see PasswordResetCompletedEvent} is dispatched, and with a
+ * non-Doctrine writer {@see CredentialsChangedEvent} (MFA trusted devices forgotten).
  */
 final class PasswordResetCompleter
 {
@@ -55,5 +57,11 @@ final class PasswordResetCompleter
             UserIds::of($user),
             $user instanceof UserInterface ? $user->getUserIdentifier() : '',
         ));
+
+        // JW-A4: the Doctrine listeners (MFA trusted devices) see the change of a Doctrine writer; a host writer gets the
+        // explicit event, once.
+        if ($user instanceof UserInterface && !$this->userWriter instanceof DoctrineUserWriter) {
+            $this->eventDispatcher?->dispatch(new CredentialsChangedEvent($user));
+        }
     }
 }

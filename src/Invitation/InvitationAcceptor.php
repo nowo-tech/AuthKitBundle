@@ -15,13 +15,16 @@ use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
+use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
 use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
 use Nowo\AuthKitBundle\User\UserCreationSource;
+use Nowo\AuthKitBundle\User\UserWriterInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -75,6 +78,7 @@ final readonly class InvitationAcceptor
         private LoggerInterface $logger = new NullLogger(),
         private EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
         private ?AuthKitAttemptLimiter $limiter = null,
+        private ?UserWriterInterface $userWriter = null,
     ) {
     }
 
@@ -219,6 +223,7 @@ final readonly class InvitationAcceptor
 
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
+        $user = null;
         try {
             if (!$this->invitations->claim($invitation, $tokenHash, $invitation->getEmail(), $now)) {
                 $connection->rollBack();
@@ -242,6 +247,7 @@ final readonly class InvitationAcceptor
             if ($this->entityManager->isOpen()) {
                 $this->entityManager->clear();
             }
+            $this->compensate($profile, $user);
             if (!$exception instanceof RuntimeException) {
                 throw $exception;
             }
@@ -257,6 +263,25 @@ final readonly class InvitationAcceptor
         $this->eventDispatcher?->dispatch(new InvitationAcceptedEvent($snapshot, $user, $now));
 
         return InvitationAcceptance::accepted($user, $snapshot);
+    }
+
+    /**
+     * JW-A2: a host {@see UserWriterInterface} that stores outside this transaction is not rolled back with it; the
+     * account of the failed acceptance is removed again (the invitation stays unclaimed, so it must not stay usable).
+     * The Doctrine default is rolled back with the transaction. A failing removal does not hide the original outcome.
+     */
+    private function compensate(ProfileSettings $profile, ?UserInterface $user): void
+    {
+        if (!$user instanceof UserInterface || !$this->userWriter instanceof UserWriterInterface || $this->userWriter instanceof DoctrineUserWriter) {
+            return;
+        }
+
+        try {
+            // @igor-ignore - Stateless user port call (removes the host user); no service state changes.
+            $this->userWriter->remove($profile, $user);
+        } catch (Throwable $exception) {
+            $this->logger->error('AuthKit could not remove the account of a failed invitation acceptance.', ['reason' => $exception::class]);
+        }
     }
 
     /**

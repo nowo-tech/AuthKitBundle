@@ -83,8 +83,9 @@ final class SocialAccountLinkerTest extends TestCase
         $em->method('getRepository')->willReturn($userRepo);
         $em->method('contains')->with($existing)->willReturn(true);
         $em->expects(self::once())->method('refresh')->with($existing);
-        $em->expects(self::once())->method('persist');
-        $em->expects(self::once())->method('flush');
+        // reset_password (default): the replaced password is saved first (JW-A1), then the account link.
+        $em->expects(self::exactly(2))->method('persist');
+        $em->expects(self::exactly(2))->method('flush');
 
         $linker = new SocialAccountLinker(
             $em,
@@ -299,8 +300,8 @@ final class SocialAccountLinkerTest extends TestCase
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
-        $em->expects(self::once())->method('persist');
-        $em->expects(self::once())->method('flush');
+        $em->expects(self::exactly(2))->method('persist');
+        $em->expects(self::exactly(2))->method('flush');
 
         $linker = new SocialAccountLinker(
             $em,
@@ -335,12 +336,12 @@ final class SocialAccountLinkerTest extends TestCase
         $persisted = null;
         $em        = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
-        $em->expects(self::once())->method('persist')->willReturnCallback(
+        $em->expects(self::exactly(2))->method('persist')->willReturnCallback(
             static function (object $entity) use (&$persisted): void {
                 $persisted = $entity;
             },
         );
-        $em->expects(self::once())->method('flush');
+        $em->expects(self::exactly(2))->method('flush');
 
         $linker = new SocialAccountLinker(
             $em,

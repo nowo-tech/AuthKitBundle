@@ -41,12 +41,12 @@ final class QrLoginCompleteController
         private readonly Security $security,
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RequestProfileResolver $profileResolver,
-        UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
+        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
         private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
         private readonly ?SocialHandlerSignInRollback $signInRollback = null,
         ?UserLookupInterface $userLookup = null,
     ) {
-        $this->userLookup = $userLookup ?? new DoctrineUserLookup($entityManager, $identifierMatcher);
+        $this->userLookup = $userLookup ?? new DoctrineUserLookup($entityManager, $this->identifierMatcher);
     }
 
     #[Route(path: '/login/qr/{id}/complete', name: 'nowo_auth_kit_qr_login_complete', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['GET'])]
@@ -89,6 +89,10 @@ final class QrLoginCompleteController
 
         // Exact stored identifier (no collation look-alike), looked up in the profile's users (UserLookupInterface).
         $user = $this->userLookup->findByIdentifier($profile, $userId);
+        // JW-A3: re-checked here, a host lookup's query may be looser than the contract.
+        if ($user instanceof UserInterface && !$this->identifierMatcher->matchesUser($user, $profile->userIdentifierField, $userId)) {
+            $user = null;
+        }
 
         if (!$user instanceof UserInterface) {
             return $this->redirectToLogin($profile->routes['login']['name']);

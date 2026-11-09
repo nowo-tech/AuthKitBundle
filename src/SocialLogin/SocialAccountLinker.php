@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
+use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
 use Nowo\AuthKitBundle\User\NewUser;
 use Nowo\AuthKitBundle\User\PropertyAccessUserFactory;
@@ -61,13 +62,13 @@ final class SocialAccountLinker
         private readonly ClockInterface $clock,
         private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
         private readonly ?RegistrationGate $registrationGate = null,
-        UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
+        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
         ?UserLookupInterface $userLookup = null,
         ?UserFactoryInterface $userFactory = null,
         ?UserWriterInterface $userWriter = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
-        $this->userLookup  = $userLookup ?? new DoctrineUserLookup($entityManager, $identifierMatcher);
+        $this->userLookup  = $userLookup ?? new DoctrineUserLookup($entityManager, $this->identifierMatcher);
         $this->userFactory = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
         $this->userWriter  = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery);
     }
@@ -86,8 +87,10 @@ final class SocialAccountLinker
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
 
+        $created = null;
+
         try {
-            [$user, $registered] = $this->link($profile, $provider, $socialProfile, $tokens);
+            [$user, $events] = $this->link($profile, $provider, $socialProfile, $tokens, $created);
             $signIn($user);
             // On PostgreSQL a listener that swallowed a database error leaves the transaction aborted, and COMMIT then
             // rolls back without an error, with the sign-in kept (HP-L1). A statement fails there, so it counts as failed.
@@ -100,13 +103,12 @@ final class SocialAccountLinker
             // The objects in memory still hold what was rolled back.
             // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
             $this->entityManager->clear();
+            $this->compensate($profile, $created);
 
             throw $exception;
         }
 
-        if ($registered instanceof UserRegisteredEvent) {
-            $this->eventDispatcher?->dispatch($registered);
-        }
+        $this->dispatchAll($events);
     }
 
     /**
@@ -120,10 +122,16 @@ final class SocialAccountLinker
         SocialUserProfile $socialProfile,
         array $tokens,
     ): UserInterface {
-        [$user, $registered] = $this->link($profile, $provider, $socialProfile, $tokens);
-        if ($registered instanceof UserRegisteredEvent) {
-            $this->eventDispatcher?->dispatch($registered);
+        $created = null;
+
+        try {
+            [$user, $events] = $this->link($profile, $provider, $socialProfile, $tokens, $created);
+        } catch (Throwable $exception) {
+            $this->compensate($profile, $created);
+
+            throw $exception;
         }
+        $this->dispatchAll($events);
 
         return $user;
     }
@@ -131,13 +139,16 @@ final class SocialAccountLinker
     /**
      * @param array{access_token: string, refresh_token: ?string, expires_in: ?int} $tokens
      *
-     * @return array{UserInterface, ?UserRegisteredEvent} the user and, when it was created, the event to dispatch once stored
+     * @param-out UserInterface|null $created the user created by this call (compensated on failure)
+     *
+     * @return array{UserInterface, list<object>} the user and the events to dispatch once stored
      */
     private function link(
         ProfileSettings $profile,
         string $provider,
         SocialUserProfile $socialProfile,
         array $tokens,
+        ?UserInterface &$created,
     ): array {
         // SEC-004 H2: only a link made for this profile's user class signs in here.
         $account = $this->accountRepository->findOneByProviderSubject($provider, $socialProfile->id, $profile->userClass);
@@ -146,24 +157,24 @@ final class SocialAccountLinker
             $this->refreshAccountTokens($account, $socialProfile, $tokens);
             $this->entityManagerRecovery->flush($this->entityManager);
 
-            return [$user, null];
+            return [$user, []];
         }
 
         $requireVerified = (bool) ($profile->socialLogin['require_verified_email'] ?? true);
 
-        $user = null;
+        $user   = null;
+        $events = [];
         if ($socialProfile->email !== null && $socialProfile->email !== '') {
             $candidate = $this->findUserByIdentifier($profile, $socialProfile->email);
             if ($candidate instanceof UserInterface) {
                 if ($requireVerified && $socialProfile->emailVerified !== true) {
                     throw new RuntimeException('Cannot link social identity to an existing account: the provider did not assert a verified email.');
                 }
-                $user = $this->linkExistingAccount($profile, $candidate);
+                $user = $this->linkExistingAccount($profile, $candidate, $events);
             }
         }
 
         $createIfMissing = (bool) ($profile->socialLogin['create_user_if_missing'] ?? false);
-        $registered      = null;
         if (!$user instanceof UserInterface) {
             if (!$createIfMissing) {
                 throw new RuntimeException('No local account matches this social identity and create_user_if_missing is false.');
@@ -178,8 +189,9 @@ final class SocialAccountLinker
             if ($requireVerified && $socialProfile->emailVerified !== true) {
                 throw new RuntimeException('Cannot create a local account from social login: the provider did not assert a verified email.');
             }
-            $user       = $this->createUser($profile, $socialProfile);
-            $registered = UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Social);
+            $user     = $this->createUser($profile, $socialProfile);
+            $created  = $user;
+            $events[] = UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Social);
         }
 
         $userId  = $this->resolveUserId($user);
@@ -196,7 +208,36 @@ final class SocialAccountLinker
         $this->entityManager->persist($account);
         $this->entityManagerRecovery->flush($this->entityManager);
 
-        return [$user, $registered];
+        return [$user, $events];
+    }
+
+    /**
+     * @param list<object> $events
+     */
+    private function dispatchAll(array $events): void
+    {
+        foreach ($events as $event) {
+            $this->eventDispatcher?->dispatch($event);
+        }
+    }
+
+    /**
+     * JW-A2: a host writer that stores outside the bundle's transaction is not rolled back with it; the account created
+     * by the failed attempt is removed again. The Doctrine default is rolled back with the transaction (nothing to do).
+     * A failing removal does not hide the original error.
+     */
+    private function compensate(ProfileSettings $profile, ?UserInterface $created): void
+    {
+        if (!$created instanceof UserInterface || $this->userWriter instanceof DoctrineUserWriter) {
+            return;
+        }
+
+        try {
+            // @igor-ignore - Stateless user port call (removes the host user); no service state changes.
+            $this->userWriter->remove($profile, $created);
+        } catch (Throwable) {
+            // The original failure is what the caller must see.
+        }
     }
 
     /**
@@ -229,7 +270,10 @@ final class SocialAccountLinker
      * local password with a random one (`reset_password`): a password chosen by a pre-registering attacker, and the
      * sessions authenticated with it, stop working.
      */
-    private function linkExistingAccount(ProfileSettings $profile, UserInterface $user): UserInterface
+    /**
+     * @param list<object> $events receives a {@see CredentialsChangedEvent} when a host writer replaced the password
+     */
+    private function linkExistingAccount(ProfileSettings $profile, UserInterface $user, array &$events): UserInterface
     {
         $policy = $profile->socialLogin['link_existing_account'] ?? 'reset_password';
 
@@ -238,13 +282,18 @@ final class SocialAccountLinker
         }
 
         if ($policy === 'reset_password' && $user instanceof PasswordAuthenticatedUserInterface) {
-            // Stored by the flush of the account link below (default writer) or by the host writer itself.
             $this->userWriter->changePassword($profile, $user, $this->passwordHasher->hashPassword($user, bin2hex(random_bytes(32))));
             foreach (['token_field', 'token_expires_field'] as $key) {
                 $field = $profile->passwordReset[$key] ?? null;
                 if (is_string($field) && $field !== '' && $this->propertyAccessor->isWritable($user, $field)) {
                     $this->propertyAccessor->setValue($user, $field, null);
                 }
+            }
+            // JW-A1: stored now, inside the link transaction: a writer that defers to save() must not keep the old password.
+            $this->userWriter->save($profile, $user);
+            // JW-A4: the Doctrine listeners see the change of a Doctrine writer; a host writer gets the explicit event.
+            if (!$this->userWriter instanceof DoctrineUserWriter) {
+                $events[] = new CredentialsChangedEvent($user);
             }
         }
 
@@ -253,8 +302,11 @@ final class SocialAccountLinker
 
     private function findUserByIdentifier(ProfileSettings $profile, string $identifier): ?UserInterface
     {
-        // SEC-004 H1: the stored identifier must equal the IdP address (no collation look-alike match).
-        return $this->userLookup->findByIdentifier($profile, $identifier);
+        // SEC-004 H1: the stored identifier must equal the IdP address (no collation look-alike match). Re-checked
+        // here (JW-A3): a host lookup's query may be looser than the contract.
+        $user = $this->userLookup->findByIdentifier($profile, $identifier);
+
+        return $user instanceof UserInterface && $this->identifierMatcher->matchesUser($user, $profile->userIdentifierField, $identifier) ? $user : null;
     }
 
     private function createUser(ProfileSettings $profile, SocialUserProfile $socialProfile): UserInterface&PasswordAuthenticatedUserInterface

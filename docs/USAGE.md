@@ -361,7 +361,11 @@ per need with `nowo_auth_kit.doctrine.register_mapping` (`true`, `false`, `auto`
   submitted registration form (`formData`, keyed by `registration_fields[].name`, values still plain), or the
   identifier / plain password / display name. A writer signals a taken unique value with `DuplicateUserException`.
   `findByIdentifier()` must keep the exact stored-identifier rule (NFC + lower-case, no collation look-alike; see
-  `Security\UserIdentifierMatcher`).
+  `Security\UserIdentifierMatcher`) and return null when several users match. Social linking and QR completion re-check
+  it anyway. `changePassword()` may defer storing to `save()`, which AuthKit always calls afterwards. With a writer other
+  than the Doctrine default, AuthKit dispatches `CredentialsChangedEvent` itself for the passwords it changes. If an
+  invitation acceptance or a social sign-in fails after `add()`, AuthKit calls `remove()` on that writer.
+  `NewUser` holds plain passwords: never log or serialise it.
 
   ```yaml
   # config/services.yaml
@@ -383,7 +387,8 @@ per need with `nowo_auth_kit.doctrine.register_mapping` (`true`, `false`, `auto`
 - **Credentials changed outside Doctrine (1.41).** Reset credentials and MFA trusted devices are invalidated by Doctrine
   `onFlush` listeners when the identifier or the password property (`password_reset.password_field` and
   `mfa.trusted_devices.password_field`, default `password`) of a user entity changes. When your domain changes the
-  password elsewhere, dispatch `User\Event\CredentialsChangedEvent($user)` after your commit: AuthKit forgets the MFA
+  password elsewhere (not through AuthKit's writer calls, which already dispatch it), dispatch
+  `User\Event\CredentialsChangedEvent($user)` after your commit: AuthKit forgets the MFA
   trusted devices and clears the pending reset credential through `PasswordResetTokenManagerInterface`.
 - Plug your own rules and delivery in through the ports:
   `PasswordResetNotifierInterface`, `MagicLoginNotifierInterface`, `NewDeviceLoginNotifierInterface`,
@@ -460,7 +465,10 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   with a DQL query on that column by the default `PasswordResetTokenManagerInterface`; with a non-Doctrine user,
   provide your own implementation (the default one, and therefore `CredentialsChangedEvent`, need those columns).
 - The invitation acceptance and `SocialAccountLinker::linkAndSignIn()` open their transaction on the bundle's entity
-  manager connection: a host writer on another connection is not rolled back with them.
+  manager connection. A host writer on another connection is not rolled back with them. AuthKit compensates with
+  `remove()`, but between `add()` and that removal the account exists (and stays if `remove()` fails, which is logged).
+- `first_user_only` with a host store relies on `countUsers()` seeing the writer's `add()` (read-your-writes);
+  otherwise the recount after the insert cannot detect two concurrent first registrations.
 - `UserRegisteredEvent` / `PasswordResetCompletedEvent` follow the bundle's flush; if you call `UserRegistrar` or
   `PasswordResetCompleter` inside your own transaction, they fire before your commit.
 - QR login events carry the `QrLoginChallenge` entity, and `InvitationActionAuthorizerInterface` receives the

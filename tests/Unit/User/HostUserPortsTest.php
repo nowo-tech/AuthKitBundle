@@ -27,6 +27,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
 use Nowo\AuthKitBundle\Tests\Stub\InMemoryHostUsers;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
+use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
 use Nowo\AuthKitBundle\User\UserCreationSource;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
@@ -56,7 +57,7 @@ final class HostUserPortsTest extends TestCase
     {
         $this->users      = new InMemoryHostUsers();
         $this->dispatcher = new EventDispatcher();
-        foreach ([UserRegisteredEvent::class, PasswordResetCompletedEvent::class] as $event) {
+        foreach ([UserRegisteredEvent::class, PasswordResetCompletedEvent::class, CredentialsChangedEvent::class] as $event) {
             $this->dispatcher->addListener($event, function (object $e): void {
                 $this->events[] = $e;
             });
@@ -227,7 +228,8 @@ final class HostUserPortsTest extends TestCase
 
         self::assertSame('new-hash', $user->getPassword());
         self::assertSame(['changePassword', 'save'], $this->users->calls);
-        self::assertEquals([new PasswordResetCompletedEvent('default', HostDomainUser::class, 'uuid-9', 'reset@example.com')], $this->events);
+        // JW-A4: a host writer gets CredentialsChangedEvent from AuthKit itself (MFA trusted devices).
+        self::assertEquals([new PasswordResetCompletedEvent('default', HostDomainUser::class, 'uuid-9', 'reset@example.com'), new CredentialsChangedEvent($user)], $this->events);
     }
 
     public function testResolversUseTheLookup(): void
@@ -346,8 +348,128 @@ final class HostUserPortsTest extends TestCase
 
         self::assertSame($user, $linked);
         self::assertSame('random-hash', $user->getPassword());
-        self::assertSame(['changePassword'], $this->users->calls);
+        self::assertSame(['changePassword', 'save'], $this->users->calls);
+        self::assertEquals([new CredentialsChangedEvent($user)], $this->events);
+    }
+
+    /** JW-A1: a writer that only stores on save() must not keep the pre-registered (attacker) password. */
+    public function testLinkingAnExistingAccountStoresThePasswordWithADeferringWriter(): void
+    {
+        $registry = $this->registry();
+        $profile  = $registry->getDefault();
+        $user     = HostDomainUser::register('uuid-8', 'existing@example.com', 'attacker-chosen', []);
+        $this->users->add($profile, $user);
+        $this->users->deferUntilSave = true;
+
+        $accounts = $this->createMock(SocialLoginAccountRepository::class);
+        $accounts->method('findOneByProviderSubject')->willReturn(null);
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->method('hashPassword')->willReturn('random-hash');
+
+        $this->linker($this->transactionalEntityManager($this->createMock(EntityManagerInterface::class)), $accounts, $registry, $hasher)->linkAndSignIn(
+            $profile,
+            'google',
+            new SocialUserProfile('sub-8', 'existing@example.com', null, [], true),
+            ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
+            static fn (UserInterface $u): null => null,
+        );
+
+        self::assertSame('random-hash', $user->getPassword());
+    }
+
+    /** JW-A2: a host writer outside the bundle transaction is compensated when the sign-in fails. */
+    public function testFailedSocialSignInRemovesTheAccountItCreated(): void
+    {
+        $registry = $this->registry(['registration_mode' => 'always', 'social_login' => ['mode' => 'enabled', 'create_user_if_missing' => true]]);
+        $accounts = $this->createMock(SocialLoginAccountRepository::class);
+        $accounts->method('findOneByProviderSubject')->willReturn(null);
+
+        $platform   = $this->createMock(AbstractPlatform::class);
+        $connection = $this->createMock(Connection::class);
+        $connection->method('getDatabasePlatform')->willReturn($platform);
+        $connection->method('isTransactionActive')->willReturn(true);
+        $connection->expects(self::once())->method('rollBack');
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getConnection')->willReturn($connection);
+
+        try {
+            $this->linker($em, $accounts, $registry)->linkAndSignIn(
+                $registry->getDefault(),
+                'google',
+                new SocialUserProfile('sub-9', 'orphan@example.com', null, [], true),
+                ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
+                static function (): never {
+                    throw new RuntimeException('sign-in failed');
+                },
+            );
+            self::fail('The sign-in failure must propagate.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('sign-in failed', $exception->getMessage());
+        }
+
+        self::assertSame(['add', 'remove'], $this->users->calls);
+        self::assertSame([], $this->users->users);
         self::assertSame([], $this->events);
+    }
+
+    /** JW-A2: also without the transaction (linkOrCreate), and a failing removal keeps the original error. */
+    public function testFailedLinkOrCreateCompensatesAndKeepsTheOriginalError(): void
+    {
+        $registry = $this->registry(['registration_mode' => 'always', 'social_login' => ['mode' => 'enabled', 'create_user_if_missing' => true]]);
+        $accounts = $this->createMock(SocialLoginAccountRepository::class);
+        $accounts->method('findOneByProviderSubject')->willReturn(null);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('flush')->willThrowException(new RuntimeException('account flush failed'));
+
+        $failingRemove             = new InMemoryHostUsers();
+        $failingRemove->failRemove = true;
+
+        $linker = new SocialAccountLinker(
+            $em,
+            $accounts,
+            PropertyAccess::createPropertyAccessor(),
+            $this->createMock(UserPasswordHasherInterface::class),
+            new MockClock(),
+            userLookup: $failingRemove,
+            userFactory: $failingRemove,
+            userWriter: $failingRemove,
+        );
+
+        try {
+            $linker->linkOrCreate($registry->getDefault(), 'google', new SocialUserProfile('sub-10', 'orphan@example.com', null, [], true), ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null]);
+            self::fail('The flush failure must propagate.');
+        } catch (RuntimeException $exception) {
+            self::assertSame('account flush failed', $exception->getMessage());
+        }
+        self::assertSame(['add', 'remove'], $failingRemove->calls);
+    }
+
+    /** JW-A3: a host lookup looser than the contract (collation look-alike) never links an IdP address to another account. */
+    public function testSocialLinkingRechecksTheIdentifierReturnedByTheHostLookup(): void
+    {
+        $registry = $this->registry(['social_login' => ['mode' => 'enabled', 'create_user_if_missing' => false]]);
+        $profile  = $registry->getDefault();
+        $victim   = HostDomainUser::register('uuid-v', 'victim@example.com', 'h', []);
+
+        $loose = $this->createMock(UserLookupInterface::class);
+        $loose->method('findByIdentifier')->willReturn($victim);
+        $accounts = $this->createMock(SocialLoginAccountRepository::class);
+        $accounts->method('findOneByProviderSubject')->willReturn(null);
+
+        $linker = new SocialAccountLinker(
+            $this->createMock(EntityManagerInterface::class),
+            $accounts,
+            PropertyAccess::createPropertyAccessor(),
+            $this->createMock(UserPasswordHasherInterface::class),
+            new MockClock(),
+            userLookup: $loose,
+            userFactory: $this->users,
+            userWriter: $this->users,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('No local account matches');
+        $linker->linkOrCreate($profile, 'google', new SocialUserProfile('sub-11', 'victim@exámple.com', null, [], true), ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null]);
     }
 
     /**
