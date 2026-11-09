@@ -13,25 +13,46 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
+use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
+use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
+use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
+use Nowo\AuthKitBundle\User\NewUser;
+use Nowo\AuthKitBundle\User\PropertyAccessUserFactory;
+use Nowo\AuthKitBundle\User\UserCreationSource;
+use Nowo\AuthKitBundle\User\UserFactoryInterface;
+use Nowo\AuthKitBundle\User\UserIds;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
+use Nowo\AuthKitBundle\User\UserWriterInterface;
 use Psr\Clock\ClockInterface;
 use RuntimeException;
-use Stringable;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Throwable;
 
+use function bin2hex;
+use function class_exists;
 use function is_int;
 use function is_string;
-use function method_exists;
+use function random_bytes;
 use function sprintf;
 
 /**
- * Resolves or creates the application user and persists social account credentials.
+ * Resolves or creates the application user and persists social account credentials. Users are looked up, built and
+ * stored through the user ports (1.41: {@see UserLookupInterface}, {@see UserFactoryInterface},
+ * {@see UserWriterInterface}; Doctrine + PropertyAccessor defaults); a created user dispatches
+ * {@see UserRegisteredEvent} (source `social`) once stored (after the commit in {@see self::linkAndSignIn()}).
  */
 final class SocialAccountLinker
 {
+    private readonly UserLookupInterface $userLookup;
+
+    private readonly UserFactoryInterface $userFactory;
+
+    private readonly UserWriterInterface $userWriter;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly SocialLoginAccountRepository $accountRepository,
@@ -40,8 +61,15 @@ final class SocialAccountLinker
         private readonly ClockInterface $clock,
         private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
         private readonly ?RegistrationGate $registrationGate = null,
-        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
+        UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
+        ?UserLookupInterface $userLookup = null,
+        ?UserFactoryInterface $userFactory = null,
+        ?UserWriterInterface $userWriter = null,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
+        $this->userLookup  = $userLookup ?? new DoctrineUserLookup($entityManager, $identifierMatcher);
+        $this->userFactory = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
+        $this->userWriter  = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery);
     }
 
     /**
@@ -59,7 +87,8 @@ final class SocialAccountLinker
         $connection->beginTransaction();
 
         try {
-            $signIn($this->linkOrCreate($profile, $provider, $socialProfile, $tokens));
+            [$user, $registered] = $this->link($profile, $provider, $socialProfile, $tokens);
+            $signIn($user);
             // On PostgreSQL a listener that swallowed a database error leaves the transaction aborted, and COMMIT then
             // rolls back without an error, with the sign-in kept (HP-L1). A statement fails there, so it counts as failed.
             $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
@@ -74,6 +103,10 @@ final class SocialAccountLinker
 
             throw $exception;
         }
+
+        if ($registered instanceof UserRegisteredEvent) {
+            $this->eventDispatcher?->dispatch($registered);
+        }
     }
 
     /**
@@ -87,14 +120,33 @@ final class SocialAccountLinker
         SocialUserProfile $socialProfile,
         array $tokens,
     ): UserInterface {
+        [$user, $registered] = $this->link($profile, $provider, $socialProfile, $tokens);
+        if ($registered instanceof UserRegisteredEvent) {
+            $this->eventDispatcher?->dispatch($registered);
+        }
+
+        return $user;
+    }
+
+    /**
+     * @param array{access_token: string, refresh_token: ?string, expires_in: ?int} $tokens
+     *
+     * @return array{UserInterface, ?UserRegisteredEvent} the user and, when it was created, the event to dispatch once stored
+     */
+    private function link(
+        ProfileSettings $profile,
+        string $provider,
+        SocialUserProfile $socialProfile,
+        array $tokens,
+    ): array {
         // SEC-004 H2: only a link made for this profile's user class signs in here.
         $account = $this->accountRepository->findOneByProviderSubject($provider, $socialProfile->id, $profile->userClass);
         if ($account instanceof SocialLoginAccount) {
-            $user = $this->loadUser($profile->userClass, $account->getUserId());
+            $user = $this->loadUser($profile, $profile->userClass, $account->getUserId());
             $this->refreshAccountTokens($account, $socialProfile, $tokens);
             $this->entityManagerRecovery->flush($this->entityManager);
 
-            return $user;
+            return [$user, null];
         }
 
         $requireVerified = (bool) ($profile->socialLogin['require_verified_email'] ?? true);
@@ -111,6 +163,7 @@ final class SocialAccountLinker
         }
 
         $createIfMissing = (bool) ($profile->socialLogin['create_user_if_missing'] ?? false);
+        $registered      = null;
         if (!$user instanceof UserInterface) {
             if (!$createIfMissing) {
                 throw new RuntimeException('No local account matches this social identity and create_user_if_missing is false.');
@@ -125,7 +178,8 @@ final class SocialAccountLinker
             if ($requireVerified && $socialProfile->emailVerified !== true) {
                 throw new RuntimeException('Cannot create a local account from social login: the provider did not assert a verified email.');
             }
-            $user = $this->createUser($profile, $socialProfile);
+            $user       = $this->createUser($profile, $socialProfile);
+            $registered = UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Social);
         }
 
         $userId  = $this->resolveUserId($user);
@@ -142,7 +196,7 @@ final class SocialAccountLinker
         $this->entityManager->persist($account);
         $this->entityManagerRecovery->flush($this->entityManager);
 
-        return $user;
+        return [$user, $registered];
     }
 
     /**
@@ -184,7 +238,8 @@ final class SocialAccountLinker
         }
 
         if ($policy === 'reset_password' && $user instanceof PasswordAuthenticatedUserInterface) {
-            $this->propertyAccessor->setValue($user, 'password', $this->passwordHasher->hashPassword($user, bin2hex(random_bytes(32))));
+            // Stored by the flush of the account link below (default writer) or by the host writer itself.
+            $this->userWriter->changePassword($profile, $user, $this->passwordHasher->hashPassword($user, bin2hex(random_bytes(32))));
             foreach (['token_field', 'token_expires_field'] as $key) {
                 $field = $profile->passwordReset[$key] ?? null;
                 if (is_string($field) && $field !== '' && $this->propertyAccessor->isWritable($user, $field)) {
@@ -199,64 +254,32 @@ final class SocialAccountLinker
     private function findUserByIdentifier(ProfileSettings $profile, string $identifier): ?UserInterface
     {
         // SEC-004 H1: the stored identifier must equal the IdP address (no collation look-alike match).
-        $user = $this->identifierMatcher->find(
-            $this->entityManager->getRepository($profile->userClass),
-            $profile->userIdentifierField,
-            $identifier,
-        );
-
-        if (!$user instanceof UserInterface) {
-            return null;
-        }
-
-        if ($this->entityManager->contains($user)) {
-            $this->entityManager->refresh($user);
-        }
-
-        return $user;
+        return $this->userLookup->findByIdentifier($profile, $identifier);
     }
 
     private function createUser(ProfileSettings $profile, SocialUserProfile $socialProfile): UserInterface&PasswordAuthenticatedUserInterface
     {
-        /** @var PasswordAuthenticatedUserInterface&UserInterface $user */
-        $user = new ($profile->userClass)();
-
-        $this->propertyAccessor->setValue($user, $profile->userIdentifierField, $socialProfile->email);
-
-        if ($socialProfile->name !== null && $this->propertyAccessor->isWritable($user, 'displayName')) {
-            $this->propertyAccessor->setValue($user, 'displayName', $socialProfile->name);
-        } elseif ($socialProfile->name !== null && $this->propertyAccessor->isWritable($user, 'name')) {
-            $this->propertyAccessor->setValue($user, 'name', $socialProfile->name);
-        }
-
-        $random = bin2hex(random_bytes(32));
-        $this->propertyAccessor->setValue($user, 'password', $this->passwordHasher->hashPassword($user, $random));
-
-        if (method_exists($user, 'setRoles')) {
-            $user->setRoles([$profile->registrationRole]);
-        } elseif ($this->propertyAccessor->isWritable($user, 'roles')) {
-            $this->propertyAccessor->setValue($user, 'roles', [$profile->registrationRole]);
-        }
-
-        $this->entityManager->persist($user);
-        $this->entityManagerRecovery->flush($this->entityManager);
+        $user = $this->userFactory->create($profile, NewUser::forSocial(
+            (string) $socialProfile->email,
+            $socialProfile->name,
+            bin2hex(random_bytes(32)),
+            [$profile->registrationRole],
+        ));
+        // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
+        $this->userWriter->add($profile, $user);
 
         return $user;
     }
 
-    private function loadUser(string $userClass, string $userId): UserInterface
+    private function loadUser(ProfileSettings $profile, string $userClass, string $userId): UserInterface
     {
         if (!class_exists($userClass)) {
             throw new RuntimeException(sprintf('Linked social user class "%s" does not exist.', $userClass));
         }
 
-        $user = $this->entityManager->find($userClass, is_numeric($userId) ? (int) $userId : $userId);
+        $user = $this->userLookup->findById($profile, $userId);
         if (!$user instanceof UserInterface || !$user instanceof $userClass) {
             throw new RuntimeException(sprintf('Linked social user "%s" (%s) was not found.', $userId, $userClass));
-        }
-
-        if ($this->entityManager->contains($user)) {
-            $this->entityManager->refresh($user);
         }
 
         return $user;
@@ -264,20 +287,6 @@ final class SocialAccountLinker
 
     private function resolveUserId(UserInterface $user): string
     {
-        if (method_exists($user, 'getId')) {
-            $id = $user->getId();
-            if (is_int($id) || $id instanceof Stringable || (is_string($id) && $id !== '')) {
-                return (string) $id;
-            }
-        }
-
-        if ($this->propertyAccessor->isReadable($user, 'id')) {
-            $id = $this->propertyAccessor->getValue($user, 'id');
-            if (is_int($id) || $id instanceof Stringable || (is_string($id) && $id !== '')) {
-                return (string) $id;
-            }
-        }
-
-        return $user->getUserIdentifier();
+        return UserIds::of($user, $this->propertyAccessor) ?? $user->getUserIdentifier();
     }
 }

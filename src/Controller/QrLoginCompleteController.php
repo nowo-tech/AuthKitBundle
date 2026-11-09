@@ -16,6 +16,8 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
+use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,17 +32,21 @@ use function is_a;
  */
 final class QrLoginCompleteController
 {
+    private readonly UserLookupInterface $userLookup;
+
     public function __construct(
         private readonly QrLoginGate $gate,
         private readonly QrLoginChallengeManager $challengeManager,
-        private readonly EntityManagerInterface $entityManager,
+        EntityManagerInterface $entityManager,
         private readonly Security $security,
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RequestProfileResolver $profileResolver,
-        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
+        UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
         private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
         private readonly ?SocialHandlerSignInRollback $signInRollback = null,
+        ?UserLookupInterface $userLookup = null,
     ) {
+        $this->userLookup = $userLookup ?? new DoctrineUserLookup($entityManager, $identifierMatcher);
     }
 
     #[Route(path: '/login/qr/{id}/complete', name: 'nowo_auth_kit_qr_login_complete', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['GET'])]
@@ -81,12 +87,8 @@ final class QrLoginCompleteController
             return $this->redirectToLogin($profile->routes['login']['name']);
         }
 
-        // Exact stored identifier (no collation look-alike), looked up in the profile's user class.
-        $user = $this->identifierMatcher->find(
-            $this->entityManager->getRepository($profile->userClass),
-            $profile->userIdentifierField,
-            $userId,
-        );
+        // Exact stored identifier (no collation look-alike), looked up in the profile's users (UserLookupInterface).
+        $user = $this->userLookup->findByIdentifier($profile, $userId);
 
         if (!$user instanceof UserInterface) {
             return $this->redirectToLogin($profile->routes['login']['name']);

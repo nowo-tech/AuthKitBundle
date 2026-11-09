@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 use function bin2hex;
 use function hash;
@@ -82,7 +83,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $attemptKey  = $this->codeAttemptKey($profile, $user, $identifier);
 
         if (!$this->attemptLimiter->isAllowed($attemptKey, $maxAttempts)) {
-            if ($user !== null) {
+            if ($user instanceof UserInterface) {
                 $this->clearForUser($user);
             }
             $this->attemptLimiter->reset($attemptKey);
@@ -90,7 +91,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             return null;
         }
 
-        if ($user === null) {
+        if (!$user instanceof UserInterface) {
             $this->attemptLimiter->hit($attemptKey, $window);
 
             return null;

@@ -97,8 +97,9 @@ final class AdminUserCreatorTest extends TestCase
     public function testExistsLooksUpTheIdentifierField(): void
     {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturnCallback(
-            static fn (array $criteria): ?TestUser => $criteria === ['email' => 'taken@example.com'] ? new TestUser('taken@example.com') : null,
+        // 1.41: through UserLookupInterface (default: repository + exact stored-identifier match).
+        $repository->method('findBy')->willReturnCallback(
+            static fn (array $criteria): array => $criteria === ['email' => 'taken@example.com'] ? [new TestUser('taken@example.com')] : [],
         );
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->with(TestUser::class)->willReturn($repository);

@@ -74,10 +74,6 @@ final class MagicLoginRequestHandler
 
         $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
 
-        if ($user === null) {
-            return;
-        }
-
         if (!$user instanceof UserInterface) {
             return;
         }

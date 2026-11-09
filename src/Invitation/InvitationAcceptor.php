@@ -20,6 +20,8 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
+use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
+use Nowo\AuthKitBundle\User\UserCreationSource;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -250,6 +252,8 @@ final readonly class InvitationAcceptor
                 : InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
         }
 
+        // 1.41: after the commit, like the registration page / social sign-up / admin creation.
+        $this->eventDispatcher?->dispatch(UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Invitation));
         $this->eventDispatcher?->dispatch(new InvitationAcceptedEvent($snapshot, $user, $now));
 
         return InvitationAcceptance::accepted($user, $snapshot);

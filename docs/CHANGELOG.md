@@ -99,6 +99,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target 1.41.0. User ports for DDD / hexagonal hosts (additive; the defaults keep the earlier Doctrine behaviour).
+
+### Added
+
+- `User\Event\UserRegisteredEvent` (profile, user class, scalar `userId`, identifier, `UserCreationSource` `form|invitation|social|admin`, roles): dispatched once the account is stored — after the flush of the registration page and of admin creation, after the commit of an invitation acceptance and of `SocialAccountLinker::linkAndSignIn()`. Not dispatched for a rolled-back account (`first_user_only` race, failed acceptance or sign-in).
+- `PasswordReset\PasswordResetCompletedEvent` (profile, user class, scalar `userId`, identifier): dispatched by `PasswordResetCompleter` after the new hash is stored.
+- `User\UserFactoryInterface` (builds the user from a `User\NewUser` DTO), `User\UserWriterInterface` (`add`, `remove`, `changePassword`, `save`; `User\DuplicateUserException`) and `User\UserLookupInterface` (`findByIdentifier`, `findById`, `countUsers`, `hasCaseVariant`), aliased to `PropertyAccessUserFactory`, `Doctrine\DoctrineUserWriter` and `Doctrine\DoctrineUserLookup`. `UserRegistrar`, `AdminUserCreator`, `SocialAccountLinker`, `PasswordResetCompleter`, `PasswordResetUserResolver`, `MagicLoginUserResolver`, `RegistrationGate`, `QrLoginCompleteController` and `MfaAdminController` go through them, so the security user no longer has to be a Doctrine entity with a no-argument constructor and writable properties.
+- `password_reset.password_field` (per profile, default `password`): the password property whose change in a Doctrine flush clears a pending reset credential (was hard-coded `password`).
+- `User\Event\CredentialsChangedEvent`: dispatched by the host after it changes a password or identifier outside Doctrine; AuthKit forgets the MFA trusted devices (`password_changed`) and clears the pending reset credential.
+
+### Changed
+
+- `nowo:auth-kit:create-admin`'s "already exists" check and the MFA admin page look the user up through `UserLookupInterface::findByIdentifier()`, i.e. with the exact stored-identifier rule of the other flows (SEC-004 H1) instead of a plain `findOneBy()`: on an accent-insensitive collation a look-alike identifier no longer matches there.
+- Social `link_existing_account: reset_password` writes the random password through `UserWriterInterface::changePassword()`: the default writes the property of the `registration_fields[]` entry of type `password` (default `password`; it was always `password`).
+- `PasswordResetUserResolver::findByIdentifier()` and `MagicLoginUserResolver::findByIdentifier()` return `?UserInterface` (was `?object`; a non-user row is now `null`).
+- The constructors of the services above take the ports as new trailing optional arguments (without them the Doctrine defaults are built); `MfaAdminController` takes `UserLookupInterface` as a new last argument and no longer uses `ManagerRegistry`.
+
+### Documentation
+
+- USAGE: new section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the user ports, events and DTOs to build an anti-corruption layer on, and the known limitations).
+
 ## [1.40.0] - 2026-11-08
 
 Twig blocks for the recovery codes page actions (Beacon AK-1 gap). Audit: Appendix IL, Pass.

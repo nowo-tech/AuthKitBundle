@@ -26,6 +26,7 @@ nowo_auth_kit:
         token_ttl: 3600
         token_field: passwordResetToken
         token_expires_field: passwordResetExpiresAt
+        password_field: password    # 1.41: a change of this property clears a pending reset credential
 ```
 
 | Delivery | Use case |

@@ -64,10 +64,25 @@ final class PasswordResetTokenInvalidationListenerTest extends TestCase
         (new PasswordResetTokenInvalidationListener(ProfileRegistryFactory::single(TestUser::class)))->onFlush(new OnFlushEventArgs($em));
     }
 
+    public function testWatchesTheConfiguredPasswordField(): void
+    {
+        $user = new TestUser('a@example.com');
+        $user->setPasswordResetToken('pending-hash');
+        $user->setPasswordResetExpiresAt(new DateTimeImmutable('+1 hour'));
+
+        // 1.41 password_reset.password_field: "password" is no longer the watched property.
+        $this->flush($user, ['password' => ['old', 'new']], false, ['password_reset' => ['password_field' => 'passwordHash']]);
+        self::assertSame('pending-hash', $user->getPasswordResetToken());
+
+        $this->flush($user, ['passwordHash' => ['old', 'new']], true, ['password_reset' => ['password_field' => 'passwordHash']]);
+        self::assertNull($user->getPasswordResetToken());
+    }
+
     /**
      * @param array<string, mixed> $changeSet
+     * @param array<string, mixed> $profileOverrides
      */
-    private function flush(TestUser $user, array $changeSet, bool $expectRecompute): void
+    private function flush(TestUser $user, array $changeSet, bool $expectRecompute, array $profileOverrides = []): void
     {
         $metadata = $this->createMock(ClassMetadata::class);
         $metadata->method('hasField')->willReturn(true);
@@ -85,6 +100,6 @@ final class PasswordResetTokenInvalidationListenerTest extends TestCase
         $em->method('getUnitOfWork')->willReturn($uow);
         $em->method('getClassMetadata')->willReturn($metadata);
 
-        (new PasswordResetTokenInvalidationListener(ProfileRegistryFactory::single(TestUser::class)))->onFlush(new OnFlushEventArgs($em));
+        (new PasswordResetTokenInvalidationListener(ProfileRegistryFactory::single(TestUser::class, $profileOverrides)))->onFlush(new OnFlushEventArgs($em));
     }
 }

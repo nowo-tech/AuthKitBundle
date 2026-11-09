@@ -7,50 +7,53 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
+use Nowo\AuthKitBundle\User\UserIds;
+use Nowo\AuthKitBundle\User\UserWriterInterface;
+use SensitiveParameter;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
- * Applies a new password and clears the reset credential.
+ * Applies a new password and clears the reset credential. The hash is stored through {@see UserWriterInterface}
+ * (1.41; default: the password property + flush), then {@see PasswordResetCompletedEvent} is dispatched.
  */
 final class PasswordResetCompleter
 {
+    private readonly UserWriterInterface $userWriter;
+
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
+        EntityManagerInterface $entityManager,
         private readonly UserPasswordHasherInterface $passwordHasher,
-        private readonly PropertyAccessorInterface $propertyAccessor,
+        PropertyAccessorInterface $propertyAccessor,
         private readonly PasswordResetTokenManagerInterface $tokenManager,
         private readonly ProfileRegistry $profileRegistry,
-        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        ?UserWriterInterface $userWriter = null,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
+        $this->userWriter = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery);
     }
 
-    public function complete(PasswordAuthenticatedUserInterface $user, string $plainPassword): void
+    public function complete(PasswordAuthenticatedUserInterface $user, #[SensitiveParameter] string $plainPassword): void
     {
-        $profile          = $this->profileRegistry->resolveForObject($user) ?? $this->profileRegistry->getDefault();
-        $passwordProperty = $this->resolvePasswordProperty($profile->registrationFields);
-        $hashed           = $this->passwordHasher->hashPassword($user, $plainPassword);
+        $profile = $this->profileRegistry->resolveForObject($user) ?? $this->profileRegistry->getDefault();
+        $hashed  = $this->passwordHasher->hashPassword($user, $plainPassword);
 
-        $this->propertyAccessor->setValue($user, $passwordProperty, $hashed);
+        $this->userWriter->changePassword($profile, $user, $hashed);
         // @igor-ignore - Not shared worker service state.
         $this->tokenManager->clearForUser($user);
 
-        $this->entityManager->persist($user);
-        $this->entityManagerRecovery->flush($this->entityManager);
-    }
+        $this->userWriter->save($profile, $user);
 
-    /**
-     * @param list<array<string, mixed>> $registrationFields
-     */
-    private function resolvePasswordProperty(array $registrationFields): string
-    {
-        foreach ($registrationFields as $field) {
-            if ($field['type'] === 'password') {
-                return $field['property'];
-            }
-        }
-
-        return 'password';
+        $this->eventDispatcher?->dispatch(new PasswordResetCompletedEvent(
+            $profile->name,
+            $user::class,
+            UserIds::of($user),
+            $user instanceof UserInterface ? $user->getUserIdentifier() : '',
+        ));
     }
 }
