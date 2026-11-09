@@ -25,6 +25,7 @@
   - [access_control](#access_control)
 - [Registration link on login page](#registration-link-on-login-page)
 - [Account switcher avatars (1.35)](#account-switcher-avatars-135)
+- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 
 ## Twig template overrides (REQ-TWIG-001)
 
@@ -331,3 +332,68 @@ The picture goes over the initials after UiKit's `AvatarUrlPolicy`; the other ac
 initials unless `chooser.other_account_avatars: true` (signed-in browsers only: anonymous pages never show a picture); a broken picture falls back to the initials (UiKit's
 `js/nowo-ui-avatar.js`). Details: [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md#avatars-135).
 
+## Using it from a DDD / hexagonal application
+
+AuthKit is an outer-ring package: Symfony controllers, forms and Twig (presentation) plus Doctrine-based adapters
+for your security user (infrastructure). It also owns a few auth-only tables (`auth_kit_*`: invitations, MFA,
+QR login, social accounts, account vault). Those tables reference your user only by class + id or identifier
+strings — there are no Doctrine relations to your entities, no `resolve_target_entities`, no base class or trait
+to extend. Turn the mapping off or on per need with `nowo_auth_kit.doctrine.register_mapping` (`true`, `false`,
+`auto`) and prefix the tables with `doctrine.table_prefix`.
+
+### Keep the domain free of the bundle
+
+- Point `profiles.<name>.user_class` at your **security user** (the Doctrine entity in your infrastructure layer
+  that implements `UserInterface` and `PasswordAuthenticatedUserInterface`), not at a domain aggregate. Login goes
+  through your firewall and user provider; registration, password reset, magic login, social sign-up and
+  `nowo:auth-kit:create-admin` read and write that class directly through Doctrine (see limitations).
+- React to AuthKit in your application layer through events and translate them into your own domain events:
+  `AdminUserCreatedEvent`, `PasswordResetRequestedEvent`, `MagicLoginRequestedEvent`, `AdminMagicLinkIssuedEvent`,
+  `Invitation\Event\*` (payload `InvitationSnapshot`, a DTO), `Mfa\Event\*`, `MultiAccount\Event\*`,
+  `QrLogin\Event\*`.
+- Plug your own rules and delivery in through the ports:
+  `PasswordResetNotifierInterface`, `MagicLoginNotifierInterface`, `NewDeviceLoginNotifierInterface`,
+  `InvitationMailerInterface` (aliases); `InvitationGrantInterface`, `InvitationActionAuthorizerInterface`,
+  `SocialCallbackHandlerInterface` (autoconfigured tags); `InvitationsAccessCheckerInterface`,
+  `MfaPolicyInterface`, `AccountPresenterInterface`, `EnrolmentGateInterface`, `FeatureAvailabilityCheckerInterface`,
+  `OutboundMailReadyCheckerInterface`, `RecipientLocaleResolverInterface` (service ids in config).
+  `PasswordResetTokenManagerInterface` can be re-aliased to keep reset credentials out of the user entity.
+
+### Example: invitation grant as an adapter
+
+```php
+namespace App\Infrastructure\AuthKit;
+
+use App\Application\Membership\AddMemberToTeam;   // your use case
+use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
+use Symfony\Component\Security\Core\User\UserInterface;
+
+final readonly class TeamInvitationGrant implements InvitationGrantInterface
+{
+    public function __construct(private AddMemberToTeam $addMember) {}
+
+    public function grant(InvitationSnapshot $invitation, UserInterface $user): void
+    {
+        // Translate the bundle DTO into your command; the domain never sees AuthKit types.
+        ($this->addMember)($user->getUserIdentifier(), $invitation->payload['team'] ?? null);
+    }
+}
+```
+
+The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
+
+### Known limitations
+
+- The security user class must be a Doctrine entity with a no-argument constructor and writable properties
+  (PropertyAccessor): registration, invited registration, social sign-up and admin creation call `new`, set the
+  configured fields and flush; reset, magic login, QR login and MFA admin look users up with the Doctrine
+  repository of `user_class`. There is no user factory / lookup port yet.
+- Password-reset credentials are stored on the user entity (`password_reset.token_field`,
+  `token_expires_field`) unless you provide your own `PasswordResetTokenManagerInterface`.
+- Reset tokens and MFA trust are invalidated by Doctrine `onFlush` listeners when the user's identifier or
+  `password` property changes; changes made outside Doctrine are not seen.
+- No `UserRegistered` / `PasswordResetCompleted` event yet; listen to `SecurityEvents::INTERACTIVE_LOGIN` or
+  Doctrine events in the meantime.
+- QR login events carry the `QrLoginChallenge` entity, and `InvitationActionAuthorizerInterface` receives the
+  `Invitation` entity.
