@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.41.0] - 2026-11-09](#1410---2026-11-09)
 - [[1.40.0] - 2026-11-08](#1400---2026-11-08)
 - [[1.39.0] - 2026-11-07](#1390---2026-11-07)
 - [[1.38.0] - 2026-11-07](#1380---2026-11-07)
@@ -98,6 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.41.0] - 2026-11-09
 
 Target 1.41.0. User ports for DDD / hexagonal hosts (additive; the defaults keep the earlier Doctrine behaviour).
 
