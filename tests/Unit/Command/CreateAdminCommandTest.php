@@ -207,7 +207,7 @@ final class CreateAdminCommandTest extends TestCase
         ?array $strength = null,
     ): AdminUserCreator {
         $repository = $this->createMock(EntityRepository::class);
-        $repository->method('findOneBy')->willReturn($existing ? new TestUser('taken@example.com') : null);
+        $repository->method('findBy')->willReturn($existing ? [new TestUser('taken@example.com')] : []);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);

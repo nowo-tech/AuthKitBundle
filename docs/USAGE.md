@@ -25,6 +25,7 @@
   - [access_control](#access_control)
 - [Registration link on login page](#registration-link-on-login-page)
 - [Account switcher avatars (1.35)](#account-switcher-avatars-135)
+- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 
 ## Twig template overrides (REQ-TWIG-001)
 
@@ -331,3 +332,144 @@ The picture goes over the initials after UiKit's `AvatarUrlPolicy`; the other ac
 initials unless `chooser.other_account_avatars: true` (signed-in browsers only: anonymous pages never show a picture); a broken picture falls back to the initials (UiKit's
 `js/nowo-ui-avatar.js`). Details: [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md#avatars-135).
 
+## Using it from a DDD / hexagonal application
+
+AuthKit is an outer-ring package: Symfony controllers, forms and Twig (presentation) plus adapters for your security
+user (infrastructure). It also owns a few auth-only tables (`auth_kit_*`: invitations, MFA, QR login, social accounts,
+account vault). Those tables reference your user only by class + id or identifier strings — there are no Doctrine
+relations to your entities, no `resolve_target_entities`, no base class or trait to extend. Turn the mapping off or on
+per need with `nowo_auth_kit.doctrine.register_mapping` (`true`, `false`, `auto`) and prefix the tables with
+`doctrine.table_prefix`.
+
+### Keep the domain free of the bundle
+
+- Point `profiles.<name>.user_class` at your **security user** (the class your user provider returns, implementing
+  `UserInterface` and `PasswordAuthenticatedUserInterface`), not at a domain aggregate. Login goes through your
+  firewall and user provider.
+- **User ports (1.41).** AuthKit creates, stores and finds users only through three interfaces (namespace
+  `Nowo\AuthKitBundle\User`). The defaults reproduce the earlier behaviour (Doctrine entity, no-argument constructor,
+  PropertyAccessor writes); alias them to your own adapters when the security user is not a Doctrine entity or your
+  domain owns persistence:
+
+  | Port | Used by | Default |
+  |---|---|---|
+  | `UserFactoryInterface::create(ProfileSettings, NewUser)` | registration, invited registration, social sign-up, `nowo:auth-kit:create-admin` | `PropertyAccessUserFactory` |
+  | `UserWriterInterface` (`add`, `remove`, `changePassword`, `save`) | the same flows, password reset completion, social `link_existing_account: reset_password` | `Doctrine\DoctrineUserWriter` |
+  | `UserLookupInterface` (`findByIdentifier`, `findById`, `countUsers`, `hasCaseVariant`) | password reset, magic login, QR completion, MFA admin, social sign-in, registration gate, `first_user_only`, create-admin | `Doctrine\DoctrineUserLookup` |
+
+  `NewUser` is a plain DTO: the source (`UserCreationSource`: `form`, `invitation`, `social`, `admin`), the roles, the
+  submitted registration form (`formData`, keyed by `registration_fields[].name`, values still plain), or the
+  identifier / plain password / display name. A writer signals a taken unique value with `DuplicateUserException`.
+  `findByIdentifier()` must keep the exact stored-identifier rule (NFC + lower-case, no collation look-alike; see
+  `Security\UserIdentifierMatcher`) and return null when several users match. Social linking and QR completion re-check
+  it anyway. `changePassword()` may defer storing to `save()`, which AuthKit always calls afterwards. With a writer other
+  than the Doctrine default, AuthKit dispatches `CredentialsChangedEvent` itself for the passwords it changes. If an
+  invitation acceptance or a social sign-in fails after `add()`, AuthKit calls `remove()` on that writer.
+  `NewUser` holds plain passwords: never log or serialise it.
+
+  ```yaml
+  # config/services.yaml
+  Nowo\AuthKitBundle\User\UserFactoryInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
+  Nowo\AuthKitBundle\User\UserWriterInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
+  Nowo\AuthKitBundle\User\UserLookupInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
+  ```
+
+- React to AuthKit in your application layer through events and translate them into your own domain events:
+  - `User\Event\UserRegisteredEvent` (1.41): profile, user class, `userId` (`(string) getId()`), identifier, source,
+    roles — scalars only. Dispatched once the account is stored: after the flush of the registration page and of
+    admin creation, after the commit of an invitation acceptance or of `SocialAccountLinker::linkAndSignIn()`. Not
+    dispatched for a rolled-back account. `UserRegistrar::registerInvited()` called directly does not dispatch it.
+  - `PasswordReset\PasswordResetCompletedEvent` (1.41): profile, user class, `userId`, identifier, after the new hash
+    is stored.
+  - `AdminUserCreatedEvent`, `PasswordResetRequestedEvent`, `MagicLoginRequestedEvent`, `AdminMagicLinkIssuedEvent`,
+    `Invitation\Event\*` (payload `InvitationSnapshot`, a DTO), `Mfa\Event\*`, `MultiAccount\Event\*`,
+    `QrLogin\Event\*`.
+- **Credentials changed outside Doctrine (1.41).** Reset credentials and MFA trusted devices are invalidated by Doctrine
+  `onFlush` listeners when the identifier or the password property (`password_reset.password_field` and
+  `mfa.trusted_devices.password_field`, default `password`) of a user entity changes. When your domain changes the
+  password elsewhere (not through AuthKit's writer calls, which already dispatch it), dispatch
+  `User\Event\CredentialsChangedEvent($user)` after your commit: AuthKit forgets the MFA
+  trusted devices and clears the pending reset credential through `PasswordResetTokenManagerInterface`.
+- Plug your own rules and delivery in through the ports:
+  `PasswordResetNotifierInterface`, `MagicLoginNotifierInterface`, `NewDeviceLoginNotifierInterface`,
+  `InvitationMailerInterface` (aliases); `InvitationGrantInterface`, `InvitationActionAuthorizerInterface`,
+  `SocialCallbackHandlerInterface` (autoconfigured tags); `InvitationsAccessCheckerInterface`,
+  `MfaPolicyInterface`, `AccountPresenterInterface`, `EnrolmentGateInterface`, `FeatureAvailabilityCheckerInterface`,
+  `OutboundMailReadyCheckerInterface`, `RecipientLocaleResolverInterface` (service ids in config).
+  `PasswordResetTokenManagerInterface` can be re-aliased to keep reset credentials out of the user entity.
+
+### Example: a user adapter over your domain
+
+```php
+namespace App\Infrastructure\AuthKit;
+
+use App\Domain\User\User;                 // your aggregate (named constructor, no setters)
+use App\Domain\User\UserRepository;       // your port
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\User\{DuplicateUserException, NewUser, UserFactoryInterface, UserLookupInterface, UserWriterInterface};
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Core\User\{PasswordAuthenticatedUserInterface, UserInterface};
+
+final readonly class AuthKitUsers implements UserFactoryInterface, UserWriterInterface, UserLookupInterface
+{
+    public function __construct(private UserRepository $users, private UserPasswordHasherInterface $hasher) {}
+
+    public function create(ProfileSettings $profile, NewUser $newUser): UserInterface&PasswordAuthenticatedUserInterface
+    {
+        $email = $newUser->identifier ?? $newUser->formData['email'];
+        $user  = SecurityUser::pending($email, $newUser->roles);             // your security-user adapter
+        $user->hash($this->hasher->hashPassword($user, $newUser->plainPassword ?? $newUser->formData['password']));
+
+        return $user;
+    }
+
+    public function add(ProfileSettings $profile, UserInterface $user): void
+    {
+        if ($this->users->emailTaken($user->getUserIdentifier())) {
+            throw new DuplicateUserException('E-mail taken.');
+        }
+        $this->users->add(User::register($this->users->nextId(), $user->getUserIdentifier(), $user->getPassword(), $user->getRoles()));
+    }
+
+    // remove(), changePassword(), save(), findByIdentifier(), findById(), countUsers(), hasCaseVariant() …
+}
+```
+
+### Example: invitation grant as an adapter
+
+```php
+namespace App\Infrastructure\AuthKit;
+
+use App\Application\Membership\AddMemberToTeam;   // your use case
+use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
+use Symfony\Component\Security\Core\User\UserInterface;
+
+final readonly class TeamInvitationGrant implements InvitationGrantInterface
+{
+    public function __construct(private AddMemberToTeam $addMember) {}
+
+    public function grant(InvitationSnapshot $invitation, UserInterface $user): void
+    {
+        // Translate the bundle DTO into your command; the domain never sees AuthKit types.
+        ($this->addMember)($user->getUserIdentifier(), $invitation->payload['team'] ?? null);
+    }
+}
+```
+
+The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
+
+### Known limitations
+
+- Password-reset credentials are stored on the user (`password_reset.token_field`, `token_expires_field`) and found
+  with a DQL query on that column by the default `PasswordResetTokenManagerInterface`; with a non-Doctrine user,
+  provide your own implementation (the default one, and therefore `CredentialsChangedEvent`, need those columns).
+- The invitation acceptance and `SocialAccountLinker::linkAndSignIn()` open their transaction on the bundle's entity
+  manager connection. A host writer on another connection is not rolled back with them. AuthKit compensates with
+  `remove()`, but between `add()` and that removal the account exists (and stays if `remove()` fails, which is logged).
+- `first_user_only` with a host store relies on `countUsers()` seeing the writer's `add()` (read-your-writes);
+  otherwise the recount after the insert cannot detect two concurrent first registrations.
+- `UserRegisteredEvent` / `PasswordResetCompletedEvent` follow the bundle's flush; if you call `UserRegistrar` or
+  `PasswordResetCompleter` inside your own transaction, they fire before your commit.
+- QR login events carry the `QrLoginChallenge` entity, and `InvitationActionAuthorizerInterface` receives the
+  `Invitation` entity.

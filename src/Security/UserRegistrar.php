@@ -8,36 +8,63 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
+use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
+use Nowo\AuthKitBundle\User\DuplicateUserException;
+use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
+use Nowo\AuthKitBundle\User\NewUser;
+use Nowo\AuthKitBundle\User\PropertyAccessUserFactory;
+use Nowo\AuthKitBundle\User\UserCreationSource;
+use Nowo\AuthKitBundle\User\UserFactoryInterface;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
+use Nowo\AuthKitBundle\User\UserWriterInterface;
 use RuntimeException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_unique;
 use function array_values;
 use function is_string;
-use function mb_strtolower;
 use function sprintf;
-use function trim;
 
 /**
- * Creates and persists users from registration form data.
+ * Creates and stores users from registration form data, through the user ports (1.41): {@see UserFactoryInterface}
+ * builds the user, {@see UserWriterInterface} stores it, {@see UserLookupInterface} counts and checks for duplicates.
+ * Without them (direct construction) the Doctrine + PropertyAccessor defaults are used.
  */
 final class UserRegistrar
 {
+    private readonly UserFactoryInterface $userFactory;
+
+    private readonly UserWriterInterface $userWriter;
+
+    private readonly UserLookupInterface $userLookup;
+
     public function __construct(
         private readonly ProfileRegistry $profileRegistry,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly UserPasswordHasherInterface $passwordHasher,
-        private readonly PropertyAccessorInterface $propertyAccessor,
-        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        EntityManagerInterface $entityManager,
+        UserPasswordHasherInterface $passwordHasher,
+        PropertyAccessorInterface $propertyAccessor,
+        EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        ?UserFactoryInterface $userFactory = null,
+        ?UserWriterInterface $userWriter = null,
+        ?UserLookupInterface $userLookup = null,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
+        $this->userFactory = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
+        $this->userWriter  = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery);
+        $this->userLookup  = $userLookup ?? new DoctrineUserLookup($entityManager);
     }
 
     /**
+     * Dispatches {@see UserRegisteredEvent} (source `form`) once the account is stored.
+     *
      * @param array<string, mixed> $formData keyed by field name
      */
     public function register(array $formData, ?string $profileName = null): UserInterface&PasswordAuthenticatedUserInterface
@@ -48,23 +75,25 @@ final class UserRegistrar
 
         $mode = RegistrationMode::from($profile->registrationMode);
         if ($mode === RegistrationMode::FirstUserOnly) {
-            $count = $this->entityManager->getRepository($profile->userClass)->count([]);
+            $count = $this->userLookup->countUsers($profile);
             if ($count > 0) {
                 throw new RuntimeException('Registration is closed (first_user_only): users already exist.');
             }
         }
 
-        $user = $this->createUser($profile, $formData, [$profile->registrationRole]);
+        $user = $this->createUser($profile, NewUser::fromForm($formData, [$profile->registrationRole]));
 
         if ($mode === RegistrationMode::FirstUserOnly) {
-            $count = $this->entityManager->getRepository($profile->userClass)->count([]);
+            $count = $this->userLookup->countUsers($profile);
             if ($count > 1) {
-                $this->entityManager->remove($user);
-                $this->entityManagerRecovery->flush($this->entityManager);
+                // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
+                $this->userWriter->remove($profile, $user);
 
                 throw new RuntimeException(sprintf('Registration race detected for first_user_only on "%s"; rolling back extra user.', $profile->userClass));
             }
         }
+
+        $this->eventDispatcher?->dispatch(UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Form));
 
         return $user;
     }
@@ -72,7 +101,9 @@ final class UserRegistrar
     /**
      * Creates the account of an accepted invitation (1.32): same field mapping and hashing as {@see self::register()},
      * roles = `invitations.registration_role` (1.33; null: registration_role) plus `$roles`. Not subject to `first_user_only` (the invitation is the authorisation);
-     * the caller checks {@see RegistrationGate::isInvitationAcceptanceAllowed()}.
+     * the caller checks {@see RegistrationGate::isInvitationAcceptanceAllowed()}. Dispatches no event: the caller runs
+     * it in its transaction ({@see InvitationAcceptor} dispatches
+     * {@see UserRegisteredEvent} after its commit).
      *
      * @param array<string, mixed> $formData keyed by field name
      * @param list<string> $roles extra roles granted by the invitation
@@ -86,7 +117,11 @@ final class UserRegistrar
 
         $base = $profile->invitations['registration_role'] ?? null;
 
-        return $this->createUser($profile, $formData, array_values(array_unique([is_string($base) && $base !== '' ? $base : $profile->registrationRole, ...$roles])));
+        return $this->createUser($profile, NewUser::fromForm(
+            $formData,
+            array_values(array_unique([is_string($base) && $base !== '' ? $base : $profile->registrationRole, ...$roles])),
+            UserCreationSource::Invitation,
+        ));
     }
 
     /**
@@ -109,57 +144,19 @@ final class UserRegistrar
                 $property = (string) ($definition['property'] ?? $field);
             }
         }
-        if (!$this->entityManager->getClassMetadata($profile->userClass)->hasField($property)) {
-            return;
-        }
-        $count = (int) $this->entityManager->createQueryBuilder()
-            ->select('COUNT(u)')
-            ->from($profile->userClass, 'u')
-            ->where(sprintf('LOWER(u.%s) = :identifier', $property))
-            ->setParameter('identifier', mb_strtolower(trim($value)))
-            ->getQuery()
-            ->getSingleScalarResult();
-        if ($count > 0) {
+        if ($this->userLookup->hasCaseVariant($profile, $property, $value)) {
             throw new RuntimeException(sprintf('Registration failed: a "%s" with the same identifier (any case) already exists.', $profile->userClass));
         }
     }
 
-    /**
-     * @param array<string, mixed> $formData
-     * @param list<string> $roles
-     */
-    private function createUser(ProfileSettings $profile, array $formData, array $roles): UserInterface&PasswordAuthenticatedUserInterface
+    private function createUser(ProfileSettings $profile, NewUser $newUser): UserInterface&PasswordAuthenticatedUserInterface
     {
-        /** @var PasswordAuthenticatedUserInterface&UserInterface $user */
-        $user = new ($profile->userClass)();
-
-        foreach ($profile->registrationFields as $field) {
-            if (($field['mapped'] ?? true) === false) {
-                continue;
-            }
-
-            $value = $formData[$field['name']] ?? null;
-
-            if ($field['hash'] && is_string($value)) {
-                $value = $this->passwordHasher->hashPassword($user, $value);
-            }
-
-            if ($value !== null) {
-                $this->propertyAccessor->setValue($user, $field['property'], $value);
-            }
-        }
-
-        if (method_exists($user, 'setRoles')) {
-            $user->setRoles($roles);
-        } elseif ($this->propertyAccessor->isWritable($user, 'roles')) {
-            $this->propertyAccessor->setValue($user, 'roles', $roles);
-        }
-
-        $this->entityManager->persist($user);
+        $user = $this->userFactory->create($profile, $newUser);
 
         try {
-            $this->entityManagerRecovery->flush($this->entityManager);
-        } catch (UniqueConstraintViolationException $exception) {
+            // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
+            $this->userWriter->add($profile, $user);
+        } catch (DuplicateUserException|UniqueConstraintViolationException $exception) {
             throw new RuntimeException(sprintf('Registration failed: a "%s" with the same unique value already exists.', $profile->userClass), 0, $exception);
         }
 

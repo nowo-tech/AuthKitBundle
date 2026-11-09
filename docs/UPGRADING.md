@@ -109,6 +109,29 @@
 
 ## Unreleased
 
+Target **1.41.0**, from **1.40.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+Nothing to change: the new user ports are aliased to the Doctrine + PropertyAccessor implementations of earlier
+releases. Optional:
+
+- **Non-Doctrine security user / domain-owned users**: alias `Nowo\AuthKitBundle\User\UserFactoryInterface`,
+  `UserWriterInterface` and `UserLookupInterface` to your adapter (see [USAGE](USAGE.md#using-it-from-a-ddd--hexagonal-application)).
+  Keep the exact stored-identifier rule in `findByIdentifier()`. Password reset with such a user still needs your own
+  `PasswordResetTokenManagerInterface`.
+- **Domain events**: listen to `User\Event\UserRegisteredEvent` and `PasswordReset\PasswordResetCompletedEvent`
+  instead of `SecurityEvents::INTERACTIVE_LOGIN` / Doctrine lifecycle events.
+- **Password property not named `password`**: set `profiles.<name>.password_reset.password_field` so that a password
+  change clears a pending reset credential (and `mfa.trusted_devices.password_field` for MFA trusted devices).
+- **Passwords changed outside Doctrine** by your own code: dispatch `User\Event\CredentialsChangedEvent($user)` after
+  your commit. AuthKit dispatches it itself for the passwords it changes through a non-Doctrine writer.
+- Behaviour notes: `nowo:auth-kit:create-admin`'s "already exists" check and the MFA admin page now use the exact
+  stored-identifier match (no accent-insensitive look-alike). If you construct `MfaAdminController` yourself, pass a
+  `UserLookupInterface` as the new last argument.
+
 ## To 1.40.0
 
 From **1.39.0**:

@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Doctrine;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 
 use function array_key_exists;
 use function is_string;
@@ -14,7 +15,9 @@ use function is_string;
 /**
  * SEC-004 L6: a pending password reset credential dies with the identifier or password it was issued for. When a
  * profile user's identifier or password changes outside the reset flow (profile edit, admin, social linking), the
- * stored reset token / code and its expiry are cleared in the same flush.
+ * stored reset token / code and its expiry are cleared in the same flush. The password property is
+ * `password_reset.password_field` (1.41, default `password`); changes made outside Doctrine: dispatch
+ * {@see CredentialsChangedEvent}.
  */
 final readonly class PasswordResetTokenInvalidationListener
 {
@@ -44,7 +47,7 @@ final readonly class PasswordResetTokenInvalidationListener
             }
 
             $changeSet = $unitOfWork->getEntityChangeSet($entity);
-            $changed   = array_key_exists($profile->userIdentifierField, $changeSet) || array_key_exists('password', $changeSet);
+            $changed   = array_key_exists($profile->userIdentifierField, $changeSet) || array_key_exists((string) ($profile->passwordReset['password_field'] ?? 'password'), $changeSet);
             // The reset flow itself writes the token fields (issue, consume): leave those flushes alone.
             if (!$changed || array_key_exists($tokenField, $changeSet) || $metadata->getFieldValue($entity, $tokenField) === null) {
                 continue;

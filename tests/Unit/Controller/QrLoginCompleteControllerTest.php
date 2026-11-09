@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Tests\Stub\RoleWritableUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -240,6 +241,34 @@ final class QrLoginCompleteControllerTest extends TestCase
         $response = $controller->complete(new Request(), 'complete-id');
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/dashboard', $response->headers->get('Location'));
+    }
+
+    /** JW-A3: a host lookup looser than the contract (look-alike / other account) never signs that account in. */
+    public function testRechecksTheIdentifierReturnedByAHostLookup(): void
+    {
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($this->approvedChallenge());
+        $manager->method('verifyDesktopCookie')->willReturn(true);
+        $manager->method('verifyDesktopBinding')->willReturn(true);
+        $manager->expects(self::never())->method('consume');
+
+        $other = new TestUser('other@test.com');
+        $loose = $this->createMock(UserLookupInterface::class);
+        $loose->method('findByIdentifier')->willReturn($other);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/login');
+        $controller = new QrLoginCompleteController(
+            new QrLoginGate(ProfileRegistryFactory::single(TestUser::class, $this->overrides())),
+            $manager,
+            $this->createMock(EntityManagerInterface::class),
+            $this->createMock(Security::class),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $this->overrides()),
+            userLookup: $loose,
+        );
+
+        self::assertSame('/login', $controller->complete(new Request(), 'complete-id')->headers->get('Location'));
     }
 
     /** SEC-004 L2: a challenge approved by an account of another profile's user class never logs in here. */

@@ -8,17 +8,24 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
 
 /**
  * Determines whether registration is currently allowed: the open registration page ({@see self::isRegistrationAllowed()})
- * and the acceptance of an invitation ({@see self::isInvitationAcceptanceAllowed()}).
+ * and the acceptance of an invitation ({@see self::isInvitationAcceptanceAllowed()}). `first_user_only` counts the users
+ * through {@see UserLookupInterface} (1.41; default: the Doctrine repository).
  */
 final class RegistrationGate
 {
+    private readonly UserLookupInterface $userLookup;
+
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
+        EntityManagerInterface $entityManager,
         private readonly ProfileRegistry $profileRegistry,
+        ?UserLookupInterface $userLookup = null,
     ) {
+        $this->userLookup = $userLookup ?? new DoctrineUserLookup($entityManager);
     }
 
     public function isRegistrationAllowed(?string $profileName = null): bool
@@ -30,7 +37,7 @@ final class RegistrationGate
         return match ($registrationMode) {
             RegistrationMode::Disabled, RegistrationMode::InviteOnly => false,
             RegistrationMode::Always                                 => true,
-            RegistrationMode::FirstUserOnly                          => $this->countUsers($profile->userClass) === 0,
+            RegistrationMode::FirstUserOnly                          => $this->userLookup->countUsers($profile) === 0,
         };
     }
 
@@ -50,15 +57,5 @@ final class RegistrationGate
         return $profileName !== null
             ? $this->profileRegistry->getByName($profileName)
             : $this->profileRegistry->getDefault();
-    }
-
-    /**
-     * @param class-string $userClass
-     */
-    private function countUsers(string $userClass): int
-    {
-        return $this->entityManager
-            ->getRepository($userClass)
-            ->count([]);
     }
 }

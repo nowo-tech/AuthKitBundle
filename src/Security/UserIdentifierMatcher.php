@@ -6,8 +6,10 @@ namespace Nowo\AuthKitBundle\Security;
 
 use Doctrine\Persistence\ObjectRepository;
 use Normalizer;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 use function is_string;
 use function mb_strtolower;
@@ -61,6 +63,18 @@ final class UserIdentifierMatcher
         $stored = $this->storedIdentifier($user, $field);
 
         return $stored !== null && self::normalize($stored) === self::normalize($identifier);
+    }
+
+    /**
+     * Re-check of a user returned by a host {@see UserLookupInterface} (1.41, JW-A3): the
+     * identifier stored on it (property `$field`, else `getUserIdentifier()`) must equal `$identifier` after NFC +
+     * lower-casing, whatever the adapter's query did.
+     */
+    public function matchesUser(UserInterface $user, string $field, string $identifier): bool
+    {
+        $stored = $this->storedIdentifier($user, $field) ?? $user->getUserIdentifier();
+
+        return self::normalize($stored) === self::normalize($identifier);
     }
 
     /** The identifier as stored on the user (the address notifiers must use), or null when unreadable. */

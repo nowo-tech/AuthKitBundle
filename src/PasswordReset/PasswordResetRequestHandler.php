@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function strlen;
@@ -68,7 +69,7 @@ final class PasswordResetRequestHandler
 
         $user = $this->userResolver->findByIdentifier($identifier, $profile->name);
 
-        if ($user === null) {
+        if (!$user instanceof UserInterface) {
             return PasswordResetRequestOutcome::accepted();
         }
 

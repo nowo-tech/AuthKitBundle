@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -37,6 +38,7 @@ use function is_string;
  */
 final class MfaAdminController
 {
+    // @phpstan-ignore constructor.unusedParameter ($doctrine is kept for the constructor signature)
     public function __construct(
         private readonly Environment $twig,
         private readonly CsrfOnlyFormFactory $csrfForms,
@@ -44,9 +46,11 @@ final class MfaAdminController
         private readonly AuthorizationCheckerInterface $authorization,
         private readonly MfaManager $manager,
         private readonly RequestProfileResolver $profileResolver,
-        private readonly ManagerRegistry $doctrine,
+        // Unused since 1.41 (users are looked up through UserLookupInterface); kept for the constructor signature.
+        ManagerRegistry $doctrine,
         private readonly AuthKitUrlGenerator $urls,
         private readonly AuthKitFlashMessenger $flash,
+        private readonly UserLookupInterface $userLookup,
     ) {
     }
 
@@ -108,7 +112,8 @@ final class MfaAdminController
 
     private function target(ProfileSettings $profile, string $identifier): UserInterface
     {
-        $user = $this->doctrine->getRepository($profile->userClass)->findOneBy([$profile->userIdentifierField => $identifier]);
+        // 1.41: UserLookupInterface (default: Doctrine repository, exact stored-identifier match).
+        $user = $this->userLookup->findByIdentifier($profile, $identifier);
         if (!$user instanceof UserInterface || !$this->manager->status($user) instanceof MfaStatus) {
             throw new NotFoundHttpException('Unknown user.');
         }

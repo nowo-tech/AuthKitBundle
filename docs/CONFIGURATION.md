@@ -211,6 +211,7 @@ nowo_auth_kit:
         request_rate_window: 900
         token_field: passwordResetToken
         token_expires_field: passwordResetExpiresAt
+        password_field: password    # 1.41: password property watched for reset-credential invalidation
         after_request_route: null   # 1.30+: host "check your email" route (see PASSWORD-RESET.md)
         token_in_session: false     # 1.30+: link token moved from the URL into the session
 

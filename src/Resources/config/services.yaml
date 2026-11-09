@@ -65,6 +65,24 @@ services:
         tags:
             - { name: doctrine.event_listener, event: onFlush }
 
+    # 1.41 user ports (DDD / hexagonal hosts): alias them to your own adapters. Defaults: the Doctrine +
+    # PropertyAccessor behaviour of earlier releases.
+    Nowo\AuthKitBundle\User\UserFactoryInterface:
+        alias: Nowo\AuthKitBundle\User\PropertyAccessUserFactory
+
+    Nowo\AuthKitBundle\User\UserWriterInterface:
+        alias: Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter
+
+    Nowo\AuthKitBundle\User\UserLookupInterface:
+        alias: Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup
+
+    # Host-dispatched CredentialsChangedEvent: the onFlush invalidation for changes made outside Doctrine.
+    Nowo\AuthKitBundle\User\CredentialsChangedListener:
+        arguments:
+            $mfaManager: '@?Nowo\AuthKitBundle\Mfa\MfaManager'
+        tags:
+            - { name: kernel.event_listener, event: Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent }
+
     # REQ-RUNTIME-001: OAuth2 token / userinfo deadlines (nowo_auth_kit.http_client).
     Nowo\AuthKitBundle\SocialLogin\OAuth2Client:
         arguments:
