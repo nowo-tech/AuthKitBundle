@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.42.0] - 2026-11-10](#1420---2026-11-10)
 - [[1.41.0] - 2026-11-09](#1410---2026-11-09)
 - [[1.40.0] - 2026-11-08](#1400---2026-11-08)
 - [[1.39.0] - 2026-11-07](#1390---2026-11-07)
@@ -99,6 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.42.0] - 2026-11-10
 
 Target 1.42.0. Invitation follow-ups from Symfony Beacon's adoption (spec 191). Additive; every default keeps the 1.41
 behaviour.

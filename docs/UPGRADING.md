@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.42.0](#to-1420)
 - [To 1.41.0](#to-1410)
 - [To 1.40.0](#to-1400)
 - [To 1.39.0](#to-1390)
@@ -109,6 +110,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.42.0
+
+From **1.41.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 Target **1.42.0**, from **1.41.0**:
 
