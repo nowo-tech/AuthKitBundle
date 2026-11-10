@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [To 1.42.1](#to-1421)
 - [To 1.42.0](#to-1420)
 - [To 1.41.0](#to-1410)
 - [To 1.40.0](#to-1400)
@@ -110,6 +111,16 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### To 1.42.1
+
+From **1.42.0**: `composer update nowo-tech/auth-kit-bundle`. No configuration change is needed.
+
+- When a bundle write fails and closes an entity manager, AuthKit now resets only its own managers (the one the write
+  went through and the one that maps the AuthKit entities). A closed manager of the host is no longer reset by the
+  bundle; the host resets it itself, as with any other failure of its own.
+- Optional: `nowo_auth_kit.doctrine.entity_manager: <name>` pins the manager that maps the AuthKit entities (default
+  `null`: resolved with `ManagerRegistry::getManagerForClass()`).
 
 ## To 1.42.0
 

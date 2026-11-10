@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
 use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
@@ -199,6 +200,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 break;
             }
         }
+
+        // 1.42.1: the closed-manager recovery resets only the bundle's own entity manager, never a host one.
+        $container->getDefinition(EntityManagerRecovery::class)->setArgument('$entityManagerName', $config['doctrine']['entity_manager']);
 
         if ($config['doctrine']['table_prefix'] === '') {
             $container->removeDefinition(TablePrefixListener::class);

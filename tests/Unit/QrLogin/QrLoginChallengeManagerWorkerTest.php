@@ -100,6 +100,7 @@ final class QrLoginChallengeManagerWorkerTest extends TestCase
         $entityManager->method('isOpen')->willReturn(false);
         $registry = $this->createMock(ManagerRegistry::class);
         $registry->method('getManagers')->willReturn(['default' => $entityManager]);
+        $registry->method('getManagerForClass')->willReturn($entityManager);
         $registry->expects(self::once())->method('resetManager')->with('default');
 
         $manager = new QrLoginChallengeManager(
