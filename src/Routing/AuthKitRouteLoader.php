@@ -154,6 +154,10 @@ final class AuthKitRouteLoader extends Loader
             $invitationRoutes = $profile['invitations']['routes'];
             // The token-less URL (token = null) renders the page with the token hash kept in the session.
             $this->addControllerRoute($collection, $invitationRoutes['accept'], InvitationAcceptController::class, 'accept', ['token' => null] + $profileDefaults);
+            // invitations.social.accept_page (1.42): the accept page starts the social acceptance itself.
+            if (($profile['invitations']['social']['accept_page'] ?? false) === true) {
+                $this->addControllerRoute($collection, $invitationRoutes['social'], InvitationAcceptController::class, 'social', $profileDefaults);
+            }
             // invitations.admin_routes: false (1.33): the host has its own invitation UI.
             if (($profile['invitations']['admin_routes'] ?? true) !== false) {
                 foreach (InvitationsConfiguration::ADMIN_ROUTE_KEYS as $action) {

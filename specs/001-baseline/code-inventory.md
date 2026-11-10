@@ -245,7 +245,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
-| `Security/AuthKitAttemptLimiter.php` | production | FR-SEC-003 | Mapped |
+| `Security/AuthKitAttemptLimiter.php` | production | FR-SEC-003, FR-INVF-003 | Mapped |
 | `Security/AuthKitFormLoginParameters.php` | production | FR-SEC-001 | Mapped |
 | `Security/LoginLinkHandlerLocator.php` | production | FR-SEC-005 | Mapped |
 | `Security/UserIdentifierMatcher.php` | production | FR-SEC-005 | Mapped |
@@ -320,28 +320,29 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
 | `Command/PurgeInvitationsCommand.php` | production | FR-INV-008 | Mapped |
-| `Controller/InvitationAcceptController.php` | production | FR-INV-005, FR-INV-009, FR-INVH-002, FR-INVH-003 | Mapped |
+| `Controller/InvitationAcceptController.php` | production | FR-INV-005, FR-INV-009, FR-INVH-002, FR-INVH-003, FR-INVF-005, FR-INVF-006 | Mapped |
 | `Controller/InvitationAdminController.php` | production | FR-INV-004, FR-INV-009 | Mapped |
 | `DependencyInjection/Compiler/InvitationsPass.php` | production | FR-INV-007 | Mapped |
-| `DependencyInjection/InvitationsConfiguration.php` | production | FR-INV-004, FR-INV-009, FR-INVH-001, FR-INVH-005, FR-INVH-007 | Mapped |
+| `DependencyInjection/InvitationsConfiguration.php` | production | FR-INV-004, FR-INV-009, FR-INVH-001, FR-INVH-005, FR-INVH-007, FR-INVF-002, FR-INVF-005 | Mapped |
 | `Entity/Invitation.php` | production | FR-INV-001 | Mapped |
 | `Enum/InvitationStatus.php` | production | FR-INV-001 | Mapped |
 | `Form/InvitationFilterType.php` | production | FR-INV-004 | Mapped |
 | `Form/InvitationFormType.php` | production | FR-INV-004 | Mapped |
-| `Invitation/Event/InvitationAcceptedEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
-| `Invitation/Event/InvitationAcceptingEvent.php` | production | FR-INVH-003 | Mapped |
+| `Invitation/Event/InvitationAcceptedEvent.php` | production | FR-INV-003, FR-INV-010, FR-INVF-001 | Mapped |
+| `Invitation/Event/InvitationAcceptingEvent.php` | production | FR-INVH-003, FR-INVF-001 | Mapped |
 | `Invitation/Event/InvitationCreatedEvent.php` | production | FR-INV-003, FR-INV-010, FR-INVH-004 | Mapped |
 | `Invitation/Event/InvitationEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
 | `Invitation/Event/InvitationLinkRejectedEvent.php` | production | FR-INVH-002 | Mapped |
+| `Invitation/Event/InvitationOpeningEvent.php` | production | FR-INVF-006 | Mapped |
 | `Invitation/Event/InvitationResentEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
 | `Invitation/Event/InvitationRevokedEvent.php` | production | FR-INV-003, FR-INV-010 | Mapped |
 | `Invitation/Event/InvitationsPurgedEvent.php` | production | FR-INV-008 | Mapped |
 | `Invitation/InvitationAcceptance.php` | production | FR-INVH-003, FR-INVH-006 | Mapped |
-| `Invitation/InvitationAcceptor.php` | production | FR-INV-002, FR-INV-005, FR-INVH-002, FR-INVH-003, FR-INVH-006 | Mapped |
+| `Invitation/InvitationAcceptor.php` | production | FR-INV-002, FR-INV-005, FR-INVH-002, FR-INVH-003, FR-INVH-006, FR-INVF-001, FR-INVF-004, FR-INVF-005, FR-INVF-006 | Mapped |
 | `Invitation/InvitationGrantInterface.php` | production | FR-INV-005 | Mapped |
 | `Invitation/InvitationMail.php` | production | FR-INV-007 | Mapped |
 | `Invitation/InvitationMailerInterface.php` | production | FR-INV-007 | Mapped |
-| `Invitation/InvitationManager.php` | production | FR-INV-003, FR-INVH-004, FR-INVH-005, FR-INVH-008 | Mapped |
+| `Invitation/InvitationManager.php` | production | FR-INV-003, FR-INVH-004, FR-INVH-005, FR-INVH-008, FR-INVF-002 | Mapped |
 | `Invitation/InvitationOutcome.php` | production | FR-INV-003 | Mapped |
 | `Invitation/InvitationPayloadMerger.php` | production | FR-INVH-005 | Mapped |
 | `Invitation/InvitationRefusal.php` | production | FR-INVH-003 | Mapped |

@@ -199,6 +199,17 @@ Since 1.33 a host can keep AuthKit's storage, accept page and rules while issuin
 - `InvitationAcceptor::pending()` / `acceptPendingForSocial()` — social-login acceptance of the invitation pending in
   the session (verified, equal e-mail); never read `_nowo_auth_kit_invitation.<profile>` yourself.
 
+Since 1.42 ([INVITATIONS.md — Host follow-ups](INVITATIONS.md#host-follow-ups-142)):
+
+- `InvitationAcceptor::acceptExisting($user, $invitation, $email)` — an existing account accepts an invitation to its
+  e-mail (same checks, single-use claim, grants, `InvitationAcceptedEvent` with `existingAccount`), instead of calling
+  `InvitationRepository::claim()`.
+- `InvitationManager::inviteBatch($actor, $profile, $requests)` with `invitations.batch.max_size` — a bounded batch
+  counted as one send of the inviter.
+- `InvitationOpeningEvent::refuse()` — refuse when the link is opened (e.g. no seat left) without consuming it.
+- `invitations.social.accept_page` / `keep_pending_on_mismatch` / `name_field` — social acceptance on AuthKit's page.
+- `invitation` (`InvitationSnapshot`) in the accept template; `attempt_limiter.cache_pool` for the counters.
+
 Full example: [INVITATIONS.md — Host with its own invitation UI](INVITATIONS.md#host-with-its-own-invitation-ui-133).
 
 ## Login flow

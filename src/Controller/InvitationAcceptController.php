@@ -5,27 +5,45 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Controller;
 
 use Nowo\AuthKitBundle\Entity\Invitation;
+use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Enum\InvitationStatus;
+use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Form\FormCsrf;
 use Nowo\AuthKitBundle\Form\RegistrationFormType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
+use Nowo\AuthKitBundle\Invitation\Event\InvitationOpeningEvent;
+use Nowo\AuthKitBundle\Invitation\InvitationAcceptance;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusal;
+use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
 use Nowo\AuthKitBundle\Invitation\InvitationTokens;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
+use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
+use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
+use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
+use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
+use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
+use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Nowo\UiKitBundle\View\Label;
+use Nowo\UiKitBundle\View\Link;
+use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -36,9 +54,13 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Twig\Environment;
 
+use function is_array;
 use function is_bool;
+use function is_int;
 use function is_scalar;
 use function is_string;
+use function time;
+use function trim;
 
 /**
  * The public invitation page, on AuthKit's registration form and flow. Opening the link (`/invitation/{token}`) moves
@@ -53,13 +75,30 @@ use function is_string;
  * `private, no-store`, `noindex` and `Referrer-Policy: no-referrer`; redirects are path-only. 1.33: an expired or
  * revoked link dispatches {@see InvitationLinkRejectedEvent}; a host refusal
  * ({@see InvitationAcceptingEvent}, grant) shows its translatable reason.
+ *
+ * 1.42: the page receives the invitation as `invitation` ({@see InvitationSnapshot}: no token, no hash); before the
+ * form is shown (GET) {@see InvitationAcceptor::precheck()} lets the host refuse with a reason
+ * ({@see InvitationOpeningEvent}, the `unavailable` page) without consuming anything. With
+ * `invitations.social.accept_page` the page lists the enabled social providers, each a CSRF form posting to
+ * {@see self::social()}, and this controller completes the acceptance on the OAuth callback
+ * ({@see SocialCallbackHandlerInterface}: only after AuthKit verified the state, PKCE and the code; the provider must
+ * assert a verified e-mail equal to the invited one).
  */
-final class InvitationAcceptController
+final class InvitationAcceptController implements SocialCallbackHandlerInterface
 {
     /** Session key prefix of the token hash (one per profile); hosts use {@see InvitationAcceptor::pending()}. */
     public const SESSION_KEY = InvitationAcceptor::SESSION_KEY;
 
     public const CSRF_TOKEN_PREFIX = 'nowo_auth_kit_invitation_accept';
+
+    /** CSRF token id prefix of the social provider forms of the accept page (1.42). */
+    public const SOCIAL_CSRF_TOKEN_PREFIX = 'nowo_auth_kit_invitation_social';
+
+    /** Session key of the social acceptance in progress (1.42): the profile, the provider and when it started. */
+    public const SOCIAL_SESSION_KEY = '_nowo_auth_kit_invitation_social';
+
+    /** An abandoned social acceptance stops claiming the provider's callbacks after this many seconds (1.42). */
+    public const SOCIAL_PENDING_SECONDS = 900;
 
     public function __construct(
         private readonly Environment $twig,
@@ -75,6 +114,12 @@ final class InvitationAcceptController
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
         private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
         private readonly ?SocialHandlerSignInRollback $signInRollback = null,
+        private readonly ?SocialLoginGate $socialLoginGate = null,
+        private readonly ?SocialLoginCredentialRepository $socialCredentials = null,
+        private readonly ?CsrfOnlyFormFactory $csrfForms = null,
+        private readonly ?SocialAccountLinker $accountLinker = null,
+        private readonly ?ClockInterface $clock = null,
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -123,6 +168,15 @@ final class InvitationAcceptController
             return $this->notice($profile, 'expired');
         }
 
+        if (!$request->isMethod('POST')) {
+            // 1.42: the host may refuse before the form is shown (e.g. no seat left); nothing is consumed, the link
+            // stays usable, so the session entry stays too.
+            $refused = $this->acceptor->precheck($invitation);
+            if ($refused instanceof InvitationAcceptance) {
+                return $this->notice($profile, 'unavailable', Response::HTTP_OK, $refused->refusal);
+            }
+        }
+
         $emailField = $profile->invitationEmailField();
         $locked     = ($settings['lock_email'] ?? true) === true;
         $form       = $this->formFactory->create(RegistrationFormType::class, $this->prefill($profile, $invitation, $emailField), [
@@ -165,10 +219,13 @@ final class InvitationAcceptController
             $this->pages->link('register.login_link', $this->urlGenerator->generate($profile->routes['login']['name'])),
         ]);
         $content = $this->twig->render($profile->template('invitation_accept'), $this->pages->context('invitation_accept', $page, $profile, [
-            'registration_form'     => $formView,
-            'login_route'           => $profile->routes['login']['name'],
-            'invitation_message'    => $message,
-            'slide_to_confirm_mode' => $this->slideToConfirmTypeResolver->resolveRegistrationSlideMode(
+            'registration_form'  => $formView,
+            'login_route'        => $profile->routes['login']['name'],
+            'invitation_message' => $message,
+            // 1.42: read-only copy (no token, no hash) and the social providers of the page (social.accept_page).
+            'invitation'                  => $this->acceptor->snapshot($invitation),
+            'invitation_social_providers' => $this->socialProviders($profile, $invitation),
+            'slide_to_confirm_mode'       => $this->slideToConfirmTypeResolver->resolveRegistrationSlideMode(
                 $profile->registrationFields,
                 $profile->slideToConfirm,
             ),
@@ -181,6 +238,144 @@ final class InvitationAcceptController
     public static function csrfTokenId(string $profile, string $publicId): string
     {
         return self::CSRF_TOKEN_PREFIX . '/' . $profile . '/' . $publicId;
+    }
+
+    /** CSRF token id of the social provider forms of one invitation (1.42). */
+    public static function socialCsrfTokenId(string $profile, string $publicId): string
+    {
+        return self::SOCIAL_CSRF_TOKEN_PREFIX . '/' . $profile . '/' . $publicId;
+    }
+
+    /**
+     * Starts a social acceptance of the invitation open in this browser (1.42, `invitations.social.accept_page`): the
+     * CSRF form of the accept page, bound to the invitation. Remembers the profile and provider in the session and hands
+     * over to AuthKit's OAuth start; the callback comes back to {@see self::handle()}. The link token never reaches this
+     * route (the session holds its hash). Rate limited like the accept page.
+     */
+    #[Route(path: '/invitation/social/{provider}', name: 'nowo_auth_kit_invitation_social', requirements: ['provider' => '[a-z0-9_\\-]+'], methods: ['POST'])]
+    public function social(Request $request, string $provider): Response
+    {
+        $profile = $this->profileResolver->resolve($request);
+        if (!$this->registrationGate->isInvitationAcceptanceAllowed($profile->name) || !$this->socialAcceptEnabled($profile)) {
+            throw new NotFoundHttpException('Social acceptance of invitations is disabled.');
+        }
+        $settings = $profile->invitations;
+        if (!$this->attemptLimiter->consume(
+            'invitation_accept:' . $profile->name . ':' . ($request->getClientIp() ?? 'unknown'),
+            (int) ($settings['accept_rate_limit'] ?? 10),
+            (int) ($settings['accept_rate_window'] ?? 900),
+        )) {
+            return $this->notice($profile, 'rate_limited', Response::HTTP_TOO_MANY_REQUESTS);
+        }
+        if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
+            return $this->notice($profile, 'signed_in');
+        }
+
+        $session               = $request->getSession();
+        $tokenHash             = $session->get(self::SESSION_KEY . $profile->name);
+        [$status, $invitation] = is_string($tokenHash) ? $this->acceptor->lookup($profile->name, $tokenHash) : [null, null];
+        if (!$invitation instanceof Invitation || $status !== InvitationStatus::Pending) {
+            // Expired, unknown or none opened: the accept page answers (expired / neutral notice).
+            return $this->redirect($this->urlGenerator->generate(self::routeName($profile)), Response::HTTP_SEE_OTHER);
+        }
+        $form = $this->csrfForms()->createNamed($request->getPathInfo(), self::socialCsrfTokenId($profile->name, $invitation->getPublicId()));
+        // SEC-004 P2, fail closed. FormKit's CSRF-only type cannot even be built without the CSRF extension.
+        if (!FormCsrf::isProtected($form)) {
+            throw new AccessDeniedHttpException('CSRF protection is not available.'); // @codeCoverageIgnore
+        }
+        $form->handleRequest($request);
+        if (!$form->isSubmitted() || !$form->isValid()) {
+            throw new AccessDeniedHttpException('Invalid CSRF token.');
+        }
+        if (!$this->providerCredential($provider) instanceof SocialLoginCredential) {
+            return $this->redirect($this->urlGenerator->generate(self::routeName($profile)), Response::HTTP_SEE_OTHER);
+        }
+        $refused = $this->acceptor->precheck($invitation);
+        if ($refused instanceof InvitationAcceptance) {
+            return $this->notice($profile, 'unavailable', Response::HTTP_OK, $refused->refusal);
+        }
+        $session->set(self::SOCIAL_SESSION_KEY, ['profile' => $profile->name, 'provider' => $provider, 'at' => $this->now()]);
+
+        return $this->redirect($this->urlGenerator->generate($profile->routes['social_login_start']['name'], ['provider' => $provider]), Response::HTTP_SEE_OTHER);
+    }
+
+    /**
+     * The OAuth callback belongs to the social acceptance started from the accept page of this profile, with this
+     * provider, less than {@see self::SOCIAL_PENDING_SECONDS} ago (server-side session state only).
+     */
+    public function supports(Request $request, string $provider): bool
+    {
+        if (!$request->hasSession()) {
+            return false;
+        }
+        $pending = $request->getSession()->get(self::SOCIAL_SESSION_KEY);
+        if (!is_array($pending) || ($pending['provider'] ?? null) !== $provider || !is_int($pending['at'] ?? null) || $this->now() > $pending['at'] + self::SOCIAL_PENDING_SECONDS) {
+            return false;
+        }
+        $profile = $this->profileResolver->resolve($request);
+
+        return ($pending['profile'] ?? null) === $profile->name && $this->socialAcceptEnabled($profile);
+    }
+
+    /**
+     * The verified callback (state, PKCE and code already checked by AuthKit): accepts the invitation pending in the
+     * session ({@see InvitationAcceptor::acceptPendingForSocial()}: verified provider e-mail equal to the invited one),
+     * links the provider identity to the new account when the linker allows it, and signs it in last.
+     */
+    public function handle(Request $request, SocialCallbackContext $context): Response
+    {
+        $session = $request->getSession();
+        $session->remove(self::SOCIAL_SESSION_KEY);
+        $profile = $context->profile;
+        if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
+            return $this->notice($profile, 'signed_in');
+        }
+        // GY-L9: the sign-in below could not happen, so the invitation is not consumed.
+        if (!$this->loginAuthenticator->canSignIn($profile->firewall)) {
+            return $this->notice($profile, 'not_accepted');
+        }
+        $social = $context->socialProfile;
+        $email  = $context->verifiedEmail();
+        $result = $this->acceptor->acceptPendingForSocial(
+            $session,
+            $profile->name,
+            new SocialUserProfile($social->id, $email, $social->name, $social->raw, $email !== null),
+            $this->socialFormData($profile, $social->name),
+        );
+        $user = $result->user;
+        if (!$user instanceof UserInterface) {
+            return match ($result->status) {
+                InvitationAcceptance::EMAIL_MISMATCH => $this->notice($profile, 'social_mismatch', Response::HTTP_OK, null, $session->has(self::SESSION_KEY . $profile->name)),
+                InvitationAcceptance::EXPIRED        => $this->notice($profile, 'expired'),
+                InvitationAcceptance::NO_INVITATION  => $this->notice($profile, 'invalid'),
+                default                              => $this->notice($profile, 'not_accepted', Response::HTTP_OK, $result->refusal),
+            };
+        }
+        if ($this->accountLinker instanceof SocialAccountLinker && $result->invitation instanceof InvitationSnapshot) {
+            try {
+                // The invited e-mail as stored (the provider may spell it with capitals); verified, it matched above.
+                $this->accountLinker->linkOrCreate($profile, $context->provider, new SocialUserProfile($social->id, $result->invitation->email, $social->name, $social->raw, true), $context->tokens);
+            } catch (RuntimeException $exception) { // @codeCoverageIgnore
+                // Only `social_login.link_existing_account: deny` reaches this (the e-mail is verified and the account
+                // was just created): the accepted account signs in now and may link the provider later.
+                $this->logger?->notice('AuthKit could not link the social identity of an accepted invitation.', ['provider' => $context->provider, 'reason' => $exception::class]); // @codeCoverageIgnore
+            }
+        }
+
+        $login  = $this->urlGenerator->generate($profile->routes['login']['name']);
+        $target = $profile->loginSuccessRoute !== null ? $this->urlGenerator->generate($profile->loginSuccessRoute) : $login;
+
+        return $this->security->login($user, $this->loginAuthenticator->nameForAccountFlow($profile->firewall), $profile->firewall) ?? $this->redirect($target);
+    }
+
+    /**
+     * The provider callback failed after proving its state: the invitation is untouched and still open in the session.
+     */
+    public function handleFailure(Request $request, string $provider, SocialCallbackFailure $reason): Response
+    {
+        $request->getSession()->remove(self::SOCIAL_SESSION_KEY);
+
+        return $this->notice($this->profileResolver->resolve($request), 'social_failed', Response::HTTP_OK, null, true);
     }
 
     public static function routeName(ProfileSettings $profile): string
@@ -237,13 +432,18 @@ final class InvitationAcceptController
 
     /**
      * A form-less page: `invalid` (unknown, used, revoked or replaced link), `expired`, `rate_limited`,
-     * `signed_in`, `not_accepted`. No invitee data on any of them.
+     * `signed_in`, `not_accepted`; 1.42: `unavailable` (refused when opened), `social_mismatch`, `social_failed`. No
+     * invitee data on any of them.
      */
-    private function notice(ProfileSettings $profile, string $kind, int $status = Response::HTTP_OK, ?InvitationRefusal $refusal = null): Response
+    private function notice(ProfileSettings $profile, string $kind, int $status = Response::HTTP_OK, ?InvitationRefusal $refusal = null, bool $backToInvitation = false): Response
     {
         $links = [$this->pages->link('invitation.page.sign_in', $this->urlGenerator->generate($profile->routes['login']['name']))];
         if ($kind === 'signed_in') {
             $links = [$this->pages->link('invitation.page.sign_out', $this->urlGenerator->generate($profile->routes['logout']['name']))];
+        }
+        if ($backToInvitation) {
+            // 1.42: the invitation is still open in this browser (social failure, kept after an e-mail mismatch).
+            $links = [$this->pages->link('invitation.page.back_to_invitation', $this->urlGenerator->generate(self::routeName($profile))), ...$links];
         }
         $page = $this->pages->notice(
             'invitation_invalid',
@@ -260,6 +460,75 @@ final class InvitationAcceptController
         ]));
 
         return $this->private(new Response($content, $status));
+    }
+
+    private function socialAcceptEnabled(ProfileSettings $profile): bool
+    {
+        return ($profile->invitations['social']['accept_page'] ?? false) === true && $this->socialLoginGate?->isEnabled($profile->name) === true;
+    }
+
+    /**
+     * The enabled social providers of the page (not the enterprise SSO ones), each with its CSRF form (1.42).
+     *
+     * @return list<array{provider: string, label: Label, form: FormView}>
+     */
+    private function socialProviders(ProfileSettings $profile, Invitation $invitation): array
+    {
+        if (!$this->socialAcceptEnabled($profile)) {
+            return [];
+        }
+        /** @var array{social: array{name: string}} $routes */
+        $routes    = $profile->invitations['routes'];
+        $providers = [];
+        foreach ($this->socialCredentials?->findEnabledOrdered() ?? [] as $credential) {
+            if ($credential->isEnterpriseSso()) {
+                continue;
+            }
+            $provider    = $credential->getProvider();
+            $providers[] = [
+                'provider' => $provider,
+                'label'    => new Label('invitation.page.social_continue', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => $credential->getLabel()]),
+                'form'     => $this->csrfForms()->createNamed(
+                    $this->urlGenerator->generate($routes['social']['name'], ['provider' => $provider]),
+                    self::socialCsrfTokenId($profile->name, $invitation->getPublicId()),
+                )->createView(),
+            ];
+        }
+
+        return $providers;
+    }
+
+    private function providerCredential(string $provider): ?SocialLoginCredential
+    {
+        foreach ($this->socialCredentials?->findEnabledOrdered() ?? [] as $credential) {
+            if (!$credential->isEnterpriseSso() && $credential->getProvider() === $provider) {
+                return $credential;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Registration data of a social acceptance: the provider's display name in `invitations.social.name_field`, if set.
+     *
+     * @return array<string, mixed>
+     */
+    private function socialFormData(ProfileSettings $profile, ?string $name): array
+    {
+        $field = $profile->invitations['social']['name_field'] ?? null;
+
+        return is_string($field) && $name !== null && trim($name) !== '' ? [$field => trim($name)] : [];
+    }
+
+    private function csrfForms(): CsrfOnlyFormFactory
+    {
+        return $this->csrfForms ?? new CsrfOnlyFormFactory($this->formFactory);
+    }
+
+    private function now(): int
+    {
+        return $this->clock instanceof ClockInterface ? $this->clock->now()->getTimestamp() : time();
     }
 
     private function redirect(string $path, int $status = Response::HTTP_FOUND): Response

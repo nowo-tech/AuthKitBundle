@@ -31,6 +31,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 use function array_diff;
 use function array_key_exists;
+use function array_map;
 use function count;
 use function filter_var;
 use function implode;
@@ -87,28 +88,113 @@ final readonly class InvitationManager
 
     public function invite(?UserInterface $actor, string $profileName, InvitationRequest $request): InvitationOutcome
     {
-        $profile  = $this->profile($profileName);
-        $settings = $profile->invitations;
-        $email    = Invitation::normalizeEmail($request->email);
+        $profile = $this->profile($profileName);
+
+        return $this->inviteIn($actor, $profile, $request, $this->validated($profile, $request), false);
+    }
+
+    /**
+     * A bounded host batch (1.42), e.g. "import the members of a project": every request is invited as by
+     * {@see self::invite()}, but the whole batch counts as one send of the inviter (`invitations.batch.rate_limit`
+     * batches per `batch.rate_window`) instead of one per invitation against `invite_rate_limit`. Everything else applies
+     * to every invitation: the role, authorizer and registration checks, the per-actor-and-address and per-invitation
+     * limits, the events. At most `invitations.batch.max_size` requests (0, the default: refused); every request is
+     * validated before anything is sent, so an invalid e-mail or a forged role sends nothing. When the batch limit is
+     * reached every outcome is `rate_limited` and nothing is sent.
+     *
+     * Server-side only: AuthKit exposes it through no route or request parameter. The host decides who may run a batch
+     * and what goes in it (its own bounded list, never a list taken as is from the request).
+     *
+     * @param list<InvitationRequest> $requests
+     *
+     * @throws LogicException when `invitations.batch.max_size` is 0
+     * @throws InvalidArgumentException when the batch is larger than `max_size`, or a request is invalid
+     *
+     * @return list<InvitationOutcome> one outcome per request, in order
+     */
+    public function inviteBatch(?UserInterface $actor, string $profileName, array $requests): array
+    {
+        $profile = $this->profile($profileName);
+        /** @var array{max_size?: int, rate_limit?: int, rate_window?: int} $batch */
+        $batch = is_array($profile->invitations['batch'] ?? null) ? $profile->invitations['batch'] : [];
+        $max   = (int) ($batch['max_size'] ?? 0);
+        if ($max < 1) {
+            throw new LogicException(sprintf('Invitation batches are disabled in the AuthKit profile "%s" (invitations.batch.max_size: 0).', $profileName));
+        }
+        if (count($requests) > $max) {
+            throw new InvalidArgumentException(sprintf('An invitation batch holds at most %d requests (invitations.batch.max_size), %d given.', $max, count($requests)));
+        }
+        $validated = [];
+        foreach ($requests as $request) {
+            $this->mergeKey($profile, $request);
+            $validated[] = [$request, $this->validated($profile, $request)];
+        }
+        if ($validated === []) {
+            return [];
+        }
+        $window = (int) ($batch['rate_window'] ?? 3600);
+        if (!$this->limiter->consume('invitation_batch:' . $profile->name . ':' . ($actor?->getUserIdentifier() ?? '~anonymous'), (int) ($batch['rate_limit'] ?? 3), $window)) {
+            $retryAfter = $this->retryAfter($window);
+
+            return array_map(static fn (): InvitationOutcome => InvitationOutcome::refused(InvitationOutcome::RATE_LIMITED, null, $retryAfter), $validated);
+        }
+
+        $outcomes = [];
+        foreach ($validated as [$request, $email]) {
+            $outcomes[] = $this->inviteIn($actor, $profile, $request, $email, true);
+        }
+
+        return $outcomes;
+    }
+
+    /**
+     * The normalised e-mail of the request, once its e-mail and roles are checked.
+     */
+    private function validated(ProfileSettings $profile, InvitationRequest $request): string
+    {
+        $email = Invitation::normalizeEmail($request->email);
         if (mb_strlen($email) > Invitation::EMAIL_MAX_LENGTH || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
             throw new InvalidArgumentException('Invalid invitation e-mail.');
         }
-        $grantable = is_array($settings['roles'] ?? null) ? $settings['roles'] : [];
+        $grantable = is_array($profile->invitations['roles'] ?? null) ? $profile->invitations['roles'] : [];
         $forged    = array_diff($request->roles, $grantable);
         if ($forged !== []) {
-            throw new InvalidArgumentException(sprintf('Roles not grantable by invitation in profile "%s": %s.', $profileName, implode(', ', $forged)));
-        }
-        $refusal = $this->refusal($profile);
-        if ($refusal !== null) {
-            return InvitationOutcome::refused($refusal);
+            throw new InvalidArgumentException(sprintf('Roles not grantable by invitation in profile "%s": %s.', $profile->name, implode(', ', $forged)));
         }
 
-        $mergeKey   = is_string($settings['merge_key'] ?? null) ? $settings['merge_key'] : null;
+        return $email;
+    }
+
+    /**
+     * The `invitations.merge_key` (null: none) and the request's value of it.
+     *
+     * @return array{0: string|null, 1: int|string|null}
+     */
+    private function mergeKey(ProfileSettings $profile, InvitationRequest $request): array
+    {
+        $mergeKey   = is_string($profile->invitations['merge_key'] ?? null) ? $profile->invitations['merge_key'] : null;
         $mergeValue = $mergeKey !== null ? ($request->payload[$mergeKey] ?? null) : null;
         // SEC-004 CP N3: booleans and floats would collide with ids (true ≡ 1 ≡ 1.0, false ≡ 0); only strings and integers.
         if ($mergeValue !== null && !is_string($mergeValue) && !is_int($mergeValue)) {
             throw new InvalidArgumentException(sprintf('The invitations.merge_key value "%s" must be a string, an integer or null.', (string) $mergeKey));
         }
+
+        return [$mergeKey, $mergeValue];
+    }
+
+    /**
+     * @param bool $batch part of {@see self::inviteBatch()}: the batch limit was taken instead of the inviter's
+     */
+    private function inviteIn(?UserInterface $actor, ProfileSettings $profile, InvitationRequest $request, string $email, bool $batch): InvitationOutcome
+    {
+        $profileName = $profile->name;
+        $settings    = $profile->invitations;
+        $refusal     = $this->refusal($profile);
+        if ($refusal !== null) {
+            return InvitationOutcome::refused($refusal);
+        }
+
+        [$mergeKey, $mergeValue] = $this->mergeKey($profile, $request);
         try {
             $invitation = $mergeKey === null
                 ? $this->invitations->findOpenByEmail($profileName, $email)
@@ -127,7 +213,9 @@ final readonly class InvitationManager
             || ($request->returnLink && !$this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $request))) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $invitation instanceof Invitation ? $this->snapshot($invitation) : null);
         }
-        $limits = [$this->inviterLimit($profile, $actor), $this->addressLimit($profile, $actor, $email)];
+        // 1.42: a batch took one slot of invitations.batch.rate_limit instead of one inviter slot per invitation.
+        $limits   = $batch ? [] : [$this->inviterLimit($profile, $actor)];
+        $limits[] = $this->addressLimit($profile, $actor, $email);
         if ($invitation instanceof Invitation) {
             $limits[] = $this->resendLimit($profile, $invitation);
         }

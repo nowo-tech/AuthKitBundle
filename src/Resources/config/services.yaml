@@ -187,6 +187,15 @@ services:
             $callbackHandlers: !tagged_iterator nowo_auth_kit.social_callback_handler
             $logger: '@?logger'
 
+    # 1.42: tagged nowo_auth_kit.social_callback_handler by the extension when a profile sets
+    # invitations.social.accept_page (the accept page then completes the social acceptance).
+    Nowo\AuthKitBundle\Controller\InvitationAcceptController:
+        autoconfigure: false
+        public: true
+        tags: [controller.service_arguments]
+        arguments:
+            $logger: '@?logger'
+
     Nowo\AuthKitBundle\Controller\MagicLoginConfirmController:
         autoconfigure: false
         public: true
@@ -216,6 +225,7 @@ services:
 
     Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter:
         arguments:
+            # nowo_auth_kit.attempt_limiter.cache_pool (1.42) replaces it.
             $cache: '@cache.app'
             # Optional (symfony/lock): serializes the counter read-modify-write per key.
             $lockFactory: '@?lock.factory'

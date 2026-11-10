@@ -1,0 +1,7 @@
+{#- A host override of the accept page (1.42): reads the invitation snapshot (never the token nor its hash). -#}
+{% extends '@NowoAuthKitBundle/security/invitation_accept.html.twig' %}
+
+{% block nowo_ui_auth_fields %}
+    <p data-testid="followups-invitation">{{ invitation.email }}|{{ invitation.publicId }}|{{ invitation.status.value }}|{{ invitation.payload.organization|default('none') }}</p>
+    {{ parent() }}
+{% endblock %}

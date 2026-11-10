@@ -100,6 +100,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target 1.42.0. Invitation follow-ups from Symfony Beacon's adoption (spec 191). Additive; every default keeps the 1.41
+behaviour.
+
+### Added
+
+- `InvitationAcceptor::acceptExisting(UserInterface $user, Invitation $invitation, string $email)`: an existing account
+  accepts an invitation addressed to its e-mail (e.g. "Account → Organizations"), so a host no longer calls
+  `InvitationRepository::claim()` itself. Same checks as the accept page: invitations enabled and a registration mode
+  other than `disabled`, a pending invitation (`expired` reported, accepted / revoked: `no_invitation`), the account's
+  e-mail equal to the invited one (`sameEmail()`: ASCII case-insensitive, otherwise NFC byte-equal; `email_mismatch`),
+  `InvitationAcceptingEvent` (now with `user` / `isExistingAccount()`), then one transaction with the single-use
+  conditional claim of the current link (a resend, revoke or concurrent acceptance in between: `not_accepted`) and the
+  `InvitationGrantInterface` services; `InvitationAcceptedEvent` after the commit with `existingAccount: true`. No
+  account is created and no `UserRegisteredEvent` is dispatched. An invitation that still carries a grantable role is
+  refused (`not_accepted`): AuthKit never changes an existing account's roles.
+- `InvitationAcceptedEvent`: scalar `userClass`, `userId`, `userIdentifier`, `existingAccount`, plus `invitationId()` and
+  `profile()` (like the 1.41 user events).
+- `InvitationManager::inviteBatch(?UserInterface $actor, string $profile, list<InvitationRequest>)`: a bounded host batch
+  (e.g. "import project members") counted as one send of the inviter (`invitations.batch.rate_limit` batches per
+  `batch.rate_window`) instead of one per invitation against `invite_rate_limit`. Opt-in and capped:
+  `invitations.batch.max_size` (default `0`: refused with a `LogicException`; at most 500). Every request is validated
+  before anything is sent; the role, authorizer and registration checks and the per-address / per-invitation limits
+  still apply to each invitation. A PHP API only: no route or request parameter reaches it.
+- `attempt_limiter.cache_pool` (default `cache.app`): the PSR-6 pool of `AuthKitAttemptLimiter` (every rate limit and
+  lockout), e.g. a shared Redis pool, or a filesystem pool so HTTP-level limit tests survive kernel resets.
+- `invitations.social.keep_pending_on_mismatch` (default `false`): after an `email_mismatch` the invitation stays
+  pending in the session, so the invitee can retry with another provider account or the form without reopening the
+  link. The invitation itself was never consumed by a mismatch.
+- `invitations.social.accept_page` (default `false`, needs `social_login.mode: enabled`): the accept page lists the
+  enabled social providers (enterprise SSO excluded), each a CSRF form bound to the invitation posting to
+  `invitations.routes.social` (`/invitation/social/{provider}`, `nowo_auth_kit_invitation_social`, POST, rate limited
+  like the accept page). `InvitationAcceptController` then owns the OAuth callback (it implements
+  `SocialCallbackHandlerInterface`, tagged only when a profile opts in): `acceptPendingForSocial()`, the provider
+  identity linked through `SocialAccountLinker::linkOrCreate()`, the sign-in last. `invitations.social.name_field`
+  puts the provider's display name into a registration field. New notices `social_mismatch` and `social_failed`.
+- The accept page template receives `invitation` (`InvitationSnapshot`: read-only, never the token nor its hash) and
+  `invitation_social_providers`; block `nowo_auth_kit_invitation_providers`. `InvitationAcceptor::snapshot()`.
+- `Invitation\Event\InvitationOpeningEvent` and `InvitationAcceptor::precheck()`: when the accept page is about to show
+  the form (GET) and before a social acceptance starts, a host may refuse with a translatable reason (e.g. no seat
+  left). The new `unavailable` notice shows it; nothing is consumed and the session entry stays, so the same link works
+  once the host allows it. Only reached with the current token of a pending invitation: unknown, used, revoked and
+  replaced links keep the one neutral `invalid` page and dispatch nothing; a throwing listener refuses.
+- Translations (all locales): `invitation.page.unavailable_*`, `social_mismatch_*`, `social_failed_*`,
+  `back_to_invitation`, `social_heading`, `social_continue`, `social_hint`.
+
+### Changed
+
+- `InvitationAcceptingEvent` takes an optional third constructor argument `?UserInterface $user` (null for a new
+  account, as before).
+- `InvitationAcceptedEvent` takes an optional fourth constructor argument `bool $existingAccount = false`.
+- `InvitationAcceptController` takes new trailing optional constructor arguments (social gate, credentials, CSRF-only
+  form factory, linker, clock, logger).
+
 ## [1.41.0] - 2026-11-09
 
 Target 1.41.0. User ports for DDD / hexagonal hosts (additive; the defaults keep the earlier Doctrine behaviour).

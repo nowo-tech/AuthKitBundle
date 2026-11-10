@@ -60,7 +60,7 @@ final class InvitationsConfigurationTest extends TestCase
         self::assertSame(RoleInvitationsAccessChecker::class, $checker->getClass());
         self::assertSame(['ROLE_HR'], $checker->getArgument(1));
         self::assertInstanceOf(Reference::class, $container->getDefinition(InvitationsAccessGuard::class)->getArgument('$checkers'));
-        self::assertSame(['accept', 'index', 'new', 'resend', 'revoke'], array_keys($this->profile($container)['invitations']['routes']));
+        self::assertSame(['accept', 'index', 'new', 'resend', 'revoke', 'social'], array_keys($this->profile($container)['invitations']['routes']));
     }
 
     public function testCustomAccessCheckerIsUsed(): void

@@ -42,6 +42,8 @@ final class InvitationsConfiguration
         'new'    => ['/admin/invitations/new', 'nowo_auth_kit_invitations_new'],
         'resend' => ['/admin/invitations/{id}/resend', 'nowo_auth_kit_invitations_resend'],
         'revoke' => ['/admin/invitations/{id}/revoke', 'nowo_auth_kit_invitations_revoke'],
+        // 1.42: registered only with invitations.social.accept_page.
+        'social' => ['/invitation/social/{provider}', 'nowo_auth_kit_invitation_social'],
     ];
 
     /** Administration page => default template (`invitations.admin.templates.<page>`). */
@@ -59,6 +61,9 @@ final class InvitationsConfiguration
 
     /** Route keys of the administration pages (`invitations.admin_routes: false` leaves them unregistered, 1.33). */
     public const ADMIN_ROUTE_KEYS = ['index', 'new', 'resend', 'revoke'];
+
+    /** Upper bound of `invitations.batch.max_size` (1.42). */
+    public const BATCH_MAX_SIZE = 500;
 
     public const MAIL_HTML_TEMPLATE = '@NowoAuthKitBundle/email/invitation.html.twig';
 
@@ -167,6 +172,45 @@ final class InvitationsConfiguration
                     ->defaultValue(900)
                     ->min(60)
                 ->end()
+                ->arrayNode('batch')
+                    ->info('InvitationManager::inviteBatch() (1.42): a bounded host batch (e.g. "import members") counted as one send of the inviter instead of one per invitation. Server-side API only; no route or request parameter reaches it.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->integerNode('max_size')
+                            ->info('Most invitations of one batch. 0 (default): inviteBatch() is refused.')
+                            ->defaultValue(0)
+                            ->min(0)
+                            ->max(self::BATCH_MAX_SIZE)
+                        ->end()
+                        ->integerNode('rate_limit')
+                            ->info('Batches per inviter and rate_window. The per-address and per-invitation limits still apply to every invitation of a batch.')
+                            ->defaultValue(3)
+                            ->min(1)
+                        ->end()
+                        ->integerNode('rate_window')
+                            ->defaultValue(3600)
+                            ->min(60)
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('social')
+                    ->info('Accepting an invitation with a social provider (1.42).')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('accept_page')
+                            ->info('true: the accept page lists the enabled social providers (a CSRF form each, routes.social) and AuthKit completes the acceptance on the OAuth callback (verified provider e-mail equal to the invited one). Needs social_login.mode enabled.')
+                            ->defaultFalse()
+                        ->end()
+                        ->scalarNode('name_field')
+                            ->info('Registration field that receives the provider display name on a social acceptance with accept_page (e.g. "displayName"). null: none. Never a password field.')
+                            ->defaultNull()
+                        ->end()
+                        ->booleanNode('keep_pending_on_mismatch')
+                            ->info('true: after an email_mismatch the invitation stays pending in the session, so the invitee can retry with another provider account or the form without opening the link again. false: forgotten whatever the outcome (1.33).')
+                            ->defaultFalse()
+                        ->end()
+                    ->end()
+                ->end()
                 ->arrayNode('mail')
                     ->addDefaultsIfNotSet()
                     ->children()
@@ -259,6 +303,10 @@ final class InvitationsConfiguration
                         ->validate()
                             ->ifTrue(static fn (mixed $value): bool => $key === 'accept' && is_string($value) && !str_ends_with($value, '/{token}'))
                             ->thenInvalid('Invalid invitations.routes.accept.path %s: it must end with "/{token}".')
+                        ->end()
+                        ->validate()
+                            ->ifTrue(static fn (mixed $value): bool => $key === 'social' && is_string($value) && !str_ends_with($value, '/{provider}'))
+                            ->thenInvalid('Invalid invitations.routes.social.path %s: it must end with "/{provider}".')
                         ->end()
                     ->end()
                     ->scalarNode('name')->defaultValue($name)->cannotBeEmpty()->end()
