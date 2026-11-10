@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Invitation;
 
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\SocialProviderResponses;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Reference;
 
 use function sys_get_temp_dir;
 
@@ -50,5 +52,6 @@ final class InvitationsFollowupsTestKernel extends InvitationsHostApiTestKernel
             ],
         ]);
         $container->register(SocialProviderResponses::class)->setPublic(true);
+        $container->register(ToggleUserLookup::class)->setDecoratedService(UserLookupInterface::class)->setArguments([new Reference('.inner')])->setPublic(true);
     }
 }

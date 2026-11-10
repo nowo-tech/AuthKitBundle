@@ -161,6 +161,7 @@ cannot block an address for the others); a refusal carries `retryAfter` (the lat
 | `unavailable` | 1.42: a host refused when the link was opened (`InvitationOpeningEvent`); nothing consumed, the same link works later |
 | `social_mismatch` | 1.42: the provider did not confirm the invited e-mail (link back to the invitation with `keep_pending_on_mismatch`) |
 | `social_failed` | 1.42: the provider callback failed after proving its state; the invitation is untouched |
+| `accepted` | 1.42: a social acceptance committed (the account exists, the invitation is used) but the sign-in failed: sign in |
 
 None shows invitee data; all are `private, no-store`, `X-Robots-Tag: noindex, nofollow`, `Referrer-Policy: no-referrer`.
 Scalar `payload` values pre-fill the mapped, non-password registration fields of the same name.
@@ -367,8 +368,11 @@ transaction with the single-use conditional claim of the **current** link and yo
 acceptance racing it makes the claim fail (`not_accepted`); a grant that throws rolls the claim back. No account is
 created, no `UserRegisteredEvent`; `InvitationAcceptedEvent` carries `existingAccount: true` and the scalar
 `userClass`, `userId`, `userIdentifier`. AuthKit never changes an existing account's roles, so an invitation that still
-carries a grantable role is refused — invite existing accounts without roles, or grant them in your grant. Pass an
-invitation of the bundle entity manager; on a failure that manager is cleared, as with `accept()`.
+carries a grantable role is refused — invite existing accounts without roles, or grant them in your grant — and so is an
+account that is not of the invitation profile's `user_class`. Pass an invitation of the bundle entity manager and the
+account's **verified** e-mail (never request data: AuthKit compares it, it cannot verify it). Call it **outside your
+own transaction**: its events follow its own commit, and on a failure the bundle entity manager is cleared, as with
+`accept()`, so reload your entities (the signed-in account included) before flushing again.
 
 **Bulk invitations.** `inviteBatch()` invites a bounded list as one send of the inviter:
 
@@ -386,7 +390,10 @@ The batch takes one slot of `batch.rate_limit` (all `rate_limited`, nothing sent
 registration gate, the per-actor-and-address and per-invitation limits, events). Every request is validated first: an
 invalid e-mail, a forged role, a bad `merge_key` value or more than `max_size` requests throw and nothing is sent. It is
 a PHP API only — AuthKit exposes no route or parameter for it; build the list on the server (e.g. the project's members)
-and authorise the actor yourself.
+and authorise the actor yourself. Size `max_size` knowingly: the mails an inviter can send per window rise to
+`invite_rate_limit + batch.rate_limit × max_size` (20 + 3 × 500 = 1 520 per hour at the ceiling), with no global cap.
+An exception after validation (a failing flush, a host mailer that throws) stops the loop: the invitations sent before
+it stay sent and no outcome list is returned.
 
 **Check when the link opens.** `InvitationOpeningEvent` is dispatched when the accept page is about to show the form
 (GET) and before a social acceptance starts:
@@ -404,7 +411,8 @@ public function onOpening(InvitationOpeningEvent $event): void
 The `unavailable` page shows the reason; nothing is written or consumed, the session keeps the link, and a reload asks
 again. Only the holder of the current link of a pending invitation gets there: unknown, used, revoked and replaced links
 keep the one neutral `invalid` page (and expired ones `expired`) without dispatching anything, so the reason is no
-oracle. A throwing listener refuses. Keep the same rule in `InvitationAcceptingEvent`: that one runs on submit.
+oracle. A throwing listener refuses. Keep the same rule in `InvitationAcceptingEvent`: that one runs on submit. The
+token-less page is not rate limited, so the listener runs on every reload: keep it cheap (one indexed query).
 
 **Social acceptance on the accept page.**
 
@@ -418,7 +426,12 @@ The page lists the enabled social providers (not the enterprise SSO ones), each 
 (`nowo_auth_kit_invitation_social/<profile>/<public id>`) that posts to `routes.social` (rate limited like the accept
 page; signed-in visitors refused). AuthKit then starts its own OAuth flow and, on the callback it verified (state, PKCE,
 code), accepts the invitation pending in the session: verified provider e-mail equal to the invited one, the
-pre-accept event, roles, grants, single use. The provider identity is linked to the new account through
+pre-accept event, roles, grants, single use. The start issues the OAuth state itself and remembers it with the
+invitation: only the callback of that authorization is taken over (a later ordinary sign-in with the provider keeps the
+default flow), and only for that invitation (a link opened in between — e.g. by another page — answers the neutral
+notice and nothing is accepted). `social_login.link_existing_account: deny` cannot be combined with `accept_page`
+(compile-time error). The provider display name goes into `name_field` without control or bidi characters, at most 180
+characters. The provider identity is linked to the new account through
 `SocialAccountLinker::linkOrCreate()` (its rules apply), and the person is signed in last (first factor `social`, so MFA
 applies). The start is remembered for 15 minutes; a callback without it takes the default flow. The firewall must let
 anonymous visitors `POST` the social route. Override the providers with block `nowo_auth_kit_invitation_providers`
@@ -426,7 +439,8 @@ anonymous visitors `POST` the social route. Override the providers with block `n
 
 **Templates.** The accept page receives `invitation`, the `InvitationSnapshot` (`email`, `payload`, `message`,
 `invitedBy`, `lastSentBy`, `expiresAt`, …; never the token nor its hash) — use it to show what the invitation grants
-instead of reading the session.
+instead of reading the session. It also carries `payload`, `invitedBy`, `lastSentBy` and the other columns: print only
+what the invitee may see, and never `|raw` the message or payload values.
 
 ## Audit events
 

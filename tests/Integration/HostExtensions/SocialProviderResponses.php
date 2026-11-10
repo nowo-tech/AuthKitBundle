@@ -24,6 +24,8 @@ final class SocialProviderResponses
 
     public string $email = 'new.person@example.com';
 
+    public string $name = 'New Person';
+
     /** Runs while the provider answers (a revocation arriving during the callback). */
     public ?Closure $whileAnswering = null;
 
@@ -43,6 +45,6 @@ final class SocialProviderResponses
                 : new MockResponse(json_encode(['access_token' => 'at-placeholder', 'expires_in' => 3600], JSON_THROW_ON_ERROR));
         }
 
-        return new MockResponse(json_encode(['sub' => 'subject-1', 'email' => $this->email, 'email_verified' => true, 'name' => 'New Person'], JSON_THROW_ON_ERROR));
+        return new MockResponse(json_encode(['sub' => 'subject-1', 'email' => $this->email, 'email_verified' => true, 'name' => $this->name], JSON_THROW_ON_ERROR));
     }
 }

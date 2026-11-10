@@ -237,6 +237,8 @@ invitation:
         social_mismatch_body: "Il provider non ha confermato l'email a cui è stato inviato questo invito. Accedi al provider con quell'indirizzo, oppure crea il tuo account con il modulo."
         social_failed_title: "L'accesso con il provider non è riuscito"
         social_failed_body: "Non è stato modificato nulla. Riprova, oppure crea il tuo account con il modulo."
+        accepted_title: "Il tuo account è stato creato"
+        accepted_body: "L'invito è stato accettato, ma l'accesso non è riuscito. Accedi per continuare."
         social_heading: "Oppure accetta con"
         social_continue: "Continua con %provider%"
         social_hint: "Il provider deve confermare l'email invitata."

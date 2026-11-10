@@ -237,6 +237,8 @@ invitation:
         social_mismatch_body: "O fornecedor não confirmou o e-mail para o qual este convite foi enviado. Inicie sessão no fornecedor com esse endereço ou crie a sua conta com o formulário."
         social_failed_title: "Não foi possível iniciar sessão com o fornecedor"
         social_failed_body: "Nada foi alterado. Tente novamente ou crie a sua conta com o formulário."
+        accepted_title: "A sua conta foi criada"
+        accepted_body: "O convite foi aceite, mas não foi possível iniciar a sessão. Inicie sessão para continuar."
         social_heading: "Ou aceite com"
         social_continue: "Continuar com %provider%"
         social_hint: "O fornecedor tem de confirmar o e-mail convidado."

@@ -237,6 +237,8 @@ invitation:
         social_mismatch_body: "Der Anbieter hat die E-Mail-Adresse, an die diese Einladung ging, nicht bestätigt. Melde dich beim Anbieter mit dieser Adresse an oder erstelle dein Konto über das Formular."
         social_failed_title: "Die Anmeldung beim Anbieter hat nicht funktioniert"
         social_failed_body: "Es wurde nichts geändert. Versuche es erneut oder erstelle dein Konto über das Formular."
+        accepted_title: "Dein Konto wurde erstellt"
+        accepted_body: "Die Einladung wurde angenommen, aber die Anmeldung hat nicht funktioniert. Melde dich an, um fortzufahren."
         social_heading: "Oder annehmen mit"
         social_continue: "Weiter mit %provider%"
         social_hint: "Der Anbieter muss die eingeladene E-Mail-Adresse bestätigen."

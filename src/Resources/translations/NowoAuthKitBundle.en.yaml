@@ -235,6 +235,8 @@ invitation:
         social_mismatch_body: "The provider did not confirm the email this invitation was sent to. Sign in to the provider with that address, or create your account with the form."
         social_failed_title: "Signing in with the provider did not work"
         social_failed_body: "Nothing was changed. Try again, or create your account with the form."
+        accepted_title: "Your account was created"
+        accepted_body: "The invitation was accepted, but signing you in did not work. Sign in to continue."
         social_heading: "Or accept with"
         social_continue: "Continue with %provider%"
         social_hint: "The provider must confirm the invited email."

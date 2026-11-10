@@ -240,9 +240,11 @@ final readonly class InvitationAcceptor
      * {@see InvitationAcceptedEvent} with `existingAccount: true`. No account is created and no
      * {@see UserRegisteredEvent} is dispatched.
      *
-     * AuthKit never changes the roles of an existing account: an invitation that still carries a grantable role
-     * (`invitations.roles`) is refused (`not_accepted`); invite existing accounts without roles, or grant them in an
-     * {@see InvitationGrantInterface}. On a failure the bundle entity manager is cleared, as in {@see self::attempt()}.
+     * The account must be of the invitation profile's `user_class` (`not_accepted` otherwise). AuthKit never changes
+     * the roles of an existing account: an invitation that still carries a grantable role (`invitations.roles`) is
+     * refused (`not_accepted`); invite existing accounts without roles, or grant them in an
+     * {@see InvitationGrantInterface}. On a failure the bundle entity manager is cleared, as in {@see self::attempt()}:
+     * call it outside your own transaction (its events follow its own commit) and reload your entities afterwards.
      *
      * @param UserInterface $user the signed-in account accepting it (the host checks who may act for it)
      * @param Invitation $invitation an invitation of the bundle entity manager (e.g. listed for the account's e-mail)
@@ -267,6 +269,12 @@ final readonly class InvitationAcceptor
         }
         if (!self::sameEmail($email, $invitation->getEmail())) {
             return InvitationAcceptance::failed(InvitationAcceptance::EMAIL_MISMATCH, $snapshot);
+        }
+        // KL-L4: only an account of the invitation profile's user class (a Doctrine proxy extends it).
+        if (!$user instanceof $profile->userClass) {
+            $this->logger->notice('AuthKit invitation of another profile\'s user class; an existing account cannot accept it.', ['invitation' => $invitation->getPublicId()]);
+
+            return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
         }
         if ($this->grantableRoles($profile, $invitation) !== []) {
             $this->logger->notice('AuthKit invitation carries roles; an existing account cannot accept it.', ['invitation' => $invitation->getPublicId()]);

@@ -237,6 +237,8 @@ invitation:
         social_mismatch_body: "Le fournisseur n'a pas confirmé l'adresse à laquelle cette invitation a été envoyée. Connectez-vous au fournisseur avec cette adresse, ou créez votre compte avec le formulaire."
         social_failed_title: "La connexion avec le fournisseur a échoué"
         social_failed_body: "Rien n'a été modifié. Réessayez, ou créez votre compte avec le formulaire."
+        accepted_title: "Votre compte a été créé"
+        accepted_body: "L'invitation a été acceptée, mais la connexion a échoué. Connectez-vous pour continuer."
         social_heading: "Ou acceptez avec"
         social_continue: "Continuer avec %provider%"
         social_hint: "Le fournisseur doit confirmer l'adresse invitée."

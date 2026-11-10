@@ -649,6 +649,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             if ($invitations['social']['accept_page'] === true && ($profile['social_login']['mode'] ?? 'disabled') !== 'enabled') {
                 throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.social.accept_page: true" requires "social_login.mode: enabled".', $name));
             }
+            // KL-L3: the accept page links the provider to the account it just created; deny would leave it unreachable.
+            if ($invitations['social']['accept_page'] === true && ($profile['social_login']['link_existing_account'] ?? 'reset_password') === 'deny') {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.social.accept_page: true" cannot be used with "social_login.link_existing_account: deny" (the accepted account could not be reached with its provider).', $name));
+            }
             $nameField = $invitations['social']['name_field'];
             if ($nameField !== null && !$this->isPlainRegistrationField($profile, (string) $nameField)) {
                 throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.social.name_field" must name a mapped, non-password registration field ("%s" is not one).', $name, (string) $nameField));

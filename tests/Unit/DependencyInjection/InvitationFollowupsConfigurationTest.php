@@ -73,6 +73,7 @@ final class InvitationFollowupsConfigurationTest extends TestCase
     public static function invalidConfigurations(): iterable
     {
         yield 'accept page without social login' => [self::enabledConfig(['social' => ['accept_page' => true]]), 'requires "social_login.mode: enabled"'];
+        yield 'accept page with deny (KL-L3)' => [['social_login' => ['mode' => 'enabled', 'link_existing_account' => 'deny']] + self::enabledConfig(['social' => ['accept_page' => true]]), 'cannot be used with "social_login.link_existing_account: deny"'];
         yield 'name field unknown' => [self::enabledConfig(['social' => ['name_field' => 'nickname']]), '"nickname" is not one'];
         yield 'name field is the password' => [self::enabledConfig(['social' => ['name_field' => 'password']]), '"password" is not one'];
         yield 'name field not mapped' => [self::enabledConfig(['social' => ['name_field' => 'terms']], ['email', 'password', ['name' => 'terms', 'type' => 'checkbox', 'mapped' => false]]), '"terms" is not one'];

@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
+use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptedEvent;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptance;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
@@ -52,9 +53,11 @@ use function array_column;
 use function array_map;
 use function count;
 use function hash;
+use function mb_strlen;
 use function parse_str;
 use function parse_url;
 use function print_r;
+use function str_repeat;
 use function strlen;
 use function substr;
 use function time;
@@ -396,9 +399,7 @@ final class InvitationFollowupsKernelTest extends WebTestCase
     {
         $url = $this->inviteLink('new.person@example.com', ['organization' => 'acme'], ['ROLE_EDITOR']);
         $this->open($url);
-        $this->startSocial();
-        self::assertResponseRedirects('/login/social/google', 303);
-        $state = $this->authorize();
+        $state = $this->startSocial();
 
         $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
         self::assertResponseRedirects('/home');
@@ -422,8 +423,7 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         $this->provider()->email = 'someone.else@example.com';
         $url                     = $this->inviteLink('new.person@example.com');
         $this->open($url);
-        $this->startSocial();
-        $state = $this->authorize();
+        $state = $this->startSocial();
 
         $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
         self::assertSelectorExists('[data-nowo-auth-kit-invitation="social_mismatch"]');
@@ -444,8 +444,7 @@ final class InvitationFollowupsKernelTest extends WebTestCase
     {
         $this->provider()->failTokenExchange = true;
         $this->open($this->inviteLink('new.person@example.com'));
-        $this->startSocial();
-        $state = $this->authorize();
+        $state = $this->startSocial();
 
         $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
         self::assertSelectorExists('[data-nowo-auth-kit-invitation="social_failed"]');
@@ -502,21 +501,24 @@ final class InvitationFollowupsKernelTest extends WebTestCase
     public function testTheCallbackHandlerOnlyOwnsItsOwnRecentStart(): void
     {
         $controller = $this->service(InvitationAcceptController::class);
-        $request    = Request::create('/login/social/google/check');
+        $request    = Request::create('/login/social/google/check', 'GET', ['state' => 'the-state']);
         self::assertFalse($controller->supports($request, 'google'), 'No session.');
 
         $request->setSession(new Session(new MockArraySessionStorage()));
         $request->attributes->set(RequestProfileResolver::REQUEST_ATTRIBUTE, 'default');
         $session = $request->getSession();
         self::assertFalse($controller->supports($request, 'google'), 'Nothing started.');
-        $now = time();
+        $now  = time();
+        $mine = ['profile' => 'default', 'provider' => 'google', 'at' => $now, 'state' => 'the-state', 'hash' => 'h'];
         foreach ([
-            'another provider'  => [['profile' => 'default', 'provider' => 'github', 'at' => $now], false],
-            'another profile'   => [['profile' => 'admin', 'provider' => 'google', 'at' => $now], false],
-            'abandoned'         => [['profile' => 'default', 'provider' => 'google', 'at' => $now - InvitationAcceptController::SOCIAL_PENDING_SECONDS - 5], false],
-            'not a timestamp'   => [['profile' => 'default', 'provider' => 'google', 'at' => (string) $now], false],
+            'another provider'  => [['provider' => 'github'] + $mine, false],
+            'another profile'   => [['profile' => 'admin'] + $mine, false],
+            'abandoned'         => [['at' => $now - InvitationAcceptController::SOCIAL_PENDING_SECONDS - 5] + $mine, false],
+            'not a timestamp'   => [['at' => (string) $now] + $mine, false],
+            'another state'     => [['state' => 'an-ordinary-sign-in'] + $mine, false],
+            'no state'          => [['state' => null] + $mine, false],
             'not a start'       => ['google', false],
-            'its own, recently' => [['profile' => 'default', 'provider' => 'google', 'at' => $now], true],
+            'its own, recently' => [$mine, true],
         ] as $name => [$marker, $expected]) {
             $session->set(InvitationAcceptController::SOCIAL_SESSION_KEY, $marker);
             self::assertSame($expected, $controller->supports($request, 'google'), $name);
@@ -529,8 +531,7 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         $this->hooks()->refuseBefore = new InvitationRefusal('host.no_seat_left');
         $this->provider()->email     = 'refused.person@example.com';
         $this->open($this->inviteLink('refused.person@example.com'));
-        $this->startSocial();
-        $state = $this->authorize();
+        $state = $this->startSocial();
         $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
         self::assertSelectorExists('[data-nowo-auth-kit-invitation="not_accepted"]');
         self::assertStringContainsString('host.no_seat_left', (string) $this->client->getResponse()->getContent());
@@ -544,8 +545,7 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         foreach ($changes as $kind => [$email, $change]) {
             $this->provider()->email = $email;
             $this->open($this->inviteLink($email));
-            $this->startSocial();
-            $state = $this->authorize();
+            $state = $this->startSocial();
             $change();
             $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
             self::assertSelectorExists('[data-nowo-auth-kit-invitation="' . $kind . '"]');
@@ -561,7 +561,7 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         $request->setSession(new Session(new MockArraySessionStorage()));
         $request->attributes->set(RequestProfileResolver::REQUEST_ATTRIBUTE, 'default');
         $request->getSession()->set(InvitationAcceptor::SESSION_KEY . 'default', $this->acceptor()->hashToken($this->token($url)));
-        $request->getSession()->set(InvitationAcceptController::SOCIAL_SESSION_KEY, ['profile' => 'default', 'provider' => 'google', 'at' => time()]);
+        $request->getSession()->set(InvitationAcceptController::SOCIAL_SESSION_KEY, ['profile' => 'default', 'provider' => 'google', 'at' => time(), 'state' => 's', 'hash' => $this->acceptor()->hashToken($this->token($url))]);
         $this->service(TokenStorageInterface::class)->setToken(new UsernamePasswordToken($this->user('admin@example.com'), 'main', ['ROLE_ADMIN']));
         $profile = $this->service(ProfileRegistry::class)->getByName('default');
         $context = new SocialCallbackContext($profile, 'google', new SocialUserProfile('subject-1', 'new.person@example.com', 'New Person', [], true), ['access_token' => 'at', 'refresh_token' => null, 'expires_in' => null, 'raw' => []]);
@@ -580,6 +580,7 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         $request->setSession(new Session(new MockArraySessionStorage()));
         $request->attributes->set(RequestProfileResolver::REQUEST_ATTRIBUTE, 'default');
         $request->getSession()->set(InvitationAcceptor::SESSION_KEY . 'default', $this->acceptor()->hashToken($this->token($url)));
+        $request->getSession()->set(InvitationAcceptController::SOCIAL_SESSION_KEY, ['profile' => 'default', 'provider' => 'google', 'at' => time(), 'state' => 's', 'hash' => $this->acceptor()->hashToken($this->token($url))]);
         // GY-L9: two host authenticators and neither form_login nor login_link: Security::login() would refuse.
         $factories  = ['security.authenticator.custom_a.main' => static fn (): null => null, 'security.authenticator.custom_b.main' => static fn (): null => null];
         $controller = new InvitationAcceptController(
@@ -601,6 +602,82 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         self::assertTrue($request->getSession()->has(InvitationAcceptor::SESSION_KEY . 'default'), 'Nothing was tried: the invitation stays open.');
         self::assertNull($this->invitation('new.person@example.com')->getAcceptedAt());
         self::assertNull($this->entityManager()->getRepository(KernelUser::class)->find('new.person@example.com'));
+    }
+
+    public function testAnotherLinkOpenedDuringTheProviderRoundTripIsNotAccepted(): void
+    {
+        // KL-L1: the browser starts a social acceptance of A; a third-party page then opens link B (same invitee).
+        $a = $this->inviteLink('new.person@example.com', ['organization' => 'acme']);
+        $b = $this->inviteLink('new.person@example.com', ['organization' => 'evil']);
+        $this->open($a);
+        $state = $this->startSocial();
+        $this->client->request('GET', (string) parse_url($b, PHP_URL_PATH));
+
+        $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
+        self::assertSelectorExists('[data-nowo-auth-kit-invitation="invalid"]');
+        self::assertNull($this->service(TokenStorageInterface::class)->getToken());
+        foreach ($this->entityManager()->getRepository(Invitation::class)->findBy(['email' => 'new.person@example.com']) as $invitation) {
+            self::assertNull($invitation->getAcceptedAt(), (string) ($invitation->getPayload()['organization'] ?? ''));
+        }
+        self::assertNull($this->entityManager()->getRepository(KernelUser::class)->find('new.person@example.com'));
+        self::assertSame([], $this->listener()->granted);
+    }
+
+    public function testAnAbandonedStartDoesNotCaptureAnOrdinarySignIn(): void
+    {
+        // KL-L2: a social acceptance abandoned at the provider, then an ordinary "Sign in with Google" of a member.
+        $this->open($this->inviteLink('someone@example.com'));
+        $this->startSocial();
+        $this->provider()->email = 'member@example.com';
+        $state                   = $this->authorize();
+
+        $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
+        self::assertResponseRedirects('/home');
+        self::assertSame('member@example.com', $this->service(TokenStorageInterface::class)->getToken()?->getUserIdentifier(), 'The default flow signed the member in.');
+        self::assertNull($this->invitation('someone@example.com')->getAcceptedAt());
+    }
+
+    public function testAFailedLinkStillSignsTheAcceptedAccountIn(): void
+    {
+        // The linker finds no account (a host lookup out of sync): the invitation is accepted, nothing is linked.
+        $this->service(ToggleUserLookup::class)->hideByIdentifier = true;
+        $this->provider()->name                                   = "  New\u{202E}Person\x07 " . str_repeat('x', 300);
+        $this->open($this->inviteLink('new.person@example.com'));
+        $state = $this->startSocial();
+
+        $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
+        self::assertResponseRedirects('/home');
+        self::assertSame('new.person@example.com', $this->service(TokenStorageInterface::class)->getToken()?->getUserIdentifier());
+        self::assertNotNull($this->invitation('new.person@example.com')->getAcceptedAt());
+        self::assertNull($this->entityManager()->getRepository(SocialLoginAccount::class)->findOneBy(['provider' => 'google']));
+        $nickname = (string) $this->user('new.person@example.com')->getNickname();
+        self::assertStringStartsWith('NewPerson x', $nickname, 'KL-I10: no control or bidi characters.');
+        self::assertSame(InvitationAcceptController::SOCIAL_NAME_MAX_LENGTH, mb_strlen($nickname));
+    }
+
+    public function testASignInFailureAfterTheAcceptanceSaysSo(): void
+    {
+        $controller = $this->service(InvitationAcceptController::class);
+        $request    = Request::create('/login/social/google/check');
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        $request->attributes->set(RequestProfileResolver::REQUEST_ATTRIBUTE, 'default');
+        self::assertStringContainsString('data-nowo-auth-kit-invitation="social_failed"', (string) $controller->handleFailure($request, 'google', SocialCallbackFailure::Failed)->getContent());
+
+        // KL-I8: once the acceptance committed, the failure path does not claim that nothing changed.
+        $request->attributes->set(InvitationAcceptController::SOCIAL_ACCEPTED_ATTRIBUTE, true);
+        $content = (string) $controller->handleFailure($request, 'google', SocialCallbackFailure::Failed)->getContent();
+        self::assertStringContainsString('data-nowo-auth-kit-invitation="accepted"', $content);
+        self::assertStringContainsString('Your account was created', $content);
+    }
+
+    public function testAcceptExistingRequiresAnAccountOfTheProfileUserClass(): void
+    {
+        // KL-L4: an account of another user class with the invited e-mail cannot accept.
+        $this->invite('member@example.com');
+        $other = new TestUser('member@example.com');
+        self::assertSame(InvitationAcceptance::NOT_ACCEPTED, $this->acceptor()->acceptExisting($other, $this->invitation('member@example.com'), 'member@example.com')->status);
+        self::assertNull($this->invitation('member@example.com')->getAcceptedAt());
+        self::assertSame([], $this->hooks()->acceptingUsers, 'Refused before the pre-accept event.');
     }
 
     public function testTheAcceptorKeepsThePendingInvitationAfterAMismatchOnly(): void
@@ -664,14 +741,21 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         ]));
     }
 
-    /** Submits the Google form of the accept page currently open. */
-    private function startSocial(): void
+    /** Submits the Google form of the accept page currently open; returns the OAuth state of that start. */
+    private function startSocial(): string
     {
         $crawler = $this->client->request('GET', '/invitation');
         $this->client->submit($crawler->filter('[data-testid="auth-kit-invitation-social-google"]')->form());
+        self::assertResponseStatusCodeSame(303);
+        $location = (string) $this->client->getResponse()->headers->get('Location');
+        self::assertStringStartsWith('https://accounts.google.com/', $location, 'The start goes to the provider itself.');
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+        self::assertIsString($query['state'] ?? null);
+
+        return $query['state'];
     }
 
-    /** Follows the social start to the provider; returns the OAuth state. */
+    /** An ordinary "Sign in with Google" start; returns its OAuth state. */
     private function authorize(): string
     {
         $this->client->request('GET', '/login/social/google');

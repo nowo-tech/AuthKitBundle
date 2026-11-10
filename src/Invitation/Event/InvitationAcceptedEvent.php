@@ -38,7 +38,7 @@ final class InvitationAcceptedEvent extends InvitationEvent
         public readonly bool $existingAccount = false,
     ) {
         parent::__construct($invitation, $user, $occurredAt);
-        $this->userClass      = $user::class;
+        $this->userClass      = UserIds::className($user);
         $this->userId         = UserIds::of($user);
         $this->userIdentifier = $user->getUserIdentifier();
     }

@@ -28,11 +28,14 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\SocialLogin\Pkce;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
+use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
@@ -40,7 +43,6 @@ use Nowo\UiKitBundle\View\Label;
 use Nowo\UiKitBundle\View\Link;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
-use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormView;
@@ -49,16 +51,21 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Throwable;
 use Twig\Environment;
 
+use function hash_equals;
 use function is_array;
 use function is_bool;
 use function is_int;
 use function is_scalar;
 use function is_string;
+use function mb_substr;
+use function preg_replace;
 use function time;
 use function trim;
 
@@ -100,6 +107,12 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
     /** An abandoned social acceptance stops claiming the provider's callbacks after this many seconds (1.42). */
     public const SOCIAL_PENDING_SECONDS = 900;
 
+    /** Request attribute set once a social acceptance committed (its failure path then says so, KL-I8). */
+    public const SOCIAL_ACCEPTED_ATTRIBUTE = '_nowo_auth_kit_invitation_social_accepted';
+
+    /** Longest provider display name put into `invitations.social.name_field` (KL-I10). */
+    public const SOCIAL_NAME_MAX_LENGTH = 180;
+
     public function __construct(
         private readonly Environment $twig,
         private readonly FormFactoryInterface $formFactory,
@@ -120,6 +133,8 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         private readonly ?SocialAccountLinker $accountLinker = null,
         private readonly ?ClockInterface $clock = null,
         private readonly ?LoggerInterface $logger = null,
+        private readonly ?OAuth2Client $oauth2Client = null,
+        private readonly ?SocialLoginStateStore $stateStore = null,
     ) {
     }
 
@@ -287,21 +302,39 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         if (!$form->isSubmitted() || !$form->isValid()) {
             throw new AccessDeniedHttpException('Invalid CSRF token.');
         }
-        if (!$this->providerCredential($provider) instanceof SocialLoginCredential) {
+        $credential = $this->providerCredential($provider);
+        if (!$credential instanceof SocialLoginCredential || !$this->oauth2Client instanceof OAuth2Client || !$this->stateStore instanceof SocialLoginStateStore) {
             return $this->redirect($this->urlGenerator->generate(self::routeName($profile)), Response::HTTP_SEE_OTHER);
         }
         $refused = $this->acceptor->precheck($invitation);
         if ($refused instanceof InvitationAcceptance) {
             return $this->notice($profile, 'unavailable', Response::HTTP_OK, $refused->refusal);
         }
-        $session->set(self::SOCIAL_SESSION_KEY, ['profile' => $profile->name, 'provider' => $provider, 'at' => $this->now()]);
 
-        return $this->redirect($this->urlGenerator->generate($profile->routes['social_login_start']['name'], ['provider' => $provider]), Response::HTTP_SEE_OTHER);
+        // The OAuth start happens here (as in SocialLoginStartController), so the marker holds the exact state of this
+        // authorization (KL-L2: no other callback of the provider is claimed) and the invitation it is for (KL-L1: a
+        // link opened meanwhile is not accepted in its place).
+        $redirectUri = $this->urlGenerator->generate($profile->routes['social_login_check']['name'], ['provider' => $provider], UrlGeneratorInterface::ABSOLUTE_URL);
+        /** @var array<string, bool> $pkceOverrides */
+        $pkceOverrides = $profile->socialLogin['pkce'] ?? [];
+        $codeVerifier  = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
+        $state         = $this->stateStore->issue($provider, $codeVerifier);
+        $session->set(self::SOCIAL_SESSION_KEY, [
+            'profile'  => $profile->name,
+            'provider' => $provider,
+            'at'       => $this->now(),
+            'state'    => $state,
+            'hash'     => $tokenHash,
+        ]);
+
+        return $this->private(new Response('', Response::HTTP_SEE_OTHER, ['Location' => $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier)]));
     }
 
     /**
      * The OAuth callback belongs to the social acceptance started from the accept page of this profile, with this
-     * provider, less than {@see self::SOCIAL_PENDING_SECONDS} ago (server-side session state only).
+     * provider, less than {@see self::SOCIAL_PENDING_SECONDS} ago, and carries the state of that very start (KL-L2):
+     * an ordinary sign-in with the provider later in the same browser has another state and keeps the default flow.
+     * AuthKit still verifies that state (single use, session-bound) before {@see self::handle()} runs.
      */
     public function supports(Request $request, string $provider): bool
     {
@@ -309,7 +342,8 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
             return false;
         }
         $pending = $request->getSession()->get(self::SOCIAL_SESSION_KEY);
-        if (!is_array($pending) || ($pending['provider'] ?? null) !== $provider || !is_int($pending['at'] ?? null) || $this->now() > $pending['at'] + self::SOCIAL_PENDING_SECONDS) {
+        if (!is_array($pending) || ($pending['provider'] ?? null) !== $provider || !is_int($pending['at'] ?? null) || $this->now() > $pending['at'] + self::SOCIAL_PENDING_SECONDS
+            || !is_string($pending['state'] ?? null) || !hash_equals($pending['state'], (string) $request->query->get('state', ''))) {
             return false;
         }
         $profile = $this->profileResolver->resolve($request);
@@ -325,8 +359,16 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
     public function handle(Request $request, SocialCallbackContext $context): Response
     {
         $session = $request->getSession();
+        $pending = $session->get(self::SOCIAL_SESSION_KEY);
         $session->remove(self::SOCIAL_SESSION_KEY);
         $profile = $context->profile;
+        $started = is_array($pending) && is_string($pending['hash'] ?? null) ? $pending['hash'] : '';
+        $current = $session->get(self::SESSION_KEY . $profile->name);
+        // KL-L1: the invitation open in this browser must still be the one the acceptance started for; another link
+        // opened meanwhile (e.g. by a third-party page) is not accepted in its place. Nothing is consumed.
+        if ($started === '' || !is_string($current) || !hash_equals($started, $current)) {
+            return $this->notice($profile, 'invalid');
+        }
         if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
             return $this->notice($profile, 'signed_in');
         }
@@ -351,14 +393,16 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
                 default                              => $this->notice($profile, 'not_accepted', Response::HTTP_OK, $result->refusal),
             };
         }
+        // KL-I8: from here on the invitation is used; a failing sign-in answers "accepted, sign in".
+        $request->attributes->set(self::SOCIAL_ACCEPTED_ATTRIBUTE, true);
         if ($this->accountLinker instanceof SocialAccountLinker && $result->invitation instanceof InvitationSnapshot) {
             try {
                 // The invited e-mail as stored (the provider may spell it with capitals); verified, it matched above.
+                // `link_existing_account: deny` is refused with accept_page at compile time (KL-L3).
                 $this->accountLinker->linkOrCreate($profile, $context->provider, new SocialUserProfile($social->id, $result->invitation->email, $social->name, $social->raw, true), $context->tokens);
-            } catch (RuntimeException $exception) { // @codeCoverageIgnore
-                // Only `social_login.link_existing_account: deny` reaches this (the e-mail is verified and the account
-                // was just created): the accepted account signs in now and may link the provider later.
-                $this->logger?->notice('AuthKit could not link the social identity of an accepted invitation.', ['provider' => $context->provider, 'reason' => $exception::class]); // @codeCoverageIgnore
+            } catch (Throwable $exception) {
+                // A host lookup or a storage failure: the accepted account signs in now and may link the provider later.
+                $this->logger?->notice('AuthKit could not link the social identity of an accepted invitation.', ['provider' => $context->provider, 'reason' => $exception::class]);
             }
         }
 
@@ -374,8 +418,13 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
     public function handleFailure(Request $request, string $provider, SocialCallbackFailure $reason): Response
     {
         $request->getSession()->remove(self::SOCIAL_SESSION_KEY);
+        $profile = $this->profileResolver->resolve($request);
+        // KL-I8: the sign-in failed after the acceptance committed: the account exists and the invitation is used.
+        if ($request->attributes->get(self::SOCIAL_ACCEPTED_ATTRIBUTE) === true) {
+            return $this->notice($profile, 'accepted');
+        }
 
-        return $this->notice($this->profileResolver->resolve($request), 'social_failed', Response::HTTP_OK, null, true);
+        return $this->notice($profile, 'social_failed', Response::HTTP_OK, null, true);
     }
 
     public static function routeName(ProfileSettings $profile): string
@@ -432,8 +481,8 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
 
     /**
      * A form-less page: `invalid` (unknown, used, revoked or replaced link), `expired`, `rate_limited`,
-     * `signed_in`, `not_accepted`; 1.42: `unavailable` (refused when opened), `social_mismatch`, `social_failed`. No
-     * invitee data on any of them.
+     * `signed_in`, `not_accepted`; 1.42: `unavailable` (refused when opened), `social_mismatch`, `social_failed`,
+     * `accepted` (a social acceptance committed but the sign-in failed). No invitee data on any of them.
      */
     private function notice(ProfileSettings $profile, string $kind, int $status = Response::HTTP_OK, ?InvitationRefusal $refusal = null, bool $backToInvitation = false): Response
     {
@@ -517,8 +566,10 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
     private function socialFormData(ProfileSettings $profile, ?string $name): array
     {
         $field = $profile->invitations['social']['name_field'] ?? null;
+        // KL-I10: no control or format (bidi) characters and a bounded length: the provider value is not form input.
+        $name = trim(mb_substr(trim((string) preg_replace('/[\p{Cc}\p{Cf}]+/u', '', (string) $name)), 0, self::SOCIAL_NAME_MAX_LENGTH));
 
-        return is_string($field) && $name !== null && trim($name) !== '' ? [$field => trim($name)] : [];
+        return is_string($field) && $name !== '' ? [$field => $name] : [];
     }
 
     private function csrfForms(): CsrfOnlyFormFactory

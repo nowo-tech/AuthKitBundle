@@ -142,7 +142,15 @@ behaviour.
   left). The new `unavailable` notice shows it; nothing is consumed and the session entry stays, so the same link works
   once the host allows it. Only reached with the current token of a pending invitation: unknown, used, revoked and
   replaced links keep the one neutral `invalid` page and dispatch nothing; a throwing listener refuses.
-- Translations (all locales): `invitation.page.unavailable_*`, `social_mismatch_*`, `social_failed_*`,
+- Audit KL (before the tag): the social start issues the OAuth state itself and the session marker keeps that state
+  and the invitation, so only that callback is taken over (KL-L2) and only for that invitation — another link opened in
+  between answers the neutral page and nothing is accepted (KL-L1); `accept_page` with
+  `social_login.link_existing_account: deny` is refused at compile time (KL-L3); `acceptExisting()` requires an
+  account of the profile's `user_class` (KL-L4); `InvitationAcceptedEvent::$userClass` without the Doctrine proxy class
+  (`UserIds::className()`, KL-I7); a sign-in failure after a committed social acceptance shows the new `accepted` notice
+  (KL-I8); the provider display name loses control / bidi characters and is capped at 180 characters (KL-I10); docs on
+  the pool, batch bounds, host transactions, the pre-check cost and the snapshot (KL-I2 – I6).
+- Translations (all locales): `invitation.page.accepted_*`, `unavailable_*`, `social_mismatch_*`, `social_failed_*`,
   `back_to_invitation`, `social_heading`, `social_continue`, `social_hint`.
 
 ### Changed

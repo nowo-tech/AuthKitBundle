@@ -237,6 +237,8 @@ invitation:
         social_mismatch_body: "De provider heeft het e-mailadres waarnaar deze uitnodiging is gestuurd niet bevestigd. Meld je bij de provider aan met dat adres, of maak je account aan met het formulier."
         social_failed_title: "Aanmelden bij de provider is niet gelukt"
         social_failed_body: "Er is niets gewijzigd. Probeer het opnieuw, of maak je account aan met het formulier."
+        accepted_title: "Je account is aangemaakt"
+        accepted_body: "De uitnodiging is geaccepteerd, maar aanmelden is niet gelukt. Meld je aan om verder te gaan."
         social_heading: "Of accepteer met"
         social_continue: "Doorgaan met %provider%"
         social_hint: "De provider moet het uitgenodigde e-mailadres bevestigen."
