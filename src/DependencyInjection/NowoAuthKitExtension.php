@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
 use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
@@ -201,7 +202,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             }
         }
 
-        // 1.42.1: the closed-manager recovery resets only the bundle's own entity manager, never a host one.
+        // 1.43.0: the closed-manager recovery resets only the bundle's own entity managers, never a host one. The named
+        // manager must exist and map the AuthKit entities (EntityManagerOptionPass).
+        $container->setParameter(EntityManagerOptionPass::PARAMETER, $config['doctrine']['entity_manager']);
         $container->getDefinition(EntityManagerRecovery::class)->setArgument('$entityManagerName', $config['doctrine']['entity_manager']);
 
         if ($config['doctrine']['table_prefix'] === '') {

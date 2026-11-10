@@ -39,20 +39,25 @@ final class EntityManagerRecoveryHostManagerTest extends TestCase
         self::assertTrue($this->manager($registry, 'auth')->isOpen());
     }
 
-    public function testConfiguredEntityManagerIsTheOnlyBundleManagerReset(): void
+    public function testConfiguredEntityManagerIsResetTooAndTheEntityManagerIsAlwaysIncluded(): void
     {
         $registry = new SqliteManagerRegistry([
-            'default' => self::BUNDLE_ENTITIES,
+            'default' => ['App\\Entity' => dirname(__DIR__, 2) . '/Stub'],
             'auth'    => self::BUNDLE_ENTITIES,
+            'extra'   => self::BUNDLE_ENTITIES,
         ]);
         $host = $this->manager($registry, 'default');
         $host->close();
-        $bundle = $this->manager($registry, 'auth');
+        $auth = $this->manager($registry, 'auth');
+        $this->manager($registry, 'extra')->close();
 
-        $this->failWrite(new EntityManagerRecovery($registry, 'auth'), $bundle);
+        // Audit LD-AK-M1: with the option naming another manager, the manager of the AuthKit entities still recovers.
+        $this->failWrite(new EntityManagerRecovery($registry, 'extra'), $auth);
 
         self::assertSame($host, $registry->getManager('default'));
+        self::assertFalse($host->isOpen());
         self::assertTrue($this->manager($registry, 'auth')->isOpen());
+        self::assertTrue($this->manager($registry, 'extra')->isOpen());
     }
 
     public function testDefaultOnlyHostStillGetsItsManagerBack(): void

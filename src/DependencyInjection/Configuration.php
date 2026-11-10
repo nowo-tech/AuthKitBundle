@@ -267,7 +267,7 @@ final class Configuration implements ConfigurationInterface
                             ->end()
                         ->end()
                         ->scalarNode('entity_manager')
-                            ->info('Name of the entity manager that maps the AuthKit entities. The bundle resets only this manager (and the one a failed write went through) when a write closes it. null: resolved from the registry (ManagerRegistry::getManagerForClass()).')
+                            ->info('Since 1.43.0: name of an additional entity manager that maps the AuthKit entities (the host maps them there itself). After a failed write the bundle resets only its own managers: the one the write went through, the manager of the AuthKit entities (ManagerRegistry::getManagerForClass(), always included) and this one. The bundle mapping and writes stay on the default manager; a dedicated manager is not supported yet. The build fails when the manager does not exist or does not map Nowo\\AuthKitBundle\\Entity.')
                             ->defaultNull()
                             ->validate()
                                 ->ifTrue(static fn (mixed $value): bool => $value !== null && (!is_string($value) || $value === ''))

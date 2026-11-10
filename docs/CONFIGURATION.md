@@ -286,7 +286,7 @@ nowo_auth_kit:
     # Root-level, 1.30+
     doctrine:
         register_mapping: true  # true | false | auto
-        entity_manager: null    # 1.42.1+: manager of the AuthKit entities; null = getManagerForClass()
+        entity_manager: null    # 1.43.0+: extra manager that also maps the AuthKit entities, reset too (getManagerForClass() is always included)
     routing:
         skip_disabled_features: false
 ```

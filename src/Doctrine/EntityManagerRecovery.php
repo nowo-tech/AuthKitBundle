@@ -28,9 +28,9 @@ use function is_string;
  * otherwise make every later request served by the same worker fail. DoctrineBundle resets
  * lazy managers in place, so services holding the manager keep a usable reference.
  *
- * Only the bundle's own managers are reset (1.42.1): the manager the failed write went through and the manager(s)
- * of the AuthKit entities (`nowo_auth_kit.doctrine.entity_manager`, else resolved with getManagerForClass()).
- * Other closed managers of the registry belong to the host and are left as they are.
+ * Only the bundle's own managers are reset (1.43.0): the manager the failed write went through, the manager(s) of
+ * the AuthKit entities (getManagerForClass()) and, when set, `nowo_auth_kit.doctrine.entity_manager`. Other closed
+ * managers of the registry belong to the host and are left as they are.
  */
 final class EntityManagerRecovery
 {
@@ -109,10 +109,7 @@ final class EntityManagerRecovery
                 $owned[] = (string) $name;
             }
         }
-        if ($this->entityManagerName !== null) {
-            return $owned;
-        }
-
+        // 1.43.0 (audit LD-AK-M1): the manager of the AuthKit entities is always owned; the option only adds to it.
         foreach (self::BUNDLE_ENTITIES as $class) {
             $manager = $registry->getManagerForClass($class);
             if (!$manager instanceof ObjectManager) {
