@@ -110,6 +110,35 @@
 
 ## Unreleased
 
+Target **1.42.0**, from **1.41.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+Nothing to change: every new key defaults to the 1.41 behaviour. Optional (see
+[INVITATIONS](INVITATIONS.md#host-follow-ups-142)):
+
+- **Existing accounts accepting invitations**: replace your own `InvitationRepository::claim()` call with
+  `InvitationAcceptor::acceptExisting($user, $invitation, $user->getEmail())` (pass the account's current, verified
+  e-mail, outside your own transaction). It dispatches `InvitationAcceptingEvent` with `$event->user` set — if your listener refuses addresses that
+  already have an account, let `$event->isExistingAccount()` through — then `InvitationAcceptedEvent` with
+  `existingAccount: true` (no `UserRegisteredEvent`). Invitations carrying grantable roles are refused for existing
+  accounts.
+- **Bulk invitations**: set `invitations.batch.max_size` (and `rate_limit` / `rate_window`) and call
+  `InvitationManager::inviteBatch()` with your own bounded list.
+- **Shared or persistent rate-limit counters**: `nowo_auth_kit.attempt_limiter.cache_pool: cache.rate_limits` (any
+  PSR-6 pool service).
+- **Social acceptance on AuthKit's page**: `invitations.social.accept_page: true` (with `social_login.mode: enabled`),
+  optionally `name_field` and `keep_pending_on_mismatch: true` (not with `social_login.link_existing_account: deny`). Remove a host-side social start route on
+  `/invitation/social/{provider}`, its callback handler and the Twig helpers that listed the providers. The page
+  firewall must allow anonymous `POST /invitation/social/{provider}` (like `/invitation`).
+- **Seat or quota check when the link opens**: listen to `InvitationOpeningEvent` and `refuse()` it with an
+  `InvitationRefusal`; keep the `InvitationAcceptingEvent` check too (it is the one that runs on submit).
+- **Templates**: the accept page receives `invitation` (`InvitationSnapshot`) — read it instead of
+  `InvitationAcceptor::pending()` in a Twig extension. A custom `invitation_invalid` template sees the new kinds
+  `unavailable`, `social_mismatch`, `social_failed` and `accepted`.
+
 ## To 1.41.0
 
 From **1.40.0**:

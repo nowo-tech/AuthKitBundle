@@ -72,6 +72,10 @@ Add matching `access_control` entries (`PUBLIC_ACCESS`), same pattern as magic l
 
 ## Callback handlers
 
+Accepting an invitation with a provider needs no handler of your own since 1.42: set
+`invitations.social.accept_page: true` ([INVITATIONS.md](INVITATIONS.md#host-follow-ups-142)) and the accept page
+starts and completes it (its controller is the handler, tagged only then).
+
 A host with its own pending step (accepting an invitation with Google, for example) keeps the one callback URL
 registered at the provider and implements `Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface` (1.37). Autoconfiguration adds the tag `nowo_auth_kit.social_callback_handler`; a `priority` attribute on a manual tag orders several handlers, and the first whose `supports()` is true owns the callback. Without a handler, or when none supports the request, the default flow runs unchanged.
 

@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Command\PurgeInvitationsCommand;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
+use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
@@ -36,6 +37,7 @@ use Nowo\AuthKitBundle\PersonalData\DormantAccountSwitcherPersonalDataEraser;
 use Nowo\AuthKitBundle\PersonalData\DormantMfaPersonalDataEraser;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataEraser;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
@@ -187,6 +189,16 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
+        // 1.42: the pool of the rate-limit / lockout counters (default cache.app, as before).
+        $container->getDefinition(AuthKitAttemptLimiter::class)->setArgument('$cache', new Reference((string) $config['attempt_limiter']['cache_pool']));
+        // 1.42: the accept page owns the OAuth callback of a social acceptance only where a profile opts in.
+        foreach ($profiles as $profile) {
+            if (($profile['invitations']['mode'] ?? InvitationsConfiguration::MODE_DISABLED) === InvitationsConfiguration::MODE_ENABLED && ($profile['invitations']['social']['accept_page'] ?? false) === true) {
+                $container->getDefinition(InvitationAcceptController::class)->addTag('nowo_auth_kit.social_callback_handler');
+
+                break;
+            }
+        }
 
         if ($config['doctrine']['table_prefix'] === '') {
             $container->removeDefinition(TablePrefixListener::class);
@@ -355,6 +367,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             if (($profile['invitations']['mode'] ?? InvitationsConfiguration::MODE_DISABLED) === InvitationsConfiguration::MODE_ENABLED) {
                 foreach ($profile['invitations']['routes'] as $routeKey => $route) {
                     if (($profile['invitations']['admin_routes'] ?? true) === false && in_array($routeKey, InvitationsConfiguration::ADMIN_ROUTE_KEYS, true)) {
+                        continue;
+                    }
+                    // 1.42: the social start route exists only with invitations.social.accept_page.
+                    if ($routeKey === 'social' && ($profile['invitations']['social']['accept_page'] ?? false) !== true) {
                         continue;
                     }
                     $routes['invitations.' . $routeKey] = $route;
@@ -583,6 +599,20 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     }
 
     /**
+     * @param array<string, mixed> $profile
+     */
+    private function isPlainRegistrationField(array $profile, string $field): bool
+    {
+        foreach (ProfileSettings::fromConfig('_', $profile)->registrationFields as $definition) {
+            if ((string) $definition['name'] === $field) {
+                return ($definition['type'] ?? 'text') !== 'password' && ($definition['hash'] ?? false) !== true && ($definition['mapped'] ?? true) !== false;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Invitations (1.32): `registration_mode: invite_only` needs `invitations.mode: enabled`; an enabled profile needs
      * `absolute_url.base_uri` (the mailed link is never built from the request Host), a registration field for the
      * e-mail, and `security.allow_unauthenticated` as a literal boolean that is true only with kernel.debug.
@@ -614,6 +644,18 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             }
             if ($allow && (!$container->hasParameter('kernel.debug') || $container->getParameter('kernel.debug') !== true)) {
                 throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.security.allow_unauthenticated: true" is a DEV/DEMO setting and is refused when kernel.debug is false.', $name));
+            }
+            // 1.42: the providers of the accept page start through the profile's social login routes.
+            if ($invitations['social']['accept_page'] === true && ($profile['social_login']['mode'] ?? 'disabled') !== 'enabled') {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.social.accept_page: true" requires "social_login.mode: enabled".', $name));
+            }
+            // KL-L3: the accept page links the provider to the account it just created; deny would leave it unreachable.
+            if ($invitations['social']['accept_page'] === true && ($profile['social_login']['link_existing_account'] ?? 'reset_password') === 'deny') {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.social.accept_page: true" cannot be used with "social_login.link_existing_account: deny" (the accepted account could not be reached with its provider).', $name));
+            }
+            $nameField = $invitations['social']['name_field'];
+            if ($nameField !== null && !$this->isPlainRegistrationField($profile, (string) $nameField)) {
+                throw new InvalidArgumentException(sprintf('"nowo_auth_kit.profiles.%s.invitations.social.name_field" must name a mapped, non-password registration field ("%s" is not one).', $name, (string) $nameField));
             }
         }
     }

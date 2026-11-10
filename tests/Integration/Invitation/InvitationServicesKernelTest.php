@@ -118,6 +118,13 @@ final class InvitationServicesKernelTest extends KernelTestCase
         self::assertSame([InvitationOutcome::SENT, InvitationOutcome::SENT, InvitationOutcome::RATE_LIMITED, InvitationOutcome::RATE_LIMITED], $statuses);
     }
 
+    public function testBatchesAreRefusedUntilTheHostSetsAMaximum(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Invitation batches are disabled in the AuthKit profile "default" (invitations.batch.max_size: 0).');
+        $this->manager()->inviteBatch(null, 'default', [new InvitationRequest('a@example.com')]);
+    }
+
     public function testDisabledProfilesRefuseTheManager(): void
     {
         $manager = new InvitationManager(

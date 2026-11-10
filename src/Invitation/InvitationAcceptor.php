@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
+use Nowo\AuthKitBundle\Invitation\Event\InvitationOpeningEvent;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
@@ -54,6 +55,10 @@ use function trim;
  * {@see self::attempt()} (the outcome with that reason), {@see InvitationLinkRejectedEvent} for an expired or revoked
  * link ({@see self::lookup()} with `$report`), and the social acceptance of the invitation pending in the session
  * ({@see self::pending()}, {@see self::acceptPendingForSocial()}).
+ *
+ * 1.42: {@see self::acceptExisting()} (an existing account accepts an invitation addressed to its e-mail, with the same
+ * checks and the same single-use claim), {@see self::precheck()} ({@see InvitationOpeningEvent} when a link is opened)
+ * and `invitations.social.keep_pending_on_mismatch`.
  */
 final readonly class InvitationAcceptor
 {
@@ -85,6 +90,12 @@ final readonly class InvitationAcceptor
     public function hashToken(string $token): string
     {
         return $this->tokens->hash($token);
+    }
+
+    /** The read-only copy of an invitation (no token, no hash) as of now (1.42), e.g. for a template. */
+    public function snapshot(Invitation $invitation): InvitationSnapshot
+    {
+        return InvitationSnapshot::of($invitation, $this->now());
     }
 
     /**
@@ -139,7 +150,7 @@ final readonly class InvitationAcceptor
      * person who signed in with a social provider. The provider must assert a verified e-mail equal to the invited
      * one (normalised); the account is created like the form acceptance (pre-accept event, roles re-check, grants,
      * one transaction) with the invited e-mail forced into the e-mail field. The session entry is removed whatever the
-     * outcome. The caller links the social identity (e.g. {@see SocialAccountLinker}),
+     * outcome, except after an `email_mismatch` with `invitations.social.keep_pending_on_mismatch` (1.42). The caller links the social identity (e.g. {@see SocialAccountLinker}),
      * signs the user in, and must have checked the OAuth state and code itself.
      *
      * @param array<string, mixed> $formData other registration field values (e.g. a display name); never a password
@@ -163,6 +174,12 @@ final readonly class InvitationAcceptor
             return InvitationAcceptance::failed(InvitationAcceptance::EXPIRED, $snapshot);
         }
         if ($social->emailVerified !== true || !is_string($social->email) || !self::sameEmail($social->email, $invitation->getEmail())) {
+            // 1.42 invitations.social.keep_pending_on_mismatch: nothing was tried, so the invitee may retry (another
+            // provider account, or the form) without opening the link again. The invitation itself is never touched.
+            if (($settings->invitations['social']['keep_pending_on_mismatch'] ?? false) === true) {
+                $session->set($key, $tokenHash);
+            }
+
             return InvitationAcceptance::failed(InvitationAcceptance::EMAIL_MISMATCH, $snapshot);
         }
         $field = $settings->invitationEmailField();
@@ -202,36 +219,153 @@ final readonly class InvitationAcceptor
             return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED);
         }
         $snapshot = InvitationSnapshot::of($invitation, $now);
-        if ($this->eventDispatcher instanceof EventDispatcherInterface) {
-            try {
-                $accepting = $this->eventDispatcher->dispatch(new InvitationAcceptingEvent($snapshot, $now));
-            } catch (Throwable $exception) {
-                // SEC-004 CP I3: a failing pre-accept listener denies (refused), it never accepts nor answers 500.
-                $this->logger->error('AuthKit invitation pre-accept listener failed; acceptance refused.', ['invitation' => $invitation->getPublicId(), 'reason' => $exception::class]);
-
-                return InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot);
-            }
-            if ($accepting->isRefused()) {
-                $this->logger->notice('AuthKit invitation refused before acceptance.', ['invitation' => $invitation->getPublicId()]);
-
-                return InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot, $accepting->getRefusal());
-            }
+        $refused  = $this->accepting($invitation, $snapshot, $now, null);
+        if ($refused instanceof InvitationAcceptance) {
+            return $refused;
         }
-        $profile   = $this->profiles->getByName($invitation->getProfile());
-        $grantable = is_array($profile->invitations['roles'] ?? null) ? $profile->invitations['roles'] : [];
-        $roles     = array_values(array_intersect($invitation->getRoles(), $grantable));
+        $profile = $this->profiles->getByName($invitation->getProfile());
 
+        return $this->claimAndGrant($invitation, $tokenHash, $snapshot, $now, $profile, null, $formData);
+    }
+
+    /**
+     * An existing account accepts an invitation addressed to its e-mail (1.42), e.g. from the host's "Account →
+     * Organizations" page, instead of calling {@see InvitationRepository::claim()} itself. The same checks as the accept
+     * page: invitations enabled and a registration mode other than disabled, a pending invitation (`expired` reported
+     * as such; accepted, revoked or without a link: `no_invitation`), the e-mail of the account equal to the invited one
+     * ({@see self::sameEmail()}: ASCII case-insensitive, otherwise NFC byte-equal), {@see InvitationAcceptingEvent} with
+     * {@see InvitationAcceptingEvent::$user} set (a host refuses there, e.g. no seat left), then one transaction: the
+     * single-use conditional claim of the current link (a resend, revoke or concurrent acceptance in between makes it
+     * fail: `not_accepted`), the {@see InvitationGrantInterface} services, the commit; then
+     * {@see InvitationAcceptedEvent} with `existingAccount: true`. No account is created and no
+     * {@see UserRegisteredEvent} is dispatched.
+     *
+     * The account must be of the invitation profile's `user_class` (`not_accepted` otherwise). AuthKit never changes
+     * the roles of an existing account: an invitation that still carries a grantable role (`invitations.roles`) is
+     * refused (`not_accepted`); invite existing accounts without roles, or grant them in an
+     * {@see InvitationGrantInterface}. On a failure the bundle entity manager is cleared, as in {@see self::attempt()}:
+     * call it outside your own transaction (its events follow its own commit) and reload your entities afterwards.
+     *
+     * @param UserInterface $user the signed-in account accepting it (the host checks who may act for it)
+     * @param Invitation $invitation an invitation of the bundle entity manager (e.g. listed for the account's e-mail)
+     * @param string $email the account's current, verified e-mail address (never a value from the request)
+     */
+    public function acceptExisting(UserInterface $user, Invitation $invitation, string $email): InvitationAcceptance
+    {
+        $now      = $this->now();
+        $profile  = $this->profiles->getByName($invitation->getProfile());
+        $status   = $invitation->status($now);
+        $snapshot = InvitationSnapshot::of($invitation, $now);
+        // Same gate as the accept page: invitations enabled and a registration mode other than disabled.
+        if (!$profile->invitationsEnabled() || $profile->registrationMode === RegistrationMode::Disabled->value) {
+            return InvitationAcceptance::failed(InvitationAcceptance::NO_INVITATION);
+        }
+        if ($status === InvitationStatus::Expired) {
+            return InvitationAcceptance::failed(InvitationAcceptance::EXPIRED, $snapshot);
+        }
+        $tokenHash = $invitation->getTokenHash();
+        if ($status !== InvitationStatus::Pending || $tokenHash === '') {
+            return InvitationAcceptance::failed(InvitationAcceptance::NO_INVITATION);
+        }
+        if (!self::sameEmail($email, $invitation->getEmail())) {
+            return InvitationAcceptance::failed(InvitationAcceptance::EMAIL_MISMATCH, $snapshot);
+        }
+        // KL-L4: only an account of the invitation profile's user class (a Doctrine proxy extends it).
+        if (!$user instanceof $profile->userClass) {
+            $this->logger->notice('AuthKit invitation of another profile\'s user class; an existing account cannot accept it.', ['invitation' => $invitation->getPublicId()]);
+
+            return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
+        }
+        if ($this->grantableRoles($profile, $invitation) !== []) {
+            $this->logger->notice('AuthKit invitation carries roles; an existing account cannot accept it.', ['invitation' => $invitation->getPublicId()]);
+
+            return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
+        }
+        $refused = $this->accepting($invitation, $snapshot, $now, $user);
+        if ($refused instanceof InvitationAcceptance) {
+            return $refused;
+        }
+
+        return $this->claimAndGrant($invitation, $tokenHash, $snapshot, $now, $profile, $user, []);
+    }
+
+    /**
+     * Pre-check of a pending invitation whose link is being opened (1.42): dispatches {@see InvitationOpeningEvent}.
+     * Null: the page may show the form; otherwise `refused`, with the host's reason when given. Nothing is consumed or
+     * written. Deny by default: a failing listener refuses.
+     */
+    public function precheck(Invitation $invitation): ?InvitationAcceptance
+    {
+        if (!$this->eventDispatcher instanceof EventDispatcherInterface) {
+            return null;
+        }
+        $now      = $this->now();
+        $snapshot = InvitationSnapshot::of($invitation, $now);
+        try {
+            $opening = $this->eventDispatcher->dispatch(new InvitationOpeningEvent($snapshot, $now));
+        } catch (Throwable $exception) {
+            $this->logger->error('AuthKit invitation opening listener failed; the link is refused for now.', ['invitation' => $invitation->getPublicId(), 'reason' => $exception::class]);
+
+            return InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot);
+        }
+        if (!$opening->isRefused()) {
+            return null;
+        }
+        $this->logger->notice('AuthKit invitation refused when its link was opened.', ['invitation' => $invitation->getPublicId()]);
+
+        return InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot, $opening->getRefusal());
+    }
+
+    /**
+     * {@see InvitationAcceptingEvent}: null when the acceptance may go on, otherwise the refusal (SEC-004 CP I3: a
+     * failing pre-accept listener denies, it never accepts nor answers 500).
+     */
+    private function accepting(Invitation $invitation, InvitationSnapshot $snapshot, DateTimeImmutable $now, ?UserInterface $existing): ?InvitationAcceptance
+    {
+        if (!$this->eventDispatcher instanceof EventDispatcherInterface) {
+            return null;
+        }
+        try {
+            $accepting = $this->eventDispatcher->dispatch(new InvitationAcceptingEvent($snapshot, $now, $existing));
+        } catch (Throwable $exception) {
+            $this->logger->error('AuthKit invitation pre-accept listener failed; acceptance refused.', ['invitation' => $invitation->getPublicId(), 'reason' => $exception::class]);
+
+            return InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot);
+        }
+        if ($accepting->isRefused()) {
+            $this->logger->notice('AuthKit invitation refused before acceptance.', ['invitation' => $invitation->getPublicId()]);
+
+            return InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot, $accepting->getRefusal());
+        }
+
+        return null;
+    }
+
+    /**
+     * The acceptance transaction: the single-use claim, the account (created, or the existing one), the grants, the
+     * commit; then the events. Nothing is kept when any step fails.
+     *
+     * @param array<string, mixed> $formData
+     */
+    private function claimAndGrant(Invitation $invitation, string $tokenHash, InvitationSnapshot $snapshot, DateTimeImmutable $now, ProfileSettings $profile, ?UserInterface $existing, array $formData): InvitationAcceptance
+    {
+        $roles      = $this->grantableRoles($profile, $invitation);
         $connection = $this->entityManager->getConnection();
         $connection->beginTransaction();
-        $user = null;
+        $user    = $existing;
+        $created = null;
         try {
-            if (!$this->invitations->claim($invitation, $tokenHash, $invitation->getEmail(), $now)) {
+            $acceptedBy = $existing instanceof UserInterface ? $existing->getUserIdentifier() : $invitation->getEmail();
+            if (!$this->invitations->claim($invitation, $tokenHash, $acceptedBy, $now)) {
                 $connection->rollBack();
 
                 return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
             }
-            // @igor-ignore - Stateless registrar call (persists a new account); no service state changes.
-            $user = $this->registrar->registerInvited($formData, $profile->name, $roles);
+            if (!$user instanceof UserInterface) {
+                // @igor-ignore - Stateless registrar call (persists a new account); no service state changes.
+                $user    = $this->registrar->registerInvited($formData, $profile->name, $roles);
+                $created = $user;
+            }
             $invitation->markAccepted($user->getUserIdentifier(), $now);
             $snapshot = InvitationSnapshot::of($invitation, $now);
             foreach ($this->grants as $grant) {
@@ -247,7 +381,7 @@ final readonly class InvitationAcceptor
             if ($this->entityManager->isOpen()) {
                 $this->entityManager->clear();
             }
-            $this->compensate($profile, $user);
+            $this->compensate($profile, $created);
             if (!$exception instanceof RuntimeException) {
                 throw $exception;
             }
@@ -258,11 +392,25 @@ final readonly class InvitationAcceptor
                 : InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
         }
 
-        // 1.41: after the commit, like the registration page / social sign-up / admin creation.
-        $this->eventDispatcher?->dispatch(UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Invitation));
-        $this->eventDispatcher?->dispatch(new InvitationAcceptedEvent($snapshot, $user, $now));
+        if ($created instanceof UserInterface) {
+            // 1.41: after the commit, like the registration page / social sign-up / admin creation.
+            $this->eventDispatcher?->dispatch(UserRegisteredEvent::of($profile->name, $created, UserCreationSource::Invitation));
+        }
+        $this->eventDispatcher?->dispatch(new InvitationAcceptedEvent($snapshot, $user, $now, !$created instanceof UserInterface));
 
         return InvitationAcceptance::accepted($user, $snapshot);
+    }
+
+    /**
+     * The roles of the invitation still grantable by configuration (`invitations.roles`, re-checked on acceptance).
+     *
+     * @return list<string>
+     */
+    private function grantableRoles(ProfileSettings $profile, Invitation $invitation): array
+    {
+        $grantable = is_array($profile->invitations['roles'] ?? null) ? $profile->invitations['roles'] : [];
+
+        return array_values(array_intersect($invitation->getRoles(), $grantable));
     }
 
     /**

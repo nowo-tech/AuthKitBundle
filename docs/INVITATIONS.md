@@ -15,6 +15,7 @@ Invite people by e-mail instead of (or besides) the open registration. Opt-in pe
 - [PHP API](#php-api)
 - [Host grants (InvitationGrantInterface)](#host-grants-invitationgrantinterface)
 - [Host with its own invitation UI (1.33)](#host-with-its-own-invitation-ui-133)
+- [Host follow-ups (1.42)](#host-follow-ups-142)
 - [Audit events](#audit-events)
 - [Purge](#purge)
 - [Database schema](#database-schema)
@@ -98,7 +99,12 @@ All keys live under `profiles.<name>.invitations` (or the flat `invitations` of 
 | `purge_after_days` | `90` | Age used by the purge command |
 | `invite_rate_limit` / `invite_rate_window` | `20` / `3600` | Invitations created or resent per inviter and window |
 | `resend_rate_limit` / `resend_rate_window` | `3` / `3600` | Sends of one invitation per window (a re-invite counts) |
-| `accept_rate_limit` / `accept_rate_window` | `10` / `900` | Accept page hits (opening a link, submitting) per client IP |
+| `accept_rate_limit` / `accept_rate_window` | `10` / `900` | Accept page hits (opening a link, submitting, 1.42: starting a social acceptance) per client IP |
+| `batch.max_size` | `0` | 1.42: most requests of one `InvitationManager::inviteBatch()` (0–500). `0`: batches are refused |
+| `batch.rate_limit` / `batch.rate_window` | `3` / `3600` | 1.42: batches per inviter and window (a batch counts as one send of the inviter instead of one per invitation) |
+| `social.accept_page` | `false` | 1.42: list the enabled social providers on the accept page and complete the acceptance on the OAuth callback. Needs `social_login.mode: enabled` |
+| `social.name_field` | `null` | 1.42: registration field that receives the provider's display name on a social acceptance (mapped, non-password) |
+| `social.keep_pending_on_mismatch` | `false` | 1.42: keep the invitation pending in the session after an `email_mismatch` (retry without reopening the link) |
 | `mail.from` | `null` | Sender (null: the mailer default headers / envelope) |
 | `mail.html_template` / `mail.text_template` | `@NowoAuthKitBundle/email/invitation.{html,txt}.twig` | E-mail bodies |
 | `admin.per_page` | `25` | Page size of the list (10, 25, 50 or 100; `?per_page=` picks among them) |
@@ -109,6 +115,7 @@ All keys live under `profiles.<name>.invitations` (or the flat `invitations` of 
 | `security.allow_unauthenticated` | `false` | **DEV/DEMO only**, literal boolean, refused unless `kernel.debug` is true |
 | `routes.accept` | `/invitation/{token}`, `nowo_auth_kit_invitation_accept` | Accept page (the token-less `/invitation` is the same route). The path must end with `/{token}` (1.33); token: 43 base64url characters. With `locale.in_path`: `false` → `/invitation/{token}`; `true` → only `/{_locale}/invitation/{token}` (a bare link is 404); `both` → `/{_locale}/…` plus the bare path, which redirects to the localized URL (`unlocalized: redirect`, token kept in the path) or serves it in the default locale (`serve`) |
 | `routes.index` / `new` / `resend` / `revoke` | `/admin/invitations…`, `nowo_auth_kit_invitations…` | Administration routes (paths must start with a single `/`) |
+| `routes.social` | `/invitation/social/{provider}`, `nowo_auth_kit_invitation_social` | 1.42: POST start of a social acceptance; registered only with `social.accept_page` (the path must end with `/{provider}`) |
 
 Route names must be unique across profiles (checked for the routes a profile registers).
 
@@ -151,6 +158,10 @@ cannot block an address for the others); a refusal carries `retryAfter` (the lat
 | `rate_limited` | `accept_rate_limit` reached (429) |
 | `signed_in` | A signed-in visitor (sign out first; no account merge) |
 | `not_accepted` | The account could not be created (the e-mail got an account, a grant refused) |
+| `unavailable` | 1.42: a host refused when the link was opened (`InvitationOpeningEvent`); nothing consumed, the same link works later |
+| `social_mismatch` | 1.42: the provider did not confirm the invited e-mail (link back to the invitation with `keep_pending_on_mismatch`) |
+| `social_failed` | 1.42: the provider callback failed after proving its state; the invitation is untouched |
+| `accepted` | 1.42: a social acceptance committed (the account exists, the invitation is used) but the sign-in failed: sign in |
 
 None shows invitee data; all are `private, no-store`, `X-Robots-Tag: noindex, nofollow`, `Referrer-Policy: no-referrer`.
 Scalar `payload` values pre-fill the mapped, non-password registration fields of the same name.
@@ -329,15 +340,117 @@ address compares case-insensitively (ASCII only), any other is NFC-normalised an
 compatibility character (e.g. U+212A KELVIN SIGN) matches an ASCII letter; password fields
 are dropped, the invited e-mail is forced; the pre-accept event, roles re-check, grants and single use apply; the
 session entry is removed whatever the outcome (`accepted`, `no_invitation`, `expired`, `email_mismatch`,
-`refused`, `not_accepted`).
+`refused`, `not_accepted`) — 1.42: except after `email_mismatch` with `social.keep_pending_on_mismatch`. Since
+1.42 AuthKit can do all of this itself: see [Host follow-ups (1.42)](#host-follow-ups-142).
+
+## Host follow-ups (1.42)
+
+Everything here is opt-in; without it 1.42 behaves like 1.41.
+
+**An existing account accepts.** For an invitation addressed to an account that already exists (e.g. an organization
+invites a member, who answers in "Account → Organizations"), do not call `InvitationRepository::claim()`:
+
+```php
+$result = $acceptor->acceptExisting($this->getUser(), $invitation, $user->getEmail()); // the account's verified e-mail
+match ($result->status) {
+    InvitationAcceptance::ACCEPTED       => …,  // claimed once, grants applied, InvitationAcceptedEvent (existingAccount)
+    InvitationAcceptance::REFUSED        => …,  // $result->refusal: your pre-accept listener or grant (e.g. no seat)
+    InvitationAcceptance::EMAIL_MISMATCH => …,  // not this account's invitation
+    InvitationAcceptance::EXPIRED        => …,
+    default                              => …,  // no_invitation (accepted, revoked), not_accepted (claimed meanwhile, resent, roles)
+};
+```
+
+The checks are those of the accept page: the profile gate, a pending invitation, the e-mail rule of the social
+acceptance (ASCII case-insensitive, otherwise NFC byte-equal), `InvitationAcceptingEvent` — with `$event->user` set,
+so a listener refusing addresses that already have an account can let `isExistingAccount()` through — and one
+transaction with the single-use conditional claim of the **current** link and your grants. A resend, revoke or second
+acceptance racing it makes the claim fail (`not_accepted`); a grant that throws rolls the claim back. No account is
+created, no `UserRegisteredEvent`; `InvitationAcceptedEvent` carries `existingAccount: true` and the scalar
+`userClass`, `userId`, `userIdentifier`. AuthKit never changes an existing account's roles, so an invitation that still
+carries a grantable role is refused — invite existing accounts without roles, or grant them in your grant — and so is an
+account that is not of the invitation profile's `user_class`. Pass an invitation of the bundle entity manager and the
+account's **verified** e-mail (never request data: AuthKit compares it, it cannot verify it). Call it **outside your
+own transaction**: its events follow its own commit, and on a failure the bundle entity manager is cleared, as with
+`accept()`, so reload your entities (the signed-in account included) before flushing again.
+
+**Bulk invitations.** `inviteBatch()` invites a bounded list as one send of the inviter:
+
+```yaml
+invitations:
+    batch: { max_size: 200, rate_limit: 3, rate_window: 3600 }   # max_size 0 (default): batches refused
+```
+
+```php
+$outcomes = $manager->inviteBatch($this->getUser(), 'default', $requests); // list<InvitationOutcome>, same order
+```
+
+The batch takes one slot of `batch.rate_limit` (all `rate_limited`, nothing sent, when it is used up) instead of one
+`invite_rate_limit` slot per invitation; everything else applies to every invitation (roles held, authorizers, the
+registration gate, the per-actor-and-address and per-invitation limits, events). Every request is validated first: an
+invalid e-mail, a forged role, a bad `merge_key` value or more than `max_size` requests throw and nothing is sent. It is
+a PHP API only — AuthKit exposes no route or parameter for it; build the list on the server (e.g. the project's members)
+and authorise the actor yourself. Size `max_size` knowingly: the mails an inviter can send per window rise to
+`invite_rate_limit + batch.rate_limit × max_size` (20 + 3 × 500 = 1 520 per hour at the ceiling), with no global cap.
+An exception after validation (a failing flush, a host mailer that throws) stops the loop: the invitations sent before
+it stay sent and no outcome list is returned.
+
+**Check when the link opens.** `InvitationOpeningEvent` is dispatched when the accept page is about to show the form
+(GET) and before a social acceptance starts:
+
+```php
+#[AsEventListener]
+public function onOpening(InvitationOpeningEvent $event): void
+{
+    if (!$this->seats->available($event->invitation->payload['organization'] ?? null)) {
+        $event->refuse(new InvitationRefusal('invitations.no_seat_left', [], 'messages'));
+    }
+}
+```
+
+The `unavailable` page shows the reason; nothing is written or consumed, the session keeps the link, and a reload asks
+again. Only the holder of the current link of a pending invitation gets there: unknown, used, revoked and replaced links
+keep the one neutral `invalid` page (and expired ones `expired`) without dispatching anything, so the reason is no
+oracle. A throwing listener refuses. Keep the same rule in `InvitationAcceptingEvent`: that one runs on submit. The
+token-less page is not rate limited, so the listener runs on every reload: keep it cheap (one indexed query).
+
+**Social acceptance on the accept page.**
+
+```yaml
+social_login: { mode: enabled }
+invitations:
+    social: { accept_page: true, name_field: displayName, keep_pending_on_mismatch: true }
+```
+
+The page lists the enabled social providers (not the enterprise SSO ones), each a CSRF form bound to the invitation
+(`nowo_auth_kit_invitation_social/<profile>/<public id>`) that posts to `routes.social` (rate limited like the accept
+page; signed-in visitors refused). AuthKit then starts its own OAuth flow and, on the callback it verified (state, PKCE,
+code), accepts the invitation pending in the session: verified provider e-mail equal to the invited one, the
+pre-accept event, roles, grants, single use. The start issues the OAuth state itself and remembers it with the
+invitation: only the callback of that authorization is taken over (a later ordinary sign-in with the provider keeps the
+default flow), and only for that invitation (a link opened in between — e.g. by another page — answers the neutral
+notice and nothing is accepted). `social_login.link_existing_account: deny` cannot be combined with `accept_page`
+(compile-time error). The provider display name goes into `name_field` without control or bidi characters, at most 180
+characters. The provider identity is linked to the new account through
+`SocialAccountLinker::linkOrCreate()` (its rules apply), and the person is signed in last (first factor `social`, so MFA
+applies). The start is remembered for 15 minutes; a callback without it takes the default flow. The firewall must let
+anonymous visitors `POST` the social route. Override the providers with block `nowo_auth_kit_invitation_providers`
+(`invitation_social_providers`: `provider`, `label`, `form`).
+
+**Templates.** The accept page receives `invitation`, the `InvitationSnapshot` (`email`, `payload`, `message`,
+`invitedBy`, `lastSentBy`, `expiresAt`, …; never the token nor its hash) — use it to show what the invitation grants
+instead of reading the session. It also carries `payload`, `invitedBy`, `lastSentBy` and the other columns: print only
+what the invitee may see, and never `|raw` the message or payload values.
 
 ## Audit events
 
 Dispatched after every mutation, with an `InvitationSnapshot` (never the token, its hash or the link), the actor and
 the time: `InvitationCreatedEvent` / `InvitationResentEvent` (`delivery`: `email`, `link`, `host` (1.33), `none`),
-`InvitationRevokedEvent`, `InvitationAcceptedEvent` (`user`), and `InvitationsPurgedEvent` (count). 1.33 hooks:
-`InvitationAcceptingEvent` (pre-accept, may refuse) and `InvitationLinkRejectedEvent` (expired / revoked link
-opened).
+`InvitationRevokedEvent`, `InvitationAcceptedEvent` (`user`; 1.42: `existingAccount`, `userClass`, `userId`,
+`userIdentifier`, `invitationId()`, `profile()`), and `InvitationsPurgedEvent` (count). 1.33 hooks:
+`InvitationAcceptingEvent` (pre-accept, may refuse; 1.42: `user` for an existing account) and
+`InvitationLinkRejectedEvent` (expired / revoked link opened); 1.42: `InvitationOpeningEvent` (link opened, may
+refuse).
 
 ## Purge
 

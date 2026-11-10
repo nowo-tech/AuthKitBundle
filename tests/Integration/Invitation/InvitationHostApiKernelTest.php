@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\Invitation;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationCreatedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
@@ -17,6 +18,7 @@ use Nowo\AuthKitBundle\Invitation\InvitationManager;
 use Nowo\AuthKitBundle\Invitation\InvitationOutcome;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusal;
 use Nowo\AuthKitBundle\Invitation\InvitationRequest;
+use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
@@ -27,8 +29,10 @@ use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\RouterInterface;
 
 use function count;
@@ -36,6 +40,7 @@ use function parse_url;
 use function print_r;
 use function strlen;
 use function substr;
+use function time;
 
 use const PHP_URL_PATH;
 
@@ -302,6 +307,25 @@ final class InvitationHostApiKernelTest extends WebTestCase
 
         self::assertSame(InvitationAcceptance::NO_INVITATION, $acceptor->acceptPendingForSocial($session, 'default', $this->social('a@example.com', true))->status);
         self::assertFalse($session->has(InvitationAcceptor::SESSION_KEY . 'default'));
+    }
+
+    public function testTheSocialStartIsOffByDefault(): void
+    {
+        $router = self::getContainer()->get(RouterInterface::class);
+        self::assertInstanceOf(RouterInterface::class, $router);
+        self::assertNull($router->getRouteCollection()->get('nowo_auth_kit_invitation_social'));
+        $controller = self::getContainer()->get(InvitationAcceptController::class);
+        self::assertInstanceOf(InvitationAcceptController::class, $controller);
+        $request = Request::create('/invitation/social/google', 'POST');
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        $request->attributes->set(RequestProfileResolver::REQUEST_ATTRIBUTE, 'default');
+
+        // Not a social callback handler unless invitations.social.accept_page is on.
+        $request->getSession()->set(InvitationAcceptController::SOCIAL_SESSION_KEY, ['profile' => 'default', 'provider' => 'google', 'at' => time()]);
+        self::assertFalse($controller->supports($request, 'google'));
+
+        $this->expectException(NotFoundHttpException::class);
+        $controller->social($request, 'google');
     }
 
     private function social(string $email, ?bool $verified): SocialUserProfile

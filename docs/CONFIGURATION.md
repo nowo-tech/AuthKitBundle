@@ -30,6 +30,7 @@
 - [Recipient locale (notifications)](#recipient-locale-notifications)
 - [Absolute URL base (mailed / QR links)](#absolute-url-base-mailed--qr-links)
 - [Flash messages](#flash-messages)
+- [Rate-limit counters (attempt_limiter)](#rate-limit-counters-attempt_limiter)
 - [Admin CLI (create-admin)](#admin-cli-create-admin)
 - [Templates](#templates)
   - [FormKit profile (`auth_kit`)](#formkit-profile-auth_kit)
@@ -320,6 +321,10 @@ nowo_auth_kit:
         show_link_when_undelivered: false
         # 1.33 (host with its own UI): registration_role: ROLE_USER, merge_key: organization,
         # payload_merge: deep (default replace), admin_routes: false (default true)
+        # 1.42: batch: { max_size: 0, rate_limit: 3, rate_window: 3600 }   # InvitationManager::inviteBatch(), 0 = off;
+        #       mails per inviter and window: invite_rate_limit + rate_limit × max_size
+        # social: { accept_page: false, name_field: null, keep_pending_on_mismatch: false }   # accept_page needs social_login
+        # routes: { social: { path: /invitation/social/{provider}, name: nowo_auth_kit_invitation_social } }
         security:
             access_roles: [ROLE_ADMIN]
             # access_checker: App\Security\InvitationsAccessChecker
@@ -753,6 +758,22 @@ nowo_auth_kit:
 
 - `translate: true` — AuthKit controllers translate their flash keys from the `NowoAuthKitBundle` domain in the request locale before adding them, so any flash template (`{{ message }}`, `{{ message|trans }}`, UiKitBundle `partials/_toasts.html.twig`) shows text. `false` keeps the raw keys (pre-1.23).
 - `flash_trans` — for hosts whose own controllers flash keys from several domains: `{{ message|flash_trans }}` uses the first domain of `twig_filter_domains` whose catalogue (current locale + fallbacks) has the key; anything else goes through `messages` (already translated text is returned unchanged). `TranslatableInterface` flashes (`TranslatableMessage`) are translated with their own domain and parameters (since 1.27.3); other non-string (structured) flashes pass through. Optional locale: `message|flash_trans({}, 'es')`.
+
+## Rate-limit counters (attempt_limiter)
+
+Since 1.42. Every AuthKit rate limit and lockout (login throttling aside) counts in `AuthKitAttemptLimiter`, a PSR-6
+pool:
+
+```yaml
+nowo_auth_kit:
+    attempt_limiter:
+        cache_pool: cache.app   # default; e.g. a Redis pool shared by every web node
+```
+
+Use a pool **shared by every web node** (Redis, PDO, the shared `cache.app`): a per-process pool (an array pool, APCu
+on several nodes) silently weakens every rate limit and lockout. `cache.app` is an array pool under `framework.test`,
+reset between test requests: point it at a filesystem pool in the test environment to assert HTTP-level limits. With
+symfony/lock the counters are serialised per key (`lock.factory`).
 
 ## Admin CLI (create-admin)
 
