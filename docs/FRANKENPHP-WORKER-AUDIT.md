@@ -3,11 +3,12 @@
 | Field | Value |
 |-------|-------|
 | Package | `nowo-tech/auth-kit-bundle` (`symfony-bundle`) |
-| Audited revision | working tree (post `v1.20.1` + Unreleased FrankenPHP remediations) |
-| Audit date | 2026-09-24 (re-audit + residual hardening) |
+| Audited revision | working tree (post `v1.20.1` + Unreleased FrankenPHP remediations); MFA memo addendum on `v1.45.0` + Unreleased (W-05) |
+| Audit date | 2026-09-24 (re-audit + residual hardening); 2026-11-11 (W-05, REQ-RUNTIME-002 sweep) |
 | Method | Manual review of every file under `src/` (controllers, services, form types, Twig extensions, event subscriber, repositories, DI extension, compiler passes, `Resources/config/services.yaml`) |
 | **Verdict** | ✅ **100% compatible for bundle-owned security decisions under scenario B** — shared services keep no per-request state; QR / reset / social credentials / link lookups re-read rows (`HINT_REFRESH` / `refresh()`); closed EntityManagers are recovered after failed flushes; embed ignores tokens outside a security-enabled firewall. The application remains responsible for a global EntityManager `clear()`/`reset` if it needs freshness for *its own* entities outside Auth Kit paths, and for a shared `cache.app` |
 | Remediation (2026-09-23) | W-01 … W-04 resolved: `QrLoginChallengeRepository::findFresh()` / `transitionStatus()`, `QrLoginChallengeConflictException`, `Doctrine\EntityManagerRecovery`, refresh in `PasswordResetTokenManager`, firewall guard in `AuthEmbedContextFactory`, OAuth timeouts. Regression tests: `QrLoginChallengeManagerWorkerTest`, `PasswordResetTokenManagerWorkerTest`, `EntityManagerRecoveryTest`, worker cases in `AuthEmbedContextFactoryTest`, `UserRegistrarTest`, `OAuth2ClientTest` and the QR controller tests |
+| Remediation (2026-11-11) | W-05 resolved: `MfaPasswordChangeListener` empties its memo at every `onFlush`, at the main `kernel.request`, `kernel.terminate`, `console.terminate` and the Messenger worker events, not only through `kernel.reset`. Tests: `MfaPasswordChangeWorkerKernelTest` (kept-alive kernel, 500 requests, two users), `MfaPasswordChangeListenerTest` (boundaries + `reset()`) |
 | Hardening (2026-09-24) | Residual identity-map reads closed: `SocialLoginCredentialRepository` / `SocialLoginAccountRepository` use `HINT_REFRESH`; `SocialAccountLinker`, `MagicLoginUserResolver`, `PasswordResetUserResolver` refresh managed users after lookup |
 
 ## Table of contents
@@ -21,6 +22,8 @@
   - [W-03 — Security token is read from `security.token_storage`, which only `kernel.reset` clears (Medium)](#w-03--security-token-is-read-from-securitytoken_storage-which-only-kernelreset-clears-medium)
   - [W-04 — OAuth HTTP calls have no bundle-level timeout (Low)](#w-04--oauth-http-calls-have-no-bundle-level-timeout-low)
   - [Info](#info)
+  - [W-05 — MFA password-change memo survives a failed flush (Medium, security)](#w-05--mfa-password-change-memo-survives-a-failed-flush-medium-security)
+- [Worker tests](#worker-tests)
 - [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
 - [Re-audit triggers](#re-audit-triggers)
 
@@ -37,9 +40,9 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Mutable state in shared services | ✅ | All services use `readonly` constructor properties. Only two mutable properties exist: `ProfileRegistry::$resolveCache` (bounded, immutable values) and `AuthKitRouteLoader::$loaded` (route loading only) |
+| Mutable state in shared services | ✅ | All services use `readonly` constructor properties. Only three mutable properties exist: `ProfileRegistry::$resolveCache` (bounded, immutable values), `AuthKitRouteLoader::$loaded` (route loading only) and `MfaPasswordChangeListener::$changed` (users of the flush in progress, emptied at every boundary, W-05) |
 | Static properties / `static` locals | ✅ | No static properties. `Config/*`, `AuthKitFormLoginParameters`, `ProfileSettings::fromConfig()` and `AuthEmbedOptions::fromArray()` are pure static helpers |
-| `ResetInterface` / `kernel.reset` coverage | ✅ | The bundle has no reset hooks and needs none. It no longer depends on the `doctrine` / `security.token_storage` resets for its own decisions (W-01, W-02, W-03 resolved) |
+| `ResetInterface` / `kernel.reset` coverage | ✅ | One reset hook: `MfaPasswordChangeListener` (`kernel.reset`, tested), which is also emptied at the request / console / Messenger boundaries, so correctness never depends on `kernel.reset` (W-05). The bundle no longer depends on the `doctrine` / `security.token_storage` resets for its own decisions (W-01, W-02, W-03 resolved) |
 | Request / user / locale captured in services | ✅ | Request, session, token and locale are read on each call (`RequestStack`, `TokenStorageInterface`, `Request` arguments); nothing is stored |
 | Superglobals, `$_ENV`, `putenv`, `ini_set`, `setlocale`, timezone | ✅ | None used. `getcwd()` only appears in the CLI command `ConfigureSecurityCommand` |
 | Doctrine / EntityManager | ✅ | Fresh reads for QR challenges, social credentials/accounts, reset/magic user lookups; atomic QR status transitions; closed managers reset after failed flushes |
@@ -71,6 +74,7 @@ Worker demo: `demo/symfony8/Caddyfile` runs `php_server` with a `worker` block (
 | `SocialLogin\SocialLoginStateStore` | yes | none (state kept in the session) | ✅ | ✅ |
 | `SocialLogin\SocialLoginGate` | yes | none (queries enabled credentials on every call, no cache) | ✅ | ✅ |
 | `Repository\QrLoginChallengeRepository`, `SocialLoginAccountRepository`, `SocialLoginCredentialRepository` | yes | none besides the EntityManager reference | ✅ | ✅ |
+| `Mfa\EventSubscriber\MfaPasswordChangeListener` (Doctrine `onFlush` / `postFlush`, 1.34) | yes | `$changed`: users whose password changed in the flush in progress, per entity manager. Emptied in `postFlush`, at the next `onFlush` of that manager, at the main `kernel.request`, `kernel.terminate`, `console.terminate`, `WorkerMessageReceived/Handled/FailedEvent`, and by `reset()` | ✅ | ✅ (since 1.45.1, W-05) |
 | `Doctrine\EntityManagerRecovery` | yes | none (`ManagerRegistry` reference) | ✅ | ✅ |
 | `Routing\AuthKitRouteLoader` (`routing.loader`) | yes | `$loaded` flag, used only when routes are compiled | ✅ | ✅ |
 | `Routing\AuthKitRouteLocaleParameters`, `Routing\AuthKitUrlGenerator` | yes | none (locale read from `RequestStack` per call) | ✅ | ✅ |
@@ -123,6 +127,21 @@ Entities (`QrLoginChallenge`, `SocialLoginAccount`, `SocialLoginCredential`), en
 - **Recommendation:** set `framework.http_client.default_options.timeout` / `max_duration`, or use a scoped client for OAuth, and cap queueing with FrankenPHP `max_wait_time`.
 - **Status:** Resolved — `OAuth2Client` passes `timeout` (default 10 s) and `max_duration` (default 20 s) on both calls; both come from `nowo_auth_kit.http_client.timeout` / `max_duration` (since 1.28; previously only overridable as the `$timeout` / `$maxDuration` service arguments). Test: `OAuth2ClientTest::testTokenAndUserinfoCallsUseExplicitTimeouts`.
 
+### W-05 — MFA password-change memo survives a failed flush (Medium, security)
+
+- **Where:** `src/Mfa/EventSubscriber/MfaPasswordChangeListener.php` (1.34.0 – 1.45.0). `onFlush` stored every MFA user
+  whose password field changed in `$changed`; only `postFlush` and `reset()` (`kernel.reset`) emptied it.
+- **Worker impact:** a flush that throws after `onFlush` (constraint violation, lost connection, a host listener) never
+  reaches `postFlush`. Under **A** the services resetter emptied the memo; under **B** (kernel reset false) the user
+  stayed in it, and the next `postFlush` in that worker, from any request and any user, called
+  `MfaManager::forgetDevices()` on the stale user: the **wrong user's** trusted devices were forgotten (they had to
+  pass MFA again) and the stale entity was retained.
+- **Status:** Resolved in 1.45.1 — the memo is keyed by entity manager, emptied for that manager at the start of every
+  `onFlush`, and fully emptied at the main `kernel.request`, `kernel.terminate`, `console.terminate` and the Messenger
+  `WorkerMessageReceivedEvent` / `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent` (the listener is also a
+  `kernel.event_subscriber`). `kernel.reset` still calls `reset()`. Tests: `tests/Integration/Mfa/MfaPasswordChangeWorkerKernelTest.php`,
+  `tests/Unit/Mfa/MfaPasswordChangeListenerTest.php`.
+
 ### Info
 
 - `src/Profile/ProfileRegistry.php:18` and `:64-78`: `resolveForObject()` memoizes the profile per user class (including Doctrine proxy classes). The map is bounded and only holds immutable `ProfileSettings`, so it is safe across requests.
@@ -130,6 +149,20 @@ Entities (`QrLoginChallenge`, `SocialLoginAccount`, `SocialLoginCredential`), en
 - `src/Security/AuthKitAttemptLimiter.php`: rate limits and OTP lockout counters live in `cache.app`. With the default filesystem pool (or Redis) all worker threads share them. If `cache.app` is an in-memory `ArrayAdapter`, each worker would keep its own counters.
 - `src/Security/LoginTarget/*` and `src/Security/SessionExpired/SessionExpiredResponder.php` (1.44): readonly, stateless listeners; the target saved before a background call lives in a request attribute, and `LoginTargetPolicy` matches routes with a GET copy of the router context (the shared one is never changed). Kept-alive kernel test: `SessionExpiredKernelTest::testKeptAliveKernelKeepsNoStateBetweenSignIns`; 3,000-call memory loops in `LoginTargetGuardTest` and `SessionExpiredResponderTest`.
 - `src/Twig/AuthKitUiExtension.php:38-54`: Twig globals are built from readonly config and `class_exists()` checks; nothing is added per request.
+
+## Worker tests
+
+Kept-alive kernel, services resetter never called (requests go through the `http_kernel` service, so `kernel.reset`
+does not run between them):
+
+| Test | What it serves | N | Users / tenants | Memory |
+|------|----------------|---|-----------------|--------|
+| `tests/Integration/Mfa/MfaPasswordChangeWorkerKernelTest.php` (debug off) | `GET /login` + an MFA user's password flush per iteration; every 10th iteration first a failed flush of the other user | 500 (each iteration is an HTTP request plus DB writes) | alice (`member@example.com`) and bob (`support@example.com`) alternating, both with MFA and trusted devices | < 4 MB growth between iteration 50 and the end |
+| `tests/Integration/Worker/WorkerEntityManagerRecoveryKernelTest.php` | `GET /login` + QR challenge writes after a failed write | 20 | one flow | — |
+| `tests/Integration/LoginTarget/SessionExpiredKernelTest.php::testKeptAliveKernelKeepsNoStateBetweenSignIns` | sign-ins alternating a page target and a machine target | 120 | two sign-in targets | asserted in the unit loops below |
+| `tests/Unit/Security/LoginTarget/LoginTargetGuardTest.php`, `tests/Unit/Security/SessionExpired/SessionExpiredResponderTest.php` | service calls | 3,000 | alternating users | flat |
+
+Static checks: `composer igor` and the PHPStan FrankenPHP worker ruleset (`phpstan.neon.dist`) pass in CI.
 
 ## Usage recommendations in worker mode
 
