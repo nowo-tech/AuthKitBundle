@@ -391,6 +391,9 @@ Semantics:
 - **Event.** `InvitationPersonalDataErasedEvent` (subject + result, no entity) is dispatched after the port's own commit
   when something changed. Inside your own transaction (UserKit's erasure included) it is **not** dispatched: the
   returned result is the outcome. A revocation by the port does not dispatch `InvitationRevokedEvent`.
+- **Separate connection.** When the entity manager that maps the AuthKit entities uses another connection than the
+  UserKit user's, the port commits its own transaction: if a later UserKit eraser fails, the invitations stay erased
+  while the rest rolls back (a partial erasure). Re-running the erasure is safe (idempotent).
 - Without mapped entities or with a missing table the ports do nothing (zero counts, empty export).
 - Worker mode: the services hold no per-call state.
 

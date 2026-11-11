@@ -118,6 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the export sections `invitations` and `social_accounts` (priority -50) register automatically, whatever the
   features' modes. New config `nowo_auth_kit.personal_data.enabled` (default `true`) and `personal_data.subject_resolver`
   (SPI `InvitationPersonalDataSubjectResolverInterface`).
+- **Behaviour change:** with UserKit installed (and the AuthKit entities mapped), a UserKit account erasure now also
+  revokes the open invitations the erased user sent, deletes the invitations sent to their address and sets their
+  identifier to `null` in `invited_by`, `last_sent_by`, `revoked_by` and `accepted_by`. If you must keep these records
+  (retention obligations, Art. 17(3) GDPR), set `nowo_auth_kit.personal_data.enabled: false`. See
+  [UPGRADING](UPGRADING.md#unreleased).
 
 ## [1.44.0] - 2026-11-11
 
