@@ -22,6 +22,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Contracts\EventDispatcher\Event;
+use WeakReference;
 
 /**
  * REQ-RUNTIME-002: the memo of users with a changed password is emptied at every request / console / Messenger
@@ -93,7 +94,7 @@ final class MfaPasswordChangeListenerTest extends TestCase
     private function fill(MfaPasswordChangeListener $listener): void
     {
         $user = new TestUser('alice@example.com');
-        (new ReflectionProperty(MfaPasswordChangeListener::class, 'changed'))->setValue($listener, [1 => [2 => $user]]);
+        (new ReflectionProperty(MfaPasswordChangeListener::class, 'changed'))->setValue($listener, [1 => ['uow' => WeakReference::create($user), 'users' => [2 => $user]]]);
     }
 
     /**

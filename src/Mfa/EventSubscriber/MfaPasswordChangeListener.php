@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Mfa\EventSubscriber;
 
+use Doctrine\ORM\Event\OnClearEventArgs;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Event\PostFlushEventArgs;
+use Doctrine\ORM\UnitOfWork;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -13,6 +15,7 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Service\ResetInterface;
+use WeakReference;
 
 use function array_key_exists;
 use function array_values;
@@ -23,16 +26,18 @@ use function spl_object_id;
  * password field (`mfa.trusted_devices.password_field`, default `password`) of an MFA user changed in a flush (account page, reset link or code, admin, CLI) → after the flush
  * {@see MfaManager::forgetDevices()} with reason `password_changed`.
  *
- * Holds the users of the flush in progress only, per entity manager. FrankenPHP worker mode with the kernel kept alive
- * and NOT reset (REQ-RUNTIME-002): a flush that throws after `onFlush` never reaches `postFlush`, so the memo is also
- * emptied at the start of every `onFlush` of that manager and at each request / console / Messenger boundary
- * (`kernel.request` main request, `kernel.terminate`, `console.terminate`, Messenger worker events). `kernel.reset`
+ * Holds the users of the flush in progress only, per unit of work (1.45.2, audit MD-A-L1: a nested flush of the same
+ * unit of work, e.g. from a lifecycle callback, keeps the outer flush's users). FrankenPHP worker mode with the kernel
+ * kept alive and NOT reset (REQ-RUNTIME-002): a flush that throws after `onFlush` never reaches `postFlush`; the failed
+ * commit closes and clears the manager, so `onClear` drops that unit of work's users, an entry under a reused object id
+ * of a unit of work that is gone is never carried over, and the memo is emptied at each request / console / Messenger
+ * boundary (`kernel.request` main request, `kernel.terminate`, `console.terminate`, Messenger worker events). `kernel.reset`
  * still empties it, but correctness never depends on it (1.45.1: before, a failed flush left the user in the memo and a
  * later flush of any other user forgot that user's trusted devices).
  */
 final class MfaPasswordChangeListener implements EventSubscriberInterface, ResetInterface
 {
-    /** @var array<int, array<int, UserInterface>> users with a changed password, by entity manager object id */
+    /** @var array<int, array{uow: WeakReference<UnitOfWork>, users: array<int, UserInterface>}> users with a changed password, by unit of work object id */
     private array $changed = [];
 
     public function __construct(
@@ -67,29 +72,45 @@ final class MfaPasswordChangeListener implements EventSubscriberInterface, Reset
 
     public function onFlush(OnFlushEventArgs $args): void
     {
-        $manager    = $args->getObjectManager();
-        $key        = spl_object_id($manager);
-        $unitOfWork = $manager->getUnitOfWork();
-        // A previous flush of this manager that threw after onFlush left its users here: never carry them over.
-        unset($this->changed[$key]);
+        $unitOfWork = $args->getObjectManager()->getUnitOfWork();
+        $key        = spl_object_id($unitOfWork);
+        // An entry under a reused object id belongs to a unit of work that is gone (a failed flush, then a reset
+        // manager): never carry it over. The same unit of work (a nested flush) keeps the outer flush's users.
+        if (!isset($this->changed[$key]) || $this->changed[$key]['uow']->get() !== $unitOfWork) {
+            // @igor-ignore - Users of the flush in progress, emptied in postFlush, onClear and at every request/console/Messenger boundary.
+            $this->changed[$key] = ['uow' => WeakReference::create($unitOfWork), 'users' => []];
+        }
         foreach ($unitOfWork->getScheduledEntityUpdates() as $entity) {
             $profile = $entity instanceof UserInterface ? $this->manager->profileFor($entity) : null;
             $field   = (string) ($profile?->mfa['trusted_devices']['password_field'] ?? 'password');
             if ($entity instanceof UserInterface && $profile instanceof ProfileSettings && array_key_exists($field, $unitOfWork->getEntityChangeSet($entity))) {
-                // @igor-ignore - Users of the flush in progress, emptied in postFlush, at the next onFlush and at every request/console/Messenger boundary.
-                $this->changed[$key][spl_object_id($entity)] = $entity;
+                // @igor-ignore - Same as above.
+                $this->changed[$key]['users'][spl_object_id($entity)] = $entity;
             }
+        }
+        if ($this->changed[$key]['users'] === []) {
+            unset($this->changed[$key]);
         }
     }
 
     public function postFlush(PostFlushEventArgs $args): void
     {
-        $key   = spl_object_id($args->getObjectManager());
-        $users = array_values($this->changed[$key] ?? []);
+        $unitOfWork = $args->getObjectManager()->getUnitOfWork();
+        $key        = spl_object_id($unitOfWork);
+        $entry      = $this->changed[$key] ?? null;
         unset($this->changed[$key]);
+        $users = $entry !== null && $entry['uow']->get() === $unitOfWork ? array_values($entry['users']) : [];
         foreach ($users as $user) {
             $this->manager->forgetDevices($user, 'password_changed');
         }
+    }
+
+    /**
+     * The entity manager was cleared (or closed by a failed flush): its pending users go.
+     */
+    public function onClear(OnClearEventArgs $args): void
+    {
+        unset($this->changed[spl_object_id($args->getObjectManager()->getUnitOfWork())]);
     }
 
     public function reset(): void

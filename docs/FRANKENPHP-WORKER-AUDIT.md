@@ -74,7 +74,7 @@ Worker demo: `demo/symfony8/Caddyfile` runs `php_server` with a `worker` block (
 | `SocialLogin\SocialLoginStateStore` | yes | none (state kept in the session) | ✅ | ✅ |
 | `SocialLogin\SocialLoginGate` | yes | none (queries enabled credentials on every call, no cache) | ✅ | ✅ |
 | `Repository\QrLoginChallengeRepository`, `SocialLoginAccountRepository`, `SocialLoginCredentialRepository` | yes | none besides the EntityManager reference | ✅ | ✅ |
-| `Mfa\EventSubscriber\MfaPasswordChangeListener` (Doctrine `onFlush` / `postFlush`, 1.34) | yes | `$changed`: users whose password changed in the flush in progress, per entity manager. Emptied in `postFlush`, at the next `onFlush` of that manager, at the main `kernel.request`, `kernel.terminate`, `console.terminate`, `WorkerMessageReceived/Handled/FailedEvent`, and by `reset()` | ✅ | ✅ (since 1.45.1, W-05) |
+| `Mfa\EventSubscriber\MfaPasswordChangeListener` (Doctrine `onFlush` / `postFlush`, 1.34) | yes | `$changed`: users whose password changed in the flush in progress, per unit of work (1.45.2). Emptied in `postFlush`, by `onClear`, when its unit of work is gone, at the main `kernel.request`, `kernel.terminate`, `console.terminate`, `WorkerMessageReceived/Handled/FailedEvent`, and by `reset()` | ✅ | ✅ (since 1.45.1, W-05) |
 | `Doctrine\EntityManagerRecovery` | yes | none (`ManagerRegistry` reference) | ✅ | ✅ |
 | `Routing\AuthKitRouteLoader` (`routing.loader`) | yes | `$loaded` flag, used only when routes are compiled | ✅ | ✅ |
 | `Routing\AuthKitRouteLocaleParameters`, `Routing\AuthKitUrlGenerator` | yes | none (locale read from `RequestStack` per call) | ✅ | ✅ |
@@ -141,6 +141,10 @@ Entities (`QrLoginChallenge`, `SocialLoginAccount`, `SocialLoginCredential`), en
   `WorkerMessageReceivedEvent` / `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent` (the listener is also a
   `kernel.event_subscriber`). `kernel.reset` still calls `reset()`. Tests: `tests/Integration/Mfa/MfaPasswordChangeWorkerKernelTest.php`,
   `tests/Unit/Mfa/MfaPasswordChangeListenerTest.php`.
+- **Update 1.45.2 (audit MD-A-L1):** the memo is keyed by unit of work instead of entity manager, so a nested flush
+  of the same unit of work (from a lifecycle callback) keeps the outer flush's users; an entry whose unit of work is
+  gone (`WeakReference` check against a reused object id) is dropped, and `onClear` (also run when a failed commit
+  closes the manager) drops that unit of work's users.
 
 ### Info
 

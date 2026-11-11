@@ -105,6 +105,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **MFA: a nested flush could drop a committed password change (1.45.1, audit MD-A-L1).** 1.45.1 keyed the
+  password-change memo by entity manager and emptied it at every `onFlush`; a flush of the same manager from a
+  lifecycle callback inside the outer commit (Doctrine calls it unsupported) dropped the outer flush's users, so the
+  trusted devices survived the password change. The memo is now keyed by unit of work (object id checked through a
+  `WeakReference`): a nested flush of the same unit of work keeps the outer users, an entry of a unit of work that is
+  gone is never carried over, and `onClear` (also run when a failed commit closes the manager) drops that unit of
+  work's users. The request / console / Messenger boundaries and `kernel.reset` stay. Tests:
+  `MfaPasswordChangeWorkerKernelTest::testANestedFlushOfTheSameUnitOfWorkKeepsTheOuterUsers`.
+
 ## [1.45.1] - 2026-11-11
 
 ### Security

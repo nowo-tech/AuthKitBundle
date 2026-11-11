@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Mfa;
 
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Event\OnFlushEventArgs;
+use Doctrine\ORM\Event\PostFlushEventArgs;
+use Doctrine\ORM\UnitOfWork;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaPasswordChangeListener;
 use Nowo\AuthKitBundle\Mfa\MfaStore;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use ReflectionProperty;
+use stdClass;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\HttpKernel\TerminableInterface;
 use Throwable;
+use WeakReference;
 
 use function bin2hex;
 use function count;
@@ -22,6 +28,7 @@ use function gc_collect_cycles;
 use function hash;
 use function memory_get_usage;
 use function random_bytes;
+use function spl_object_id;
 use function sprintf;
 
 /**
@@ -86,14 +93,75 @@ final class MfaPasswordChangeWorkerKernelTest extends MfaKernelTestCase
         self::assertSame(1, $this->deviceCount(self::ALICE));
     }
 
-    public function testResetEmptiesTheMemo(): void
+    public function testAFailedFlushClearsItsUsersAndResetEmptiesTheMemo(): void
     {
         $this->enableWithDevice(self::ALICE);
         $this->failingPasswordChange(self::ALICE);
-        self::assertCount(1, $this->pending(), 'The failed flush left alice in the memo.');
+        self::assertSame([], $this->pending(), 'The failed commit closes and clears the manager: onClear drops alice.');
 
-        $this->listener()->reset();
+        $listener = $this->listener();
+        $alice    = $this->user(self::ALICE);
+        $listener->onFlush(new OnFlushEventArgs($this->stubManager($this->unitOfWorkWith([$alice]))));
+        self::assertCount(1, $this->pending());
+        $listener->reset();
         self::assertSame([], $this->pending());
+    }
+
+    /**
+     * MD-A-L1 (1.45.2): a nested flush of the same unit of work (e.g. from a lifecycle callback inside the outer commit)
+     * keeps the outer flush's users; the outer postFlush still forgets the devices.
+     */
+    public function testANestedFlushOfTheSameUnitOfWorkKeepsTheOuterUsers(): void
+    {
+        $this->enableWithDevice(self::ALICE);
+        $listener = $this->listener();
+        $alice    = $this->user(self::ALICE);
+        $outer    = $this->unitOfWorkWith([$alice]);
+        $manager  = $this->stubManager($outer);
+
+        $listener->onFlush(new OnFlushEventArgs($manager));
+        // Nested flush: same unit of work, nothing new scheduled.
+        $listener->onFlush(new OnFlushEventArgs($manager));
+        self::assertCount(1, $this->pending(), 'The outer flush\'s user is kept.');
+
+        $listener->postFlush(new PostFlushEventArgs($manager));
+        self::assertSame(0, $this->deviceCount(self::ALICE), 'Alice\'s committed password change forgets her devices.');
+        self::assertSame([], $this->pending());
+
+        // A unit of work that is gone (its object id reused by a new one): its users are never carried over.
+        $listener->onFlush(new OnFlushEventArgs($manager));
+        $this->addDevice(self::ALICE);
+        $other = $this->unitOfWorkWith([]);
+        (new ReflectionProperty(MfaPasswordChangeListener::class, 'changed'))->setValue($listener, [
+            spl_object_id($other) => ['uow' => WeakReference::create(new stdClass()), 'users' => [spl_object_id($alice) => $alice]],
+        ]);
+        $listener->postFlush(new PostFlushEventArgs($this->stubManager($other)));
+        self::assertSame(1, $this->deviceCount(self::ALICE));
+        (new ReflectionProperty(MfaPasswordChangeListener::class, 'changed'))->setValue($listener, [
+            spl_object_id($other) => ['uow' => WeakReference::create(new stdClass()), 'users' => [spl_object_id($alice) => $alice]],
+        ]);
+        $listener->onFlush(new OnFlushEventArgs($this->stubManager($other)));
+        self::assertSame([], $this->pending());
+    }
+
+    /**
+     * @param list<object> $updates
+     */
+    private function unitOfWorkWith(array $updates): UnitOfWork
+    {
+        $unitOfWork = $this->createMock(UnitOfWork::class);
+        $unitOfWork->method('getScheduledEntityUpdates')->willReturnOnConsecutiveCalls($updates, [], [], []);
+        $unitOfWork->method('getEntityChangeSet')->willReturn(['password' => ['old', 'new']]);
+
+        return $unitOfWork;
+    }
+
+    private function stubManager(UnitOfWork $unitOfWork): EntityManagerInterface
+    {
+        $manager = $this->createStub(EntityManagerInterface::class);
+        $manager->method('getUnitOfWork')->willReturn($unitOfWork);
+
+        return $manager;
     }
 
     public function testManyRequestsAlternatingTwoUsersKeepDevicesAndMemoryApart(): void

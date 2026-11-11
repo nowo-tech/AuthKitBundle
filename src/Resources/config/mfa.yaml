@@ -40,6 +40,7 @@ services:
         tags:
             - { name: doctrine.event_listener, event: onFlush }
             - { name: doctrine.event_listener, event: postFlush }
+            - { name: doctrine.event_listener, event: onClear }
             - { name: kernel.event_subscriber }
             - { name: kernel.reset, method: reset }
 
