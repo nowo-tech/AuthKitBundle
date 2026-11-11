@@ -103,6 +103,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **GDPR erasure and export ports** (Beacon re-audit extraction 4): `InvitationPersonalDataEraserInterface` /
+  `InvitationPersonalDataExporterInterface` (default `DoctrineInvitationPersonalData`) with the
+  `InvitationPersonalDataSubject` value object (`fromEmail()`, `fromUserIdentifier()`), `InvitationErasureResult` and
+  `InvitationPersonalDataErasedEvent` (after the port's own commit only); `SocialAccountPersonalDataExporterInterface`
+  (default `DoctrineSocialAccountPersonalDataExporter`) with `SocialAccountPersonalDataSubject`. Erasing an e-mail
+  deletes the invitations sent to it; erasing an identifier revokes the actor's open invitations and clears it from
+  `invited_by`, `last_sent_by`, `revoked_by` and `accepted_by`. Exact `===` re-check after the SQL pre-filter, DBAL
+  statements in batches, joins the caller's transaction, no flush, no per-call state. See
+  [USAGE](USAGE.md#gdpr-erasure-and-export).
+- **UserKit bridge**: with UserKit installed and the entities mapped, the eraser `auth_kit_invitations` (priority 200)
+  and the export sections `invitations` and `social_accounts` (priority -50) register automatically, whatever the
+  features' modes. New config `nowo_auth_kit.personal_data.enabled` (default `true`) and `personal_data.subject_resolver`
+  (SPI `InvitationPersonalDataSubjectResolverInterface`).
+
 ## [1.44.0] - 2026-11-11
 
 Opt-in post-login target guard (same-origin HTML pages only, deny-lists, host voters) and an opt-in JSON 401 for background requests of expired sessions. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.44.0/docs/UPGRADING.md#to-1440).

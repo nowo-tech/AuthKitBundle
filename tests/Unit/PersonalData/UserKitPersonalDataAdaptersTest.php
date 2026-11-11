@@ -43,9 +43,9 @@ final class UserKitPersonalDataAdaptersTest extends TestCase
             "user_identifier\0Current@Example.com",
             "email\0current@example.com",
             "email\0old@example.com",
-        ], self::keys($subjects));
+        ], $this->keys($subjects));
         self::assertSame([], $resolver->subjectsFor(new stdClass(), null), 'Not a user, no identifier.');
-        self::assertSame(["user_identifier\0username", "email\0username"], self::keys($resolver->subjectsFor(new TestUser('username'), null)), 'The e-mail property is taken as stored.');
+        self::assertSame(["user_identifier\0username", "email\0username"], $this->keys($resolver->subjectsFor(new TestUser('username'), null)), 'The e-mail property is taken as stored.');
     }
 
     public function testTheResolverReadsTheProfileInvitationEmailField(): void
@@ -72,7 +72,7 @@ final class UserKitPersonalDataAdaptersTest extends TestCase
             'invitations'         => ['mode' => 'enabled', 'email_field' => 'contact'],
         ]);
 
-        $keys = self::keys((new DefaultInvitationPersonalDataSubjectResolver($registry))->subjectsFor($user, str_repeat('x', 300)));
+        $keys = $this->keys((new DefaultInvitationPersonalDataSubjectResolver($registry))->subjectsFor($user, str_repeat('x', 300)));
 
         self::assertSame(["user_identifier\0" . str_repeat('x', 180), "user_identifier\0nick", "email\0contact@example.com"], $keys);
     }
@@ -217,7 +217,7 @@ final class UserKitPersonalDataAdaptersTest extends TestCase
      *
      * @return list<string>
      */
-    private static function keys(array $subjects): array
+    private function keys(array $subjects): array
     {
         return array_map(static fn (InvitationPersonalDataSubject $subject): string => $subject->key(), $subjects);
     }

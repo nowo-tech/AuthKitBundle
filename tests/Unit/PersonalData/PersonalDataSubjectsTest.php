@@ -38,15 +38,15 @@ final class PersonalDataSubjectsTest extends TestCase
     /** @return iterable<string, array{callable(): mixed}> */
     public static function invalidSubjects(): iterable
     {
-        yield 'empty e-mail' => [static fn () => InvitationPersonalDataSubject::fromEmail('   ')];
-        yield 'NUL e-mail' => [static fn () => InvitationPersonalDataSubject::fromEmail("a\0@example.com")];
-        yield 'long e-mail' => [static fn () => InvitationPersonalDataSubject::fromEmail(str_repeat('a', 181))];
-        yield 'empty identifier' => [static fn () => InvitationPersonalDataSubject::fromUserIdentifier('')];
-        yield 'NUL identifier' => [static fn () => InvitationPersonalDataSubject::fromUserIdentifier("a\0b")];
-        yield 'empty class' => [static fn () => SocialAccountPersonalDataSubject::fromUserId('', '1')];
-        yield 'long user id' => [static fn () => SocialAccountPersonalDataSubject::fromUserId('App\\User', str_repeat('1', 65))];
-        yield 'NUL legacy' => [static fn () => SocialAccountPersonalDataSubject::fromLegacyIdentifier('App\\User', "a\0")];
-        yield 'long legacy' => [static fn () => SocialAccountPersonalDataSubject::fromLegacyIdentifier('App\\User', str_repeat('a', 256))];
+        yield 'empty e-mail' => [static fn (): InvitationPersonalDataSubject => InvitationPersonalDataSubject::fromEmail('   ')];
+        yield 'NUL e-mail' => [static fn (): InvitationPersonalDataSubject => InvitationPersonalDataSubject::fromEmail("a\0@example.com")];
+        yield 'long e-mail' => [static fn (): InvitationPersonalDataSubject => InvitationPersonalDataSubject::fromEmail(str_repeat('a', 181))];
+        yield 'empty identifier' => [static fn (): InvitationPersonalDataSubject => InvitationPersonalDataSubject::fromUserIdentifier('')];
+        yield 'NUL identifier' => [static fn (): InvitationPersonalDataSubject => InvitationPersonalDataSubject::fromUserIdentifier("a\0b")];
+        yield 'empty class' => [static fn (): SocialAccountPersonalDataSubject => SocialAccountPersonalDataSubject::fromUserId('', '1')];
+        yield 'long user id' => [static fn (): SocialAccountPersonalDataSubject => SocialAccountPersonalDataSubject::fromUserId('App\\User', str_repeat('1', 65))];
+        yield 'NUL legacy' => [static fn (): SocialAccountPersonalDataSubject => SocialAccountPersonalDataSubject::fromLegacyIdentifier('App\\User', "a\0")];
+        yield 'long legacy' => [static fn (): SocialAccountPersonalDataSubject => SocialAccountPersonalDataSubject::fromLegacyIdentifier('App\\User', str_repeat('a', 256))];
     }
 
     #[DataProvider('invalidSubjects')]

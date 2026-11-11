@@ -381,11 +381,6 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     }
 
     /**
-     * GY-L5 (1.37): erasure must not depend on a feature being on today. While the entities are mapped and UserKit is
-     * installed, a feature that is off gets its dormant eraser, and social links always get theirs. 1.45 adds the
-     * invitations eraser and the `invitations` / `social_accounts` export sections the same way (`personal_data.enabled`).
-     */
-    /**
      * GDPR ports (1.45, Beacon re-audit extraction 4): plain-PHP erasure / export ports of the invitations and the social
      * links, always registered (they need no UserKit and find nothing while the entities are not mapped).
      *
@@ -405,6 +400,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setAlias(InvitationPersonalDataSubjectResolverInterface::class, is_string($resolver) && $resolver !== '' ? $resolver : DefaultInvitationPersonalDataSubjectResolver::class);
     }
 
+    /**
+     * GY-L5 (1.37): erasure must not depend on a feature being on today. While the entities are mapped and UserKit is
+     * installed, a feature that is off gets its dormant eraser, and social links always get theirs. 1.45 adds the
+     * invitations eraser and the `invitations` / `social_accounts` export sections the same way (`personal_data.enabled`).
+     */
     private function registerPersonalDataErasers(ContainerBuilder $container, bool $registerMapping, bool $personalData): void
     {
         if (!$registerMapping || !interface_exists(PersonalDataEraserInterface::class)) {

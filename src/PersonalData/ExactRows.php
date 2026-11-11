@@ -107,7 +107,7 @@ final class ExactRows
     {
         foreach ($equals as $column => $value) {
             $stored = $row[$column] ?? null;
-            if (!(is_string($stored) || is_int($stored)) || (string) $stored !== $value) {
+            if (!is_string($stored) && !is_int($stored) || (string) $stored !== $value) {
                 return false;
             }
         }

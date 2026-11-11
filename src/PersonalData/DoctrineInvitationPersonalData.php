@@ -73,10 +73,10 @@ final readonly class DoctrineInvitationPersonalData implements InvitationPersona
         [$connection, $table] = $target;
         $platform             = $connection->getDatabasePlatform();
         $now                  = $this->now();
-        $columns              = ['profile', 'email', 'roles', 'message', 'locale', 'created_at', 'sent_at', 'expires_at', 'send_count', 'accepted_at', 'revoked_at'];
+        $columns              = ['profile', 'roles', 'message', 'locale', 'created_at', 'sent_at', 'expires_at', 'send_count', 'accepted_at', 'revoked_at'];
         if ($subject->isEmail()) {
             foreach (ExactRows::find($connection, $table, ['email' => $subject->value], $columns) as $row) {
-                $export['received'][] = $this->entry($row, $platform, $now, false);
+                $export['received'][] = $this->entry($row, $platform, $now);
             }
 
             return $export;
@@ -89,7 +89,7 @@ final readonly class DoctrineInvitationPersonalData implements InvitationPersona
         }
         ksort($rows);
         foreach ($rows as $row) {
-            $export['sent'][] = $this->entry($row, $platform, $now, true);
+            $export['sent'][] = $this->entry($row, $platform, $now);
         }
 
         return $export;
@@ -121,11 +121,13 @@ final readonly class DoctrineInvitationPersonalData implements InvitationPersona
     }
 
     /**
+     * One invitation of the export. A `sent` entry never names the invitee: that address is another person's data.
+     *
      * @param array<string, mixed> $row
      *
      * @return array<string, mixed>
      */
-    private function entry(array $row, AbstractPlatform $platform, DateTimeImmutable $now, bool $withEmail): array
+    private function entry(array $row, AbstractPlatform $platform, DateTimeImmutable $now): array
     {
         $date = static function (mixed $value) use ($platform): ?string {
             $date = Type::getType(Types::DATETIME_IMMUTABLE)->convertToPHPValue($value, $platform);
@@ -136,13 +138,10 @@ final readonly class DoctrineInvitationPersonalData implements InvitationPersona
         $expiresAt  = Type::getType(Types::DATETIME_IMMUTABLE)->convertToPHPValue($row['expires_at'] ?? null, $platform);
         $acceptedAt = $date($row['accepted_at'] ?? null);
         $revokedAt  = $date($row['revoked_at'] ?? null);
-        $entry      = ['profile' => (string) $row['profile']];
-        if ($withEmail) {
-            $entry['email'] = (string) $row['email'];
-        }
 
-        return $entry + [
-            'status' => match (true) {
+        return [
+            'profile' => (string) $row['profile'],
+            'status'  => match (true) {
                 $revokedAt !== null                                           => 'revoked',
                 $acceptedAt !== null                                          => 'accepted',
                 $expiresAt instanceof DateTimeImmutable && $expiresAt <= $now => 'expired',

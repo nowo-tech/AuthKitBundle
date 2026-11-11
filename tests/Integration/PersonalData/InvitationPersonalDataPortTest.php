@@ -114,7 +114,7 @@ final class InvitationPersonalDataPortTest extends TestCase
         $this->invite('subject@example.com', 'boss', message: 'Welcome', roles: ['ROLE_EDITOR']);
         $this->invite('subject@example.com', 'boss', 'other', accept: 'subject@example.com');
         $this->invite('friend@example.com', 'subject@example.com');
-        $this->invite('pal@example.com', 'boss', sentBy: 'subject@example.com', revokeBy: 'boss');
+        $this->invite('pal@example.com', 'boss', revokeBy: 'boss', sentBy: 'subject@example.com');
         $this->invite('stranger@example.com', 'boss');
 
         $received = $this->port()->export(InvitationPersonalDataSubject::fromEmail('subject@example.com'));
@@ -139,11 +139,14 @@ final class InvitationPersonalDataPortTest extends TestCase
         self::assertSame($this->now->format(DateTimeInterface::ATOM), $received['received'][1]['accepted_at']);
 
         self::assertSame([], $sent['received']);
-        self::assertSame(['friend@example.com', 'pal@example.com'], array_column($sent['sent'], 'email'));
+        self::assertCount(2, $sent['sent']);
+        self::assertArrayNotHasKey('email', $sent['sent'][0], 'The invitee is another person: never exported to the inviter.');
         self::assertSame(['pending', 'revoked'], array_column($sent['sent'], 'status'));
         self::assertNull($sent['sent'][0]['message']);
         self::assertNotNull($sent['sent'][1]['revoked_at']);
         $json = (string) json_encode([$received, $sent]);
+        self::assertStringNotContainsString('friend@example.com', $json);
+        self::assertStringNotContainsString('pal@example.com', $json);
         foreach ($this->rows() as $row) {
             self::assertStringNotContainsString((string) $row['token_hash'], $json);
             self::assertStringNotContainsString((string) $row['public_id'], $json);
@@ -225,7 +228,7 @@ final class InvitationPersonalDataPortTest extends TestCase
         $expectedA = $port->export($alice);
         $expectedB = $port->export($bob);
         self::assertCount(1, $expectedA['received']);
-        self::assertSame(['alice@example.com'], array_column($expectedB['sent'], 'email'));
+        self::assertCount(1, $expectedB['sent']);
         $runs   = PersonalDataDatabase::isRealServer() ? 50 : 1000;
         $before = 0;
         for ($i = 0; $i < $runs; ++$i) {

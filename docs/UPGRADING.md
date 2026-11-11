@@ -113,6 +113,16 @@
 
 ## Unreleased
 
+Nothing to change. With UserKit installed and the AuthKit entities mapped, the eraser `auth_kit_invitations` and the
+export sections `invitations` and `social_accounts` register automatically (see
+[USAGE](USAGE.md#gdpr-erasure-and-export)):
+
+- an erasure now also deletes the invitations sent to the person, revokes their open invitations and removes their
+  identifier from the other invitations;
+- UserKit refuses two export sections with the same key: if your application already exports `invitations` or
+  `social_accounts`, or already erases these tables, set `nowo_auth_kit.personal_data.enabled: false` (or remove your
+  own provider / eraser).
+
 ## To 1.44.0
 
 From **1.43.0**:

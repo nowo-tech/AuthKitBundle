@@ -10,8 +10,8 @@ namespace Nowo\AuthKitBundle\PersonalData;
  * or the host payload.
  *
  * Each entry: `profile`, `status` (`pending`, `expired`, `accepted`, `revoked`), `roles`, `message`, `locale`,
- * `created_at`, `sent_at`, `expires_at`, `send_count`, `accepted_at`, `revoked_at` (ATOM strings or null); `sent`
- * entries add the invitee `email`.
+ * `created_at`, `sent_at`, `expires_at`, `send_count`, `accepted_at`, `revoked_at` (ATOM strings or null). A `sent`
+ * entry never names the invitee (another person's data).
  */
 interface InvitationPersonalDataExporterInterface
 {

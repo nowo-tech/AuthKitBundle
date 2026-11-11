@@ -31,6 +31,7 @@
 - [Absolute URL base (mailed / QR links)](#absolute-url-base-mailed--qr-links)
 - [Flash messages](#flash-messages)
 - [Rate-limit counters (attempt_limiter)](#rate-limit-counters-attempt_limiter)
+- [Personal data (personal_data)](#personal-data-personal_data)
 - [Post-login target and expired-session 401](#post-login-target-and-expired-session-401)
 - [Admin CLI (create-admin)](#admin-cli-create-admin)
 - [Templates](#templates)
@@ -776,6 +777,25 @@ Use a pool **shared by every web node** (Redis, PDO, the shared `cache.app`): a 
 on several nodes) silently weakens every rate limit and lockout. `cache.app` is an array pool under `framework.test`,
 reset between test requests: point it at a filesystem pool in the test environment to assert HTTP-level limits. With
 symfony/lock the counters are serialised per key (`lock.factory`).
+
+## Personal data (personal_data)
+
+Since 1.45. The GDPR ports of the invitations and social links (see [USAGE](USAGE.md#gdpr-erasure-and-export)):
+
+```yaml
+nowo_auth_kit:
+    personal_data:
+        enabled: true          # default
+        subject_resolver: ~    # optional service id (InvitationPersonalDataSubjectResolverInterface)
+```
+
+- `enabled`: with UserKit installed and the entities mapped, registers the UserKit eraser `auth_kit_invitations` and
+  the export sections `invitations` and `social_accounts`. Set `false` when the application already erases / exports
+  these tables itself. The ports (`InvitationPersonalDataEraserInterface`, `InvitationPersonalDataExporterInterface`,
+  `SocialAccountPersonalDataExporterInterface`) and the 1.36/1.37 erasers (`auth_kit_mfa`, `auth_kit_social_account`,
+  `auth_kit_account_switcher`) are not affected.
+- `subject_resolver`: the service that lists the invitation subjects (identifiers and e-mails) of a user for the
+  UserKit eraser and export section. Default: `DefaultInvitationPersonalDataSubjectResolver`.
 
 ## Post-login target and expired-session 401
 

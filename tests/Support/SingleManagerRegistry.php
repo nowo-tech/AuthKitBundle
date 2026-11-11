@@ -25,7 +25,7 @@ final class SingleManagerRegistry extends AbstractManagerRegistry
         return $this->em;
     }
 
-    protected function getService(string $name): object
+    protected function getService(string $name): EntityManagerInterface
     {
         return $this->em; // @codeCoverageIgnore
     }

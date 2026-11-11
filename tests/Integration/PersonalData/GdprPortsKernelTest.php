@@ -22,6 +22,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use function array_column;
 use function bin2hex;
 use function hash;
+use function json_encode;
 use function random_bytes;
 
 /**
@@ -91,7 +92,8 @@ final class GdprPortsKernelTest extends KernelTestCase
 
         self::assertIsArray($sections['invitations']);
         self::assertSame(['default'], array_column($sections['invitations']['received'], 'profile'));
-        self::assertSame(['friend@example.com'], array_column($sections['invitations']['sent'], 'email'));
+        self::assertCount(1, $sections['invitations']['sent']);
+        self::assertStringNotContainsString('friend@example.com', (string) json_encode($sections['invitations']), 'The invitee is not the subject.');
         self::assertIsArray($sections['social_accounts']);
         self::assertSame([['provider' => 'github', 'linked_at' => $sections['social_accounts'][0]['linked_at'], 'provider_email' => 'subject@example.com', 'display_name' => null]], $sections['social_accounts']);
     }

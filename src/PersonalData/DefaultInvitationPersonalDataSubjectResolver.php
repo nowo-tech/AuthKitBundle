@@ -86,15 +86,16 @@ final class DefaultInvitationPersonalDataSubjectResolver implements InvitationPe
         if (!$profile instanceof ProfileSettings || $field === null) {
             return null;
         }
+        $property = $field;
         foreach ($profile->registrationFields as $definition) {
             if (($definition['name'] ?? null) === $field) {
-                $property = $definition['property'] ?? $field;
-
-                return is_string($property) && $property !== '' ? $property : $field;
+                $declared = $definition['property'] ?? $field;
+                $property = is_string($declared) && $declared !== '' ? $declared : $field;
+                break;
             }
         }
 
-        return $field; // @codeCoverageIgnore (invitationEmailField() returns a declared field)
+        return $property;
     }
 
     private function read(object $user, ?string $property): ?string
