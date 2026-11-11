@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.45.0](#to-1450)
 - [To 1.44.0](#to-1440)
 - [To 1.43.0](#to-1430)
 - [To 1.42.0](#to-1420)
@@ -112,6 +113,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.45.0
+
+From **1.44.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 Nothing to change. With UserKit installed and the AuthKit entities mapped, the eraser `auth_kit_invitations` and the
 export sections `invitations` and `social_accounts` register automatically (see
