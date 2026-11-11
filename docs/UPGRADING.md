@@ -120,7 +120,11 @@ No action required: both new features are off by default.
   default rules refuse (for example a page under an `api` path segment). Setting `denied_path_prefixes` or
   `denied_path_patterns` replaces the default list.
 - To answer background calls of an expired session with a JSON 401 instead of a login redirect, set
-  `nowo_auth_kit.session_expired.enabled: true` and handle `401` + `X-Auth-Kit: session-expired` in your front end.
+  `nowo_auth_kit.session_expired.enabled: true` and handle `401` + `X-Auth-Kit: session-expired` in your front end
+  (Turbo and htmx included: see the snippet in LOGIN-TARGET.md).
+- With `login_target` enabled, every fallback route must exist and need no parameters: `cache:warmup` fails otherwise.
+- `MfaContainmentSubscriber` now listens to `kernel.exception` at priority 4 (was 2). Only a host listener registered
+  between priorities 2 and 4 on that event would see a different order.
 
 See [LOGIN-TARGET.md](LOGIN-TARGET.md).
 

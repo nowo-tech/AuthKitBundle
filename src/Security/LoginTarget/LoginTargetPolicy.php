@@ -12,17 +12,23 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Exception\ExceptionInterface as RoutingException;
 use Symfony\Component\Routing\Matcher\UrlMatcher;
+use Symfony\Component\Routing\Matcher\UrlMatcherInterface;
+use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
+use Symfony\Component\Routing\RouteCollection;
+use Symfony\Component\Routing\Router;
 use Symfony\Component\Routing\RouterInterface;
 
 use function explode;
 use function in_array;
 use function is_a;
 use function is_array;
+use function is_file;
 use function is_string;
 use function method_exists;
 use function parse_url;
 use function preg_match;
+use function rawurldecode;
 use function rtrim;
 use function sprintf;
 use function str_contains;
@@ -42,7 +48,9 @@ use function substr;
  *    patterns, the route option (`html: false`), a `_format` other than `html`, a controller whose declared return type
  *    is a JSON, streamed or file response, and (with `require_route`) a path that matches no GET route.
  *
- * Stateless: routes are matched with a GET copy of the router context, never by changing the shared one (worker safe).
+ * Stateless: routes are matched with a GET copy of the router's compiled matcher, never by changing the shared one, and
+ * the route rules come from a table built at cache warm-up (worker safe, no route collection at request time outside
+ * debug).
  */
 final readonly class LoginTargetPolicy
 {
@@ -68,7 +76,27 @@ final readonly class LoginTargetPolicy
         private ?string $routeOption = 'html',
         private bool $requireRoute = true,
         private bool $checkControllerResponse = true,
+        private ?string $routeTableFile = null,
     ) {
+    }
+
+    /**
+     * Names of the routes the route rules refuse (denied names and name patterns, the route option, `_format`,
+     * controller return types), as a set. Built once by {@see LoginTargetCacheWarmer}; never at request time when the
+     * warmed table exists.
+     *
+     * @return array<string, true>
+     */
+    public function nonPageRouteNames(RouteCollection $routes): array
+    {
+        $names = [];
+        foreach ($routes->all() as $name => $route) {
+            if (!$this->isPageRoute($name, $route)) {
+                $names[$name] = true;
+            }
+        }
+
+        return $names;
     }
 
     /**
@@ -145,22 +173,53 @@ final readonly class LoginTargetPolicy
         if ($target->routeName === null) {
             return !$this->requireRoute;
         }
+        $table = $this->routeTable();
+        if ($table !== null) {
+            return !isset($table[$target->routeName]);
+        }
         $route = $this->router->getRouteCollection()->get($target->routeName);
 
         return $route instanceof Route && $this->isPageRoute($target->routeName, $route);
     }
 
+    /**
+     * The warmed non-page route set (opcache keeps the included array), or null when there is none (debug, not warmed).
+     *
+     * @return array<string, true>|null
+     */
+    private function routeTable(): ?array
+    {
+        if ($this->routeTableFile === null || !is_file($this->routeTableFile)) {
+            return null;
+        }
+        $table = require $this->routeTableFile;
+
+        return is_array($table) ? $table : null;
+    }
+
+    /**
+     * The path is checked raw and percent-decoded once (the router decodes it once before matching: `/%61pi/x` is
+     * served by `/api/x`), prefixes case-insensitively. A pattern that fails at run time (PCRE error) denies.
+     */
     private function deniedByPath(string $path): bool
     {
-        foreach ($this->deniedPathPrefixes as $prefix) {
-            $prefix = rtrim($prefix, '/');
-            if ($prefix === '' || $path === $prefix || str_starts_with($path, $prefix . '/')) {
-                return true;
-            }
+        $candidates = [$path];
+        $decoded    = rawurldecode($path);
+        if ($decoded !== $path) {
+            $candidates[] = $decoded;
         }
-        foreach ($this->deniedPathPatterns as $pattern) {
-            if (preg_match($pattern, $path) === 1) {
-                return true;
+        foreach ($candidates as $candidate) {
+            $lower = strtolower($candidate);
+            foreach ($this->deniedPathPrefixes as $prefix) {
+                $prefix = strtolower(rtrim($prefix, '/'));
+                if ($prefix === '' || $lower === $prefix || str_starts_with($lower, $prefix . '/')) {
+                    return true;
+                }
+            }
+            foreach ($this->deniedPathPatterns as $pattern) {
+                if (preg_match($pattern, $candidate) !== 0) {
+                    return true;
+                }
             }
         }
 
@@ -173,7 +232,7 @@ final readonly class LoginTargetPolicy
             return false;
         }
         foreach ($this->deniedRoutePatterns as $pattern) {
-            if (preg_match($pattern, $name) === 1) {
+            if (preg_match($pattern, $name) !== 0) {
                 return false;
             }
         }
@@ -190,16 +249,30 @@ final readonly class LoginTargetPolicy
 
     private function matchGetRoute(string $path): ?string
     {
-        // A GET copy of the context: the shared router context is never changed (worker safe).
+        // A GET copy of the context and of the router's compiled matcher: the shared ones are never changed (worker
+        // safe), and no route collection is loaded at request time.
         $context = (clone $this->router->getContext())->setMethod(Request::METHOD_GET);
+        $matcher = $this->router instanceof Router ? $this->router->getMatcher() : null;
+        $matcher = $matcher instanceof UrlMatcherInterface ? $this->copyWithContext($matcher, $context) : new UrlMatcher($this->router->getRouteCollection(), $context);
         try {
-            $match = (new UrlMatcher($this->router->getRouteCollection(), $context))->match($path);
+            $match = $matcher->match($path);
         } catch (RoutingException) {
             return null;
         }
         $name = $match['_route'] ?? null;
 
         return is_string($name) && $name !== '' ? $name : null;
+    }
+
+    /**
+     * A copy of the router's compiled matcher with its own context (the router keeps its matcher and context).
+     */
+    private function copyWithContext(UrlMatcherInterface $shared, RequestContext $context): UrlMatcherInterface
+    {
+        $copy = clone $shared;
+        $copy->setContext($context);
+
+        return $copy;
     }
 
     private function controllerReturnsNonPage(mixed $controller): bool

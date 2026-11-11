@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Security\LoginTarget;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Exception\ExceptionInterface as RoutingException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 
@@ -78,7 +79,15 @@ final readonly class LoginTargetGuard
         }
         $route = $this->fallbackRoutes[$firewall] ?? null;
 
-        return is_string($route) && $route !== '' ? $this->urls->generate($route) : $request->getBaseUrl() . '/';
+        if (is_string($route) && $route !== '') {
+            try {
+                return $this->urls->generate($route);
+            } catch (RoutingException) {
+                // Checked at cache warm-up; a sign-in never fails on a wrong fallback route.
+            }
+        }
+
+        return $request->getBaseUrl() . '/';
     }
 
     private function forgetRefusedSavedTarget(Request $request, string $firewall): void

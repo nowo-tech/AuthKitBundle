@@ -123,6 +123,13 @@ final class LoginTargetGuardTest extends TestCase
      * FrankenPHP worker mode (kernel kept, no reset): the same guard serves many sign-ins of different users without
      * keeping anything between them and without memory growth.
      */
+    public function testUnknownFallbackRouteFallsBackToTheRoot(): void
+    {
+        $guard = new LoginTargetGuard($this->policy(), $this->router(), ['main'], ['main' => 'no_such_route']);
+
+        self::assertSame('/', $guard->fallback($this->request(null), 'main', 'ada'));
+    }
+
     public function testWorkerLoopKeepsNoStateAndFlatMemory(): void
     {
         $guard    = $this->guard();

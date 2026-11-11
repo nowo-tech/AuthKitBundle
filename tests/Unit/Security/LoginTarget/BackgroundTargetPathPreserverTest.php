@@ -103,21 +103,21 @@ final class BackgroundTargetPathPreserverTest extends TestCase
         $uri     = $request->getUri();
         $request->getSession()->set(self::KEY, $uri);
         $this->preserver()->onKernelResponse($this->responseEvent($request));
-        self::assertSame($uri, self::saved($request));
+        self::assertSame($uri, $this->saved($request));
 
         $request->attributes->set(BackgroundTargetPathPreserver::ATTRIBUTE, ['firewall' => 'main', 'target' => '/projects/7']);
         $this->preserver()->onKernelResponse($this->responseEvent($request, HttpKernelInterface::SUB_REQUEST));
-        self::assertSame($uri, self::saved($request));
+        self::assertSame($uri, $this->saved($request));
 
         $request->attributes->set(BackgroundTargetPathPreserver::ATTRIBUTE, ['target' => '/projects/7']);
         $this->preserver()->onKernelResponse($this->responseEvent($request));
-        self::assertSame($uri, self::saved($request));
+        self::assertSame($uri, $this->saved($request));
     }
 
     /**
      * @phpstan-impure
      */
-    private static function saved(Request $request): mixed
+    private function saved(Request $request): mixed
     {
         return $request->getSession()->get(self::KEY);
     }

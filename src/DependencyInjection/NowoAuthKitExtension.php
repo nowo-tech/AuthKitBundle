@@ -41,6 +41,7 @@ use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataEraser;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\LoginTarget\BackgroundTargetPathPreserver;
+use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetCacheWarmer;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetGuard;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetVoterInterface;
@@ -66,6 +67,7 @@ use Symfony\Component\Security\Http\Event\CheckPassportEvent;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 use Symfony\Component\Security\Http\Event\LogoutEvent;
 
+use function array_filter;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
@@ -283,6 +285,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 '$routeOption'             => is_string($target['route_option']) && $target['route_option'] !== '' ? $target['route_option'] : null,
                 '$requireRoute'            => $target['require_route'],
                 '$checkControllerResponse' => $target['check_controller_response'],
+                // Audit LT-L2: the route rules come from the table built at cache warm-up (outside debug, where routes
+                // change without a cache build and the policy reads the route collection instead).
+                '$routeTableFile' => $target['enabled'] === true && $container->hasParameter('kernel.debug') && $container->getParameter('kernel.debug') === false
+                    ? ($container->hasParameter('kernel.build_dir') ? '%kernel.build_dir%' : '%kernel.cache_dir%') . '/' . LoginTargetCacheWarmer::FILE
+                    : null,
             ]);
         $container->registerForAutoconfiguration(LoginTargetVoterInterface::class)->addTag(LoginTargetVoterInterface::TAG);
 
@@ -291,6 +298,13 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             foreach ($guardFirewalls as $firewall) {
                 $routes[$firewall] = is_string($target['fallback_route']) && $target['fallback_route'] !== '' ? $target['fallback_route'] : ($fallbackRoutes[$firewall] ?? null);
             }
+            $container->register(LoginTargetCacheWarmer::class, LoginTargetCacheWarmer::class)
+                ->setArguments([
+                    '$policy'         => new Reference(LoginTargetPolicy::class),
+                    '$router'         => new Reference('router'),
+                    '$fallbackRoutes' => array_values(array_unique(array_filter($routes, is_string(...)))),
+                ])
+                ->addTag('kernel.cache_warmer');
             $provider = is_string($target['fallback_provider']) && $target['fallback_provider'] !== '' ? new Reference($target['fallback_provider']) : null;
             $container->register(LoginTargetGuard::class, LoginTargetGuard::class)
                 ->setArguments([
@@ -324,7 +338,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                     '$problemTitle'  => $expired['problem_title'],
                     '$code'          => $expired['code'],
                 ])
-                ->addTag('kernel.event_listener', ['event' => KernelEvents::EXCEPTION, 'method' => 'onKernelException', 'priority' => 2]);
+                // Audit LT-I5: after MFA containment (4, a pending second step answers `mfa_required`), before the
+                // firewall's exception listener (1).
+                ->addTag('kernel.event_listener', ['event' => KernelEvents::EXCEPTION, 'method' => 'onKernelException', 'priority' => SessionExpiredResponder::PRIORITY]);
         }
     }
 

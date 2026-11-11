@@ -113,12 +113,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file controllers and unknown routes. Host port `LoginTargetVoterInterface` (autoconfigured, plain value object
   `LoginTarget`) and `LoginTargetFallbackProviderInterface`. With `preserve_on_background_requests` (default), a
   background call of a signed-out session no longer replaces the page saved as the target. `LoginTargetPolicy` is
-  always registered for host code. See [LOGIN-TARGET.md](LOGIN-TARGET.md). (Beacon re-audit 2026-11-11, item 5.)
+  always registered for host code. Path rules see the path raw and percent-decoded once (like the router), prefixes
+  compare case-insensitively, and a deny pattern failing at run time denies (audit LT-L1, LT-I4). See
+  [LOGIN-TARGET.md](LOGIN-TARGET.md). (Beacon re-audit 2026-11-11, item 5.)
 - **Expired-session 401** (opt-in, `nowo_auth_kit.session_expired.enabled`): a fetch / XHR / JSON request of a guarded
   stateful firewall that needs authentication gets a `401 application/problem+json` (`code: session_expired`) with a
   configurable marker header (`X-Auth-Kit: session-expired` by default) instead of a `302` to the login page, and is
   not saved as the post-login target. Page navigations, fully authenticated denials (403) and stateless firewalls are
   unchanged.
+- `LoginTargetCacheWarmer` (when `login_target` is enabled): builds the non-page route table at cache warm-up, so
+  sign-ins never load the route collection outside debug, and checks that every fallback route exists and needs no
+  parameters (audit LT-L2, LT-I4).
+
+### Changed
+
+- `MfaContainmentSubscriber` handles `kernel.exception` at priority 4 (was 2), so a pending second step always answers
+  first, before the expired-session responder (2) and the firewall (1) (audit LT-I5). No change for hosts without
+  `session_expired`.
 
 ## [1.43.0] - 2026-11-11
 

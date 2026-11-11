@@ -21,6 +21,8 @@ Since 1.44. Two opt-in features for applications with background calls (polling,
 - [Expired-session 401](#expired-session-401)
   - [Front-end handling](#front-end-handling)
 - [How a request is classified](#how-a-request-is-classified)
+- [Trusted hosts and proxies](#trusted-hosts-and-proxies)
+- [Performance](#performance)
 - [Worker mode](#worker-mode)
 
 ## The problem
@@ -33,7 +35,9 @@ the user signs in and lands on raw JSON. A crafted `_target_path` can also point
 
 `LoginTargetGuard` listens to `LoginSuccessEvent` (priority -40, after the firewall's listeners, before AuthKit MFA
 and remember-me) for every guarded firewall, so it covers form login, login links and AuthKit's magic link, social,
-QR and registration sign-ins. When the answer is a redirect whose `Location` is refused by `LoginTargetPolicy`, only the
+QR, registration and invitation sign-ins. Form login, login links, magic links, registration and invitations go to
+the saved target when it is allowed; **social and QR sign-ins never use the saved target** (they always land on the
+profile's `login_success_route`, as before 1.44), the guard only removes a refused saved target from the session. When the answer is a redirect whose `Location` is refused by `LoginTargetPolicy`, only the
 `Location` changes (cookies and headers set by other listeners stay). A refused saved target is also removed from the
 session.
 
@@ -51,6 +55,10 @@ Checks, in order:
    route-name patterns, a route option set to `false` (`#[Route(options: ['html' => false])]`), a `_format` other than
    `html`, a controller whose declared return type is a `JsonResponse`, `StreamedResponse` or `BinaryFileResponse`,
    and (with `require_route`) a path that matches no GET route.
+
+The path rules see the path both as sent and percent-decoded once, like the router (`/%61pi/raw` is refused like
+`/api/raw`), and prefixes compare case-insensitively. A deny pattern that fails at run time (PCRE backtrack or
+recursion limit) counts as a denial: the rules fail closed.
 
 The default lists deny `/.well-known`, `/health`, `/healthz`, `/metrics`, `/otlp`, `/ingest`, `/mcp`, `/build`,
 `/bundles`, `/assets`, an `api` segment anywhere (`/api/…`, `/en/api/…`, `/chat/api/…`), a segment starting with `_`
@@ -94,6 +102,11 @@ can validate its own redirect targets with `allows($target, $request, $firewall)
 The refused target is replaced by, in order: the path returned by the optional `fallback_provider` (per-user start page;
 a value that is not a same-origin path is ignored), `fallback_route`, the `login_success_route` of the profile on that
 firewall, then the application root.
+
+Each fallback route must exist and need no parameters: the check runs at cache warm-up (`cache:warmup`, or the first
+boot after a cache clear), so a wrong `fallback_route` fails the deployment rather than a sign-in. Routes are not known
+when the container is compiled, so the check cannot run earlier. Should a route still fail to generate at run time,
+the guard falls back to the application root.
 
 ```php
 final class StartPageFallback implements LoginTargetFallbackProviderInterface
@@ -162,12 +175,51 @@ The request is not saved as the post-login target. A fully authenticated user de
 
 ### Front-end handling
 
+**Turbo Drive / Turbo Frames and htmx** load pages with `fetch` (`Sec-Fetch-Mode: cors`), so with `session_expired`
+on they get the JSON 401 instead of the login redirect. Turbo then reloads the page in full (and the firewall
+redirects that navigation to the login page); htmx does not swap a 4xx answer and does nothing unless the front end
+handles the marker. Handle the marker once for every kind of call:
+
 ```js
-const response = await fetch('/api/notifications/count', { headers: { Accept: 'application/json' } });
-if (response.status === 401 && response.headers.get('X-Auth-Kit') === 'session-expired') {
-    showSignInAgainPrompt(); // e.g. a dialog with a link to the login page
+const LOGIN_URL = '/login';
+const isSessionExpired = (status, header) => status === 401 && header === 'session-expired';
+
+// fetch (your own calls)
+export async function apiFetch(url, init = {}) {
+    const response = await fetch(url, { ...init, headers: { Accept: 'application/json', ...init.headers } });
+    if (isSessionExpired(response.status, response.headers.get('X-Auth-Kit'))) {
+        showSignInAgainPrompt(LOGIN_URL); // e.g. a dialog with a link to the login page
+    }
+    return response;
 }
+
+// Turbo Drive and Turbo Frames
+document.addEventListener('turbo:before-fetch-response', (event) => {
+    const response = event.detail.fetchResponse.response;
+    if (isSessionExpired(response.status, response.headers.get('X-Auth-Kit'))) {
+        event.preventDefault();
+        window.location.assign(LOGIN_URL); // or showSignInAgainPrompt(LOGIN_URL)
+    }
+});
+
+// htmx
+document.body.addEventListener('htmx:beforeSwap', (event) => {
+    const xhr = event.detail.xhr;
+    if (isSessionExpired(xhr.status, xhr.getResponseHeader('X-Auth-Kit'))) {
+        event.detail.shouldSwap = false;
+        window.location.assign(LOGIN_URL);
+    }
+});
 ```
+
+Use your `header_name` if you changed it. A login redirect after sign-in goes back to the saved page (the 401 call
+itself is never saved as the target).
+
+### Order with MFA
+
+With MFA, a request of a session whose second step is pending is answered by MFA containment first (`kernel.exception`
+priority 4: `401 {"error":"mfa_required"}` for JSON, a redirect to the challenge for pages); the expired-session
+responder runs next (priority 2), then the firewall (1).
 
 ## How a request is classified
 
@@ -178,10 +230,25 @@ names JSON and no HTML, is a background call; a request may become the target on
 `Accept`). The guard still checks the target at sign-in time, so a legacy client that saved a machine URL lands on the
 fallback.
 
+## Trusted hosts and proxies
+
+"Same origin" is the scheme, host and port of the sign-in request (`Request::getSchemeAndHttpHost()`), as in Symfony's
+own target-path checks. A browser cannot forge the `Host` header of a victim's request, but set
+`framework.trusted_hosts` to your domains and configure `framework.trusted_proxies` / `trusted_headers` only for your
+own reverse proxies, so that `Host` and `X-Forwarded-*` values from elsewhere are never trusted.
+
+## Performance
+
+The guard matches the target with a copy of the router's compiled matcher. Outside debug, the route rules (denied route
+names and patterns, the route option, `_format`, controller return types) are evaluated once by a cache warmer into
+`%kernel.build_dir%/nowo_auth_kit/login_target_routes.php`; a sign-in never loads the route collection. In debug
+(routes change without a cache build) or when the table is missing, the policy reads the route collection instead.
+
 ## Worker mode
 
 Every service is `readonly` and stateless; the only per-request value (the target saved before a background call)
-lives in a request attribute. Routes are matched with a GET copy of the router context; the shared context is never
-changed. Tests run 120 sign-ins alternating page and machine targets in one kept-alive kernel
+lives in a request attribute. Routes are matched with a copy of the compiled matcher set to a GET copy of the router
+context; the shared matcher and context are never changed. The warmed route table is a PHP file returning a constant
+array (shared by opcache), written atomically at warm-up. Tests run 120 sign-ins alternating page and machine targets in one kept-alive kernel
 (`tests/Integration/LoginTarget/SessionExpiredKernelTest.php`) and 3,000 calls of the guard and of the 401 responder
 with different users, asserting the same answers and flat memory.

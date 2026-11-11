@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Security\SessionExpired;
 
+use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaContainmentSubscriber;
 use Nowo\AuthKitBundle\Security\LoginTarget\NavigationKind;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -36,6 +37,12 @@ use function is_string;
 final readonly class SessionExpiredResponder
 {
     /**
+     * `kernel.exception` priority: below MFA containment ({@see MfaContainmentSubscriber::EXCEPTION_PRIORITY}),
+     * above the firewall's exception listener (1).
+     */
+    public const PRIORITY = 2;
+
+    /**
      * @param list<string> $firewalls
      */
     public function __construct(
@@ -52,7 +59,7 @@ final readonly class SessionExpiredResponder
     }
 
     /**
-     * `kernel.exception`, priority 2: before the firewall's exception listener (1).
+     * `kernel.exception`, {@see self::PRIORITY}: after MFA containment, before the firewall's exception listener (1).
      */
     public function onKernelException(ExceptionEvent $event): void
     {

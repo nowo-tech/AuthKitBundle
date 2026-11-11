@@ -6,7 +6,9 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
+use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaContainmentSubscriber;
 use Nowo\AuthKitBundle\Security\LoginTarget\BackgroundTargetPathPreserver;
+use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetCacheWarmer;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetGuard;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetVoterInterface;
@@ -18,6 +20,7 @@ use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
 
 use function ltrim;
@@ -105,6 +108,41 @@ final class LoginTargetConfigurationTest extends TestCase
         self::assertFalse($container->hasDefinition(SessionExpiredResponder::class));
         self::assertSame('html', $container->getDefinition(LoginTargetPolicy::class)->getArgument('$routeOption'));
         self::assertArrayHasKey(LoginTargetVoterInterface::class, $container->getAutoconfiguredInstanceof());
+        $warmer = $container->getDefinition(LoginTargetCacheWarmer::class);
+        self::assertSame(['app_home'], $warmer->getArgument('$fallbackRoutes'));
+        self::assertTrue($warmer->hasTag('kernel.cache_warmer'));
+        self::assertNull($container->getDefinition(LoginTargetPolicy::class)->getArgument('$routeTableFile'), 'No kernel.debug: no table.');
+    }
+
+    public function testRouteTableOnlyOutsideDebug(): void
+    {
+        $config = ['user_class' => TestUser::class, 'login_target' => ['enabled' => true]];
+        $file   = static function (array $parameters) use ($config): mixed {
+            $container = new ContainerBuilder();
+            foreach ($parameters as $name => $value) {
+                $container->setParameter($name, $value);
+            }
+            (new NowoAuthKitExtension())->load([$config], $container);
+
+            return $container->getDefinition(LoginTargetPolicy::class)->getArgument('$routeTableFile');
+        };
+
+        self::assertSame('%kernel.build_dir%/' . LoginTargetCacheWarmer::FILE, $file(['kernel.debug' => false, 'kernel.build_dir' => '/b', 'kernel.cache_dir' => '/c']));
+        self::assertSame('%kernel.cache_dir%/' . LoginTargetCacheWarmer::FILE, $file(['kernel.debug' => false, 'kernel.cache_dir' => '/c']));
+        self::assertNull($file(['kernel.debug' => true, 'kernel.build_dir' => '/b']));
+    }
+
+    public function testExpiredSessionResponderRunsAfterMfaContainmentAndBeforeTheFirewall(): void
+    {
+        $container = $this->load(['user_class' => TestUser::class, 'session_expired' => ['enabled' => true]]);
+        $priority  = $container->getDefinition(SessionExpiredResponder::class)->getTag('kernel.event_listener')[0]['priority'];
+        $mfa       = MfaContainmentSubscriber::getSubscribedEvents()[KernelEvents::EXCEPTION];
+
+        self::assertSame(SessionExpiredResponder::PRIORITY, $priority);
+        self::assertIsArray($mfa);
+        self::assertSame(MfaContainmentSubscriber::EXCEPTION_PRIORITY, $mfa[1]);
+        self::assertGreaterThan($priority, $mfa[1], 'A pending second step answers mfa_required first.');
+        self::assertGreaterThan(1, $priority, 'Before the firewall exception listener (priority 1).');
     }
 
     public function testEverythingConfigured(): void

@@ -14,10 +14,20 @@ use Nowo\AuthKitBundle\Tests\Support\LoginTargetFixtureController;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Routing\Loader\ClosureLoader;
+use Symfony\Component\Routing\Matcher\UrlMatcherInterface;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
+use Symfony\Component\Routing\Router;
 use Symfony\Component\Routing\RouterInterface;
+
+use function dirname;
+use function file_put_contents;
+use function getmypid;
+use function mkdir;
+use function sys_get_temp_dir;
+use function unlink;
 
 final class LoginTargetPolicyTest extends TestCase
 {
@@ -95,6 +105,13 @@ final class LoginTargetPolicyTest extends TestCase
         yield 'null byte' => ["/projects/42\0", false];
         yield 'leading space' => [' /projects/42', false];
         yield 'dot segments to protocol relative' => ['http://example.com/..//evil.example', false];
+        // Audit LT-L1: the router decodes the path once, so the deny lists see it decoded too.
+        yield 'encoded api letter' => ['/%61pi/raw', false];
+        yield 'encoded api segment' => ['/%61%70%69/raw', false];
+        yield 'encoded health prefix' => ['/%68ealth/ready', false];
+        yield 'encoded json extension' => ['/feeds/x%2Ejson', false];
+        yield 'encoded underscore segment' => ['/%5Fwdt/abc', false];
+        yield 'plain page under the encoded routes' => ['/feeds/x', true];
     }
 
     #[DataProvider('defaultTargets')]
@@ -161,6 +178,80 @@ final class LoginTargetPolicyTest extends TestCase
         self::assertTrue($policy->allows('/reports/export', $request, 'main'));
         self::assertTrue($policy->allows('/chat/rooms', $request, 'main'));
         self::assertFalse($policy->allows('//evil.example', $request, 'main'), 'Same-origin checks are never relaxed.');
+    }
+
+    public function testPrefixesAreCaseInsensitive(): void
+    {
+        $policy = new LoginTargetPolicy($this->router(), [], ['/Health'], [], [], [], null, false, false);
+
+        self::assertFalse($policy->allows('/HEALTH/ready', Request::create('http://example.com/login'), 'main'));
+        self::assertFalse($policy->allows('/%48ealth', Request::create('http://example.com/login'), 'main'));
+        self::assertTrue($policy->allows('/healthy', Request::create('http://example.com/login'), 'main'));
+    }
+
+    public function testAPatternFailingAtRunTimeDenies(): void
+    {
+        $request = Request::create('http://example.com/login');
+        // A /u pattern fails (PREG_BAD_UTF8_ERROR) on the decoded path "/projects/\xFF": the path rules deny.
+        self::assertTrue((new LoginTargetPolicy($this->router(), [], [], ['#^/nothing#u']))->allows('/projects/41', $request, 'main'));
+        self::assertFalse((new LoginTargetPolicy($this->router(), [], [], ['#^/nothing#u']))->allows('/projects/%FF', $request, 'main'));
+
+        // A route-name pattern failing on a name (invalid UTF-8 under /u) denies that route.
+        $collection = new RouteCollection();
+        $collection->add('page', new Route('/a', ['_controller' => self::CONTROLLER . '::page']));
+        $collection->add("page\xFF", new Route('/b', ['_controller' => self::CONTROLLER . '::page']));
+        $names = (new LoginTargetPolicy($this->router(), [], [], [], [], ['#^nothing#u']))->nonPageRouteNames($collection);
+        self::assertSame(["page\xFF" => true], $names);
+    }
+
+    public function testWarmedRouteTableReplacesTheRouteCollection(): void
+    {
+        $file = sys_get_temp_dir() . '/nowo-auth-kit-tests/login-target-table-' . getmypid() . '.php';
+        @mkdir(dirname($file), 0o777, true);
+        file_put_contents($file, "<?php return ['project_show' => true];\n");
+        $request = Request::create('http://example.com/login');
+        try {
+            $policy = new LoginTargetPolicy($this->router(), routeTableFile: $file);
+            self::assertFalse($policy->allows('/projects/42', $request, 'main'), 'Refused by the table.');
+            self::assertTrue($policy->allows('/chat/rooms', $request, 'main'), 'The table decides, not the collection.');
+
+            file_put_contents($file, "<?php return 'broken';\n");
+            self::assertFalse($policy->allows('/chat/rooms', $request, 'main'), 'Not a table: the collection decides.');
+        } finally {
+            @unlink($file);
+        }
+        self::assertTrue((new LoginTargetPolicy($this->router(), routeTableFile: $file))->allows('/projects/42', $request, 'main'), 'No table: the collection decides.');
+    }
+
+    public function testNonPageRouteNames(): void
+    {
+        $router = $this->router();
+        $names  = $this->policy()->nonPageRouteNames($router->getRouteCollection());
+
+        self::assertArrayHasKey('chat_rooms', $names);
+        self::assertArrayHasKey('report_export', $names);
+        self::assertArrayHasKey('project_feed', $names);
+        self::assertArrayHasKey('app_logout', $names);
+        self::assertArrayNotHasKey('project_show', $names);
+        self::assertArrayNotHasKey('api_raw', $names, 'Path rules are not route rules.');
+    }
+
+    public function testCompiledMatcherOfASymfonyRouterIsCopied(): void
+    {
+        $collection = $this->router()->getRouteCollection();
+        $collection->remove('closure'); // A compiled matcher cannot hold a closure controller.
+        $router  = new Router(new ClosureLoader(), static fn (): RouteCollection => $collection, [], new RequestContext('', 'POST', 'example.com'));
+        $matcher = $router->getMatcher();
+        $policy  = new LoginTargetPolicy($router, [], [], [], [], [], 'html', true, true);
+        $request = Request::create('http://example.com/login');
+
+        self::assertTrue($policy->allows('/projects/42', $request, 'main'));
+        self::assertFalse($policy->allows('/projects/42/save', $request, 'main'), 'Matched as GET: the POST-only route is not a target.');
+        self::assertFalse($policy->allows('/chat/rooms', $request, 'main'));
+        self::assertSame('POST', $router->getContext()->getMethod());
+        self::assertSame($matcher, $router->getMatcher());
+        self::assertInstanceOf(UrlMatcherInterface::class, $matcher);
+        self::assertSame('POST', $matcher->getContext()->getMethod(), 'The shared matcher keeps its context.');
     }
 
     public function testDeniedRoutesAndEmptyPrefix(): void
@@ -271,6 +362,11 @@ final class LoginTargetPolicyTest extends TestCase
         $add('app_logout', '/sign-out', $c . '::page');
         $add('docs_api', '/docs/api', $c . '::page');
         $add('api_rooms', '/api/notifications/count', $c . '::json');
+        // Page-typed controllers under machine paths: only the path deny lists refuse them.
+        $add('api_raw', '/api/raw', $c . '::page');
+        $add('health_ready', '/health/ready', $c . '::page');
+        $add('feeds', '/feeds/{file}', $c . '::page');
+        $add('wdt', '/_wdt/{token}', $c . '::page');
 
         return new ArrayRouter($routes);
     }
