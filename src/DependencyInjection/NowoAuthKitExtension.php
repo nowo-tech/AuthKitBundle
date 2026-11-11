@@ -35,9 +35,19 @@ use Nowo\AuthKitBundle\MultiAccount\AccountVault;
 use Nowo\AuthKitBundle\MultiAccount\AccountVaultStore;
 use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser;
+use Nowo\AuthKitBundle\PersonalData\DefaultInvitationPersonalDataSubjectResolver;
+use Nowo\AuthKitBundle\PersonalData\DoctrineInvitationPersonalData;
+use Nowo\AuthKitBundle\PersonalData\DoctrineSocialAccountPersonalDataExporter;
 use Nowo\AuthKitBundle\PersonalData\DormantAccountSwitcherPersonalDataEraser;
 use Nowo\AuthKitBundle\PersonalData\DormantMfaPersonalDataEraser;
+use Nowo\AuthKitBundle\PersonalData\InvitationPersonalDataEraserInterface;
+use Nowo\AuthKitBundle\PersonalData\InvitationPersonalDataExporterInterface;
+use Nowo\AuthKitBundle\PersonalData\InvitationPersonalDataSubjectResolverInterface;
+use Nowo\AuthKitBundle\PersonalData\InvitationUserKitEraser;
+use Nowo\AuthKitBundle\PersonalData\InvitationUserKitExportProvider;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataEraser;
+use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataExporterInterface;
+use Nowo\AuthKitBundle\PersonalData\SocialAccountUserKitExportProvider;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\LoginTarget\BackgroundTargetPathPreserver;
@@ -50,6 +60,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
+use Nowo\UserKitBundle\PersonalData\PersonalDataExportProviderInterface;
 use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
@@ -226,7 +237,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $this->registerInvitations($container, $profiles);
         $this->registerMfa($container, $profiles, $loader, is_array($bundles) ? $bundles : null);
         $this->registerMultiAccount($container, $profiles, $loader);
-        $this->registerPersonalDataErasers($container, $registerMapping);
+        $this->registerPersonalDataPorts($container, $config['personal_data']);
+        $this->registerPersonalDataErasers($container, $registerMapping, $config['personal_data']['enabled'] === true);
         $container->registerForAutoconfiguration(SocialCallbackHandlerInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
 
         if ($config['flash']['twig_filter'] !== true) {
@@ -370,9 +382,30 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
     /**
      * GY-L5 (1.37): erasure must not depend on a feature being on today. While the entities are mapped and UserKit is
-     * installed, a feature that is off gets its dormant eraser, and social links always get theirs.
+     * installed, a feature that is off gets its dormant eraser, and social links always get theirs. 1.45 adds the
+     * invitations eraser and the `invitations` / `social_accounts` export sections the same way (`personal_data.enabled`).
      */
-    private function registerPersonalDataErasers(ContainerBuilder $container, bool $registerMapping): void
+    /**
+     * GDPR ports (1.45, Beacon re-audit extraction 4): plain-PHP erasure / export ports of the invitations and the social
+     * links, always registered (they need no UserKit and find nothing while the entities are not mapped).
+     *
+     * @param array{enabled: bool, subject_resolver: string|null} $personalData
+     */
+    private function registerPersonalDataPorts(ContainerBuilder $container, array $personalData): void
+    {
+        $container->register(DoctrineInvitationPersonalData::class)
+            ->setAutowired(true)
+            ->setArgument('$eventDispatcher', new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE));
+        $container->setAlias(InvitationPersonalDataEraserInterface::class, DoctrineInvitationPersonalData::class);
+        $container->setAlias(InvitationPersonalDataExporterInterface::class, DoctrineInvitationPersonalData::class);
+        $container->register(DoctrineSocialAccountPersonalDataExporter::class)->setAutowired(true);
+        $container->setAlias(SocialAccountPersonalDataExporterInterface::class, DoctrineSocialAccountPersonalDataExporter::class);
+        $container->register(DefaultInvitationPersonalDataSubjectResolver::class)->setAutowired(true);
+        $resolver = $personalData['subject_resolver'];
+        $container->setAlias(InvitationPersonalDataSubjectResolverInterface::class, is_string($resolver) && $resolver !== '' ? $resolver : DefaultInvitationPersonalDataSubjectResolver::class);
+    }
+
+    private function registerPersonalDataErasers(ContainerBuilder $container, bool $registerMapping, bool $personalData): void
     {
         if (!$registerMapping || !interface_exists(PersonalDataEraserInterface::class)) {
             return; // @codeCoverageIgnore
@@ -392,6 +425,23 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 ->setArguments($arguments)
                 ->addTag('nowo_user_kit.personal_data.eraser', ['priority' => SocialAccountPersonalDataEraser::PRIORITY]);
         }
+        // 1.45: the invitations eraser and export sections, unless the host erases / exports these tables itself.
+        if (!$personalData) {
+            return;
+        }
+        $container->register(InvitationUserKitEraser::class)
+            ->setAutowired(true)
+            ->addTag('nowo_user_kit.personal_data.eraser', ['priority' => InvitationUserKitEraser::PRIORITY]);
+        if (!interface_exists(PersonalDataExportProviderInterface::class)) {
+            return; // @codeCoverageIgnore
+        }
+        $container->register(InvitationUserKitExportProvider::class)
+            ->setAutowired(true)
+            ->addTag('nowo_user_kit.personal_data.export_provider', ['priority' => InvitationUserKitExportProvider::PRIORITY]);
+        $container->register(SocialAccountUserKitExportProvider::class)
+            ->setAutowired(true)
+            ->setArgument('$owners', $support(MfaOwnerResolver::class))
+            ->addTag('nowo_user_kit.personal_data.export_provider', ['priority' => SocialAccountUserKitExportProvider::PRIORITY]);
     }
 
     public function getAlias(): string
