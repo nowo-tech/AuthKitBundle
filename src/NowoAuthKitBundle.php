@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle;
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\DoctrineOrmMappingsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\CsrfProtectionPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\InvitationsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginLinkHandlerLocatorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginThrottleRequiredPass;
@@ -49,6 +50,8 @@ class NowoAuthKitBundle extends Bundle
                 NowoAuthKitExtension::MAPPING_ENABLED_PARAMETER,
             ));
         }
+        // 1.43.0 (audit LD-AK-M1): after the mapping passes, so the named manager's driver chain is complete.
+        $container->addCompilerPass(new EntityManagerOptionPass());
     }
 
     public function getContainerExtension(): ?ExtensionInterface

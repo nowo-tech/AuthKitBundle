@@ -101,6 +101,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target 1.43.0 (minor: a new public configuration key and a behaviour change on hosts with several entity managers).
+
+### Fixed
+
+- A failed bundle write no longer resets closed entity managers of the host: `Doctrine\EntityManagerRecovery` used to
+  call `ManagerRegistry::resetManager()` on **every** closed manager of the registry. It now resets only the bundle's
+  own managers: the one the failed write went through and the manager of the AuthKit entities
+  (`getManagerForClass()`, always included). Rule 6 of the bundle architecture bar. Standard hosts (one default
+  manager) see no change.
+
+### Added
+
+- `nowo_auth_kit.doctrine.entity_manager` (default `null`): an additional entity manager that maps the AuthKit entities
+  (the host maps them there itself), reset by the bundle too. It only adds to the managers above (audit LD-AK-M1). The
+  build fails when the manager does not exist or does not map `Nowo\AuthKitBundle\Entity`. The bundle mapping and
+  writes stay on the default manager; a dedicated manager is not supported yet.
+- `EntityManagerRecovery::run()` takes an optional second argument, the manager the write goes through.
+
 ## [1.42.0] - 2026-11-10
 
 Target 1.42.0. Invitation follow-ups from Symfony Beacon's adoption (spec 191). Additive; every default keeps the 1.41
