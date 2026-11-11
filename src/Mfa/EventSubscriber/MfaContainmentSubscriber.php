@@ -37,6 +37,12 @@ use function str_starts_with;
  */
 final readonly class MfaContainmentSubscriber implements EventSubscriberInterface
 {
+    /**
+     * `kernel.exception` priority (1.44, audit LT-I5): above the expired-session responder (2), so a pending second step
+     * always answers `mfa_required`, and above the firewall's exception listener (1). Was 2 before 1.44.
+     */
+    public const EXCEPTION_PRIORITY = 4;
+
     public function __construct(
         private TokenStorageInterface $tokens,
         private MfaManager $manager,
@@ -50,7 +56,7 @@ final readonly class MfaContainmentSubscriber implements EventSubscriberInterfac
     {
         return [
             KernelEvents::REQUEST   => ['onRequest', 7],
-            KernelEvents::EXCEPTION => ['onException', 2],
+            KernelEvents::EXCEPTION => ['onException', self::EXCEPTION_PRIORITY],
             KernelEvents::RESPONSE  => 'onResponse',
         ];
     }

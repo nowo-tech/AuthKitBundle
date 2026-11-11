@@ -31,6 +31,7 @@
 - [Absolute URL base (mailed / QR links)](#absolute-url-base-mailed--qr-links)
 - [Flash messages](#flash-messages)
 - [Rate-limit counters (attempt_limiter)](#rate-limit-counters-attempt_limiter)
+- [Post-login target and expired-session 401](#post-login-target-and-expired-session-401)
 - [Admin CLI (create-admin)](#admin-cli-create-admin)
 - [Templates](#templates)
   - [FormKit profile (`auth_kit`)](#formkit-profile-auth_kit)
@@ -775,6 +776,24 @@ Use a pool **shared by every web node** (Redis, PDO, the shared `cache.app`): a 
 on several nodes) silently weakens every rate limit and lockout. `cache.app` is an array pool under `framework.test`,
 reset between test requests: point it at a filesystem pool in the test environment to assert HTTP-level limits. With
 symfony/lock the counters are serialised per key (`lock.factory`).
+
+## Post-login target and expired-session 401
+
+Since 1.44, both opt-in. `login_target` replaces a post-login redirect to anything but a same-origin GET HTML page with
+a fallback page; `session_expired` answers background calls of an expired session with a `401 application/problem+json`
+instead of a login redirect.
+
+```yaml
+nowo_auth_kit:
+    login_target:
+        enabled: true            # default false
+        fallback_route: app_home # default: the profile's login_success_route, else "/"
+    session_expired:
+        enabled: true            # default false
+        header_name: X-Auth-Kit  # marker header (value: session-expired)
+```
+
+Every option, the default deny lists, host voters and the front-end snippet: [LOGIN-TARGET.md](LOGIN-TARGET.md).
 
 ## Admin CLI (create-admin)
 
