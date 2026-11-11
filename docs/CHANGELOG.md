@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.44.0] - 2026-11-11](#1440---2026-11-11)
 - [[1.43.0] - 2026-11-11](#1430---2026-11-11)
 - [[1.42.0] - 2026-11-10](#1420---2026-11-10)
 - [[1.41.0] - 2026-11-09](#1410---2026-11-09)
@@ -102,6 +103,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.44.0] - 2026-11-11
+
+Opt-in post-login target guard (same-origin HTML pages only, deny-lists, host voters) and an opt-in JSON 401 for background requests of expired sessions. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.44.0/docs/UPGRADING.md#to-1440).
+
 ### Added
 
 - **Post-login target guard** (opt-in, `nowo_auth_kit.login_target.enabled`): after any sign-in of a guarded firewall
@@ -134,7 +139,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.43.0] - 2026-11-11
 
 Closed-manager recovery resets only AuthKit's own entity manager, never a host one; new validated doctrine.entity_manager option. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.43.0/docs/UPGRADING.md#to-1430).
-
 
 ### Fixed
 
