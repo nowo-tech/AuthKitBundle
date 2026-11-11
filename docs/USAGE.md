@@ -25,6 +25,7 @@
   - [access_control](#access_control)
 - [Registration link on login page](#registration-link-on-login-page)
 - [Account switcher avatars (1.35)](#account-switcher-avatars-135)
+- [GDPR erasure and export](#gdpr-erasure-and-export)
 - [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 
 ## Twig template overrides (REQ-TWIG-001)
@@ -342,6 +343,84 @@ nowo_auth_kit:
 The picture goes over the initials after UiKit's `AvatarUrlPolicy`; the other accounts of the browser show their
 initials unless `chooser.other_account_avatars: true` (signed-in browsers only: anonymous pages never show a picture); a broken picture falls back to the initials (UiKit's
 `js/nowo-ui-avatar.js`). Details: [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md#avatars-135).
+
+## GDPR erasure and export
+
+Since **1.45** AuthKit ships plain-PHP ports for the personal data it keeps in its own tables, so a host does not have
+to write SQL against `auth_kit_invitation` or `auth_kit_social_account`. With UserKit installed they also plug into
+UserKit's erasure and export (see [UserKit bridge](#userkit-bridge) below). The MFA tables and the account switcher
+already have their UserKit erasers and export section since 1.36/1.37 (see [MFA.md](MFA.md#personal-data-userkit) and
+[MULTI-ACCOUNT.md](MULTI-ACCOUNT.md#personal-data-userkit)).
+
+### Ports
+
+All in `Nowo\AuthKitBundle\PersonalData`, autowirable by interface (SemVer public API, no Doctrine / Symfony / HTTP
+types in the signatures):
+
+| Interface | Default service | What it does |
+| --- | --- | --- |
+| `InvitationPersonalDataEraserInterface::erase(InvitationPersonalDataSubject): InvitationErasureResult` | `DoctrineInvitationPersonalData` | E-mail subject: deletes the invitations sent **to** the address. User-identifier subject: revokes the actor's open invitations (pending or expired: their links stop working), then sets the identifier to `null` in `invited_by`, `last_sent_by`, `revoked_by` and `accepted_by` of every remaining row. |
+| `InvitationPersonalDataExporterInterface::export(InvitationPersonalDataSubject): array` | `DoctrineInvitationPersonalData` | `{received: [...], sent: [...]}`: `profile`, `status`, `roles`, `message`, `locale`, `created_at`, `sent_at`, `expires_at`, `send_count`, `accepted_at`, `revoked_at` (ATOM strings). `sent` entries never name the invitee (another person's address). Never the token hash, the public id or the host payload. |
+| `SocialAccountPersonalDataExporterInterface::export(SocialAccountPersonalDataSubject): array` | `DoctrineSocialAccountPersonalDataExporter` | One entry per linked provider account: `provider`, `linked_at`, `provider_email`, `display_name`. Never the provider subject id, tokens or the raw provider profile. |
+
+Subjects are value objects that reject empty values, NUL bytes and values longer than the column:
+
+```php
+use Nowo\AuthKitBundle\PersonalData\InvitationPersonalDataSubject;
+use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataSubject;
+
+InvitationPersonalDataSubject::fromEmail('Ana@Example.com');        // normalised like the entity: "ana@example.com"
+InvitationPersonalDataSubject::fromUserIdentifier('ana@example.com'); // as given (cut to 180 like the column)
+SocialAccountPersonalDataSubject::fromUserId(User::class, '42');      // owner id, at most 64 characters
+SocialAccountPersonalDataSubject::fromLegacyIdentifier(User::class, 'ana@example.com'); // links stored before 1.37
+```
+
+`InvitationErasureResult` has `revoked`, `deleted`, `referencesCleared`, `toArray()` (`revoked`, `deleted`,
+`references_cleared`) and `total()`.
+
+Semantics:
+
+- **Exact matching.** The SQL `=` only pre-filters; every row is re-checked with `===` in PHP, so on a case- or
+  accent-insensitive MySQL collation `UserA` is not `usera` and `jose@` is not `josé@`. E-mails of invitations are
+  stored lower-cased and trimmed (`Invitation::normalizeEmail()`), and the e-mail subject applies the same
+  normalisation; identifiers are compared as stored.
+- **Idempotent.** A second run returns zero counts.
+- **Transactions.** DBAL statements on the connection of the entity manager that maps the entities (table prefix
+  included), by primary key in batches of 500, never a flush. Inside the caller's open transaction the port joins it;
+  otherwise it opens and commits its own. Managed `Invitation` entities of the current unit of work are not refreshed.
+- **Event.** `InvitationPersonalDataErasedEvent` (subject + result, no entity) is dispatched after the port's own commit
+  when something changed. Inside your own transaction (UserKit's erasure included) it is **not** dispatched: the
+  returned result is the outcome. A revocation by the port does not dispatch `InvitationRevokedEvent`.
+- **Separate connection.** When the entity manager that maps the AuthKit entities uses another connection than the
+  UserKit user's, the port commits its own transaction: if a later UserKit eraser fails, the invitations stay erased
+  while the rest rolls back (a partial erasure). Re-running the erasure is safe (idempotent).
+- Without mapped entities or with a missing table the ports do nothing (zero counts, empty export).
+- Worker mode: the services hold no per-call state.
+
+### UserKit bridge
+
+With UserKit installed, the entities mapped (`doctrine.register_mapping`) and `nowo_auth_kit.personal_data.enabled`
+(default `true`), AuthKit registers — whatever `invitations.mode` and `social_login.mode` say:
+
+| UserKit key | Class | Tag priority | Notes |
+| --- | --- | --- | --- |
+| eraser `auth_kit_invitations` | `InvitationUserKitEraser` | 200 | before host identity erasers (Beacon: 80–100), while the account still has its e-mail |
+| export section `invitations` | `InvitationUserKitExportProvider` | -50 | after host sections, before UserKit's built-ins |
+| export section `social_accounts` | `SocialAccountUserKitExportProvider` | -50 | the links are erased by `auth_kit_social_account` (1.37) |
+
+The eraser calls the port once per distinct subject of the user, from `InvitationPersonalDataSubjectResolverInterface`
+(`nowo_auth_kit.personal_data.subject_resolver`; default `DefaultInvitationPersonalDataSubjectResolver`):
+
+- user identifiers: `ErasureRequest::identifier()` (captured before any eraser ran) and the current one;
+- e-mails: the user's value of the profile's invitation e-mail field, the `email` property, and every identifier above
+  that is an e-mail address;
+- plus `context['previous_email']` (as an e-mail and as an identifier) when the host passes a non-empty string.
+
+The `social_accounts` section reads the links of the profile's user class by owner id (Doctrine id, else the
+identifier) plus links stored before 1.37 under the identifier (both columns must equal it).
+
+Export section keys are unique in UserKit: an application that already exports `invitations` or `social_accounts`
+itself sets `nowo_auth_kit.personal_data.enabled: false` (the ports stay available) or removes its own provider.
 
 ## Using it from a DDD / hexagonal application
 
