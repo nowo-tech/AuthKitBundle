@@ -104,6 +104,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **MFA: a failed flush could make a later flush forget another user's trusted devices in FrankenPHP worker mode
+  with the kernel kept alive and not reset (1.34.0 – 1.45.0).** `MfaPasswordChangeListener` kept the users whose
+  password changed from `onFlush` until `postFlush`, and only `kernel.reset` emptied it otherwise. A flush that threw
+  after `onFlush` left its user in the listener, and the next flush in that worker (any request, any user) forgot that
+  user's trusted devices. The memo is now kept per entity manager, emptied at every `onFlush` and at the request /
+  console / Messenger boundaries (main `kernel.request`, `kernel.terminate`, `console.terminate`,
+  `WorkerMessageReceived/Handled/FailedEvent`); `kernel.reset` still empties it (REQ-RUNTIME-002). Tests:
+  `MfaPasswordChangeWorkerKernelTest` (one kernel, no reset, two users alternating, 500 requests, memory margin) and
+  `MfaPasswordChangeListenerTest`. Worker audit: W-05 in `docs/FRANKENPHP-WORKER-AUDIT.md`.
+
 ## [1.45.0] - 2026-11-11
 
 ### Added
