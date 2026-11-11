@@ -3,7 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
-  - [To 1.43.0](#to-1430)
+- [To 1.43.0](#to-1430)
 - [To 1.42.0](#to-1420)
 - [To 1.41.0](#to-1410)
 - [To 1.40.0](#to-1400)
@@ -112,7 +112,7 @@
 
 ## Unreleased
 
-### To 1.43.0
+## To 1.43.0
 
 From **1.42.0**: `composer update nowo-tech/auth-kit-bundle`. No configuration change is needed.
 

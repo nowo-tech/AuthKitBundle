@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.43.0] - 2026-11-11](#1430---2026-11-11)
 - [[1.42.0] - 2026-11-10](#1420---2026-11-10)
 - [[1.41.0] - 2026-11-09](#1410---2026-11-09)
 - [[1.40.0] - 2026-11-08](#1400---2026-11-08)
@@ -101,7 +102,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Target 1.43.0 (minor: a new public configuration key and a behaviour change on hosts with several entity managers).
+## [1.43.0] - 2026-11-11
+
+Closed-manager recovery resets only AuthKit's own entity manager, never a host one; new validated doctrine.entity_manager option. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.43.0/docs/UPGRADING.md#to-1430).
+
 
 ### Fixed
 
