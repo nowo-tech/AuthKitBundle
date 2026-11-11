@@ -88,6 +88,47 @@ final class Configuration implements ConfigurationInterface
         'mfa_account_codes'   => '@NowoAuthKitBundle/mfa/account_codes.html.twig',
     ];
 
+    /**
+     * Default `login_target.denied_path_prefixes` (1.44): well-known machine endpoints.
+     *
+     * @var list<string>
+     */
+    public const DEFAULT_DENIED_PATH_PREFIXES = [
+        '/.well-known',
+        '/health',
+        '/healthz',
+        '/metrics',
+        '/otlp',
+        '/ingest',
+        '/mcp',
+        '/build',
+        '/bundles',
+        '/assets',
+    ];
+
+    /**
+     * Default `login_target.denied_path_patterns` (1.44): an `api` segment anywhere (`/api/…`, `/en/api/…`,
+     * `/chat/api/…`), a segment starting with `_` (`/_wdt`, `/_profiler`, `/_fragment`, `/_components`), a `logout`
+     * segment, and data or asset file extensions.
+     *
+     * @var list<string>
+     */
+    public const DEFAULT_DENIED_PATH_PATTERNS = [
+        '#(^|/)api(/|$)#i',
+        '#(^|/)_#',
+        '#(^|/)logout(/|$)#i',
+        '#\.(json|jsonld|ndjson|xml|txt|csv|tsv|ics|rss|atom|webmanifest|js|mjs|css|map|zip|gz|pdf|png|jpe?g|gif|svg|webp|avif|ico|ya?ml|md|woff2?|ttf|wasm)$#i',
+    ];
+
+    /**
+     * Default `login_target.denied_route_patterns` (1.44): logout routes.
+     *
+     * @var list<string>
+     */
+    public const DEFAULT_DENIED_ROUTE_PATTERNS = [
+        '/(^|_)logout(_|$)/',
+    ];
+
     /** @var list<string> */
     private const PROFILE_KEYS = [
         'user_class',
@@ -352,6 +393,8 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+                ->append($this->createLoginTargetNode())
+                ->append($this->createSessionExpiredNode())
                 ->arrayNode('profiles')
                     ->requiresAtLeastOneElement()
                     ->useAttributeAsKey('name')
@@ -483,6 +526,151 @@ final class Configuration implements ConfigurationInterface
             ->end();
 
         return $treeBuilder;
+    }
+
+    /**
+     * Post-login target guard (1.44): which saved targets a sign-in may redirect to.
+     */
+    private function createLoginTargetNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('login_target'))->getRootNode();
+        $node
+            ->info('Post-login target guard (1.44, opt-in): after a sign-in, a saved target that is not a same-origin GET HTML page (API, JSON, asset, Mercure, health, ingest, XHR/fetch URL) is replaced by the fallback. See docs/LOGIN-TARGET.md.')
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->booleanNode('enabled')
+                    ->info('Guard the post-login redirect of the guarded firewalls (opt-in: off by default so a minor release never changes where an existing host redirects after sign-in).')
+                    ->defaultFalse()
+                ->end()
+                ->arrayNode('firewalls')
+                    ->info('Firewalls to guard. Empty: the firewall of every profile.')
+                    ->scalarPrototype()->cannotBeEmpty()->end()
+                    ->defaultValue([])
+                ->end()
+                ->scalarNode('fallback_route')
+                    ->info('Route of the fallback page for every guarded firewall. Null: the login_success_route of the profile on that firewall, else "/".')
+                    ->defaultNull()
+                ->end()
+                ->scalarNode('fallback_provider')
+                    ->info('Service id implementing LoginTargetFallbackProviderInterface (per-user fallback, e.g. a start page). Null: none.')
+                    ->defaultNull()
+                ->end()
+                ->arrayNode('denied_path_prefixes')
+                    ->info('Path prefixes that are never a page, matched on whole segments ("/health" denies /health and /health/ready, not /healthy). Setting the key replaces the default list.')
+                    ->scalarPrototype()
+                        ->validate()
+                            ->ifTrue(static fn (mixed $prefix): bool => !is_string($prefix) || preg_match('#^/[^/\\\\]#', $prefix) !== 1)
+                            ->thenInvalid('A denied path prefix must start with "/" followed by a segment, %s given.')
+                        ->end()
+                    ->end()
+                    ->defaultValue(self::DEFAULT_DENIED_PATH_PREFIXES)
+                ->end()
+                ->arrayNode('denied_path_patterns')
+                    ->info('PCRE patterns matched against the target path (base URL removed). Setting the key replaces the default list.')
+                    ->scalarPrototype()
+                        ->validate()
+                            ->ifTrue(static fn (mixed $pattern): bool => !self::isValidPattern($pattern))
+                            ->thenInvalid('Invalid PCRE pattern %s.')
+                        ->end()
+                    ->end()
+                    ->defaultValue(self::DEFAULT_DENIED_PATH_PATTERNS)
+                ->end()
+                ->arrayNode('denied_routes')
+                    ->info('Route names that are never a page (bundle JSON routes under page-like names).')
+                    ->scalarPrototype()->cannotBeEmpty()->end()
+                    ->defaultValue([])
+                ->end()
+                ->arrayNode('denied_route_patterns')
+                    ->info('PCRE patterns matched against the route name of the target.')
+                    ->scalarPrototype()
+                        ->validate()
+                            ->ifTrue(static fn (mixed $pattern): bool => !self::isValidPattern($pattern))
+                            ->thenInvalid('Invalid PCRE pattern %s.')
+                        ->end()
+                    ->end()
+                    ->defaultValue(self::DEFAULT_DENIED_ROUTE_PATTERNS)
+                ->end()
+                ->scalarNode('route_option')
+                    ->info('Route option that marks a non-page route when set to false (e.g. #[Route(options: [\'html\' => false])]). Null: ignore route options.')
+                    ->defaultValue('html')
+                ->end()
+                ->booleanNode('require_route')
+                    ->info('Refuse a target that matches no GET route of the application.')
+                    ->defaultTrue()
+                ->end()
+                ->booleanNode('check_controller_response')
+                    ->info('Refuse a route whose controller declares a JsonResponse, StreamedResponse or BinaryFileResponse return type.')
+                    ->defaultTrue()
+                ->end()
+                ->booleanNode('preserve_on_background_requests')
+                    ->info('A background call (fetch, XHR, EventSource, JSON) of a signed-out session does not replace the target the firewall saved before.')
+                    ->defaultTrue()
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    /**
+     * Expired-session JSON 401 for background calls (1.44, opt-in).
+     */
+    private function createSessionExpiredNode(): ArrayNodeDefinition
+    {
+        $node = (new TreeBuilder('session_expired'))->getRootNode();
+        $node
+            ->info('Expired-session answer (1.44, opt-in): a fetch/XHR/JSON request that needs authentication gets a 401 application/problem+json with a stable code instead of a 302 to the login page. See docs/LOGIN-TARGET.md.')
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->booleanNode('enabled')
+                    ->info('Answer background calls of the guarded stateful firewalls with the JSON 401.')
+                    ->defaultFalse()
+                ->end()
+                ->arrayNode('firewalls')
+                    ->info('Firewalls to answer for. Empty: the firewall of every profile.')
+                    ->scalarPrototype()->cannotBeEmpty()->end()
+                    ->defaultValue([])
+                ->end()
+                ->scalarNode('header_name')
+                    ->info('Marker header of the 401 answer (front-end code keys on it).')
+                    ->defaultValue('X-Auth-Kit')
+                    ->cannotBeEmpty()
+                    ->validate()
+                        ->ifTrue(static fn (mixed $name): bool => !is_string($name) || preg_match('/^[A-Za-z0-9!#$%&\'*+.^_`|~-]+$/', $name) !== 1)
+                        ->thenInvalid('Invalid header name %s.')
+                    ->end()
+                ->end()
+                ->scalarNode('header_value')
+                    ->info('Value of the marker header.')
+                    ->defaultValue('session-expired')
+                    ->cannotBeEmpty()
+                    ->validate()
+                        ->ifTrue(static fn (mixed $value): bool => !is_string($value) || preg_match('/[\x00-\x1F\x7F]/', $value) === 1)
+                        ->thenInvalid('Invalid header value %s.')
+                    ->end()
+                ->end()
+                ->scalarNode('problem_type')
+                    ->info('RFC 9457 "type" member.')
+                    ->defaultValue('about:blank')
+                    ->cannotBeEmpty()
+                ->end()
+                ->scalarNode('problem_title')
+                    ->info('RFC 9457 "title" member.')
+                    ->defaultValue('Unauthorized')
+                    ->cannotBeEmpty()
+                ->end()
+                ->scalarNode('code')
+                    ->info('Stable machine-readable "code" member.')
+                    ->defaultValue('session_expired')
+                    ->cannotBeEmpty()
+                ->end()
+            ->end();
+
+        return $node;
+    }
+
+    private static function isValidPattern(mixed $pattern): bool
+    {
+        return is_string($pattern) && $pattern !== '' && @preg_match($pattern, '') !== false;
     }
 
     private function createRememberMeNode(): ArrayNodeDefinition

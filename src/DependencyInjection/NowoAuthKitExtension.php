@@ -40,12 +40,18 @@ use Nowo\AuthKitBundle\PersonalData\DormantMfaPersonalDataEraser;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataEraser;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Security\LoginTarget\BackgroundTargetPathPreserver;
+use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetGuard;
+use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
+use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetVoterInterface;
+use Nowo\AuthKitBundle\Security\SessionExpired\SessionExpiredResponder;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -54,6 +60,7 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Http\Event\AuthenticationTokenCreatedEvent;
 use Symfony\Component\Security\Http\Event\CheckPassportEvent;
 use Symfony\Component\Security\Http\Event\LoginSuccessEvent;
@@ -62,6 +69,7 @@ use Symfony\Component\Security\Http\Event\LogoutEvent;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
+use function array_unique;
 use function array_values;
 use function class_exists;
 use function function_exists;
@@ -211,6 +219,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $container->removeDefinition(TablePrefixListener::class);
         }
 
+        $this->registerLoginTarget($container, $config, $profiles);
         $this->registerAvailabilityCheckers($container, $profiles);
         $this->registerInvitations($container, $profiles);
         $this->registerMfa($container, $profiles, $loader, is_array($bundles) ? $bundles : null);
@@ -235,6 +244,88 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         $container->setAlias(OutboundMailReadyCheckerInterface::class, AlwaysOutboundMailReadyChecker::class);
+    }
+
+    /**
+     * Post-login target guard and expired-session answer (1.44, Beacon re-audit item 5). Both are opt-in; the policy
+     * service is always registered so host code can reuse it.
+     *
+     * @param array<string, mixed> $config
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function registerLoginTarget(ContainerBuilder $container, array $config, array $profiles): void
+    {
+        $profileFirewalls = [];
+        $fallbackRoutes   = [];
+        foreach ($profiles as $profile) {
+            $firewall = (string) $profile['firewall'];
+            if (!isset($fallbackRoutes[$firewall])) {
+                $profileFirewalls[]        = $firewall;
+                $fallbackRoutes[$firewall] = is_string($profile['login_success_route']) && $profile['login_success_route'] !== '' ? $profile['login_success_route'] : null;
+            }
+        }
+        $target  = $config['login_target'];
+        $expired = $config['session_expired'];
+
+        $guardFirewalls = $target['firewalls'] !== [] ? array_values(array_unique($target['firewalls'])) : $profileFirewalls;
+        $container->setParameter('nowo_auth_kit.login_target.enabled', $target['enabled']);
+        $container->setParameter('nowo_auth_kit.login_target.firewalls', $guardFirewalls);
+        $container->setParameter('nowo_auth_kit.session_expired.enabled', $expired['enabled']);
+
+        $container->register(LoginTargetPolicy::class, LoginTargetPolicy::class)
+            ->setArguments([
+                '$router'                  => new Reference('router'),
+                '$voters'                  => new TaggedIteratorArgument(LoginTargetVoterInterface::TAG),
+                '$deniedPathPrefixes'      => array_values($target['denied_path_prefixes']),
+                '$deniedPathPatterns'      => array_values($target['denied_path_patterns']),
+                '$deniedRoutes'            => array_values($target['denied_routes']),
+                '$deniedRoutePatterns'     => array_values($target['denied_route_patterns']),
+                '$routeOption'             => is_string($target['route_option']) && $target['route_option'] !== '' ? $target['route_option'] : null,
+                '$requireRoute'            => $target['require_route'],
+                '$checkControllerResponse' => $target['check_controller_response'],
+            ]);
+        $container->registerForAutoconfiguration(LoginTargetVoterInterface::class)->addTag(LoginTargetVoterInterface::TAG);
+
+        if ($target['enabled'] === true) {
+            $routes = [];
+            foreach ($guardFirewalls as $firewall) {
+                $routes[$firewall] = is_string($target['fallback_route']) && $target['fallback_route'] !== '' ? $target['fallback_route'] : ($fallbackRoutes[$firewall] ?? null);
+            }
+            $provider = is_string($target['fallback_provider']) && $target['fallback_provider'] !== '' ? new Reference($target['fallback_provider']) : null;
+            $container->register(LoginTargetGuard::class, LoginTargetGuard::class)
+                ->setArguments([
+                    '$policy'           => new Reference(LoginTargetPolicy::class),
+                    '$urls'             => new Reference('router'),
+                    '$firewalls'        => $guardFirewalls,
+                    '$fallbackRoutes'   => $routes,
+                    '$fallbackProvider' => $provider,
+                ])
+                // Global listener: SecurityBundle copies it to every firewall dispatcher; the guard filters by name.
+                ->addTag('kernel.event_listener', ['event' => LoginSuccessEvent::class, 'method' => 'onLoginSuccess', 'priority' => -40]);
+
+            if ($target['preserve_on_background_requests'] === true) {
+                $container->register(BackgroundTargetPathPreserver::class, BackgroundTargetPathPreserver::class)
+                    ->setArguments(['$security' => new Reference('security.helper'), '$firewalls' => $guardFirewalls])
+                    ->addTag('kernel.event_listener', ['event' => KernelEvents::EXCEPTION, 'method' => 'onKernelException', 'priority' => 3])
+                    ->addTag('kernel.event_listener', ['event' => KernelEvents::RESPONSE, 'method' => 'onKernelResponse']);
+            }
+        }
+
+        if ($expired['enabled'] === true) {
+            $container->register(SessionExpiredResponder::class, SessionExpiredResponder::class)
+                ->setArguments([
+                    '$security'      => new Reference('security.helper'),
+                    '$tokenStorage'  => new Reference('security.token_storage'),
+                    '$trustResolver' => new Reference('security.authentication.trust_resolver'),
+                    '$firewalls'     => $expired['firewalls'] !== [] ? array_values(array_unique($expired['firewalls'])) : $profileFirewalls,
+                    '$headerName'    => $expired['header_name'],
+                    '$headerValue'   => $expired['header_value'],
+                    '$problemType'   => $expired['problem_type'],
+                    '$problemTitle'  => $expired['problem_title'],
+                    '$code'          => $expired['code'],
+                ])
+                ->addTag('kernel.event_listener', ['event' => KernelEvents::EXCEPTION, 'method' => 'onKernelException', 'priority' => 2]);
+        }
     }
 
     /**

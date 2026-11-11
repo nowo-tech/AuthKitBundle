@@ -18,6 +18,9 @@ services:
             - '../../MultiAccount/'
             - '../../NowoAuthKitBundle.php'
             - '../../PersonalData/'
+            # 1.44: registered by NowoAuthKitExtension::registerLoginTarget() from the login_target / session_expired config.
+            - '../../Security/LoginTarget/'
+            - '../../Security/SessionExpired/'
 
     # REQ-SF-004 rule 7: the controllers carry #[Route] and must not be autoconfigured. On Symfony >= 7.3
     # autoconfiguration tags them `routing.controller`, and the host's `controllers: { resource: routing.controllers }`

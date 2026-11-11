@@ -102,6 +102,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Post-login target guard** (opt-in, `nowo_auth_kit.login_target.enabled`): after any sign-in of a guarded firewall
+  (form login, login link, magic link, social, QR, registration), a redirect target that is not a same-origin HTML page
+  reachable with GET (API, JSON, feed, export, asset, Mercure, health, ingest, logout, another origin, `//evil`,
+  `/\evil`, `javascript:`, raw CR/LF…) is replaced by a fallback page (`fallback_provider`, `fallback_route`, the
+  profile's `login_success_route`, then `/`), and a refused saved target is removed from the session. Configurable
+  denied path prefixes / patterns, route names / patterns, `html: false` route option, `_format`, JSON / streamed /
+  file controllers and unknown routes. Host port `LoginTargetVoterInterface` (autoconfigured, plain value object
+  `LoginTarget`) and `LoginTargetFallbackProviderInterface`. With `preserve_on_background_requests` (default), a
+  background call of a signed-out session no longer replaces the page saved as the target. `LoginTargetPolicy` is
+  always registered for host code. See [LOGIN-TARGET.md](LOGIN-TARGET.md). (Beacon re-audit 2026-11-11, item 5.)
+- **Expired-session 401** (opt-in, `nowo_auth_kit.session_expired.enabled`): a fetch / XHR / JSON request of a guarded
+  stateful firewall that needs authentication gets a `401 application/problem+json` (`code: session_expired`) with a
+  configurable marker header (`X-Auth-Kit: session-expired` by default) instead of a `302` to the login page, and is
+  not saved as the post-login target. Page navigations, fully authenticated denials (403) and stateless firewalls are
+  unchanged.
+
 ## [1.43.0] - 2026-11-11
 
 Closed-manager recovery resets only AuthKit's own entity manager, never a host one; new validated doctrine.entity_manager option. See [UPGRADING](https://github.com/nowo-tech/AuthKitBundle/blob/v1.43.0/docs/UPGRADING.md#to-1430).

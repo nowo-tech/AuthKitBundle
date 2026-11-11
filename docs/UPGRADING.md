@@ -112,6 +112,18 @@
 
 ## Unreleased
 
+No action required: both new features are off by default.
+
+- To stop a sign-in from landing on an API, JSON, asset or foreign URL saved by a background call of an expired
+  session, set `nowo_auth_kit.login_target.enabled: true`. Check that your `default_target_path` and
+  `login_success_route` are same-origin HTML pages, and add a `LoginTargetVoterInterface` service for HTML pages the
+  default rules refuse (for example a page under an `api` path segment). Setting `denied_path_prefixes` or
+  `denied_path_patterns` replaces the default list.
+- To answer background calls of an expired session with a JSON 401 instead of a login redirect, set
+  `nowo_auth_kit.session_expired.enabled: true` and handle `401` + `X-Auth-Kit: session-expired` in your front end.
+
+See [LOGIN-TARGET.md](LOGIN-TARGET.md).
+
 ## To 1.43.0
 
 From **1.42.0**: `composer update nowo-tech/auth-kit-bundle`. No configuration change is needed.
