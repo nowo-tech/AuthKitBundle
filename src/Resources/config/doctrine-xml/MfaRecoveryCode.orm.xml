@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 1.46.0 (doctrine.mapping_type: xml): the same table, columns, indexes and constraints as the attributes of
+     MfaRecoveryCode. Kept in parity by tests/Unit/Doctrine/XmlMappingParityTest. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\AuthKitBundle\Entity\MfaRecoveryCode" table="auth_kit_mfa_recovery_code">
+        <unique-constraints>
+            <unique-constraint name="uniq_auth_kit_mfa_recovery_code" columns="mfa_id,code_hash"/>
+        </unique-constraints>
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="usedAt" column="used_at" type="datetime_immutable" nullable="true"/>
+        <field name="mfaId" column="mfa_id" type="integer"/>
+        <field name="codeHash" column="code_hash" type="string" length="64"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+    </entity>
+</doctrine-mapping>
