@@ -14,6 +14,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectManager;
 use LogicException;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
+use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
@@ -353,6 +354,7 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
     public function theBuildPassWiresTheDefaultManagerAndWrapsOnlyItsConnection(): void
     {
         $container = new ContainerBuilder();
+        $container->setParameter(NowoAuthKitExtension::PRIVATE_ENTITY_MANAGER_PARAMETER, true);
         $container->setDefinition(AuthKitEntityManager::class, new Definition(AuthKitEntityManager::class));
         $container->setDefinition(AuthKitManagerRegistry::class, new Definition(AuthKitManagerRegistry::class));
         $container->setDefinition(PrivateEntityManagerMiddleware::class, (new Definition(PrivateEntityManagerMiddleware::class))->addTag('doctrine.middleware'));
@@ -369,6 +371,7 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         self::assertSame([['connection' => 'primary']], $container->getDefinition(PrivateEntityManagerMiddleware::class)->getTag('doctrine.middleware'));
 
         $bare = new ContainerBuilder();
+        $bare->setParameter(NowoAuthKitExtension::PRIVATE_ENTITY_MANAGER_PARAMETER, true);
         $bare->setDefinition(AuthKitEntityManager::class, new Definition(AuthKitEntityManager::class));
         $bare->setDefinition(AuthKitManagerRegistry::class, new Definition(AuthKitManagerRegistry::class));
         $bare->setDefinition(PrivateEntityManagerMiddleware::class, (new Definition(PrivateEntityManagerMiddleware::class))->addTag('doctrine.middleware'));
@@ -377,7 +380,20 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         self::assertSame([['connection' => 'default']], $bare->getDefinition(PrivateEntityManagerMiddleware::class)->getTag('doctrine.middleware'));
 
         (new PrivateEntityManagerPass())->process(new ContainerBuilder());
+        $off = new ContainerBuilder();
+        $off->setParameter(NowoAuthKitExtension::PRIVATE_ENTITY_MANAGER_PARAMETER, false);
+        $off->setDefinition(AuthKitEntityManager::class, new Definition(AuthKitEntityManager::class));
+        (new PrivateEntityManagerPass())->process($off);
+        self::assertSame([], $off->getDefinition(AuthKitEntityManager::class)->getArguments(), 'option off: nothing wired');
+        $excluded = new ContainerBuilder();
+        $excluded->setParameter(NowoAuthKitExtension::PRIVATE_ENTITY_MANAGER_PARAMETER, true);
+        $excluded->setDefinition(AuthKitEntityManager::class, new Definition(AuthKitEntityManager::class));
+        $excluded->setDefinition(AuthKitManagerRegistry::class, new Definition(AuthKitManagerRegistry::class));
+        $excluded->setDefinition(PrivateEntityManagerMiddleware::class, (new Definition(PrivateEntityManagerMiddleware::class))->addTag('container.excluded'));
+        (new PrivateEntityManagerPass())->process($excluded);
+        self::assertFalse($excluded->getDefinition(PrivateEntityManagerMiddleware::class)->hasTag('doctrine.middleware'), 'DBAL 3: the excluded class is not attached');
         $withoutMiddleware = new ContainerBuilder();
+        $withoutMiddleware->setParameter(NowoAuthKitExtension::PRIVATE_ENTITY_MANAGER_PARAMETER, true);
         $withoutMiddleware->setDefinition(AuthKitEntityManager::class, new Definition(AuthKitEntityManager::class));
         $withoutMiddleware->setDefinition(AuthKitManagerRegistry::class, new Definition(AuthKitManagerRegistry::class));
         (new PrivateEntityManagerPass())->process($withoutMiddleware);

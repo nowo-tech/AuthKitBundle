@@ -94,7 +94,7 @@ final class PrivateEntityManagerKernelTest extends MfaKernelTestCase
         $profile = self::getContainer()->get(ProfileRegistry::class);
         self::assertInstanceOf(ProfileRegistry::class, $profile);
         $this->em()->getConnection()->insert($this->table(SocialLoginAccount::class), [
-            'provider' => 'google', 'provider_user_id' => 'sub-1', 'user_class' => KernelUser::class, 'user_id' => 'member@example.com',
+            'provider'        => 'google', 'provider_user_id' => 'sub-1', 'user_class' => KernelUser::class, 'user_id' => 'member@example.com',
             'user_identifier' => 'member@example.com', 'raw_profile' => '[]', 'created_at' => '2026-11-01 00:00:00', 'updated_at' => '2026-11-01 00:00:00',
         ]);
         $user = $linker->linkOrCreate($profile->getDefault(), 'google', new SocialUserProfile('sub-1', 'member@example.com', 'Member', []), ['access_token' => 'at-new', 'refresh_token' => null, 'expires_in' => null]);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\DependencyInjection\Compiler;
 
 use Doctrine\DBAL\Driver\Connection;
+use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerMiddleware;
@@ -51,7 +52,8 @@ final class PrivateEntityManagerPass implements CompilerPassInterface
 
     public function process(ContainerBuilder $container): void
     {
-        if (!$container->hasDefinition(AuthKitEntityManager::class)) {
+        // The excluded classes are also registered (abstract, `container.excluded`): the option decides.
+        if (!$container->hasParameter(NowoAuthKitExtension::PRIVATE_ENTITY_MANAGER_PARAMETER) || $container->getParameter(NowoAuthKitExtension::PRIVATE_ENTITY_MANAGER_PARAMETER) !== true) {
             return;
         }
 
@@ -60,7 +62,7 @@ final class PrivateEntityManagerPass implements CompilerPassInterface
         $container->getDefinition(AuthKitEntityManager::class)->setArgument('$sourceManagerName', $manager);
         $container->getDefinition(AuthKitManagerRegistry::class)->setArgument('$managerName', $manager);
 
-        if (!$container->hasDefinition(PrivateEntityManagerMiddleware::class)) {
+        if (!$container->hasDefinition(PrivateEntityManagerMiddleware::class) || $container->getDefinition(PrivateEntityManagerMiddleware::class)->hasTag('container.excluded')) {
             return;
         }
 
