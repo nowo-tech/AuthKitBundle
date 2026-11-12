@@ -15,7 +15,7 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
  * MFA sign-in through the real kernel (1.34): enrolment on the account page, the pending token kept out of the app,
  * TOTP and recovery codes, replay, the original target, remember-me only after the second step.
  */
-final class MfaFlowKernelTest extends MfaKernelTestCase
+class MfaFlowKernelTest extends MfaKernelTestCase
 {
     public function testWithoutMfaASignInIsUnchanged(): void
     {

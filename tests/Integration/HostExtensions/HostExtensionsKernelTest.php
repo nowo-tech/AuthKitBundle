@@ -29,7 +29,7 @@ use const PHP_URL_QUERY;
 /**
  * AK-2 availability checkers and AK-3 social callback handlers through the real kernel.
  */
-final class HostExtensionsKernelTest extends WebTestCase
+class HostExtensionsKernelTest extends WebTestCase
 {
     private KernelBrowser $client;
 

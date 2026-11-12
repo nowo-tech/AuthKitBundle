@@ -38,7 +38,7 @@ use const PHP_URL_PATH;
  * CSRF bound to the action and the row), the accept page on the registration form (token moved to the session, e-mail
  * locked, single use, expiry, neutral answers, rate limit, signed-in visitors), grants and audit events.
  */
-final class InvitationFlowKernelTest extends WebTestCase
+class InvitationFlowKernelTest extends WebTestCase
 {
     private KernelBrowser $client;
 
