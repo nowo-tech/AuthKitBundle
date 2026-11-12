@@ -29,7 +29,7 @@ final class AuthUserRefs
     {
         $id = UserIds::of($user);
         if ($id !== null && trim($id) === '') {
-            $id = null; // @codeCoverageIgnore (UserIds never returns '', a blank one is dropped here)
+            $id = null; // a blank id (e.g. getId() returning ' ') counts as none
         }
 
         return $user instanceof UserInterface
