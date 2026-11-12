@@ -14,18 +14,13 @@ use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
-use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-use function bin2hex;
 use function hash;
 use function is_string;
-use function random_bytes;
-use function random_int;
 use function sprintf;
-use function strlen;
 
 /**
  * Stores hashed reset credentials on configurable user entity properties.
@@ -49,12 +44,8 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $settings = $profile->passwordReset;
         $delivery = PasswordResetDeliveryMode::from($settings['delivery']);
         $expires  = $this->clock->now()->modify('+' . $settings['token_ttl'] . ' seconds');
-        $plain    = match ($delivery) {
-            PasswordResetDeliveryMode::Link => bin2hex(random_bytes($settings['token_bytes'])),
-            PasswordResetDeliveryMode::Code => $this->generateCode($profile),
-            PasswordResetDeliveryMode::Both => bin2hex(random_bytes($settings['token_bytes'])) . ':' . $this->generateCode($profile),
-        };
-        $stored = $this->storageValue($plain, $delivery);
+        $plain    = PasswordResetCredentials::generate($profile, $delivery);
+        $stored   = PasswordResetCredentials::storageValue($plain, $delivery);
 
         $this->propertyAccessor->setValue($user, $settings['token_field'], $stored);
         $this->propertyAccessor->setValue($user, $settings['token_expires_field'], $expires);
@@ -80,7 +71,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $maxAttempts = (int) ($profile->passwordReset['max_code_attempts'] ?? 5);
         $window      = max(60, (int) ($profile->passwordReset['token_ttl'] ?? 3600));
         $user        = $this->userResolver->findByIdentifier($identifier, $profile->name);
-        $attemptKey  = $this->codeAttemptKey($profile, $user, $identifier);
+        $attemptKey  = PasswordResetCredentials::codeAttemptKey($this->propertyAccessor, $profile, $user, $identifier);
 
         if (!$this->attemptLimiter->isAllowed($attemptKey, $maxAttempts)) {
             if ($user instanceof UserInterface) {
@@ -108,16 +99,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             return null;
         }
 
-        $codeHash = hash('sha256', $code);
-
-        if (str_contains($stored, '|')) {
-            $parts   = explode('|', $stored, 2);
-            $matches = hash_equals($parts[1], $codeHash);
-        } else {
-            $matches = hash_equals($stored, $codeHash);
-        }
-
-        if (!$matches) {
+        if (!PasswordResetCredentials::codeMatches($stored, $code)) {
             $this->attemptLimiter->hit($attemptKey, $window);
             if (!$this->attemptLimiter->isAllowed($attemptKey, $maxAttempts)) {
                 $this->clearForUser($user);
@@ -137,20 +119,6 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $this->attemptLimiter->reset($attemptKey);
 
         return $valid;
-    }
-
-    /**
-     * SEC-004 M3: the code attempt counter belongs to the resolved account (its stored identifier), so spelling
-     * variants of one identifier (case, Unicode composition) share a single max_code_attempts budget.
-     */
-    private function codeAttemptKey(ProfileSettings $profile, ?object $user, string $identifier): string
-    {
-        $stored = $user !== null
-            ? $this->propertyAccessor->getValue($user, $profile->userIdentifierField)
-            : null;
-        $key = is_string($stored) && $stored !== '' ? $stored : $identifier;
-
-        return 'reset_code:' . $profile->name . ':' . hash('sha256', UserIdentifierMatcher::normalize($key));
     }
 
     public function clearForUser(object $user): void
@@ -213,33 +181,6 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         }
 
         return $user;
-    }
-
-    private function storageValue(string $plain, PasswordResetDeliveryMode $delivery): string
-    {
-        return match ($delivery) {
-            PasswordResetDeliveryMode::Link => hash('sha256', $plain),
-            PasswordResetDeliveryMode::Code => hash('sha256', $plain),
-            PasswordResetDeliveryMode::Both => hash('sha256', explode(':', $plain, 2)[0]) . '|' . hash('sha256', explode(':', $plain, 2)[1]),
-        };
-    }
-
-    private function generateCode(ProfileSettings $profile): string
-    {
-        $settings = $profile->passwordReset;
-
-        $charset = $settings['code_charset'] === 'alphanumeric'
-            ? '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
-            : '0123456789';
-
-        $maxIndex = strlen($charset) - 1;
-        $code     = '';
-
-        for ($i = 0; $i < $settings['code_length']; ++$i) {
-            $code .= $charset[random_int(0, $maxIndex)];
-        }
-
-        return $code;
     }
 
     private function requireProfileForUser(object $user): ProfileSettings
