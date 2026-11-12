@@ -12,6 +12,7 @@ use RuntimeException;
 use stdClass;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Event\ConsoleCommandEvent;
+use Symfony\Component\Console\Event\ConsoleErrorEvent;
 use Symfony\Component\Console\Event\ConsoleTerminateEvent;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
@@ -248,5 +249,20 @@ final class UnitOfWorkBoundariesTest extends TestCase
         $events->request();
         $events->finishRequest();
         self::assertSame(1, $boundaries->runningCommands());
+    }
+
+    /**
+     * 1.46.0 (AuthKit copy): an error of a command that was never found has no command and no frame; its verdict is
+     * the current state.
+     */
+    #[Test]
+    public function anErrorWithoutACommandIsJudgedOnTheCurrentState(): void
+    {
+        $boundaries = new UnitOfWorkBoundaries();
+        $error      = new ConsoleErrorEvent(new ArrayInput([]), new NullOutput(), new RuntimeException('command not found'));
+        $boundaries->onError($error);
+
+        self::assertTrue($boundaries->isOutermost($error));
+        self::assertSame(0, $boundaries->runningCommands());
     }
 }
