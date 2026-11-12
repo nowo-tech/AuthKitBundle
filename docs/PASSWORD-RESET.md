@@ -8,6 +8,7 @@ Auth Kit exposes a **request → deliver credential → complete** flow aligned 
 - [OTP input (optional)](#otp-input-optional)
 - [Check-email page and token in session (optional)](#check-email-page-and-token-in-session-optional)
 - [Custom token storage and throttling](#custom-token-storage-and-throttling)
+- [Credential storage](#credential-storage)
 - [User entity](#user-entity)
 - [Implement delivery (`PasswordResetNotifierInterface`)](#implement-delivery-passwordresetnotifierinterface)
   - [Bundled samples](#bundled-samples)
@@ -93,6 +94,36 @@ public function createForUser(object $user): PasswordResetTokenResult
     return new PasswordResetTokenResult($user, $token->getToken(), $token->getExpiresAt(), PasswordResetDeliveryMode::Link);
 }
 ```
+
+## Credential storage
+
+`password_reset.storage` (1.46.0):
+
+- `user_entity` (default): the hashed credential is stored on the user (next section).
+- `table`: the hashed credential is stored in the bundle-owned table below; nothing is added to or written on your
+  user, which may be a non-Doctrine class (the user is found again through the user directory port). Needs the AuthKit
+  mapping (`doctrine.register_mapping: true` or `auto`) and a migration for the new table.
+
+Table `auth_kit_password_reset` (entity `Nowo\AuthKitBundle\Entity\PasswordResetRequest`):
+
+| Column | Type | Null | Notes |
+|---|---|---|---|
+| `id` | integer, generated | no | primary key |
+| `profile` | string(64) | no | profile name at issue time (informative) |
+| `user_class` | string(255) | no | user class without Doctrine proxy; the lookup filters rows by the profile's `user_class` (subclasses included) |
+| `user_id` | string(191) | yes | `UserIds::of()`; null for a user without an id |
+| `user_identifier` | string(255) | no | value of `user_identifier_field` (else `getUserIdentifier()`); key of id-less users |
+| `token_hash` | string(64) | no | SHA-256 of the link token (`link`, `both`) or of the code (`code`); index `idx_auth_kit_password_reset_token` |
+| `code_hash` | string(64) | yes | SHA-256 of the code of a `both` delivery |
+| `expires_at` | datetime_immutable | no | |
+| `created_at` | datetime_immutable | no | |
+
+Index `idx_auth_kit_password_reset_user` (`user_class`, `user_id`). At most one row per user (a new request deletes
+the earlier one in the same transaction / savepoint). Rows of expired credentials stay until the next request,
+completion, password / identifier change or deletion of that user.
+
+Rule 6 note: the table rows are written with DBAL on the connection of the manager that maps the AuthKit entities;
+no entity manager is flushed. Inside a transaction the application opened, the write joins it (savepoint).
 
 ## User entity
 

@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Mfa;
 
-use Nowo\UserKitBundle\Sessions\Client\DeviceIdResolverInterface;
-use Symfony\Component\HttpFoundation\Request;
+use Nowo\UserKitBundle\Sessions\Client\DeviceIdProviderInterface;
+use Nowo\UserKitBundle\Sessions\Model\DeviceContext;
 
 /**
- * Test device id: the `X-Device` request header.
+ * Test device id: the `X-Device` request header (UserKit >= 1.15 framework-free provider).
  */
-final class HeaderDeviceIdResolver implements DeviceIdResolverInterface
+final class HeaderDeviceIdResolver implements DeviceIdProviderInterface
 {
-    public function deviceId(Request $request): ?string
+    public function deviceIdFor(DeviceContext $context): ?string
     {
-        $id = $request->headers->get('X-Device');
+        $id = $context->header('X-Device');
 
         return $id !== null && $id !== '' ? $id : null;
     }

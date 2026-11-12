@@ -21,7 +21,7 @@ use RuntimeException;
 /**
  * Implements both interfaces: the deprecated methods follow {@see PortRule}, the 1.46 ones must never be asked (they
  * throw), so the matrix proves the deprecated interface wins until 2.0. (The social callback interfaces share method names with
- * incompatible signatures: no class can implement both.)
+ * incompatible signatures: no class can implement both.).
  */
 final class BothRulePorts extends LegacyRulePorts implements MfaRequirementPolicyInterface, InvitationsAccessPolicyInterface, EnrolmentPolicyInterface, AccountPresentationProviderInterface, InvitationActionPolicyInterface, InvitationGrantHandlerInterface
 {

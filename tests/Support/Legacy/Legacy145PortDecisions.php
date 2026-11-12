@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\MultiAccount\EnrolmentGateInterface;
 use Nowo\AuthKitBundle\MultiAccount\IdentifierAccountPresenter;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
+use Nowo\AuthKitBundle\Tests\Unit\Port\PortEquivalenceTest;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Role\RoleHierarchyInterface;
@@ -31,7 +32,7 @@ use function is_string;
 
 /**
  * LITERAL copies of the v1.45.2 (2efbec1) port decision code, for the 1.46.0 equivalence tests
- * ({@see \Nowo\AuthKitBundle\Tests\Unit\Port\PortEquivalenceTest}). Each body is the 1.45.2 method body verbatim; only
+ * ({@see PortEquivalenceTest}). Each body is the 1.45.2 method body verbatim; only
  * `$this->x` fields became parameters. Never edit a body: a change here hides a behaviour change of the bundle.
  *
  * Sources: `MfaManager::requirement()` (after `profileFor()`), `InvitationsAccessGuard::canManage()` (after the

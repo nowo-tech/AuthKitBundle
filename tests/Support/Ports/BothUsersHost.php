@@ -6,7 +6,6 @@ namespace Nowo\AuthKitBundle\Tests\Support\Ports;
 
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 /** Implements the deprecated lookup next to the 1.46 directory (build-pass fixtures). */
 final class BothUsersHost extends UserDirectoryHost implements UserLookupInterface

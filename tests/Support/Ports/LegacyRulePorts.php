@@ -29,6 +29,10 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 class LegacyRulePorts implements MfaPolicyInterface, InvitationsAccessCheckerInterface, EnrolmentGateInterface, AccountPresenterInterface, InvitationActionAuthorizerInterface, InvitationGrantInterface, SocialCallbackHandlerInterface
 {
+    public function __construct(public readonly PortLog $log = new PortLog())
+    {
+    }
+
     public function requirement(UserInterface $user, string $profile): MfaRequirement
     {
         return PortRule::allows($user->getUserIdentifier(), $user->getRoles(), $profile) ? MfaRequirement::Required : MfaRequirement::Optional;
@@ -43,7 +47,7 @@ class LegacyRulePorts implements MfaPolicyInterface, InvitationsAccessCheckerInt
     {
         $user = $token->getUser();
 
-        return $user !== null && !$token instanceof SwitchUserToken && PortRule::allows($user->getUserIdentifier(), $token->getRoleNames(), 'default');
+        return $user instanceof UserInterface && !$token instanceof SwitchUserToken && PortRule::allows($user->getUserIdentifier(), $token->getRoleNames(), 'default');
     }
 
     public function present(UserInterface $user): AccountPresentation
@@ -55,12 +59,12 @@ class LegacyRulePorts implements MfaPolicyInterface, InvitationsAccessCheckerInt
     {
         $email = $subject instanceof Invitation ? $subject->getEmail() : $subject->email;
 
-        return $actor !== null && PortRule::allows($actor->getUserIdentifier(), $actor->getRoles(), 'default', $email, $action);
+        return $actor instanceof UserInterface && PortRule::allows($actor->getUserIdentifier(), $actor->getRoles(), 'default', $email, $action);
     }
 
     public function grant(InvitationSnapshot $invitation, UserInterface $user): void
     {
-        PortRule::$log[] = 'grant ' . $invitation->email . ' to ' . $user->getUserIdentifier();
+        $this->log->entries[] = 'grant ' . $invitation->email . ' to ' . $user->getUserIdentifier();
         PortRule::allows($user->getUserIdentifier(), $user->getRoles(), $invitation->profile);
     }
 

@@ -11,7 +11,6 @@ use Nowo\AuthKitBundle\Port\QrLoginStepUpGate;
 use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\QrLogin\DeviceIntelligenceQrLoginStepUp;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
-use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
 use Nowo\AuthKitBundle\Tests\Support\Ports\InMemoryTwinUsers;
 use ReflectionProperty;
@@ -51,7 +50,7 @@ final class DddHostKernelTest extends WebTestCase
         $crawler = $this->client->request('GET', '/register');
         self::assertResponseIsSuccessful();
         $this->client->submit($crawler->filter('[data-nowo-ui-region="form"]')->form([
-            'registration_form[email]'           => 'ada@example.com',
+            'registration_form[email]'            => 'ada@example.com',
             'registration_form[password][first]'  => 'correct-horse-battery',
             'registration_form[password][second]' => 'correct-horse-battery',
         ]));

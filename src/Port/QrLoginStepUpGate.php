@@ -37,7 +37,7 @@ final readonly class QrLoginStepUpGate implements QrLoginStepUpInterface
         $user    = $this->tokenStorage?->getToken()?->getUser();
         $context = AuthRequestContexts::fromRequest($request, $profile->firewall, $profile->name);
 
-        if ($this->policy->isUnlocked($context, $user instanceof UserInterface ? AuthUserRefs::fromUser($user) : null) !== true) {
+        if (!$this->policy->isUnlocked($context, $user instanceof UserInterface ? AuthUserRefs::fromUser($user) : null)) {
             throw new AccessDeniedException('QR login step-up refused.');
         }
     }

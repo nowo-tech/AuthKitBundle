@@ -40,6 +40,7 @@ use function in_array;
 use function is_array;
 use function is_int;
 use function is_string;
+use function method_exists;
 use function sprintf;
 
 /**
@@ -492,7 +493,7 @@ final readonly class MfaManager
     private function dropDevices(ProfileSettings $profile, UserInterface $user, MfaCredential $credential, string $reason, ?string $publicId = null, ?Request $request = null): int
     {
         $deviceIds = $this->store->deleteDevices($credential, $publicId);
-        $current   = $request instanceof Request ? $this->sessions?->currentHash($request) : null;
+        $current   = $this->currentSessionHash($request);
         foreach ($deviceIds as $deviceId) {
             if ($deviceId !== null && $reason === 'user') {
                 $this->sessions?->revokeDevice($user, $deviceId, $current, $user);
@@ -510,7 +511,25 @@ final readonly class MfaManager
         if (!$this->sessions instanceof UserSessionManager) {
             return;
         }
-        $this->sessions->revokeOthers($user, $request instanceof Request ? $this->sessions->currentHash($request) : null);
+        $this->sessions->revokeOthers($user, $this->currentSessionHash($request));
+    }
+
+    /**
+     * The UserKit registry hash of the request's session (null without a request, a registered session or UserKit).
+     * UserKit >= 1.15 deprecates `currentHash()`: its framework-free `sessionHash(sessionRef())` gives the same hash.
+     */
+    private function currentSessionHash(?Request $request): ?string
+    {
+        if (!$request instanceof Request || !$this->sessions instanceof UserSessionManager) {
+            return null;
+        }
+        // @phpstan-ignore function.alreadyNarrowedType (UserKit < 1.15 has no sessionRef())
+        if (method_exists($this->sessions, 'sessionRef')) {
+            return $this->sessions->sessionHash($this->sessions->sessionRef($request));
+        }
+
+        // UserKit < 1.15 (never installed in the suite).
+        return $this->sessions->currentHash($request); // @codeCoverageIgnore
     }
 
     private function graceEndsAt(ProfileSettings $profile, ?MfaCredential $credential): ?DateTimeImmutable

@@ -214,6 +214,7 @@ nowo_auth_kit:
         request_rate_window: 900
         token_field: passwordResetToken
         token_expires_field: passwordResetExpiresAt
+        storage: user_entity        # 1.46+: user_entity | table (auth_kit_password_reset; token_field / token_expires_field unused)
         password_field: password    # 1.41: password property watched for reset-credential invalidation
         after_request_route: null   # 1.30+: host "check your email" route (see PASSWORD-RESET.md)
         token_in_session: false     # 1.30+: link token moved from the URL into the session
@@ -289,6 +290,8 @@ nowo_auth_kit:
     doctrine:
         register_mapping: true  # true | false | auto
         entity_manager: null    # 1.43.0+: extra manager that also maps the AuthKit entities, reset too (getManagerForClass() is always included)
+        private_entity_manager: null  # 1.46.0+: true = AuthKit rows through a private manager on the default one (never flushes yours); false deprecated
+        mapping_type: attribute # 1.46.0+: attribute | xml (src/Resources/config/doctrine-xml)
     routing:
         skip_disabled_features: false
 ```

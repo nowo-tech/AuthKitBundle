@@ -13,6 +13,6 @@ final class StepUpHost implements QrLoginStepUpPolicyInterface
 {
     public function isUnlocked(AuthRequestContext $request, ?AuthUserRef $user): bool
     {
-        return $user !== null && $request->sessionRemove('step_up_ok') === $user->identifier;
+        return $user instanceof AuthUserRef && $request->sessionRemove('step_up_ok') === $user->identifier;
     }
 }

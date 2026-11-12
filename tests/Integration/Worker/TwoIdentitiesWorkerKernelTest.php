@@ -73,7 +73,7 @@ final class TwoIdentitiesWorkerKernelTest extends KernelTestCase
 
     public function testTwoIdentitiesAlternatingInOneKernelNeverSeeEachOtherAndMemoryStaysFlat(): void
     {
-        $http     = self::getContainer()->get('http_kernel');
+        $http = self::getContainer()->get('http_kernel');
         self::assertInstanceOf(HttpKernelInterface::class, $http);
         $notifier = self::getContainer()->get(CapturingPasswordResetNotifier::class);
         self::assertInstanceOf(CapturingPasswordResetNotifier::class, $notifier);
@@ -86,7 +86,7 @@ final class TwoIdentitiesWorkerKernelTest extends KernelTestCase
             if ($i % 50 < 2) {
                 // Sign out (a new browser), then the sign-in page and the form login.
                 $this->jars[$identity] = [];
-                $page = $this->send($http, $identity, Request::create('/login'));
+                $page                  = $this->send($http, $identity, Request::create('/login'));
                 self::assertSame(200, $page->getStatusCode(), $round);
                 $csrf  = (new Crawler((string) $page->getContent()))->filter('input[name="login_form[_csrf_token]"]')->attr('value');
                 $login = $this->send($http, $identity, Request::create('/login', 'POST', ['login_form' => ['_username' => $identity, '_password' => self::USERS[$identity], '_csrf_token' => $csrf]]));
@@ -102,12 +102,12 @@ final class TwoIdentitiesWorkerKernelTest extends KernelTestCase
             $this->jars[$anonymous] = [];
             $page                   = $this->send($http, $anonymous, Request::create('/reset-password'));
             self::assertSame(200, $page->getStatusCode(), $round . ': a signed-out browser sees no other identity.');
-            $token  = (new Crawler((string) $page->getContent()))->filter('input[name="reset_password_request_form[_token]"]')->attr('value');
+            $token          = (new Crawler((string) $page->getContent()))->filter('input[name="reset_password_request_form[_token]"]')->attr('value');
             $notifier->last = null;
             // One client address per round: the per-IP request limit (5 per 15 minutes) is not what this test is about.
             $submit = $this->send($http, $anonymous, Request::create('/reset-password', 'POST', ['reset_password_request_form' => ['identifier' => $identity, '_token' => $token]], [], [], ['REMOTE_ADDR' => sprintf('10.0.%d.%d', intdiv($i, 250), $i % 250 + 1)]));
             self::assertSame(302, $submit->getStatusCode(), $round);
-            $user = $notifier->last?->user;
+            $user = $this->lastResetUser($notifier);
             self::assertInstanceOf(KernelUser::class, $user, $round);
             self::assertSame($identity, $user->getUserIdentifier(), $round . ': the reset credential is issued for its own identity.');
 
@@ -119,6 +119,11 @@ final class TwoIdentitiesWorkerKernelTest extends KernelTestCase
 
         gc_collect_cycles();
         self::assertLessThan($baseline + self::MEMORY_MARGIN, memory_get_usage(), 'Memory stays flat over the requests.');
+    }
+
+    private function lastResetUser(CapturingPasswordResetNotifier $notifier): ?object
+    {
+        return $notifier->last?->user;
     }
 
     private function send(HttpKernelInterface $http, string $identity, Request $request): Response

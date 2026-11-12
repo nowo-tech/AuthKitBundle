@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\ValueObject\AuthRequestContext;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Nowo\AuthKitBundle\ValueObject\SocialCallbackResult;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -47,7 +48,7 @@ final readonly class SocialCallbackStepGate implements SocialCallbackHandlerInte
 
     public function supports(Request $request, string $provider): bool
     {
-        return $this->step->supports($this->context($request), $provider) === true;
+        return $this->step->supports($this->context($request), $provider);
     }
 
     public function handle(Request $request, SocialCallbackContext $context): Response
@@ -68,7 +69,7 @@ final readonly class SocialCallbackStepGate implements SocialCallbackHandlerInte
      */
     private function respond(SocialCallbackResult $result): Response
     {
-        if ($result->signIn !== null) {
+        if ($result->signIn instanceof AuthUserRef) {
             $firewall = $this->profile->firewall;
             if (!$this->loginAuthenticator->canSignIn($firewall)) {
                 throw new LogicException(sprintf('The firewall "%s" has no authenticator AuthKit can sign a social user in with.', $firewall));

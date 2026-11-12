@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\UserDirectoryInterface;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -29,14 +30,14 @@ final readonly class UserDirectoryGate implements UserLookupInterface
     {
         $ref = $this->directory->findByIdentifier($profile, $identifier);
 
-        return $ref === null ? null : AuthUserRefs::securityUser($ref, self::PORT . '::findByIdentifier()');
+        return $ref instanceof AuthUserRef ? AuthUserRefs::securityUser($ref, self::PORT . '::findByIdentifier()') : null;
     }
 
     public function findById(ProfileSettings $profile, string $id): ?UserInterface
     {
         $ref = $this->directory->findById($profile, $id);
 
-        return $ref === null ? null : AuthUserRefs::securityUser($ref, self::PORT . '::findById()');
+        return $ref instanceof AuthUserRef ? AuthUserRefs::securityUser($ref, self::PORT . '::findById()') : null;
     }
 
     public function countUsers(ProfileSettings $profile): int

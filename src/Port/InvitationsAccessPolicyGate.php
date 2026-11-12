@@ -22,6 +22,6 @@ final readonly class InvitationsAccessPolicyGate implements InvitationsAccessChe
 
     public function canManage(UserInterface $user, string $profile): bool
     {
-        return $this->policy->allowsManage(AuthUserRefs::fromUser($user), $profile) === true;
+        return $this->policy->allowsManage(AuthUserRefs::fromUser($user), $profile);
     }
 }

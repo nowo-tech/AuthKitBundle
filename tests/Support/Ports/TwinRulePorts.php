@@ -27,6 +27,10 @@ use Nowo\AuthKitBundle\ValueObject\SocialCallbackResult;
  */
 class TwinRulePorts implements MfaRequirementPolicyInterface, InvitationsAccessPolicyInterface, EnrolmentPolicyInterface, AccountPresentationProviderInterface, InvitationActionPolicyInterface, InvitationGrantHandlerInterface, SocialCallbackStepInterface
 {
+    public function __construct(public readonly PortLog $log = new PortLog())
+    {
+    }
+
     public function requirementFor(AuthUserRef $user, string $profile): MfaRequirement
     {
         return PortRule::allows($user->identifier, $user->roles, $profile) ? MfaRequirement::Required : MfaRequirement::Optional;
@@ -39,7 +43,7 @@ class TwinRulePorts implements MfaRequirementPolicyInterface, InvitationsAccessP
 
     public function allowsEnrolment(EnrolmentCandidate $candidate): bool
     {
-        return $candidate->user !== null && !$candidate->impersonated && PortRule::allows($candidate->user->identifier, $candidate->roleNames, 'default');
+        return $candidate->user instanceof AuthUserRef && !$candidate->impersonated && PortRule::allows($candidate->user->identifier, $candidate->roleNames, 'default');
     }
 
     public function presentationFor(AuthUserRef $user): AccountPresentation
@@ -49,12 +53,12 @@ class TwinRulePorts implements MfaRequirementPolicyInterface, InvitationsAccessP
 
     public function allows(?AuthUserRef $actor, string $action, InvitationSnapshot|InvitationRequest $subject, ?InvitationRequest $request = null): bool
     {
-        return $actor !== null && PortRule::allows($actor->identifier, $actor->roles, 'default', $subject->email, $action);
+        return $actor instanceof AuthUserRef && PortRule::allows($actor->identifier, $actor->roles, 'default', $subject->email, $action);
     }
 
     public function grantTo(InvitationSnapshot $invitation, AuthUserRef $user): void
     {
-        PortRule::$log[] = 'grant ' . $invitation->email . ' to ' . $user->identifier;
+        $this->log->entries[] = 'grant ' . $invitation->email . ' to ' . $user->identifier;
         PortRule::allows($user->identifier, $user->roles, $invitation->profile);
     }
 

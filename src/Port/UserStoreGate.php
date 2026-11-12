@@ -27,21 +27,25 @@ final readonly class UserStoreGate implements UserWriterInterface
 
     public function add(ProfileSettings $profile, UserInterface $user): void
     {
+        // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
         $this->store->add($profile, AuthUserRefs::fromUser($user));
     }
 
     public function remove(ProfileSettings $profile, UserInterface $user): void
     {
+        // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
         $this->store->remove($profile, AuthUserRefs::fromUser($user));
     }
 
     public function changePassword(ProfileSettings $profile, PasswordAuthenticatedUserInterface $user, string $hashedPassword): void
     {
+        // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
         $this->store->changePassword($profile, AuthUserRefs::fromUser($user), $hashedPassword);
     }
 
     public function save(ProfileSettings $profile, PasswordAuthenticatedUserInterface|UserInterface $user): void
     {
+        // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
         $this->store->save($profile, AuthUserRefs::fromUser($user));
     }
 }

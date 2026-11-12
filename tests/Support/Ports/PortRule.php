@@ -16,11 +16,8 @@ use function str_starts_with;
  */
 final class PortRule
 {
-    /** @var list<string> recorded calls (grants), shared by both implementations */
-    public static array $log = [];
-
     /**
-     * @param list<string> $roles
+     * @param array<string> $roles
      *
      * @throws RuntimeException for mallory (an exception must propagate unchanged)
      */

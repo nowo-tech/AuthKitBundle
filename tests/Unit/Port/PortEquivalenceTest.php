@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Port;
 use Closure;
 use DateTimeImmutable;
 use Doctrine\Persistence\ManagerRegistry;
+use LogicException;
 use Nowo\AuthKitBundle\Controller\SocialLoginCheckController;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Invitation\InvitationManager;
@@ -18,9 +19,9 @@ use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
 use Nowo\AuthKitBundle\Mfa\MfaStore;
 use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
+use Nowo\AuthKitBundle\MultiAccount\AccountPresentation;
 use Nowo\AuthKitBundle\MultiAccount\AccountVault;
 use Nowo\AuthKitBundle\Port\Ports;
-use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
@@ -28,7 +29,7 @@ use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\Legacy\Legacy145PortDecisions;
 use Nowo\AuthKitBundle\Tests\Support\Ports\BothRulePorts;
 use Nowo\AuthKitBundle\Tests\Support\Ports\LegacyRulePorts;
-use Nowo\AuthKitBundle\Tests\Support\Ports\PortRule;
+use Nowo\AuthKitBundle\Tests\Support\Ports\PortLog;
 use Nowo\AuthKitBundle\Tests\Support\Ports\TwinRulePorts;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
@@ -66,11 +67,6 @@ final class PortEquivalenceTest extends TestCase
     private const ROLES = [[], ['ROLE_ADMIN'], ['ROLE_EDITOR', 'ROLE_ADMIN']];
 
     private const PROFILES = ['default', 'other'];
-
-    protected function setUp(): void
-    {
-        PortRule::$log = [];
-    }
 
     public function testMfaRequirementMatches145(): void
     {
@@ -161,8 +157,10 @@ final class PortEquivalenceTest extends TestCase
 
         // A tagged service implementing neither: 1.45 failed with an Error (fail closed), 1.46 with a LogicException.
         $manager = $this->invitationManager([new stdClass()], $now);
-        self::assertSame('LogicException', $this->outcome(fn (): mixed => $this->call($manager, 'authorized', null, 'invite', new InvitationRequest('a@example.com')))['class']);
-        self::assertSame('Error', $this->outcome(static fn (): mixed => Legacy145PortDecisions::authorized([new stdClass()], null, 'invite', new InvitationRequest('a@example.com')))['class']);
+        self::assertSame('LogicException', $this->outcome(fn (): mixed => $this->call($manager, 'authorized', null, 'invite', new InvitationRequest('a@example.com')))['class'] ?? null);
+        /** @var list<InvitationActionAuthorizerInterface> $neither the 1.45 loop called the method on whatever was tagged */
+        $neither = [new stdClass()];
+        self::assertSame('Error', $this->outcome(static fn (): mixed => Legacy145PortDecisions::authorized($neither, null, 'invite', new InvitationRequest('a@example.com')))['class'] ?? null);
     }
 
     public function testInvitationGrantsMatch145(): void
@@ -170,24 +168,25 @@ final class PortEquivalenceTest extends TestCase
         $now      = new DateTimeImmutable('2026-11-12 10:00:00');
         $snapshot = InvitationSnapshot::of(new Invitation('default', 'new@example.com', null, 7, $now), $now);
         foreach ($this->users() as $user) {
-            PortRule::$log = [];
-            $legacy        = $this->outcome(static fn (): mixed => Legacy145PortDecisions::grants([new LegacyRulePorts(), new LegacyRulePorts()], $snapshot, $user));
-            $legacyLog     = PortRule::$log;
-            foreach ($this->services() as $kind => $service) {
-                if ($kind === 'neither') {
-                    continue;
-                }
-                PortRule::$log = [];
-                $current       = $this->outcome(static function () use ($service, $snapshot, $user): mixed {
+            $legacyLog = new PortLog();
+            $legacy    = $this->outcome(static function () use ($legacyLog, $snapshot, $user): mixed {
+                Legacy145PortDecisions::grants([new LegacyRulePorts($legacyLog), new LegacyRulePorts($legacyLog)], $snapshot, $user);
+
+                return null;
+            });
+            foreach (['legacy' => LegacyRulePorts::class, 'twin' => TwinRulePorts::class, 'both' => BothRulePorts::class] as $kind => $class) {
+                $log     = new PortLog();
+                $grants  = [new $class($log), new LegacyRulePorts($log)];
+                $current = $this->outcome(static function () use ($grants, $snapshot, $user): mixed {
                     // InvitationAcceptor 1.46.0 grant loop.
-                    foreach ([$service, new LegacyRulePorts()] as $grant) {
+                    foreach ($grants as $grant) {
                         Ports::invitationGrant($grant)->grant($snapshot, $user);
                     }
 
                     return null;
                 });
                 self::assertSame($legacy, $current, $kind . ' / ' . $user->getUserIdentifier());
-                self::assertSame($legacyLog, PortRule::$log, $kind . ' / ' . $user->getUserIdentifier());
+                self::assertSame($legacyLog->entries, $log->entries, $kind . ' / ' . $user->getUserIdentifier());
             }
         }
     }
@@ -213,6 +212,16 @@ final class PortEquivalenceTest extends TestCase
         }
     }
 
+    public function testASocialHandlerImplementingNeitherInterfaceFailsClosed(): void
+    {
+        $profile    = ProfileRegistryFactory::single(TestUser::class)->getByName('default');
+        $controller = $this->socialController([new stdClass()]);
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('The AuthKit social callback handler "stdClass" must implement');
+        $this->call($controller, 'handlerFor', Request::create('/'), 'google', $profile);
+    }
+
     /**
      * @return array{class: string, message: string}|array{value: mixed}
      */
@@ -224,7 +233,7 @@ final class PortEquivalenceTest extends TestCase
             return ['class' => $exception::class, 'message' => $exception->getMessage()];
         }
 
-        return ['value' => $value instanceof \Nowo\AuthKitBundle\MultiAccount\AccountPresentation ? [$value->name, $value->identifier, $value->avatarUrl] : $value];
+        return ['value' => $value instanceof AccountPresentation ? [$value->name, $value->identifier, $value->avatarUrl] : $value];
     }
 
     /**

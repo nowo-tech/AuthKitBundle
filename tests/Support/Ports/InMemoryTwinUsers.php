@@ -71,7 +71,7 @@ final class InMemoryTwinUsers implements UserCreatorInterface, UserStoreInterfac
     public function changePassword(ProfileSettings $profile, AuthUserRef $user, string $hashedPassword): void
     {
         $this->calls[] = 'changePassword ' . $user->identifier;
-        $object = $user->user();
+        $object        = $user->user();
         if ($object instanceof HostDomainUser) {
             $object->changePassword($hashedPassword);
         }

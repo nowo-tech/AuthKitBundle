@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface;
 use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpPolicyInterface;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\AuthKitTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
+use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\UxIconStubExtension;
 use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
 use Nowo\AuthKitBundle\Tests\Support\Ports\InMemoryTwinUsers;
@@ -29,7 +30,7 @@ use function sys_get_temp_dir;
  * interface), the reset credential lives in the bundle's own table (`password_reset.storage: table`), the bundle maps
  * its entities from XML (`doctrine.mapping_type: xml`) and writes them through its private entity manager
  * (`doctrine.private_entity_manager: true`), and the QR step-up is a 1.46 policy. The host keeps a Doctrine entity of its
- * own ({@see \Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser}) on the default manager to prove AuthKit
+ * own ({@see KernelUser}) on the default manager to prove AuthKit
  * never flushes it.
  */
 final class DddHostTestKernel extends AuthKitTestKernel

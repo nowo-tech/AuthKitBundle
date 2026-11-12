@@ -36,6 +36,6 @@ final readonly class InvitationActionPolicyGate implements InvitationActionAutho
             $action,
             $subject instanceof Invitation ? InvitationSnapshot::of($subject, $this->now) : $subject,
             $request,
-        ) === true;
+        );
     }
 }

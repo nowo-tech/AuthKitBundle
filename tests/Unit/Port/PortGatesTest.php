@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Port\Ports;
@@ -34,6 +35,7 @@ use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Nowo\AuthKitBundle\ValueObject\EnrolmentCandidate;
 use Nowo\AuthKitBundle\ValueObject\SocialCallbackResult;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 use stdClass;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\ServiceLocator;
@@ -153,7 +155,7 @@ final class PortGatesTest extends TestCase
 
     public function testUserStoreGatePassesReferencesCarryingTheUser(): void
     {
-        $user  = new TestUser('ada@example.com');
+        $user = new TestUser('ada@example.com');
         $user->setId(12);
         $store = new class implements UserStoreInterface {
             /** @var list<array{string, AuthUserRef, string|null}> */
@@ -216,14 +218,15 @@ final class PortGatesTest extends TestCase
         $gate   = new QrLoginStepUpGate($policy, ProfileRegistryFactory::requestResolver(TestUser::class), $tokens);
         $gate->assertUnlocked(Request::create('/qr/approve', 'POST'));
         self::assertNull($policy->user);
-        self::assertSame('default', $policy->request?->profile);
-        self::assertSame('main', $policy->request?->firewall);
-        self::assertSame('POST', $policy->request?->method);
+        self::assertNotNull($policy->request);
+        self::assertSame('default', $policy->request->profile);
+        self::assertSame('main', $policy->request->firewall);
+        self::assertSame('POST', $policy->request->method);
 
         $user = new TestUser('ada@example.com');
         $tokens->setToken(new UsernamePasswordToken($user, 'main'));
         $gate->assertUnlocked(Request::create('/qr/approve', 'POST'));
-        self::assertSame($user, $policy->user?->user());
+        self::assertSame($user, $this->userOf($policy));
 
         // Without a token storage (SecurityBundle missing) there is no user.
         (new QrLoginStepUpGate($policy, ProfileRegistryFactory::requestResolver(TestUser::class)))->assertUnlocked(Request::create('/'));
@@ -274,8 +277,8 @@ final class PortGatesTest extends TestCase
 
     public function testSocialCallbackStepGateRefusesASignInTheFirewallCannotDo(): void
     {
-        $user          = new TestUser('ada@example.com');
-        $step          = $this->step(SocialCallbackResult::signIn(AuthUserRef::of($user, TestUser::class, '1', 'ada@example.com'), '/welcome'), null);
+        $user           = new TestUser('ada@example.com');
+        $step           = $this->step(SocialCallbackResult::signIn(AuthUserRef::of($user, TestUser::class, '1', 'ada@example.com'), '/welcome'), null);
         $authenticators = new ProgrammaticLoginAuthenticator(['main' => new ServiceLocator([
             'security.authenticator.custom_a.main' => static fn (): stdClass => new stdClass(),
             'security.authenticator.custom_b.main' => static fn (): stdClass => new stdClass(),
@@ -328,7 +331,7 @@ final class PortGatesTest extends TestCase
             Ports::invitationGrant(new stdClass());
             self::fail('A grant implementing neither interface must fail.');
         } catch (LogicException $exception) {
-            self::assertSame('The AuthKit tagged service "stdClass" must implement "' . \Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface::class . '".', $exception->getMessage());
+            self::assertSame('The AuthKit tagged service "stdClass" must implement "' . InvitationGrantHandlerInterface::class . '".', $exception->getMessage());
         }
 
         $this->expectException(LogicException::class);
@@ -342,6 +345,13 @@ final class PortGatesTest extends TestCase
 
         self::assertSame($authorizer, Ports::invitationActionAuthorizer($authorizer, new DateTimeImmutable()));
         self::assertSame($grant, Ports::invitationGrant($grant));
+    }
+
+    private function userOf(object $policy): ?object
+    {
+        $ref = (new ReflectionProperty($policy, 'user'))->getValue($policy);
+
+        return $ref instanceof AuthUserRef ? $ref->user() : null;
     }
 
     private function step(SocialCallbackResult $handled, ?SocialCallbackResult $failed): SocialCallbackStepInterface
@@ -385,6 +395,6 @@ final class PortGatesTest extends TestCase
 
     private function context(): SocialCallbackContext
     {
-        return new SocialCallbackContext($this->profile, 'google', new SocialUserProfile('sub-1', 'ada@example.com', 'Ada', [], true), ['access_token' => 't']);
+        return new SocialCallbackContext($this->profile, 'google', new SocialUserProfile('sub-1', 'ada@example.com', 'Ada', [], true), ['access_token' => 't', 'refresh_token' => null, 'expires_in' => null, 'raw' => []]);
     }
 }
