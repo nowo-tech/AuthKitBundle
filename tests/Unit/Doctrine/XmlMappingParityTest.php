@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Doctrine;
 
 use Doctrine\Common\EventManager;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Schema\ComparatorConfig;
 use Doctrine\ORM\Configuration;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Events;
@@ -31,6 +32,7 @@ use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
+use function class_exists;
 use function dirname;
 use function get_object_vars;
 use function is_bool;
@@ -102,7 +104,9 @@ final class XmlMappingParityTest extends TestCase
         $to        = (new SchemaTool($xml))->getSchemaFromMetadata($xml->getMetadataFactory()->getAllMetadata());
 
         self::assertCount(8, $xml->getMetadataFactory()->getAllMetadata());
-        self::assertTrue($attribute->getConnection()->createSchemaManager()->createComparator()->compareSchemas($from, $to)->isEmpty());
+        $schemaManager = $attribute->getConnection()->createSchemaManager();
+        $comparator    = class_exists(ComparatorConfig::class) ? $schemaManager->createComparator((new ComparatorConfig())->withReportModifiedIndexes(false)) : $schemaManager->createComparator();
+        self::assertTrue($comparator->compareSchemas($from, $to)->isEmpty());
     }
 
     #[Test]
@@ -123,10 +127,11 @@ final class XmlMappingParityTest extends TestCase
         $config = new Configuration();
         $config->setMetadataDriverImpl($driver);
         $config->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
-        $config->setProxyDir(sys_get_temp_dir() . '/nowo-auth-kit-xml-test-proxies');
-        $config->setProxyNamespace('NowoAuthKitXmlTestProxies');
         if (PHP_VERSION_ID >= 80400) {
             $config->enableNativeLazyObjects(true);
+        } else {
+            $config->setProxyDir(sys_get_temp_dir() . '/nowo-auth-kit-xml-test-proxies'); // @codeCoverageIgnore
+            $config->setProxyNamespace('NowoAuthKitXmlTestProxies'); // @codeCoverageIgnore
         }
         $events = new EventManager();
         if ($prefix !== '') {

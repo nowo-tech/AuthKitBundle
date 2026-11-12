@@ -55,13 +55,13 @@ final class PrivateEntityManagerSubscriberTest extends TestCase
         $events = $this->events();
 
         $events->request(HttpKernelInterface::SUB_REQUEST);
-        self::assertSame(0, $this->clears);
+        self::assertSame(0, $this->clears());
         $events->request();
-        self::assertSame(1, $this->clears);
+        self::assertSame(1, $this->clears());
         $events->finishRequest(HttpKernelInterface::SUB_REQUEST);
         $events->finishRequest();
         $events->kernelTerminate();
-        self::assertSame(2, $this->clears);
+        self::assertSame(2, $this->clears());
     }
 
     #[Test]
@@ -72,22 +72,22 @@ final class PrivateEntityManagerSubscriberTest extends TestCase
         $nested = new Command('app:nested');
 
         $events->command($outer);
-        self::assertSame(1, $this->clears);
+        self::assertSame(1, $this->clears());
         $events->command($nested);
         $events->terminate($nested);
-        self::assertSame(1, $this->clears, 'a nested command must not clear the outer command');
+        self::assertSame(1, $this->clears(), 'a nested command must not clear the outer command');
         $events->terminate($outer);
-        self::assertSame(2, $this->clears);
+        self::assertSame(2, $this->clears());
 
         // A stray terminate (no matching command) acts only when nothing runs, and never pops another command.
         $events->command($outer);
-        self::assertSame(3, $this->clears);
+        self::assertSame(3, $this->clears());
         $events->terminate(new Command('app:stray'));
-        self::assertSame(3, $this->clears);
+        self::assertSame(3, $this->clears()); // @phpstan-ignore staticMethod.alreadyNarrowedType (changed by the dispatcher)
         $events->terminate($outer);
-        self::assertSame(4, $this->clears);
+        self::assertSame(4, $this->clears());
         $events->terminate(new Command('app:stray'));
-        self::assertSame(5, $this->clears);
+        self::assertSame(5, $this->clears());
     }
 
     #[Test]
@@ -97,25 +97,25 @@ final class PrivateEntityManagerSubscriberTest extends TestCase
         $command = new Command('app:from-handler');
 
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_RECEIVED);
-        self::assertSame(1, $this->clears);
+        self::assertSame(1, $this->clears());
         $events->command($command);
         $events->terminate($command);
-        self::assertSame(1, $this->clears, 'a command run from a handler must not clear the message');
+        self::assertSame(1, $this->clears(), 'a command run from a handler must not clear the message');
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_HANDLED);
-        self::assertSame(2, $this->clears);
+        self::assertSame(2, $this->clears());
 
         // Skipped message, then a stopped worker: no message in flight any more.
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_RECEIVED);
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_SKIPPED);
-        self::assertSame(3, $this->clears);
+        self::assertSame(3, $this->clears());
         $events->command($command);
-        self::assertSame(4, $this->clears, 'a skipped message is no longer in flight');
+        self::assertSame(4, $this->clears(), 'a skipped message is no longer in flight');
         $events->terminate($command);
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_RECEIVED);
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_STOPPED);
-        self::assertSame(6, $this->clears);
+        self::assertSame(6, $this->clears());
         $events->command($command);
-        self::assertSame(7, $this->clears, 'a stopped worker has no message in flight');
+        self::assertSame(7, $this->clears(), 'a stopped worker has no message in flight');
     }
 
     #[Test]
@@ -126,16 +126,16 @@ final class PrivateEntityManagerSubscriberTest extends TestCase
         $nested  = new Command('app:nested');
 
         $events->command($consume);
-        self::assertSame(1, $this->clears);
+        self::assertSame(1, $this->clears());
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_RECEIVED);
-        self::assertSame(2, $this->clears);
+        self::assertSame(2, $this->clears());
         $events->command($nested);
         $events->terminate($nested);
-        self::assertSame(2, $this->clears, 'a command run from the handler must not clear the message');
+        self::assertSame(2, $this->clears(), 'a command run from the handler must not clear the message');
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_FAILED);
-        self::assertSame(3, $this->clears);
+        self::assertSame(3, $this->clears());
         $events->terminate($consume);
-        self::assertSame(4, $this->clears);
+        self::assertSame(4, $this->clears());
     }
 
     #[Test]
@@ -145,18 +145,18 @@ final class PrivateEntityManagerSubscriberTest extends TestCase
         $command = new Command('app:crawler');
 
         $events->command($command);
-        self::assertSame(1, $this->clears);
+        self::assertSame(1, $this->clears());
         $events->mainRequest();
-        self::assertSame(1, $this->clears, 'a request handled inside a command must not clear it');
+        self::assertSame(1, $this->clears(), 'a request handled inside a command must not clear it');
         $events->terminate($command);
-        self::assertSame(2, $this->clears);
+        self::assertSame(2, $this->clears());
 
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_RECEIVED);
-        self::assertSame(3, $this->clears);
+        self::assertSame(3, $this->clears());
         $events->mainRequest();
-        self::assertSame(3, $this->clears, 'a request handled inside a message must not clear it');
+        self::assertSame(3, $this->clears(), 'a request handled inside a message must not clear it');
         $events->message(UnitOfWorkBoundaries::MESSENGER_WORKER_MESSAGE_HANDLED);
-        self::assertSame(4, $this->clears);
+        self::assertSame(4, $this->clears());
     }
 
     #[Test]
@@ -166,17 +166,17 @@ final class PrivateEntityManagerSubscriberTest extends TestCase
         $command = new Command('app:from-controller');
 
         $events->request();
-        self::assertSame(1, $this->clears);
+        self::assertSame(1, $this->clears());
         $events->command($command);
         $events->terminate($command);
-        self::assertSame(1, $this->clears, 'a command run from a controller must not clear the request');
+        self::assertSame(1, $this->clears(), 'a command run from a controller must not clear the request');
         $events->finishRequest(HttpKernelInterface::SUB_REQUEST);
         $events->command($command);
         $events->terminate($command);
-        self::assertSame(1, $this->clears);
+        self::assertSame(1, $this->clears());
         $events->finishRequest();
         $events->kernelTerminate();
-        self::assertSame(2, $this->clears);
+        self::assertSame(2, $this->clears());
     }
 
     /**
@@ -199,9 +199,9 @@ final class PrivateEntityManagerSubscriberTest extends TestCase
         }
         self::assertSame(1, $events->boundaries->runningCommands(), 'no terminate was dispatched');
 
-        self::assertSame(1, $this->clears);
+        self::assertSame(1, $this->clears());
         $events->mainRequest();
-        self::assertSame(3, $this->clears, 'the next request is outermost again');
+        self::assertSame(3, $this->clears(), 'the next request is outermost again');
         self::assertSame(0, $events->boundaries->runningCommands());
     }
 
@@ -216,5 +216,11 @@ final class PrivateEntityManagerSubscriberTest extends TestCase
         $boundaries = new UnitOfWorkBoundaries();
 
         return new BoundaryEvents($boundaries, new PrivateEntityManagerSubscriber($boundaries, [$manager]));
+    }
+
+    /** Read through a call: the count changes inside the dispatcher (PHPStan must not narrow it). */
+    private function clears(): int
+    {
+        return $this->clears;
     }
 }

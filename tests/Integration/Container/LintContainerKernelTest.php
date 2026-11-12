@@ -9,25 +9,19 @@ use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\PrivateEntityManager\PrivateEmMfaTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\XmlMapping\XmlMfaTestKernel;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\HttpKernel\Kernel;
 
 /**
  * `lint:container` (argument types of every service definition) on the default configuration and with the 1.46.0
  * Doctrine opt-ins: the private entity manager, and the XML mapping with the private entity manager.
  */
-final class LintContainerKernelTest extends KernelTestCase
+final class LintContainerKernelTest extends TestCase
 {
-    private static string $kernelClass = AuthKitTestKernel::class;
-
-    protected static function getKernelClass(): string
-    {
-        return self::$kernelClass;
-    }
-
     /**
-     * @return iterable<string, array{class-string}>
+     * @return iterable<string, array{class-string<Kernel>}>
      */
     public static function kernels(): iterable
     {
@@ -38,21 +32,20 @@ final class LintContainerKernelTest extends KernelTestCase
     }
 
     /**
-     * @param class-string $kernel
+     * @param class-string<Kernel> $class
      */
     #[DataProvider('kernels')]
-    public function testTheContainerLints(string $kernel): void
+    public function testTheContainerLints(string $class): void
     {
-        self::$kernelClass = $kernel;
-        $tester            = new CommandTester((new Application(self::bootKernel(['debug' => true])))->find('lint:container'));
+        $kernel = new $class('test', true);
+        $kernel->boot();
+        try {
+            $tester = new CommandTester((new Application($kernel))->find('lint:container'));
 
-        self::assertSame(0, $tester->execute([]), $tester->getDisplay());
-        self::assertStringContainsString('The container was linted successfully', $tester->getDisplay());
-    }
-
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-        self::$kernelClass = AuthKitTestKernel::class;
+            self::assertSame(0, $tester->execute([]), $tester->getDisplay());
+            self::assertStringContainsString('The container was linted successfully', $tester->getDisplay());
+        } finally {
+            $kernel->shutdown();
+        }
     }
 }

@@ -301,6 +301,12 @@ class InvitationRepository extends EntityRepository
     /**
      * A bulk statement: in a savepoint inside an open transaction with the private entity manager (1.46.0), exactly
      * as before otherwise.
+     *
+     * @template T
+     *
+     * @param Closure(): T $statement
+     *
+     * @return T
      */
     private function write(Closure $statement): mixed
     {

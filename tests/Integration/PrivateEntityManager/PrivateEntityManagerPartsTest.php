@@ -278,8 +278,10 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         $private    = $this->privateManager();
         $repository = $private->getRepository(MfaCredential::class);
         self::assertSame($repository, $private->getRepository(MfaCredential::class));
+        $private->connectionRolledBack(null);
+        self::assertSame($repository, $private->getRepository(MfaCredential::class), 'kept while the manager lives: the factory is not asked again');
         $private->reset();
-        self::assertSame($repository, $private->getRepository(MfaCredential::class), 'kept across replacements: no growth per request');
+        self::assertNotSame($repository, $private->getRepository(MfaCredential::class), 'emptied with the manager at a boundary');
         self::assertSame($private, $repository->createQueryBuilder('c')->getEntityManager() === $private->live() ? $private : null);
         self::assertInstanceOf(EntityRepository::class, $private->getRepository(SocialLoginAccount::class), 'a custom repository class comes from the factory');
     }
@@ -308,7 +310,7 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         self::assertSame($doctrine->getConnections(), $registry->getConnections());
         self::assertSame($doctrine->getConnectionNames(), $registry->getConnectionNames());
         self::assertSame($doctrine->getManagerForClass(KernelUser::class), $registry->getManagerForClass(KernelUser::class));
-        self::assertSame($private, $registry->getManagerForClass('Proxies\\__CG__\\' . Invitation::class));
+        self::assertSame($private, $registry->getManagerForClass($this->proxyClass()));
         self::assertSame($private->getRepository(MfaCredential::class), $registry->getRepository(MfaCredential::class));
         self::assertSame($doctrine->getRepository(KernelUser::class), $registry->getRepository(KernelUser::class));
         $private->live();
@@ -422,5 +424,13 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         $private->live();
 
         return $private;
+    }
+
+    /**
+     * @return class-string a Doctrine proxy class name of an AuthKit entity
+     */
+    private function proxyClass(): string
+    {
+        return 'Proxies\\__CG__\\' . Invitation::class; // @phpstan-ignore return.type (no such class is loaded: the registry only reads the name)
     }
 }

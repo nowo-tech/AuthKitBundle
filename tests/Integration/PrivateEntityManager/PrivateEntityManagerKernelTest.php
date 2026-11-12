@@ -145,6 +145,9 @@ final class PrivateEntityManagerKernelTest extends MfaKernelTestCase
         return $user;
     }
 
+    /**
+     * @param class-string $class
+     */
     private function rows(string $class): int
     {
         return (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM ' . $this->table($class));

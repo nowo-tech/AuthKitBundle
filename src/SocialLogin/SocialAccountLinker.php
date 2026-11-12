@@ -106,6 +106,7 @@ final class SocialAccountLinker
             $this->entityManager->clear();
             if ($this->privateEntityManager instanceof EntityManagerInterface) {
                 // 1.46.0: the private manager holds the social account row of the rolled-back link.
+                // @igor-ignore - Unit of work of the bundle's private manager (dropped at every boundary), not worker state.
                 $this->privateEntityManager->clear();
             }
             $this->compensate($profile, $created);

@@ -81,7 +81,8 @@ final class AuthKitEntityManager extends EntityManagerDecorator implements Reset
     /**
      * Repositories of the entities without a custom repository class, bound to this decorator (stable across the
      * replacements of the private manager): the configuration's repository factory would keep one per private manager
-     * created, so memory would grow in a kept-alive kernel. Bounded by the number of AuthKit entity classes.
+     * created, so memory would grow in a kept-alive kernel. Bounded by the number of AuthKit entity classes; emptied
+     * by {@see reset()} with the manager.
      *
      * @var array<class-string, EntityRepository<object>>
      */
@@ -219,7 +220,6 @@ final class AuthKitEntityManager extends EntityManagerDecorator implements Reset
         }
 
         /** @var EntityRepository<T> $repository */
-        // @igor-ignore - Bounded cache (one repository per AuthKit entity class) bound to the stable decorator.
         $repository = $this->repositories[$metadata->getName()] ??= new EntityRepository($this, $metadata);
 
         return $repository;
@@ -302,7 +302,8 @@ final class AuthKitEntityManager extends EntityManagerDecorator implements Reset
         // @igor-ignore - Boundary drop of the bundle's own manager (no state kept).
         $this->stale = false;
         // @igor-ignore - Boundary drop of the bundle's own manager (no state kept).
-        $this->uncommitted = [];
+        $this->uncommitted  = [];
+        $this->repositories = [];
         if (!$current instanceof EntityManagerInterface || !$current->isOpen()) {
             return;
         }

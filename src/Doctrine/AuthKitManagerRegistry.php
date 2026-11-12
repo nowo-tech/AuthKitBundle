@@ -98,7 +98,7 @@ final readonly class AuthKitManagerRegistry implements ManagerRegistry
     public function getRepository(string $persistentObject, ?string $persistentManagerName = null): ObjectRepository
     {
         if (($persistentManagerName === null || $this->isBundleManager($persistentManagerName)) && self::isBundleEntity($persistentObject)) {
-            return $this->entityManager->getRepository($persistentObject); // @phpstan-ignore return.type (the repository of that class)
+            return $this->entityManager->getRepository($persistentObject);
         }
 
         return $this->registry->getRepository($persistentObject, $persistentManagerName);
