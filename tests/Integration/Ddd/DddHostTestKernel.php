@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Ddd;
 
+use Composer\InstalledVersions;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
 use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface;
 use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpPolicyInterface;
@@ -23,6 +24,7 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 use function sys_get_temp_dir;
+use function version_compare;
 
 /**
  * REQ-ARCH-001 DDD host (1.46.0): the security user is a plain host class ({@see HostDomainUser}, no Doctrine
@@ -60,6 +62,12 @@ final class DddHostTestKernel extends AuthKitTestKernel
             'router'                => ['utf8' => true],
             'php_errors'            => ['log' => false],
         ]);
+        // Installed version, read at runtime: the Symfony minor differs per CI cell.
+        $frameworkVersion = (string) InstalledVersions::getVersion('symfony/framework-bundle');
+        if (version_compare($frameworkVersion, '7.3', '>=') && version_compare($frameworkVersion, '8.0', '<')) {
+            // REQ-SF-005: Symfony 7.3/7.4 deprecate leaving this option implicit (its default changes in 8.0).
+            $container->loadFromExtension('framework', ['property_info' => ['with_constructor_extractor' => true]]);
+        }
         $container->loadFromExtension('twig', ['strict_variables' => true]);
         $container->loadFromExtension('doctrine', [
             'dbal' => ['url' => 'sqlite:///%kernel.cache_dir%/auth_kit.sqlite'],
