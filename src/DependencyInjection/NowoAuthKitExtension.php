@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
+use Nowo\AuthKitBundle\Doctrine\PasswordResetTableInvalidationListener;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
@@ -35,6 +36,8 @@ use Nowo\AuthKitBundle\MultiAccount\AccountVault;
 use Nowo\AuthKitBundle\MultiAccount\AccountVaultStore;
 use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
 use Nowo\AuthKitBundle\MultiAccount\PersonalData\AccountSwitcherPersonalDataEraser;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\PasswordReset\ProfilePasswordResetTokenManager;
 use Nowo\AuthKitBundle\PersonalData\DefaultInvitationPersonalDataSubjectResolver;
 use Nowo\AuthKitBundle\PersonalData\DoctrineInvitationPersonalData;
 use Nowo\AuthKitBundle\PersonalData\DoctrineSocialAccountPersonalDataExporter;
@@ -232,6 +235,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $container->removeDefinition(TablePrefixListener::class);
         }
 
+        $this->registerPasswordResetStorage($container, $profiles);
         $this->registerLoginTarget($container, $config, $profiles);
         $this->registerAvailabilityCheckers($container, $profiles);
         $this->registerInvitations($container, $profiles);
@@ -647,8 +651,41 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     }
 
     /**
-     * doctrine.register_mapping: true / false / "auto" (mapped only when a profile enables social login, QR login or
-     * invitations).
+     * password_reset.storage (1.46.0): with at least one `table` profile, the reset credential store becomes the
+     * per-profile {@see ProfilePasswordResetTokenManager} and the table invalidation listener is tagged. Without one,
+     * nothing changes (the interface stays aliased to the user-entity manager).
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function registerPasswordResetStorage(ContainerBuilder $container, array $profiles): void
+    {
+        if (!$this->profilesUseResetTable($profiles)) {
+            return;
+        }
+
+        $container->setAlias(PasswordResetTokenManagerInterface::class, ProfilePasswordResetTokenManager::class);
+        $container->getDefinition(PasswordResetTableInvalidationListener::class)
+            ->addTag('doctrine.event_listener', ['event' => 'onFlush']);
+    }
+
+    /**
+     * @param array<array-key, mixed> $profiles
+     */
+    private function profilesUseResetTable(array $profiles): bool
+    {
+        foreach ($profiles as $profile) {
+            $settings = is_array($profile) ? ($profile['password_reset'] ?? null) : null;
+            if (is_array($settings) && ($settings['storage'] ?? null) === Configuration::PASSWORD_RESET_STORAGE_TABLE) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * doctrine.register_mapping: true / false / "auto" (mapped only when a profile enables social login, QR login,
+     * invitations, MFA, multi-account or the reset table).
      *
      * @param array<string, array<string, mixed>> $profiles
      */
@@ -661,7 +698,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         if ($registerMapping === false && $needed) {
-            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode and invitations.mode to be "disabled" and mfa.enabled / multi_account.enabled false in every profile (their entities would not be mapped).');
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode and invitations.mode to be "disabled", mfa.enabled / multi_account.enabled false and password_reset.storage "user_entity" in every profile (their entities would not be mapped).');
         }
 
         return (bool) $registerMapping;
@@ -672,6 +709,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
      */
     private function profilesNeedEntities(array $profiles): bool
     {
+        if ($this->profilesUseResetTable($profiles)) {
+            return true;
+        }
         foreach ($profiles as $profile) {
             if (!is_array($profile)) {
                 continue;

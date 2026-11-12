@@ -64,6 +64,12 @@ final class Configuration implements ConfigurationInterface
 
     public const REGISTER_MAPPING_AUTO = 'auto';
 
+    /** password_reset.storage (1.46.0): the reset credential on the user entity (default, earlier behaviour). */
+    public const PASSWORD_RESET_STORAGE_USER_ENTITY = 'user_entity';
+
+    /** password_reset.storage (1.46.0): the reset credential in the bundle-owned auth_kit_password_reset table. */
+    public const PASSWORD_RESET_STORAGE_TABLE = 'table';
+
     /** @var list<string> */
     public const LOGOUT_METHODS = ['GET', 'POST'];
 
@@ -1095,6 +1101,11 @@ final class Configuration implements ConfigurationInterface
                     ->values(array_map(static fn (PasswordResetMode $mode): string => $mode->value, PasswordResetMode::cases()))
                     ->info('disabled: hide reset flows. enabled: expose request and completion routes.')
                     ->defaultValue(PasswordResetMode::Disabled->value)
+                ->end()
+                ->enumNode('storage')
+                    ->values([self::PASSWORD_RESET_STORAGE_USER_ENTITY, self::PASSWORD_RESET_STORAGE_TABLE])
+                    ->info('Since 1.46.0: where the hashed reset credential lives. user_entity: on the user (token_field / token_expires_field, the earlier behaviour). table: a bundle-owned auth_kit_password_reset row referencing the user by class + id (the user is never written by a reset request; the AuthKit entities must be mapped).')
+                    ->defaultValue(self::PASSWORD_RESET_STORAGE_USER_ENTITY)
                 ->end()
                 ->append($this->createAvailabilityCheckerNode('password_reset'))
                 ->enumNode('delivery')
