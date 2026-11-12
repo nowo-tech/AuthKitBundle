@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
 use Nowo\AuthKitBundle\MultiAccount\EnrolmentGateInterface;
 use Nowo\AuthKitBundle\MultiAccount\EnrolmentPolicyInterface;
 use Nowo\AuthKitBundle\ValueObject\EnrolmentCandidate;
+use Symfony\Component\Security\Core\Authentication\Token\RememberMeToken;
 use Symfony\Component\Security\Core\Authentication\Token\SwitchUserToken;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -45,6 +46,8 @@ final readonly class EnrolmentPolicyGate implements EnrolmentGateInterface
             $token instanceof SwitchUserToken,
             $token->getRoleNames(),
             $token->getAttributes(),
+            $token instanceof RememberMeToken,
+            $token::class,
         );
     }
 }

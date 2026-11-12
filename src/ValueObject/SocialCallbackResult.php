@@ -7,6 +7,8 @@ namespace Nowo\AuthKitBundle\ValueObject;
 use InvalidArgumentException;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 
+use function preg_match;
+use function str_contains;
 use function str_starts_with;
 
 /**
@@ -16,7 +18,9 @@ use function str_starts_with;
 final readonly class SocialCallbackResult
 {
     /**
-     * @param string $redirectUrl where the browser goes next: a path ('/…', not '//…') or an absolute http(s) URL
+     * @param string $redirectUrl where the browser goes next: a path ('/…', not '//…') or an absolute http(s) URL, with no
+     *                            backslash or control character. Build it from your routes, never from request input
+     *                            (an absolute URL is not restricted to your host)
      *
      * @throws InvalidArgumentException when the URL is neither
      */
@@ -26,7 +30,11 @@ final readonly class SocialCallbackResult
         public bool $rememberMe = false,
     ) {
         $path = str_starts_with($redirectUrl, '/') && !str_starts_with($redirectUrl, '//');
-        if (!$path && !str_starts_with($redirectUrl, 'https://') && !str_starts_with($redirectUrl, 'http://')) {
+        // Audit NV-I1: no backslash (browsers read `/\host` as `//host`) and no control character anywhere.
+        if ((!$path && !str_starts_with($redirectUrl, 'https://') && !str_starts_with($redirectUrl, 'http://'))
+            || str_contains($redirectUrl, '\\')
+            || preg_match('/[\x00-\x1F\x7F]/', $redirectUrl) === 1
+        ) {
             throw new InvalidArgumentException('A social callback redirect must be a path or an absolute http(s) URL.');
         }
     }

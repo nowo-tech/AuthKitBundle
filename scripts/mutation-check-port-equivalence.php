@@ -24,7 +24,7 @@ $m = [
     ['src/Port/AuthUserRefs.php', '? new AuthUserRef(UserIds::className($user), $id, $user->getUserIdentifier(), $user->getRoles(), $user)', '? new AuthUserRef(UserIds::className($user), $id, \'alice@example.com\', $user->getRoles(), $user)'],
     ['src/Port/SocialCallbackStepGate.php', 'return $this->step->supports($this->context($request), $provider);', 'return $this->step->supports($this->context($request), \'google\');'],
     ['src/Port/AuthRequestContexts.php', 'static fn (string $name): bool => $request->hasSession() && $request->getSession()->has($name),', 'static fn (string $name): bool => true,'],
-    ['src/Mfa/MfaManager.php', '$policy = Ports::mfaPolicy($this->policies->get($profile->name));', '$policy = Ports::mfaPolicy($this->policies->get(\'default\') instanceof \\Nowo\\AuthKitBundle\\Mfa\\MfaPolicyInterface ? null : $this->policies->get($profile->name));'],
+    ['src/Mfa/MfaManager.php', '$policy  = Ports::mfaPolicy($service);', '$policy  = $service instanceof MfaPolicyInterface ? null : Ports::mfaPolicy($service);'],
     ['src/Invitation/InvitationManager.php', 'if (!Ports::invitationActionAuthorizer($authorizer, $this->now())->isGranted($actor, $action, $subject, $request)) {', 'if (!Ports::invitationActionAuthorizer($authorizer, $this->now())->isGranted($actor, $action, $subject, $request) && $actor !== null) {'],
     ['src/Controller/SocialLoginCheckController.php', "if (\$handler instanceof SocialCallbackStepInterface && !\$handler instanceof SocialCallbackHandlerInterface) {\n                \$handler = new SocialCallbackStepGate(", "if (false) {\n                \$handler = new SocialCallbackStepGate("],
 ];

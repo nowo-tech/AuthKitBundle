@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\PasswordReset;
 
 use DateTimeImmutable;
-use Nowo\AuthKitBundle\Entity\PasswordResetRequest;
+use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\User\UserIds;
 
 /**

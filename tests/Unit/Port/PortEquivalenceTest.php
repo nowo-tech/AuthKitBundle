@@ -51,6 +51,8 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Throwable;
 
 use function array_keys;
+use function implode;
+use function in_array;
 use function sprintf;
 
 /**
@@ -77,9 +79,15 @@ final class PortEquivalenceTest extends TestCase
             foreach ($this->users() as $user) {
                 $legacy = $this->outcome(static fn (): mixed => Legacy145PortDecisions::mfaRequirement($profile, $user, null, self::locator(['default' => new LegacyRulePorts()])));
                 foreach ($this->services() as $kind => $service) {
-                    $manager  = new MfaManager($registry, new MfaStore($this->createStub(ManagerRegistry::class)), new MfaOwnerResolver(), new MockClock(), new AuthKitAttemptLimiter(new ArrayAdapter()), policies: self::locator(['default' => $service]));
-                    $expected = $kind === 'neither' ? $this->outcome(static fn (): mixed => Legacy145PortDecisions::mfaRequirement($profile, $user, null, self::locator(['default' => $service]))) : $legacy;
-                    self::assertSame($expected, $this->outcome(static fn (): mixed => $manager->requirement($user)), sprintf('%s / %s / required %s', $kind, $user->getUserIdentifier(), implode(',', $requiredRoles)));
+                    $manager = new MfaManager($registry, new MfaStore($this->createStub(ManagerRegistry::class)), new MfaOwnerResolver(), new MockClock(), new AuthKitAttemptLimiter(new ArrayAdapter()), policies: self::locator(['default' => $service]));
+                    $current = $this->outcome(static fn (): mixed => $manager->requirement($user));
+                    if ($kind === 'neither' && ($requiredRoles === [] || !in_array('ROLE_EDITOR', $user->getRoles(), true))) {
+                        // Audit NV-L4 (deliberate change): 1.45 fell back to "optional"; 1.46 fails closed.
+                        self::assertSame(LogicException::class, $current['class'] ?? null, sprintf('neither / %s', $user->getUserIdentifier()));
+                        ++$cases;
+                        continue;
+                    }
+                    self::assertSame($legacy, $current, sprintf('%s / %s / required %s', $kind, $user->getUserIdentifier(), implode(',', $requiredRoles)));
                     ++$cases;
                 }
             }

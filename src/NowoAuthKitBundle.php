@@ -61,6 +61,19 @@ class NowoAuthKitBundle extends Bundle
             [],
             NowoAuthKitExtension::XML_MAPPING_ENABLED_PARAMETER,
         ));
+        // 1.46.0 (audit NV-I3): the reset table is mapped only when a profile uses password_reset.storage: table, so the
+        // migrations of the other hosts never gain it. Outside Entity/ on purpose (DoctrineBundle auto_mapping scans it).
+        $container->addCompilerPass(DoctrineOrmMappingsPass::createAttributeMappingDriver(
+            ['Nowo\\AuthKitBundle\\PasswordReset\\Entity'],
+            [__DIR__ . '/PasswordReset/Entity'],
+            [],
+            NowoAuthKitExtension::PASSWORD_RESET_MAPPING_PARAMETER,
+        ));
+        $container->addCompilerPass(DoctrineOrmMappingsPass::createXmlMappingDriver(
+            [__DIR__ . '/Resources/config/doctrine-xml-password-reset' => 'Nowo\\AuthKitBundle\\PasswordReset\\Entity'],
+            [],
+            NowoAuthKitExtension::PASSWORD_RESET_XML_MAPPING_PARAMETER,
+        ));
         // 1.43.0 (audit LD-AK-M1): after the mapping passes, so the named manager's driver chain is complete.
         $container->addCompilerPass(new EntityManagerOptionPass());
         // 1.46.0: before DoctrineBundle's MiddlewaresPass (the rollback middleware of the private entity manager).

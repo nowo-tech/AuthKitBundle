@@ -199,8 +199,26 @@ literal 1.45.2 copies). See [UPGRADING](UPGRADING.md#to-1460).
 - `doctrine.register_mapping: auto` also maps the entities when a profile uses `storage: table`; `register_mapping:
   false` with a `table` profile fails the build.
 
+### Security (audit NV, before release)
+
+- **Reset table matched byte for byte (NV-M1).** With `password_reset.storage: table`, the rows of a user (code
+  check, delete on a new request / credential change / erasure) are selected by SQL and then kept only when class and
+  id (or, for users without an id, the identifier) are equal byte for byte in PHP; deletes go by primary key. A
+  case-, accent- or PAD SPACE-insensitive MySQL / MariaDB collation (`jose` = `JOSÉ` = `jose `) could otherwise have
+  let one user's reset code reset a look-alike account. On MySQL / MariaDB the identity and hash columns also get a
+  binary collation in the generated schema (`PasswordResetCollationListener`; house rule LQ). Test:
+  `ResetTableExactMatchTest`.
+- **Only the newest credential of a user resolves (NV-L1)**, even when two concurrent requests stored two rows.
+- **Expired rows are purged (NV-L2)** at every new reset request.
+- **`mfa.policy` fails closed (NV-L4):** a configured policy service that implements neither interface (e.g. a factory
+  service the build could not check) now throws a `LogicException` instead of making MFA optional.
+- **`SocialCallbackResult` (NV-I1)** refuses a backslash or a control character in the redirect URL.
+
 ### Changed
 
+- The reset table entity is `PasswordReset\Entity\PasswordResetRequest` and is mapped only when a profile uses
+  `password_reset.storage: table` (NV-I3): the migrations of other hosts never gain `auth_kit_password_reset`.
+- `EnrolmentCandidate` also carries `rememberMe`, `tokenClass` and `isFullyAuthenticated()` (NV-L3).
 - `PasswordResetTokenManager`: the token / code generation, the stored hash form, the code check and the attempt key
   moved unchanged into `PasswordResetCredentials` (internal), shared by both storages.
 - `PasswordResetTokenManagerInterface` is now aliased explicitly in `services.yaml` (to `PasswordResetTokenManager`, as

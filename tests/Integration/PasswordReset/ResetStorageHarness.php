@@ -12,7 +12,7 @@ use LogicException;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetTableInvalidationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetTokenInvalidationListener;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
-use Nowo\AuthKitBundle\Entity\PasswordResetRequest;
+use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
@@ -61,6 +61,7 @@ final class ResetStorageHarness
             'Nowo\\AuthKitBundle\\Tests\\Integration\\PasswordReset\\Entity' => __DIR__ . '/Entity',
             'Nowo\\AuthKitBundle\\Tests\\Integration\\Kernel\\Entity'        => $root . '/tests/Integration/Kernel/Entity',
             'Nowo\\AuthKitBundle\\Entity'                                    => $root . '/src/Entity',
+            'Nowo\\AuthKitBundle\\PasswordReset\\Entity'                     => $root . '/src/PasswordReset/Entity',
         ]]);
         $em = $this->doctrine->getManager();
         $this->assertEntityManager($em);

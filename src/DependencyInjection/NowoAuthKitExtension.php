@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
+use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetTableInvalidationListener;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerMiddleware;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
@@ -130,6 +131,12 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     /** 1.46.0: present when doctrine.mapping_type is xml and the bundle entities are mapped. */
     public const XML_MAPPING_ENABLED_PARAMETER = 'nowo_auth_kit.doctrine.xml_mapping_enabled';
 
+    /** 1.46.0: present when a profile uses password_reset.storage table (attribute mapping of the reset table). */
+    public const PASSWORD_RESET_MAPPING_PARAMETER = 'nowo_auth_kit.doctrine.password_reset_mapping_enabled';
+
+    /** 1.46.0: same, with doctrine.mapping_type xml. */
+    public const PASSWORD_RESET_XML_MAPPING_PARAMETER = 'nowo_auth_kit.doctrine.password_reset_xml_mapping_enabled';
+
     /** 1.46.0: whether doctrine.private_entity_manager is true. */
     public const PRIVATE_ENTITY_MANAGER_PARAMETER = 'nowo_auth_kit.doctrine.private_entity_manager';
 
@@ -241,6 +248,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             // Read by the DoctrineOrmMappingsPass of NowoAuthKitBundle::build() (enabled when the parameter exists);
             // 1.46.0: the XML driver instead of the attribute one with doctrine.mapping_type xml.
             $container->setParameter($config['doctrine']['mapping_type'] === Configuration::MAPPING_TYPE_XML ? self::XML_MAPPING_ENABLED_PARAMETER : self::MAPPING_ENABLED_PARAMETER, true);
+            if ($this->profilesUseResetTable($profiles)) {
+                $container->setParameter($config['doctrine']['mapping_type'] === Configuration::MAPPING_TYPE_XML ? self::PASSWORD_RESET_XML_MAPPING_PARAMETER : self::PASSWORD_RESET_MAPPING_PARAMETER, true);
+            }
         }
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
@@ -806,6 +816,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setAlias(PasswordResetTokenManagerInterface::class, ProfilePasswordResetTokenManager::class);
         $container->getDefinition(PasswordResetTableInvalidationListener::class)
             ->addTag('doctrine.event_listener', ['event' => 'onFlush']);
+        // Audit NV-M1 / house rule LQ: binary collation of the identity and hash columns on MySQL / MariaDB.
+        $container->getDefinition(PasswordResetCollationListener::class)
+            ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchemaTable']);
     }
 
     /**

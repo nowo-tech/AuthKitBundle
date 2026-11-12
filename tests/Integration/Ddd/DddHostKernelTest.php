@@ -6,7 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\Ddd;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
-use Nowo\AuthKitBundle\Entity\PasswordResetRequest;
+use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\Port\QrLoginStepUpGate;
 use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\QrLogin\DeviceIntelligenceQrLoginStepUp;

@@ -298,7 +298,7 @@ final class PortGatesTest extends TestCase
         self::assertSame('http://example.com/', SocialCallbackResult::redirect('http://example.com/')->redirectUrl);
         self::assertNull(SocialCallbackResult::redirect('/next')->signIn);
         self::assertFalse(SocialCallbackResult::redirect('/next')->rememberMe);
-        foreach (['//evil.example', 'javascript:alert(1)', 'next', ''] as $url) {
+        foreach (['//evil.example', 'javascript:alert(1)', 'next', '', '/\\evil.example', "/next\r\nX: y", "https://example.com/\x00", "/a\x7Fb"] as $url) {
             try {
                 SocialCallbackResult::redirect($url);
                 self::fail($url . ' must be refused.');
@@ -318,6 +318,14 @@ final class PortGatesTest extends TestCase
         self::assertFalse($candidate->impersonated);
         self::assertSame(['ROLE_A', 'ROLE_B'], $candidate->roleNames);
         self::assertSame(['a' => 1, 'b' => null, 'e' => 'z'], $candidate->attributes);
+        self::assertFalse($candidate->rememberMe);
+        self::assertSame('', $candidate->tokenClass);
+        self::assertFalse($candidate->isFullyAuthenticated(), 'No user.');
+
+        $user = AuthUserRef::ofId(TestUser::class, '1');
+        self::assertTrue((new EnrolmentCandidate($user))->isFullyAuthenticated());
+        self::assertFalse((new EnrolmentCandidate($user, secondFactorPending: true))->isFullyAuthenticated());
+        self::assertFalse((new EnrolmentCandidate($user, rememberMe: true, tokenClass: 'X'))->isFullyAuthenticated());
     }
 
     public function testPortsKeepTheFallbackForPerProfileServicesAndFailClosedForTaggedOnes(): void

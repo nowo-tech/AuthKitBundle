@@ -36,6 +36,7 @@ use function array_intersect;
 use function array_map;
 use function array_values;
 use function count;
+use function get_debug_type;
 use function in_array;
 use function is_array;
 use function is_int;
@@ -138,10 +139,15 @@ final readonly class MfaManager
         }
         if ($this->policies?->has($profile->name) === true) {
             // 1.46.0: the deprecated interface as in 1.45, else the framework-free twin through its gate.
-            $policy = Ports::mfaPolicy($this->policies->get($profile->name));
-            if ($policy instanceof MfaPolicyInterface) {
-                return $policy->requirement($user, $profile->name);
+            $service = $this->policies->get($profile->name);
+            $policy  = Ports::mfaPolicy($service);
+            if (!$policy instanceof MfaPolicyInterface) {
+                // Audit NV-L4: fail closed. 1.45 fell back to "optional" (the build already refuses a class known before
+                // compilation; this covers factory services).
+                throw new LogicException(sprintf('The mfa.policy service of the AuthKit profile "%s" (%s) must implement "%s".', $profile->name, get_debug_type($service), MfaRequirementPolicyInterface::class));
             }
+
+            return $policy->requirement($user, $profile->name);
         }
 
         return MfaRequirement::Optional;

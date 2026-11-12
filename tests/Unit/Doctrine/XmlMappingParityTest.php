@@ -22,10 +22,10 @@ use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
-use Nowo\AuthKitBundle\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
+use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -84,7 +84,7 @@ final class XmlMappingParityTest extends TestCase
     #[DataProvider('entities')]
     public function theXmlMetadataMatchesTheAttributes(string $class, string $prefix): void
     {
-        $attribute = $this->manager(new AttributeDriver([dirname(__DIR__, 3) . '/src/Entity']), $prefix)->getClassMetadata($class);
+        $attribute = $this->manager(new AttributeDriver([dirname(__DIR__, 3) . '/src/Entity', dirname(__DIR__, 3) . '/src/PasswordReset/Entity']), $prefix)->getClassMetadata($class);
         $xml       = $this->manager($this->xmlDriver(), $prefix)->getClassMetadata($class);
 
         self::assertSame($attribute->getTableName(), $xml->getTableName());
@@ -100,7 +100,7 @@ final class XmlMappingParityTest extends TestCase
     #[Test]
     public function theXmlSchemaHasNoDifference(): void
     {
-        $attribute = $this->manager(new AttributeDriver([dirname(__DIR__, 3) . '/src/Entity']), 'app_');
+        $attribute = $this->manager(new AttributeDriver([dirname(__DIR__, 3) . '/src/Entity', dirname(__DIR__, 3) . '/src/PasswordReset/Entity']), 'app_');
         $xml       = $this->manager($this->xmlDriver(), 'app_');
         $from      = (new SchemaTool($attribute))->getSchemaFromMetadata($attribute->getMetadataFactory()->getAllMetadata());
         $to        = (new SchemaTool($xml))->getSchemaFromMetadata($xml->getMetadataFactory()->getAllMetadata());
@@ -121,7 +121,10 @@ final class XmlMappingParityTest extends TestCase
 
     private function xmlDriver(): MappingDriver
     {
-        return new SimplifiedXmlDriver([dirname(__DIR__, 3) . '/src/Resources/config/doctrine-xml' => 'Nowo\\AuthKitBundle\\Entity']);
+        return new SimplifiedXmlDriver([
+            dirname(__DIR__, 3) . '/src/Resources/config/doctrine-xml'                => 'Nowo\\AuthKitBundle\\Entity',
+            dirname(__DIR__, 3) . '/src/Resources/config/doctrine-xml-password-reset' => 'Nowo\\AuthKitBundle\\PasswordReset\\Entity',
+        ]);
     }
 
     private function manager(MappingDriver $driver, string $prefix): EntityManager

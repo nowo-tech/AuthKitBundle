@@ -149,6 +149,10 @@ your adapters (DDD / hexagonal hosts), implement the 1.46 twin instead:
 | `Invitation\InvitationGrantInterface` | `Invitation\InvitationGrantHandlerInterface` | autoconfigured, same tag |
 | `SocialLogin\SocialCallbackHandlerInterface` | `SocialLogin\SocialCallbackStepInterface` (return a `SocialCallbackResult`; AuthKit signs in and redirects) | autoconfigured, same tag |
 
+- `AuthUserRef::$roles` are the role names the user object reports, **without the role hierarchy** (`ROLE_ADMIN` does
+  not imply `ROLE_USER` there): check reachable roles through your own security service if you need them.
+- `EnrolmentCandidate::$secondFactorPending` only knows AuthKit's own MFA; with another 2FA bundle, refuse its
+  "pending" token through `$tokenClass` (and use `isFullyAuthenticated()` to exclude remember-me sign-ins).
 - Users are `ValueObject\AuthUserRef` (`userClass`, `id`, `identifier`, `roles`, `user()`); requests are
   `ValueObject\AuthRequestContext` (method, path, route, client IP, user agent, locale, firewall, profile, `header()`,
   `query()`, `post()`, `sessionHas()` / `sessionGet()` / `sessionRemove()`).
@@ -237,6 +241,8 @@ nowo_auth_kit:
         storage: table
 ```
 
+0. The table is mapped only while a profile uses `storage: table` (hosts that do not use it never see it in their
+   migrations). On MySQL / MariaDB the identity and hash columns get a binary collation in the generated migration.
 1. Create the table (migration): `bin/console doctrine:migrations:diff` (or `doctrine:schema:update`) adds
    `auth_kit_password_reset` (with your `doctrine.table_prefix`). `doctrine.register_mapping` must not be `false`.
 2. Pending credentials stored on the user are not migrated: a user who asked for a link before the switch asks again.

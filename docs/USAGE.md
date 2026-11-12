@@ -473,7 +473,7 @@ requests `ValueObject\AuthRequestContext`, invitations `InvitationSnapshot`):
 A service implementing the deprecated interface is asked through it exactly as in 1.45; one implementing only the 1.46
 port through an internal gate. The user ports (and `SocialCallbackResult::signIn()`) need the `AuthUserRef` to carry
 the security user object your user provider returns (`AuthUserRef::of()`): AuthKit signs that object in and hashes its
-password, so your domain aggregate stays behind your adapter. The build fails when a port service implements neither
+password, so your domain aggregate stays behind your adapter. `AuthUserRef::$roles` has no role hierarchy applied. The build fails when a port service implements neither
 interface. The suite boots such a host end to end: `tests/Integration/Ddd/DddHostKernelTest.php`.
 
 ### Keep the domain free of the bundle

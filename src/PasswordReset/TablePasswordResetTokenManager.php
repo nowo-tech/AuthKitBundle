@@ -78,7 +78,14 @@ final readonly class TablePasswordResetTokenManager implements PasswordResetToke
                 continue;
             }
 
-            return $this->validExpiry($row) ? $this->userOf($profile, $row) : null;
+            if (!$this->validExpiry($row)) {
+                return null;
+            }
+            $user = $this->userOf($profile, $row);
+            // Audit NV-L1: only the user's newest credential counts (two concurrent requests may both have stored one).
+            $newest = $user !== null ? $this->requests->findForUser($row->userClass, $row->userId, $row->userIdentifier) : null;
+
+            return $newest instanceof PasswordResetRequestRow && $newest->tokenHash === $row->tokenHash ? $user : null;
         }
 
         return null;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Nowo\AuthKitBundle\Entity;
+namespace Nowo\AuthKitBundle\PasswordReset\Entity;
 
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;

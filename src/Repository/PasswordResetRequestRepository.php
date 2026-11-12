@@ -11,11 +11,11 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
-use Nowo\AuthKitBundle\Entity\PasswordResetRequest;
+use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestRow;
 use Throwable;
 
-use function array_map;
+use function in_array;
 use function is_string;
 
 /**
@@ -33,7 +33,8 @@ final readonly class PasswordResetRequestRepository
 
     /**
      * Stores the row as the user's only pending reset credential: the user's earlier rows are deleted in the same
-     * transaction (a savepoint inside a transaction the application opened).
+     * transaction (a savepoint inside a transaction the application opened). Expired rows of every user are purged
+     * at the same time (audit NV-L2: an expired credential is useless and keeps an identifier).
      */
     public function save(PasswordResetRequestRow $row): void
     {
@@ -41,6 +42,7 @@ final readonly class PasswordResetRequestRepository
         $table      = $this->table();
         $connection->beginTransaction();
         try {
+            $connection->executeStatement('DELETE FROM ' . $table . ' WHERE expires_at < :now', ['now' => $row->createdAt], ['now' => Types::DATETIME_IMMUTABLE]);
             $this->deleteOn($connection, $table, $row->userClass, $row->userId, [$row->userIdentifier]);
             $connection->insert($table, [
                 'profile'         => $row->profile,
@@ -72,7 +74,9 @@ final readonly class PasswordResetRequestRepository
     }
 
     /**
-     * The rows whose `token_hash` equals the hash (normally one).
+     * The rows whose `token_hash` equals the hash byte for byte (normally one), newest first. The SQL equality only
+     * narrows the candidates: a case-, accent- or PAD SPACE-insensitive collation (MySQL / MariaDB defaults) is never
+     * trusted, every row is checked again with `===` (audit NV-M1, house rule LQ).
      *
      * @return list<PasswordResetRequestRow>
      */
@@ -83,42 +87,90 @@ final readonly class PasswordResetRequestRepository
             ['hash' => $tokenHash],
         );
 
-        return array_map($this->hydrate(...), $rows);
+        $found = [];
+        foreach ($rows as $row) {
+            if ($row['token_hash'] === $tokenHash) {
+                $found[] = $this->hydrate($row);
+            }
+        }
+
+        return $found;
     }
 
     /**
-     * The user's pending row (the newest one), by id when it has one, otherwise by identifier.
+     * The user's pending row (the newest one): the user class and id must equal the row's byte for byte, or, for a user
+     * without an id, the identifier (audit NV-M1: a look-alike `JOSÉ` / `jose ` row matched by a lax collation is never
+     * returned).
      */
     public function findForUser(string $userClass, ?string $userId, string $userIdentifier): ?PasswordResetRequestRow
     {
-        [$where, $parameters] = $userId !== null
-            ? ['user_id = :id', ['id' => $userId]]
-            : ['user_id IS NULL AND user_identifier = :identifier', ['identifier' => $userIdentifier]];
-        $row = $this->connection()->fetchAssociative(
-            'SELECT * FROM ' . $this->table() . ' WHERE user_class = :class AND ' . $where . ' ORDER BY id DESC',
-            ['class' => $userClass] + $parameters,
-        );
+        foreach ($this->candidates($this->connection(), $this->table(), '*', $userClass, $userId, [$userIdentifier]) as $row) {
+            return $this->hydrate($row);
+        }
 
-        return $row === false ? null : $this->hydrate($row);
+        return null;
     }
 
     /**
+     * Deletes the user's rows: the candidates of the SQL equality are checked again in PHP and deleted by primary key,
+     * so a lax collation never deletes another user's credential (audit NV-M1).
+     *
      * @param list<string> $identifiers
      */
     private function deleteOn(Connection $connection, string $table, string $userClass, ?string $userId, array $identifiers): int
     {
-        if ($userId !== null) {
-            return (int) $connection->executeStatement(
-                'DELETE FROM ' . $table . ' WHERE user_class = :class AND user_id = :id',
-                ['class' => $userClass, 'id' => $userId],
-            );
+        $ids = [];
+        foreach ($this->candidates($connection, $table, 'id, user_class, user_id, user_identifier', $userClass, $userId, $identifiers) as $row) {
+            $ids[] = (int) $row['id'];
+        }
+        if ($ids === []) {
+            return 0;
         }
 
         return (int) $connection->executeStatement(
-            'DELETE FROM ' . $table . ' WHERE user_class = :class AND user_id IS NULL AND user_identifier IN (:identifiers)',
-            ['class' => $userClass, 'identifiers' => $identifiers],
-            ['identifiers' => ArrayParameterType::STRING],
+            'DELETE FROM ' . $table . ' WHERE id IN (:ids)',
+            ['ids' => $ids],
+            ['ids' => ArrayParameterType::INTEGER],
         );
+    }
+
+    /**
+     * The rows of exactly this user, newest first: by class + id when it has one, otherwise class + one of the
+     * identifiers (and no id). SQL narrows, PHP decides (`===`).
+     *
+     * @param list<string> $identifiers
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function candidates(Connection $connection, string $table, string $columns, string $userClass, ?string $userId, array $identifiers): array
+    {
+        if ($userId !== null) {
+            $rows = $connection->fetchAllAssociative(
+                'SELECT ' . $columns . ' FROM ' . $table . ' WHERE user_class = :class AND user_id = :id ORDER BY id DESC',
+                ['class' => $userClass, 'id' => $userId],
+            );
+        } else {
+            $rows = $connection->fetchAllAssociative(
+                'SELECT ' . $columns . ' FROM ' . $table . ' WHERE user_class = :class AND user_id IS NULL AND user_identifier IN (:identifiers) ORDER BY id DESC',
+                ['class' => $userClass, 'identifiers' => $identifiers],
+                ['identifiers' => ArrayParameterType::STRING],
+            );
+        }
+
+        $exact = [];
+        foreach ($rows as $row) {
+            if ($row['user_class'] !== $userClass) {
+                continue;
+            }
+            $matches = $userId !== null
+                ? $row['user_id'] === $userId
+                : $row['user_id'] === null && in_array($row['user_identifier'], $identifiers, true);
+            if ($matches) {
+                $exact[] = $row;
+            }
+        }
+
+        return $exact;
     }
 
     /**

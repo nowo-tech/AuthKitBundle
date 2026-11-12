@@ -7,7 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\PasswordReset;
 use DateTimeImmutable;
 use Doctrine\DBAL\Exception;
 use LogicException;
-use Nowo\AuthKitBundle\Entity\PasswordResetRequest;
+use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCredentials;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
 use Nowo\AuthKitBundle\PasswordReset\TablePasswordResetTokenManager;

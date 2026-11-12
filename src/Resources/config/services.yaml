@@ -15,6 +15,7 @@ services:
             - '../../Doctrine/PrivateEntityManager*.php'
             - '../../Doctrine/UnitOfWorkBoundaries.php'
             - '../../Entity/'
+            - '../../PasswordReset/Entity/'
             - '../../Enum/'
             # 1.46.0: framework-free port VOs and internal gates (built per call, never services).
             - '../../Internal/'

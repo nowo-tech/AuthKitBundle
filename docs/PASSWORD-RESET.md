@@ -104,7 +104,7 @@ public function createForUser(object $user): PasswordResetTokenResult
   user, which may be a non-Doctrine class (the user is found again through the user directory port). Needs the AuthKit
   mapping (`doctrine.register_mapping: true` or `auto`) and a migration for the new table.
 
-Table `auth_kit_password_reset` (entity `Nowo\AuthKitBundle\Entity\PasswordResetRequest`):
+Table `auth_kit_password_reset` (entity `Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest`):
 
 | Column | Type | Null | Notes |
 |---|---|---|---|
@@ -117,6 +117,12 @@ Table `auth_kit_password_reset` (entity `Nowo\AuthKitBundle\Entity\PasswordReset
 | `code_hash` | string(64) | yes | SHA-256 of the code of a `both` delivery |
 | `expires_at` | datetime_immutable | no | |
 | `created_at` | datetime_immutable | no | |
+
+Rows are always matched byte for byte (class and id, or the identifier of a user without an id) in PHP after the SQL
+lookup, whatever the database collation; on MySQL / MariaDB the generated schema also gives those columns a binary
+collation. Expired rows are purged at every new request. Personal data: a row holds the identifier and hashes only
+until expiry (`token_ttl`); an erasure that does not go through a Doctrine delete of the user should call
+`PasswordResetTokenManagerInterface::clearForUser()` (or dispatch `CredentialsChangedEvent`).
 
 Index `idx_auth_kit_password_reset_user` (`user_class`, `user_id`). At most one row per user (a new request deletes
 the earlier one in the same transaction / savepoint). Rows of expired credentials stay until the next request,
