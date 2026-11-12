@@ -12,6 +12,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * Port (1.41): stores the host users AuthKit creates or changes. Default: {@see Doctrine\DoctrineUserWriter} (persist +
  * flush on the bundle's entity manager). Alias the interface to your repository adapter when the security user is not
  * a Doctrine entity, or when your domain owns user persistence.
+ *
+ * @deprecated since 1.46.0, implement {@see UserStoreInterface} (framework-free, REQ-ARCH-001 rule 3) instead; removed in 2.0.
  */
 interface UserWriterInterface
 {

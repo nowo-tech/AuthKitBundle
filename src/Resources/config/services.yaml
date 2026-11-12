@@ -16,6 +16,10 @@ services:
             - '../../Doctrine/UnitOfWorkBoundaries.php'
             - '../../Entity/'
             - '../../Enum/'
+            # 1.46.0: framework-free port VOs and internal gates (built per call, never services).
+            - '../../Internal/'
+            - '../../Port/'
+            - '../../ValueObject/'
             - '../../Form/'
             - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'

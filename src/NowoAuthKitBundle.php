@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle;
 
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\DoctrineOrmMappingsPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
@@ -42,6 +43,8 @@ class NowoAuthKitBundle extends Bundle
         $container->addCompilerPass(new MultiAccountPass());
         $container->addCompilerPass(new ProgrammaticLoginAuthenticatorPass());
         $container->addCompilerPass(new AvailabilityCheckersPass());
+        // 1.46.0: after the autoconfiguration tags, before decorators (framework-free port twins).
+        $container->addCompilerPass(new AuthKitPortsPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 0);
 
         $entityDir = __DIR__ . '/Entity';
         if (is_dir($entityDir)) {

@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Command\PurgeInvitationsCommand;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
 use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
@@ -24,8 +25,10 @@ use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
 use Nowo\AuthKitBundle\Invitation\Security\RoleInvitationsAccessChecker;
 use Nowo\AuthKitBundle\Locale\RecipientLocaleResolverInterface;
@@ -72,6 +75,7 @@ use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetVoterInterface;
 use Nowo\AuthKitBundle\Security\SessionExpired\SessionExpiredResponder;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
@@ -241,6 +245,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
+        // 1.46.0: the per-profile port services checked by AuthKitPortsPass (filled by the register* methods below).
+        $container->setParameter(AuthKitPortsPass::SERVICES_PARAMETER, []);
         // 1.42: the pool of the rate-limit / lockout counters (default cache.app, as before).
         $container->getDefinition(AuthKitAttemptLimiter::class)->setArgument('$cache', new Reference((string) $config['attempt_limiter']['cache_pool']));
         // 1.42: the accept page owns the OAuth callback of a social acceptance only where a profile opts in.
@@ -270,6 +276,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $this->registerPersonalDataPorts($container, $config['personal_data']);
         $this->registerPersonalDataErasers($container, $registerMapping, $config['personal_data']['enabled'] === true);
         $container->registerForAutoconfiguration(SocialCallbackHandlerInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
+        $container->registerForAutoconfiguration(SocialCallbackStepInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
 
         if ($config['flash']['twig_filter'] !== true) {
             $container->removeDefinition(AuthKitFlashExtension::class);
@@ -1025,9 +1032,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $firewalls[$profile['firewall']] = true;
             if (is_string($settings['enrolment_gate']) && $settings['enrolment_gate'] !== '') {
                 $gates[$name] = new Reference($settings['enrolment_gate']);
+                $this->addPortService($container, 'enrolment_gate', $settings['enrolment_gate'], sprintf('nowo_auth_kit.profiles.%s.multi_account.enrolment_gate', $name));
             }
             if (is_string($settings['presenter']) && $settings['presenter'] !== '') {
                 $presenters[$name] = new Reference($settings['presenter']);
+                $this->addPortService($container, 'account_presenter', $settings['presenter'], sprintf('nowo_auth_kit.profiles.%s.multi_account.presenter', $name));
             }
         }
         if ($firewalls === []) {
@@ -1078,6 +1087,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $firewalls[$profile['firewall']] = true;
             if (is_string($mfa['policy']) && $mfa['policy'] !== '') {
                 $policies[$name] = new Reference($mfa['policy']);
+                $this->addPortService($container, 'mfa_policy', $mfa['policy'], sprintf('nowo_auth_kit.profiles.%s.mfa.policy', $name));
             }
         }
         if ($firewalls === []) {
@@ -1103,6 +1113,18 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $container->removeDefinition(MfaPersonalDataEraser::class); // @codeCoverageIgnore
             $container->removeDefinition(MfaPersonalDataExportProvider::class); // @codeCoverageIgnore
         }
+    }
+
+    /**
+     * Records a per-profile port service for {@see AuthKitPortsPass} (1.46.0: build failure when its class implements
+     * neither the deprecated port nor its framework-free twin).
+     */
+    private function addPortService(ContainerBuilder $container, string $port, string $id, string $path): void
+    {
+        /** @var list<array{0: string, 1: string, 2: string}> $services */
+        $services   = $container->getParameter(AuthKitPortsPass::SERVICES_PARAMETER);
+        $services[] = [$port, $id, $path];
+        $container->setParameter(AuthKitPortsPass::SERVICES_PARAMETER, $services);
     }
 
     /**
@@ -1140,6 +1162,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $custom = $invitations['security']['access_checker'];
             if (is_string($custom) && $custom !== '') {
                 $checkers[$name] = new Reference($custom);
+                $this->addPortService($container, 'invitations_access_checker', $custom, sprintf('nowo_auth_kit.profiles.%s.invitations.security.access_checker', $name));
                 continue;
             }
             $id = 'nowo_auth_kit.invitations.access_checker.' . $name;
@@ -1151,6 +1174,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->getDefinition(InvitationsAccessGuard::class)->setArgument('$checkers', ServiceLocatorTagPass::register($container, $checkers));
         $container->registerForAutoconfiguration(InvitationGrantInterface::class)->addTag(InvitationGrantInterface::TAG);
         $container->registerForAutoconfiguration(InvitationActionAuthorizerInterface::class)->addTag(InvitationActionAuthorizerInterface::AUTHORIZER_TAG);
+        // 1.46.0: the framework-free twins share the tags (asked through their gates, see Port\Ports).
+        $container->registerForAutoconfiguration(InvitationGrantHandlerInterface::class)->addTag(InvitationGrantInterface::TAG);
+        $container->registerForAutoconfiguration(InvitationActionPolicyInterface::class)->addTag(InvitationActionAuthorizerInterface::AUTHORIZER_TAG);
 
         if ($checkers === []) {
             $container->removeDefinition(PurgeInvitationsCommand::class);

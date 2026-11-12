@@ -9,6 +9,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 /**
  * How an account appears in the switcher (1.34, `multi_account.presenter`): the only data of one account another
  * account of the browser sees.
+ *
+ * @deprecated since 1.46.0, implement {@see AccountPresentationProviderInterface} (framework-free, REQ-ARCH-001 rule 3) instead; removed in 2.0.
  */
 interface AccountPresenterInterface
 {

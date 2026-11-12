@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationOpeningEvent;
+use Nowo\AuthKitBundle\Port\Ports;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
@@ -370,7 +371,8 @@ final readonly class InvitationAcceptor
             $invitation->markAccepted($user->getUserIdentifier(), $now);
             $snapshot = InvitationSnapshot::of($invitation, $now);
             foreach ($this->grants as $grant) {
-                $grant->grant($snapshot, $user);
+                // 1.46.0: the deprecated interface as in 1.45, else the framework-free twin.
+                Ports::invitationGrant($grant)->grant($snapshot, $user);
             }
             if ($this->privateEntityManager instanceof EntityManagerInterface) {
                 // 1.46.0 private entity manager: the invitation row (same connection, same transaction).

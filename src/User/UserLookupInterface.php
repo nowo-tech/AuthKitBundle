@@ -12,6 +12,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * Port (1.41): finds the users of a profile for password reset, magic login, QR completion, MFA admin, social sign-in,
  * the registration gate and the registrar. Default: {@see Doctrine\DoctrineUserLookup} (repository of `user_class`).
  * Alias the interface to an adapter over your user repository or your user provider.
+ *
+ * @deprecated since 1.46.0, implement {@see UserDirectoryInterface} (framework-free, REQ-ARCH-001 rule 3) instead; removed in 2.0.
  */
 interface UserLookupInterface
 {

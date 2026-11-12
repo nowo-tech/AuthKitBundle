@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Controller;
 
+use LogicException;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
+use Nowo\AuthKitBundle\Port\SocialCallbackStepGate;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -16,6 +19,7 @@ use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
@@ -31,6 +35,9 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Throwable;
 
+use function get_debug_type;
+use function sprintf;
+
 /**
  * Completes the OAuth authorization-code callback and logs the user in. A host
  * {@see SocialCallbackHandlerInterface} can own the last step (1.37): every check below still runs first.
@@ -38,7 +45,7 @@ use Throwable;
 final class SocialLoginCheckController
 {
     /**
-     * @param iterable<SocialCallbackHandlerInterface> $callbackHandlers
+     * @param iterable<mixed> $callbackHandlers tagged `nowo_auth_kit.social_callback_handler` (either interface; checked at build time)
      */
     public function __construct(
         private readonly SocialLoginGate $socialLoginGate,
@@ -62,7 +69,7 @@ final class SocialLoginCheckController
     {
         $profile  = $this->profileResolver->resolve($request);
         $loginUrl = $this->urlGenerator->generate($profile->routes['login']['name']);
-        $handler  = $this->handlerFor($request, $provider);
+        $handler  = $this->handlerFor($request, $provider, $profile);
         $state    = (string) $request->query->get('state', '');
         $code     = (string) $request->query->get('code', '');
 
@@ -123,9 +130,19 @@ final class SocialLoginCheckController
         return new RedirectResponse($this->urlGenerator->generate($target));
     }
 
-    private function handlerFor(Request $request, string $provider): ?SocialCallbackHandlerInterface
+    /**
+     * The first handler that owns the callback. 1.46.0: a handler implementing the deprecated interface is asked as in
+     * 1.45; one implementing only {@see SocialCallbackStepInterface} through its gate (per call).
+     */
+    private function handlerFor(Request $request, string $provider, ProfileSettings $profile): ?SocialCallbackHandlerInterface
     {
         foreach ($this->callbackHandlers as $handler) {
+            if ($handler instanceof SocialCallbackStepInterface && !$handler instanceof SocialCallbackHandlerInterface) {
+                $handler = new SocialCallbackStepGate($handler, $profile, $this->security, $this->loginAuthenticator);
+            }
+            if (!$handler instanceof SocialCallbackHandlerInterface) {
+                throw new LogicException(sprintf('The AuthKit social callback handler "%s" must implement "%s".', get_debug_type($handler), SocialCallbackStepInterface::class));
+            }
             if ($handler->supports($request, $provider)) {
                 return $handler;
             }
@@ -146,7 +163,7 @@ final class SocialLoginCheckController
         try {
             return $this->guarded($request, static fn (): Response => $handler->handle($request, $context));
         } catch (Throwable $exception) {
-            $this->logger?->error('AuthKit social callback handler {handler} failed for provider {provider}.', ['handler' => $handler::class, 'provider' => $context->provider, 'exception' => $exception::class]);
+            $this->logger?->error('AuthKit social callback handler {handler} failed for provider {provider}.', ['handler' => $handler instanceof SocialCallbackStepGate ? $handler->step()::class : $handler::class, 'provider' => $context->provider, 'exception' => $exception::class]);
             if ($exception instanceof HttpExceptionInterface) {
                 throw $exception;
             }
