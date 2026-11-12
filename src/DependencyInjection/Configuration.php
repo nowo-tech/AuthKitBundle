@@ -62,7 +62,18 @@ final class Configuration implements ConfigurationInterface
 
     public const DEFAULT_PASSWORD_MIN_LENGTH = 12;
 
+    /** `doctrine.mapping_type` values (1.46.0). */
+    public const MAPPING_TYPE_ATTRIBUTE = 'attribute';
+
+    public const MAPPING_TYPE_XML = 'xml';
+
     public const REGISTER_MAPPING_AUTO = 'auto';
+
+    /** password_reset.storage (1.46.0): the reset credential on the user entity (default, earlier behaviour). */
+    public const PASSWORD_RESET_STORAGE_USER_ENTITY = 'user_entity';
+
+    /** password_reset.storage (1.46.0): the reset credential in the bundle-owned auth_kit_password_reset table. */
+    public const PASSWORD_RESET_STORAGE_TABLE = 'table';
 
     /** @var list<string> */
     public const LOGOUT_METHODS = ['GET', 'POST'];
@@ -308,12 +319,21 @@ final class Configuration implements ConfigurationInterface
                             ->end()
                         ->end()
                         ->scalarNode('entity_manager')
-                            ->info('Since 1.43.0: name of an additional entity manager that maps the AuthKit entities (the host maps them there itself). After a failed write the bundle resets only its own managers: the one the write went through, the manager of the AuthKit entities (ManagerRegistry::getManagerForClass(), always included) and this one. The bundle mapping and writes stay on the default manager; a dedicated manager is not supported yet. The build fails when the manager does not exist or does not map Nowo\\AuthKitBundle\\Entity.')
+                            ->info('Since 1.43.0: name of an additional entity manager that maps the AuthKit entities (the host maps them there itself). After a failed write the bundle resets only its own managers: the one the write went through, the manager of the AuthKit entities (ManagerRegistry::getManagerForClass(), always included) and this one. Without doctrine.private_entity_manager the bundle mapping and writes stay on the default manager; with it (1.46.0) the private manager is still created on the default manager, and this one stays in the recovery set. The build fails when the manager does not exist or does not map Nowo\\AuthKitBundle\\Entity.')
                             ->defaultNull()
                             ->validate()
                                 ->ifTrue(static fn (mixed $value): bool => $value !== null && (!is_string($value) || $value === ''))
                                 ->thenInvalid('Invalid "nowo_auth_kit.doctrine.entity_manager" %s: use an entity manager name or null.')
                             ->end()
+                        ->end()
+                        ->booleanNode('private_entity_manager')
+                            ->info('Since 1.46.0 (REQ-ARCH-001 rule 6): true writes and reads the AuthKit entities through a private entity manager created on the connection and configuration of the default manager (where 1.45 wrote them), so an AuthKit write never flushes the application\'s pending changes; the tables do not move. null (default) and false keep the 1.45 behaviour (the AuthKit writes flush the application\'s manager) and are deprecated: true becomes the only mode in 2.0.')
+                            ->defaultNull()
+                        ->end()
+                        ->enumNode('mapping_type')
+                            ->values([self::MAPPING_TYPE_ATTRIBUTE, self::MAPPING_TYPE_XML])
+                            ->info('Since 1.46.0: attribute (default) or xml (src/Resources/config/doctrine-xml/*.orm.xml: the same tables, columns, indexes and constraints) of the mapping the bundle registers on the default manager when register_mapping resolves to true (it also replaces the attribute driver an auto_mapping default manager would add for Nowo\\AuthKitBundle\\Entity). A manager named by doctrine.entity_manager keeps the mapping the host gives it.')
+                            ->defaultValue(self::MAPPING_TYPE_ATTRIBUTE)
                         ->end()
                         ->enumNode('register_mapping')
                             ->values([true, false, self::REGISTER_MAPPING_AUTO])
@@ -1095,6 +1115,11 @@ final class Configuration implements ConfigurationInterface
                     ->values(array_map(static fn (PasswordResetMode $mode): string => $mode->value, PasswordResetMode::cases()))
                     ->info('disabled: hide reset flows. enabled: expose request and completion routes.')
                     ->defaultValue(PasswordResetMode::Disabled->value)
+                ->end()
+                ->enumNode('storage')
+                    ->values([self::PASSWORD_RESET_STORAGE_USER_ENTITY, self::PASSWORD_RESET_STORAGE_TABLE])
+                    ->info('Since 1.46.0: where the hashed reset credential lives. user_entity: on the user (token_field / token_expires_field, the earlier behaviour). table: a bundle-owned auth_kit_password_reset row referencing the user by class + id (the user is never written by a reset request; the AuthKit entities must be mapped).')
+                    ->defaultValue(self::PASSWORD_RESET_STORAGE_USER_ENTITY)
                 ->end()
                 ->append($this->createAvailabilityCheckerNode('password_reset'))
                 ->enumNode('delivery')

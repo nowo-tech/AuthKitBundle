@@ -8,8 +8,19 @@ services:
         resource: '../../'
         exclude:
             - '../../DependencyInjection/'
+            # 1.46.0: registered by NowoAuthKitExtension only with doctrine.private_entity_manager: true.
+            - '../../Doctrine/AuthKitEntityManager.php'
+            - '../../Doctrine/AuthKitManagerRegistry.php'
+            - '../../Doctrine/AuthKitSavepoint.php'
+            - '../../Doctrine/PrivateEntityManager*.php'
+            - '../../Doctrine/UnitOfWorkBoundaries.php'
             - '../../Entity/'
+            - '../../PasswordReset/Entity/'
             - '../../Enum/'
+            # 1.46.0: framework-free port VOs and internal gates (built per call, never services).
+            - '../../Internal/'
+            - '../../Port/'
+            - '../../ValueObject/'
             - '../../Form/'
             - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
@@ -67,6 +78,16 @@ services:
     Nowo\AuthKitBundle\Doctrine\PasswordResetTokenInvalidationListener:
         tags:
             - { name: doctrine.event_listener, event: onFlush }
+
+    # Reset credential store. 1.46.0: aliased to ProfilePasswordResetTokenManager by the extension when a profile sets
+    # password_reset.storage: table (the user-entity manager stays the default).
+    Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface:
+        alias: Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager
+
+    Nowo\AuthKitBundle\PasswordReset\ProfilePasswordResetTokenManager:
+        arguments:
+            $userEntity: '@Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager'
+            $table: '@Nowo\AuthKitBundle\PasswordReset\TablePasswordResetTokenManager'
 
     # 1.41 user ports (DDD / hexagonal hosts): alias them to your own adapters. Defaults: the Doctrine +
     # PropertyAccessor behaviour of earlier releases.

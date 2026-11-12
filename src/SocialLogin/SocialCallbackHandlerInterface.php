@@ -19,6 +19,8 @@ use Symfony\Component\HttpFoundation\Response;
  * live there; otherwise they are the handler's job. See docs/SOCIAL-LOGIN.md.
  *
  * Implementations are shared services: keep them stateless (worker safe) and keep pending data in the session.
+ *
+ * @deprecated since 1.46.0, implement {@see SocialCallbackStepInterface} (framework-free, REQ-ARCH-001 rule 3) instead; removed in 2.0.
  */
 interface SocialCallbackHandlerInterface
 {

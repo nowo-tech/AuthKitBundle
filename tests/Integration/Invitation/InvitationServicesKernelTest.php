@@ -55,7 +55,7 @@ use Twig\Environment;
  * Edge branches of the invitation services and the fail-closed paths of the controllers (forms without the CSRF
  * extension, disabled profiles, non-path redirect targets), on the services of the invitations kernel.
  */
-final class InvitationServicesKernelTest extends KernelTestCase
+class InvitationServicesKernelTest extends KernelTestCase
 {
     protected static function getKernelClass(): string
     {

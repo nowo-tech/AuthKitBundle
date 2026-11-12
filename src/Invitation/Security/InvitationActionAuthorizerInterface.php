@@ -19,6 +19,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * into; the request is passed as `$request`), `resend` and `revoke` (the invitation), `return_link` (the request on
  * invite, the invitation on resend, when the link is returned to the caller). Hosts whose payload carries grants
  * (e.g. `payload[merge_key]` = organization, an org role) must check the actor on them here.
+ *
+ * @deprecated since 1.46.0, implement {@see InvitationActionPolicyInterface} (framework-free, REQ-ARCH-001 rule 3) instead; removed in 2.0.
  */
 interface InvitationActionAuthorizerInterface
 {

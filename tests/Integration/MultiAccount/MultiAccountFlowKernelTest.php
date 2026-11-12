@@ -15,7 +15,7 @@ use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
  * Several accounts in one browser (1.34): add a second account through its full sign-in and MFA, switch without a
  * password, separate sessions, revocation, sign out one or all, refused disabled account.
  */
-final class MultiAccountFlowKernelTest extends MultiAccountKernelTestCase
+class MultiAccountFlowKernelTest extends MultiAccountKernelTestCase
 {
     public function testAddASecondAccountWithMfaAndSwitch(): void
     {

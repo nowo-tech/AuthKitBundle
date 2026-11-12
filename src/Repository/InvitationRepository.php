@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Repository;
 
+use Closure;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
+use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use OverflowException;
 use SortDirection;
@@ -186,7 +188,7 @@ class InvitationRepository extends EntityRepository
      */
     public function claim(Invitation $invitation, string $tokenHash, string $acceptedBy, DateTimeImmutable $now): bool
     {
-        $updated = $this->getEntityManager()->createQueryBuilder()
+        $query = $this->getEntityManager()->createQueryBuilder()
             ->update(Invitation::class, 'i')
             ->set('i.acceptedAt', ':now')
             ->set('i.acceptedBy', ':by')
@@ -199,8 +201,8 @@ class InvitationRepository extends EntityRepository
             ->setParameter('by', mb_substr($acceptedBy, 0, Invitation::IDENTIFIER_MAX_LENGTH))
             ->setParameter('id', $invitation->getId())
             ->setParameter('hash', $tokenHash)
-            ->getQuery()
-            ->execute();
+            ->getQuery();
+        $updated = $this->write(static fn (): mixed => $query->execute());
 
         return $updated === 1;
     }
@@ -262,12 +264,12 @@ class InvitationRepository extends EntityRepository
                 break;
             }
             if (!$dryRun) {
-                $this->getEntityManager()->createQueryBuilder()
+                $delete = $this->getEntityManager()->createQueryBuilder()
                     ->delete(Invitation::class, 'i')
                     ->where('i.id IN (:ids)')
                     ->setParameter('ids', array_map(static fn (array $row): int => (int) $row['id'], $rows))
-                    ->getQuery()
-                    ->execute();
+                    ->getQuery();
+                $this->write(static fn (): mixed => $delete->execute());
             }
             $deleted += count($rows);
             if (count($rows) < self::PURGE_BATCH) {
@@ -294,5 +296,22 @@ class InvitationRepository extends EntityRepository
             'all'      => $qb,
             default    => $qb->andWhere('i.acceptedAt IS NULL AND i.revokedAt IS NULL'),
         };
+    }
+
+    /**
+     * A bulk statement: in a savepoint inside an open transaction with the private entity manager (1.46.0), exactly
+     * as before otherwise.
+     *
+     * @template T
+     *
+     * @param Closure(): T $statement
+     *
+     * @return T
+     */
+    private function write(Closure $statement): mixed
+    {
+        $manager = $this->getEntityManager();
+
+        return AuthKitSavepoint::write($manager->getConnection(), $statement, $manager);
     }
 }

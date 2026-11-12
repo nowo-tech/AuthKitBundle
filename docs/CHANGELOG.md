@@ -106,6 +106,167 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+**REQ-ARCH-001 / REQ-RUNTIME-002 (1.46.0).** Every change below is additive and opt-in: with an unchanged
+configuration and unchanged host services AuthKit behaves exactly as 1.45.2 (proven by the equivalence tests against
+literal 1.45.2 copies). See [UPGRADING](UPGRADING.md#to-1460).
+
+### Added
+
+- **Framework-free host ports (REQ-ARCH-001 rules 1 and 3).** Each of the eleven host ports typed with Symfony
+  `UserInterface`, `TokenInterface`, `Request` / `Response` or the `Invitation` entity has a 1.46 twin that takes and
+  returns only bundle value objects, scalars and enums:
+
+  | Deprecated (removed in 2.0) | 1.46 twin |
+  |---|---|
+  | `User\UserLookupInterface` | `User\UserDirectoryInterface` |
+  | `User\UserFactoryInterface` | `User\UserCreatorInterface` |
+  | `User\UserWriterInterface` | `User\UserStoreInterface` |
+  | `Mfa\MfaPolicyInterface` | `Mfa\MfaRequirementPolicyInterface` |
+  | `MultiAccount\AccountPresenterInterface` | `MultiAccount\AccountPresentationProviderInterface` |
+  | `MultiAccount\EnrolmentGateInterface` | `MultiAccount\EnrolmentPolicyInterface` (`ValueObject\EnrolmentCandidate`) |
+  | `Invitation\Security\InvitationsAccessCheckerInterface` | `Invitation\Security\InvitationsAccessPolicyInterface` |
+  | `Invitation\Security\InvitationActionAuthorizerInterface` | `Invitation\Security\InvitationActionPolicyInterface` (`InvitationSnapshot` instead of the entity) |
+  | `Invitation\InvitationGrantInterface` | `Invitation\InvitationGrantHandlerInterface` |
+  | `QrLogin\QrLoginStepUpInterface` | `QrLogin\QrLoginStepUpPolicyInterface` (`bool`, no `AccessDeniedException`) |
+  | `SocialLogin\SocialCallbackHandlerInterface` | `SocialLogin\SocialCallbackStepInterface` (`ValueObject\SocialCallbackResult` instead of a `Response`; AuthKit signs in and redirects) |
+
+  Users travel as `ValueObject\AuthUserRef` (class, id, identifier, roles; the user object hidden from dumps and
+  `serialize()`), requests as `ValueObject\AuthRequestContext`. Where AuthKit must sign a user in or hash its password
+  (the user ports, a social sign-in), the reference must carry your security user object (`AuthUserRef::of()`).
+- **Selection rule.** A service implementing the deprecated interface is asked exactly as in 1.45 (also when it
+  implements the twin too); one implementing only the twin is asked through an internal gate (`Port\*Gate`). Aliased
+  ports (user lookup / factory / writer, QR step-up): alias the twin interface to your service; AuthKit points the
+  deprecated id at a gate over it, so decorators of the deprecated id (AuthKit's Device Intelligence step-up included)
+  keep wrapping it. The twins of the tagged ports are autoconfigured with the same tags.
+- `DependencyInjection\Compiler\AuthKitPortsPass`: the build fails when a configured or tagged port service
+  (`mfa.policy`, `multi_account.enrolment_gate`, `multi_account.presenter`, `invitations.security.access_checker`, the
+  `nowo_auth_kit.invitation_grant`, `nowo_auth_kit.invitation_action_authorizer` and
+  `nowo_auth_kit.social_callback_handler` tags) implements neither interface (1.45 silently ignored a per-profile one:
+  e.g. an MFA policy implementing nothing fell back to "optional"), when the application points the twin and the
+  deprecated interface at two different services, or when the service behind the twin does not implement it.
+- **Framework-free event accessors (REQ-ARCH-001 rules 3 and 4).** Every AuthKit event that carried a Symfony user,
+  request or token, or the `QrLoginChallenge` entity, now also offers bundle value objects, built on call from the same
+  payload (no constructor or dispatch change):
+  - `AuthUserRef` (`Nowo\AuthKitBundle\ValueObject`): user class (no Doctrine proxy), id (`(string) getId()`, null when
+    none), identifier, role names. The user object stays reachable through `user()` but is hidden from dumps,
+    `serialize()`, `json_encode()` and clones (internal `WeakMap`).
+  - `AuthRequestContext`: method, path, route, client IP, user agent, locale, firewall, profile, plus `header()`,
+    `query()`, `post()`, `sessionHas()` / `sessionGet()` / `sessionRemove()`. The request and session are never
+    properties.
+  - `QrLoginChallengeRef`: id, public code, status, user class / id, desktop label and the timestamps, with no cookie,
+    IP, user-agent or approve-token hash.
+  - Accessors: `userRef()` (admin user created / creating, invitation accepting / accepted, every MFA event, account
+    added / removed, QR approved / completed, `CredentialsChangedEvent`, `AccountState`, `SwitchOutcome`,
+    `InvitationAcceptance`); `actorRef()` (`InvitationEvent` and subclasses, `MfaResetByAdminEvent`); `issuerRef()` /
+    `targetRef()` (`AdminMagicLinkIssuedEvent`); `fromRef()` / `toRef()` (`AccountSwitchedEvent`,
+    `AccountSwitchingEvent`); `requestContext()` (every `AccountEvent`, `MfaLoginCompletedEvent`); `firewall()`
+    (`MfaLoginCompletedEvent`); `challengeId()` / `challengeRef()` (the four QR events).
+- `tests/Unit/Architecture/FrameworkFreeEventSurfaceTest`: every event and result VO exposes framework types only
+  through members marked `@deprecated`.
+- **Private entity manager for the AuthKit rows (opt-in, REQ-ARCH-001 rule 6).** `nowo_auth_kit.doctrine.private_entity_manager: true`
+  writes and reads the bundle-owned rows (QR login challenges, invitations, MFA credentials / recovery codes / trusted
+  devices, social accounts and credentials, account switcher vault) through a private entity manager created on the
+  connection, configuration and event manager of the **default** entity manager (where 1.45 wrote them; the tables do
+  not move). An AuthKit write then never flushes a change the application left pending in its own manager, and a failed
+  AuthKit write closes only the private manager. The private manager is dropped at every outermost unit-of-work boundary
+  (main request start / `kernel.terminate`, Messenger message received / handled / failed, outermost console command
+  start / terminate; `Doctrine\UnitOfWorkBoundaries`, copied from PageBuilderKit 1.15.1) and at `kernel.reset`; it is
+  recreated when closed, when the connection changed, or when a rollback undid rows it wrote (DBAL 4 middleware, Vault
+  1.19 audits NJ-2 / NJV-1); the source manager's SQL filters are mirrored on every call. AuthKit DBAL / bulk DQL writes
+  inside an open transaction run in a savepoint (`nowo_auth_kit_*`) with the option on; with the default they run
+  exactly as before.
+- **XML mapping (opt-in, REQ-ARCH-001 rule 2).** `nowo_auth_kit.doctrine.mapping_type: xml` maps the 9 AuthKit entities (the 8 of 1.45 plus the reset table)
+  from `src/Resources/config/doctrine-xml/*.orm.xml` (same tables, columns, indexes and constraints; parity test with and
+  without `table_prefix`). It also replaces the attribute driver an `auto_mapping` default manager adds for
+  `Nowo\AuthKitBundle\Entity`. The files are deliberately **not** in `Resources/config/doctrine/`, so DoctrineBundle's
+  auto_mapping detection keeps the attribute mapping by default. `#[Encrypted]` fields stay encrypted in XML mode (the
+  encryption reads the property attributes by reflection, whatever the mapping driver).
+- **Reset credential off the user (REQ-ARCH-001 rule 2).** `profiles.<name>.password_reset.storage: user_entity|table`
+  (default `user_entity`: unchanged). With `table`, the hashed reset credential lives in the bundle-owned
+  `auth_kit_password_reset` table (`Entity\PasswordResetRequest`, honours `doctrine.table_prefix`), which references the
+  user by class + id (or by identifier when the user has no id), with no Doctrine relation. A reset request never
+  writes the user and never flushes an entity manager: the row is written and read with DBAL statements on the
+  connection of the manager that maps the AuthKit entities (fresh reads in worker mode). The user of a row is found
+  again through `UserLookupInterface::findById()` (`findByIdentifier()` without an id), so non-Doctrine users work.
+  `TablePasswordResetTokenManager` applies exactly the rules of the user-entity storage (same token / code generation
+  and hashes, constant-time code check, expiry, one pending credential per user, `max_code_attempts` budget,
+  enumeration-safe answers): `ResetStorageEquivalenceTest` runs the same scenario against both storages for every
+  delivery and both user kinds and requires identical outcomes. A profile is routed by `ProfilePasswordResetTokenManager`
+  (registered as `PasswordResetTokenManagerInterface` only when a profile uses `table`).
+- `PasswordResetTableInvalidationListener` (onFlush, registered only with a `table` profile): a change of the
+  identifier field or of `password_reset.password_field` of a table-profile user in a flush, or its deletion, deletes
+  its rows (SEC-004 L6 for the table). `CredentialsChangedEvent` clears the row through the token manager as before.
+- `doctrine.register_mapping: auto` also maps the entities when a profile uses `storage: table`; `register_mapping:
+  false` with a `table` profile fails the build.
+
+### Security (audit NV, before release)
+
+- **Reset table matched byte for byte (NV-M1).** With `password_reset.storage: table`, the rows of a user (code
+  check, delete on a new request / credential change / erasure) are selected by SQL and then kept only when class and
+  id (or, for users without an id, the identifier) are equal byte for byte in PHP; deletes go by primary key. A
+  case-, accent- or PAD SPACE-insensitive MySQL / MariaDB collation (`jose` = `JOSÉ` = `jose `) could otherwise have
+  let one user's reset code reset a look-alike account. On MySQL / MariaDB the identity and hash columns also get a
+  binary collation in the generated schema (`PasswordResetCollationListener`; house rule LQ). Test:
+  `ResetTableExactMatchTest`.
+- **Only the newest credential of a user resolves (NV-L1)**, even when two concurrent requests stored two rows.
+- **Expired rows are purged (NV-L2)** at every new reset request.
+- **`mfa.policy` fails closed (NV-L4):** a configured policy service that implements neither interface (e.g. a factory
+  service the build could not check) now throws a `LogicException` instead of making MFA optional.
+- **`SocialCallbackResult` (NV-I1)** refuses a backslash or a control character in the redirect URL.
+
+### Changed
+
+- The reset table entity is `PasswordReset\Entity\PasswordResetRequest` and is mapped only when a profile uses
+  `password_reset.storage: table` (NV-I3): the migrations of other hosts never gain `auth_kit_password_reset`.
+- `EnrolmentCandidate` also carries `rememberMe`, `tokenClass` and `isFullyAuthenticated()` (NV-L3).
+- `PasswordResetTokenManager`: the token / code generation, the stored hash form, the code check and the attempt key
+  moved unchanged into `PasswordResetCredentials` (internal), shared by both storages.
+- `PasswordResetTokenManagerInterface` is now aliased explicitly in `services.yaml` (to `PasswordResetTokenManager`, as
+  the single-implementation autowiring alias did before).
+- `MfaManager` asks UserKit >= 1.15 for the session registry hash through `sessionHash(sessionRef())` instead of the
+  deprecated `currentHash()` (same hash; UserKit < 1.15 keeps the old call). The dev requirement on UserKit is ^1.15.
+
+### Deprecated
+
+- The eleven port interfaces above (`@deprecated`; Symfony's DebugClassLoader reports an application class
+  implementing one in debug mode). They keep working unchanged until 2.0.
+- The framework-typed members of the events and result VOs (Symfony `UserInterface`, `Request`, `TokenInterface`, the
+  `QrLoginChallenge` entity), replaced by the accessors above; removed in 2.0. No runtime deprecation is triggered
+  (they are public readonly properties).
+- `nowo_auth_kit.doctrine.private_entity_manager: false` (explicit) is deprecated: the private entity manager becomes
+  the only mode in 2.0. The default (`null`, not set) keeps the 1.45 behaviour **without** a deprecation in 1.46 (a
+  build deprecation for every host would fail every `failOnDeprecation` suite, AuthKit's own included); set it to
+  `true` before 2.0.
+
+### Tests
+
+- `PortEquivalenceTest`: every port decision (MFA requirement, invitation administration access, enrolment gate,
+  account presentation, invitation action authorizers, invitation grants, social callback handler selection) through
+  the deprecated interface, the twin, a class implementing both and a class implementing neither equals the LITERAL
+  v1.45.2 code (`tests/Support/Legacy/Legacy145PortDecisions.php`): same answers, exceptions and fallbacks.
+  `scripts/mutation-check-port-equivalence.php` applies 21 mutations of the dispatch and gates; all are killed.
+- `PortGatesTest`, `AuthKitPortsPassTest`.
+- `DddHostKernelTest`: a non-Doctrine security user served only through the twin user ports, `password_reset.storage:
+  table`, `doctrine.mapping_type: xml`, `doctrine.private_entity_manager: true` and a twin QR step-up policy:
+  registration, sign-in and the full password reset over HTTP; a pending host Doctrine change is never flushed; the
+  Device Intelligence decorator still wraps the step-up gate.
+- `TwoIdentitiesWorkerKernelTest` (REQ-RUNTIME-002): one kernel driven through `http_kernel` (no services resetter),
+  500 rounds alternating two identities (sign-in page and form login, signed-in identity, reset request from a
+  signed-out browser): no cross-identity response or reset credential, memory within 4 MiB after the warm-up.
+- `PrivateEntityManagerKernelTest` (QR / invitation / MFA / social writes leave a pending host insert unflushed),
+  `LegacyEntityManagerKernelTest` (1.45 default flushes it), `PrivateEntityManagerPartsTest`,
+  `PrivateEntityManagerWorkerKernelTest` (one kernel, no services resetter, 600 requests alternating two users, 4 MiB
+  margin), `PrivateEm*KernelTest` (the MFA flow / account, invitation flow / services, auth pages + QR, host extensions
+  + social callback, multi-account flow and GDPR ports suites re-run with the option on), `XmlMappingParityTest`,
+  `XmlMappingMfaFlowKernelTest`, `UnitOfWorkBoundariesTest`, `PrivateEntityManagerSubscriberTest`,
+  `PrivateEntityManagerConfigTest`, `LintContainerKernelTest` (default, MFA, private EM, XML + private EM).
+- Reset table: `ResetStorageEquivalenceTest` (both storages, identical decisions), `ResetTableKernelTest` (incl. a
+  600-iteration two-user worker test), `TablePasswordResetTokenManagerTest`, `ProfilePasswordResetTokenManagerTest`,
+  `PasswordResetStorageConfigurationTest`.
+- Events: `FrameworkFreeEventAccessorsTest`, `FrameworkFreeEventSurfaceTest`, and the VO tests (`AuthUserRefTest`,
+  `AuthRequestContextTest`, `QrLoginChallengeRefTest`, `AuthUserRefsTest`, `AuthRequestContextsTest`).
+- `LintContainerKernelTest` also lints the reset-table kernel and the DDD host kernel.
+
 ## [1.45.2] - 2026-11-11
 
 ### Security

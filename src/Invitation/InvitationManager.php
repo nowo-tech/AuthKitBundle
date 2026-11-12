@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Invitation\Event\InvitationResentEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationRevokedEvent;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
+use Nowo\AuthKitBundle\Port\Ports;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
@@ -411,7 +412,8 @@ final readonly class InvitationManager
     private function authorized(?UserInterface $actor, string $action, Invitation|InvitationRequest $subject, ?InvitationRequest $request = null): bool
     {
         foreach ($this->authorizers as $authorizer) {
-            if (!$authorizer->isGranted($actor, $action, $subject, $request)) {
+            // 1.46.0: the deprecated interface as in 1.45, else the framework-free twin (snapshot as of now).
+            if (!Ports::invitationActionAuthorizer($authorizer, $this->now())->isGranted($actor, $action, $subject, $request)) {
                 return false;
             }
         }

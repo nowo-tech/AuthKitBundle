@@ -15,7 +15,7 @@ use Symfony\Component\DomCrawler\Crawler;
 /**
  * The account page (1.34): trusted devices, step-up for disable and new recovery codes, CSRF, impersonation refused.
  */
-final class MfaAccountKernelTest extends MfaKernelTestCase
+class MfaAccountKernelTest extends MfaKernelTestCase
 {
     public function testTrustedDeviceSkipsTheCodeUntilForgotten(): void
     {

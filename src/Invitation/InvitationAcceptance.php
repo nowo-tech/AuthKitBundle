@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Invitation;
 
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -28,6 +30,9 @@ final readonly class InvitationAcceptance
     /** Not accepted (claimed meanwhile, the e-mail already has an account, …). */
     public const NOT_ACCEPTED = 'not_accepted';
 
+    /**
+     * @param UserInterface|null $user @deprecated since 1.46.0, use userRef(); removed in 2.0
+     */
     private function __construct(
         public string $status,
         public ?UserInterface $user = null,
@@ -49,5 +54,13 @@ final readonly class InvitationAcceptance
     public function isAccepted(): bool
     {
         return $this->user instanceof UserInterface;
+    }
+
+    /**
+     * The account, framework-free (1.46.0); null unless accepted.
+     */
+    public function userRef(): ?AuthUserRef
+    {
+        return AuthUserRefs::fromNullableUser($this->user);
     }
 }

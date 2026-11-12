@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.46.0](#to-1460)
 - [To 1.45.2](#to-1452)
 - [To 1.45.1](#to-1451)
 - [To 1.45.0](#to-1450)
@@ -115,6 +116,144 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.46.0
+
+From **1.45.2**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+Nothing to change: defaults and existing host services behave exactly as in 1.45.2. 1.46.0 adds the opt-in paths of
+REQ-ARCH-001 (DDD / hexagonal hosts) and deprecates the framework-typed members that 2.0 removes. Check one thing: the
+build now fails when a configured or tagged port service implements neither its interface nor the 1.46 twin (see
+below).
+
+### Framework-free host ports (optional until 2.0)
+
+Nothing to change: every deprecated interface keeps working exactly as in 1.45 until 2.0. To keep Symfony types out of
+your adapters (DDD / hexagonal hosts), implement the 1.46 twin instead:
+
+| Deprecated interface | Implement instead | Wiring |
+|---|---|---|
+| `User\UserLookupInterface` | `User\UserDirectoryInterface` | alias the new interface to your service |
+| `User\UserFactoryInterface` | `User\UserCreatorInterface` | alias |
+| `User\UserWriterInterface` | `User\UserStoreInterface` | alias |
+| `QrLogin\QrLoginStepUpInterface` | `QrLogin\QrLoginStepUpPolicyInterface` (return `false` instead of throwing `AccessDeniedException`) | alias |
+| `Mfa\MfaPolicyInterface` | `Mfa\MfaRequirementPolicyInterface` | same `mfa.policy` service id |
+| `MultiAccount\EnrolmentGateInterface` | `MultiAccount\EnrolmentPolicyInterface` | same `multi_account.enrolment_gate` |
+| `MultiAccount\AccountPresenterInterface` | `MultiAccount\AccountPresentationProviderInterface` | same `multi_account.presenter` |
+| `Invitation\Security\InvitationsAccessCheckerInterface` | `Invitation\Security\InvitationsAccessPolicyInterface` | same `invitations.security.access_checker` |
+| `Invitation\Security\InvitationActionAuthorizerInterface` | `Invitation\Security\InvitationActionPolicyInterface` (an `InvitationSnapshot` instead of the entity) | autoconfigured, same tag |
+| `Invitation\InvitationGrantInterface` | `Invitation\InvitationGrantHandlerInterface` | autoconfigured, same tag |
+| `SocialLogin\SocialCallbackHandlerInterface` | `SocialLogin\SocialCallbackStepInterface` (return a `SocialCallbackResult`; AuthKit signs in and redirects) | autoconfigured, same tag |
+
+- `AuthUserRef::$roles` are the role names the user object reports, **without the role hierarchy** (`ROLE_ADMIN` does
+  not imply `ROLE_USER` there): check reachable roles through your own security service if you need them.
+- `EnrolmentCandidate::$secondFactorPending` only knows AuthKit's own MFA; with another 2FA bundle, refuse its
+  "pending" token through `$tokenClass` (and use `isFullyAuthenticated()` to exclude remember-me sign-ins).
+- Users are `ValueObject\AuthUserRef` (`userClass`, `id`, `identifier`, `roles`, `user()`); requests are
+  `ValueObject\AuthRequestContext` (method, path, route, client IP, user agent, locale, firewall, profile, `header()`,
+  `query()`, `post()`, `sessionHas()` / `sessionGet()` / `sessionRemove()`).
+- The user ports and `SocialCallbackResult::signIn()` need the reference to carry your **security user object**
+  (`AuthUserRef::of($securityUser, $class, $id, $identifier, $roles)`): AuthKit signs that object in and hashes its
+  password. A reference by id alone (`AuthUserRef::ofId()`) is refused there with a `LogicException`.
+- Which interface is asked: a service implementing the deprecated interface is asked through it (also when it
+  implements the twin too); only-twin services through an internal gate. For the aliased ports, alias **only** the new
+  interface: aliasing both to different services fails the build. Your decorators of the deprecated id still wrap the
+  port (AuthKit's own Device Intelligence step-up decorator included).
+- **Build-time check (new):** a configured or tagged port service whose class implements neither interface fails the
+  build. 1.45 ignored such a per-profile service silently (an `mfa.policy` implementing nothing made MFA optional); if
+  your build fails here, the service was never asked.
+- Symfony's DebugClassLoader reports, in debug mode, each of your classes that implements a deprecated interface.
+
+### Event accessors
+
+Nothing to change: the members below still work until 2.0. To keep listeners free of Symfony types (DDD /
+hexagonal hosts), read the replacement instead.
+
+| Class | Deprecated member | Replacement |
+|---|---|---|
+| `Admin\AdminUserCreatedEvent`, `Admin\AdminUserCreatingEvent` | `getUser()` | `userRef()` (the object for host fields: `userRef()->user()`) |
+| `MagicLogin\AdminMagicLinkIssuedEvent` | `$issuer`, `$target` | `issuerRef()`, `targetRef()` |
+| `Invitation\Event\InvitationEvent` (Created, Resent, Revoked, Accepted) | `$actor` | `actorRef()` |
+| `Invitation\Event\InvitationAcceptedEvent` | `$user` | `userRef()` (or the 1.42 scalars `$userClass`, `$userId`, `$userIdentifier`) |
+| `Invitation\Event\InvitationAcceptingEvent` | `$user` | `userRef()` (null: a new account) |
+| `Mfa\Event\MfaEvent` (all MFA events) | `$user` | `userRef()` |
+| `Mfa\Event\MfaResetByAdminEvent` | `$actor` | `actorRef()` |
+| `Mfa\Event\MfaLoginCompletedEvent` | `$token`, `$request` | `userRef()` + `firewall()`, `requestContext()` |
+| `MultiAccount\Event\AccountEvent` (Added, Removed, Switched, Switching) | `$request` | `requestContext()` (its `profile` is the event's profile; `firewall` is null) |
+| `MultiAccount\Event\AccountAddedEvent`, `AccountRemovedEvent` | `$user` | `userRef()` |
+| `MultiAccount\Event\AccountSwitchedEvent`, `AccountSwitchingEvent` | `$from`, `$to` | `fromRef()`, `toRef()` |
+| `QrLogin\Event\QrLogin{ChallengeCreated,Approved,Denied,Completed}Event` | `$challenge` | `challengeId()`, `challengeRef()` |
+| `QrLogin\Event\QrLogin{Approved,Completed}Event` | `$user` | `userRef()` |
+| `User\Event\CredentialsChangedEvent` | `$user` (read side) | `userRef()`; the constructor still takes the user object |
+| `MultiAccount\AccountState`, `MultiAccount\SwitchOutcome`, `Invitation\InvitationAcceptance` | `$user` | `userRef()` |
+
+`AuthUserRef` and `AuthRequestContext` are built on each call: compare users with `isSameUserAs()` (class and id),
+not with `===`. The read-write events keep their semantics: `AccountSwitchingEvent::refuse()`,
+`InvitationAcceptingEvent::refuse()`, and fields a listener sets on `AdminUserCreatingEvent::userRef()->user()`
+(the same object as `getUser()`).
+
+### Private entity manager (`doctrine.private_entity_manager`)
+
+Nothing changes unless you opt in. With `nowo_auth_kit.doctrine.private_entity_manager: true`:
+
+- AuthKit stops flushing your default entity manager on its own writes (QR login, invitations, MFA, social links,
+  account switcher). Your pending changes are stored only when **you** flush. If your code relied on an AuthKit write to
+  flush your own pending changes, flush them yourself.
+- The tables, connection and mapping do not move; the private manager shares the default manager's connection, so a
+  transaction you open around an AuthKit call includes AuthKit's rows (its statements then run in savepoints).
+- `SocialLoginAccountRepository` / `SocialLoginCredentialRepository` (what `$em->getRepository(SocialLogin…::class)`
+  returns) stay bound to **your** manager: editing social credentials or accounts through them and flushing your
+  manager works as before. AuthKit's own services use private copies of them. `InvitationRepository` and
+  `QrLoginChallengeRepository` services are AuthKit's and use the private manager; an `$em->getRepository(Invitation::class)`
+  of your own manager still returns a repository on your manager.
+- The invitation acceptance and `SocialAccountLinker::linkAndSignIn()` keep their own transaction on the shared
+  connection. The acceptance still flushes your manager **inside that transaction** (the account and what your
+  `InvitationGrantInterface` changed), as in 1.45; the invitation row is flushed through the private manager in the
+  same transaction.
+- Requires the AuthKit entities mapped on the default manager (`doctrine.register_mapping` true, or auto with a feature
+  that uses them); the build fails otherwise. `doctrine.entity_manager` keeps its 1.43 meaning (closed-manager recovery
+  set); the private manager is always created on the default manager.
+- Entities you change in memory but never save through AuthKit are dropped at the next boundary and logged as a warning
+  (entity classes and counts only).
+- With doctrine/dbal 3 the rollback middleware is not registered: after a rollback the private manager is only replaced
+  at the next boundary.
+
+`private_entity_manager: false` is deprecated; in 2.0 the private manager is the only mode.
+
+### XML mapping (`doctrine.mapping_type`)
+
+`nowo_auth_kit.doctrine.mapping_type: xml` (default `attribute`) maps the AuthKit entities from
+`src/Resources/config/doctrine-xml/` on the default manager. A host that maps them itself on another manager
+(`doctrine.entity_manager`) can point its own mapping at that directory (`type: xml`, `prefix: Nowo\AuthKitBundle\Entity`).
+
+### Reset credential in a bundle table (optional)
+
+Nothing changes by default (`password_reset.storage: user_entity`). To keep the reset credential off your user entity
+(DDD hosts, users that are not Doctrine entities):
+
+```yaml
+nowo_auth_kit:
+    password_reset:          # or profiles.<name>.password_reset
+        storage: table
+```
+
+0. The table is mapped only while a profile uses `storage: table` (hosts that do not use it never see it in their
+   migrations). On MySQL / MariaDB the identity and hash columns get a binary collation in the generated migration.
+1. Create the table (migration): `bin/console doctrine:migrations:diff` (or `doctrine:schema:update`) adds
+   `auth_kit_password_reset` (with your `doctrine.table_prefix`). `doctrine.register_mapping` must not be `false`.
+2. Pending credentials stored on the user are not migrated: a user who asked for a link before the switch asks again.
+   You can then drop the `token_field` / `token_expires_field` columns from the user (they are no longer read).
+3. With a custom `UserLookupInterface`, `findById()` must find the user by the id AuthKit stores (`(string) getId()`,
+   else the readable `id` property); users without an id are found by `findByIdentifier()`.
+4. A password or identifier change made outside a Doctrine flush must dispatch `CredentialsChangedEvent` (as before).
+
+### Coming in 2.0
+
+The deprecated port interfaces and event members are removed; the private entity manager becomes the only mode.
 
 ## To 1.45.2
 

@@ -130,6 +130,7 @@ make release-check
 - [Two-factor authentication](docs/MFA.md) — opt-in (`mfa.enabled: false` by default; since v1.34)
 - [Several accounts at once](docs/MULTI-ACCOUNT.md) — opt-in (`multi_account.enabled: false` by default; since v1.34)
 - [Post-login target guard and expired-session 401](docs/LOGIN-TARGET.md) — opt-in (`login_target.enabled` / `session_expired.enabled: false` by default; since v1.44)
+- [Standard Symfony and DDD / hexagonal hosts](docs/USAGE.md#using-it-from-a-ddd--hexagonal-application) — framework-free ports, private entity manager, XML mapping, reset table (opt-in; since v1.46)
 - [Roadmap](docs/ROADMAP.md)
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
 - [FrankenPHP worker audit (no kernel reset)](docs/FRANKENPHP-WORKER-AUDIT.md)

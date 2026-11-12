@@ -7,7 +7,9 @@ namespace Nowo\AuthKitBundle\Invitation\Event;
 use DateTimeImmutable;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
 use Nowo\AuthKitBundle\User\UserIds;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -29,6 +31,7 @@ final class InvitationAcceptedEvent extends InvitationEvent
     public readonly string $userIdentifier;
 
     /**
+     * @param UserInterface $user @deprecated since 1.46.0, use userRef(); removed in 2.0
      * @param bool $existingAccount (1.42) true: an existing account accepted it ({@see InvitationAcceptor::acceptExisting()}); no account was created
      */
     public function __construct(
@@ -51,5 +54,13 @@ final class InvitationAcceptedEvent extends InvitationEvent
     public function profile(): string
     {
         return $this->invitation->profile;
+    }
+
+    /**
+     * The account that accepted it, framework-free (1.46.0, REQ-ARCH-001 rule 3).
+     */
+    public function userRef(): AuthUserRef
+    {
+        return AuthUserRefs::fromUser($this->user);
     }
 }

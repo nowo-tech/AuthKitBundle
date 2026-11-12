@@ -18,6 +18,9 @@ final readonly class TablePrefixListener
 {
     private const ENTITY_NAMESPACE = 'Nowo\\AuthKitBundle\\Entity\\';
 
+    /** 1.46.0: the reset table entity, mapped only when a profile uses `password_reset.storage: table`. */
+    private const PASSWORD_RESET_NAMESPACE = 'Nowo\\AuthKitBundle\\PasswordReset\\Entity\\';
+
     public function __construct(
         private string $tablePrefix,
     ) {
@@ -26,7 +29,7 @@ final readonly class TablePrefixListener
     public function loadClassMetadata(LoadClassMetadataEventArgs $event): void
     {
         $metadata = $event->getClassMetadata();
-        if ($this->tablePrefix === '' || !str_starts_with($metadata->getName(), self::ENTITY_NAMESPACE)) {
+        if ($this->tablePrefix === '' || (!str_starts_with($metadata->getName(), self::ENTITY_NAMESPACE) && !str_starts_with($metadata->getName(), self::PASSWORD_RESET_NAMESPACE))) {
             return;
         }
 

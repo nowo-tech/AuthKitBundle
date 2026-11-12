@@ -12,6 +12,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * acceptance transaction after the account is persisted and the invitation claimed; throw
  * {@see InvitationRefusedException} to refuse the acceptance (everything is rolled back, the invitee sees the
  * neutral "could not be accepted" page). Re-check here anything the inviter may no longer grant.
+ *
+ * @deprecated since 1.46.0, implement {@see InvitationGrantHandlerInterface} (framework-free, REQ-ARCH-001 rule 3) instead; removed in 2.0.
  */
 interface InvitationGrantInterface
 {

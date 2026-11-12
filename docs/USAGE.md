@@ -27,6 +27,8 @@
 - [Account switcher avatars (1.35)](#account-switcher-avatars-135)
 - [GDPR erasure and export](#gdpr-erasure-and-export)
 - [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
+  - [Standard Symfony host](#standard-symfony-host)
+  - [DDD / hexagonal host (1.46 opt-ins)](#ddd--hexagonal-host-146-opt-ins)
 
 ## Twig template overrides (REQ-TWIG-001)
 
@@ -431,6 +433,49 @@ relations to your entities, no `resolve_target_entities`, no base class or trait
 per need with `nowo_auth_kit.doctrine.register_mapping` (`true`, `false`, `auto`) and prefix the tables with
 `doctrine.table_prefix`.
 
+Both kinds of host are supported (REQ-ARCH-001). The standard path is the zero-config default; every DDD option below is
+opt-in.
+
+### Standard Symfony host
+
+Nothing to configure: attribute mapping of the AuthKit tables on your default entity manager, a Doctrine user entity
+(`user_class`) written by the Doctrine user adapters, the reset credential on the user. Ports you implement can stay
+on the 1.45 interfaces until 2.0. Recommended before 2.0: `doctrine.private_entity_manager: true`.
+
+### DDD / hexagonal host (1.46 opt-ins)
+
+```yaml
+nowo_auth_kit:
+    doctrine:
+        private_entity_manager: true   # AuthKit never flushes your entity manager
+        mapping_type: xml              # optional: XML mapping of the AuthKit tables
+    password_reset:
+        storage: table                 # reset credential in auth_kit_password_reset, never on your user
+```
+
+and implement the framework-free ports (no Symfony type in their signatures; users are `ValueObject\AuthUserRef`,
+requests `ValueObject\AuthRequestContext`, invitations `InvitationSnapshot`):
+
+| 1.46 port (implement) | Replaces (deprecated, removed in 2.0) | Wiring |
+|---|---|---|
+| `User\UserDirectoryInterface` | `User\UserLookupInterface` | alias the interface |
+| `User\UserCreatorInterface` | `User\UserFactoryInterface` | alias |
+| `User\UserStoreInterface` | `User\UserWriterInterface` | alias |
+| `QrLogin\QrLoginStepUpPolicyInterface` | `QrLogin\QrLoginStepUpInterface` | alias |
+| `Mfa\MfaRequirementPolicyInterface` | `Mfa\MfaPolicyInterface` | `mfa.policy` |
+| `MultiAccount\EnrolmentPolicyInterface` | `MultiAccount\EnrolmentGateInterface` | `multi_account.enrolment_gate` |
+| `MultiAccount\AccountPresentationProviderInterface` | `MultiAccount\AccountPresenterInterface` | `multi_account.presenter` |
+| `Invitation\Security\InvitationsAccessPolicyInterface` | `Invitation\Security\InvitationsAccessCheckerInterface` | `invitations.security.access_checker` |
+| `Invitation\Security\InvitationActionPolicyInterface` | `Invitation\Security\InvitationActionAuthorizerInterface` | autoconfigured tag |
+| `Invitation\InvitationGrantHandlerInterface` | `Invitation\InvitationGrantInterface` | autoconfigured tag |
+| `SocialLogin\SocialCallbackStepInterface` | `SocialLogin\SocialCallbackHandlerInterface` | autoconfigured tag |
+
+A service implementing the deprecated interface is asked through it exactly as in 1.45; one implementing only the 1.46
+port through an internal gate. The user ports (and `SocialCallbackResult::signIn()`) need the `AuthUserRef` to carry
+the security user object your user provider returns (`AuthUserRef::of()`): AuthKit signs that object in and hashes its
+password, so your domain aggregate stays behind your adapter. `AuthUserRef::$roles` has no role hierarchy applied. The build fails when a port service implements neither
+interface. The suite boots such a host end to end: `tests/Integration/Ddd/DddHostKernelTest.php`.
+
 ### Keep the domain free of the bundle
 
 - Point `profiles.<name>.user_class` at your **security user** (the class your user provider returns, implementing
@@ -464,6 +509,10 @@ per need with `nowo_auth_kit.doctrine.register_mapping` (`true`, `false`, `auto`
   Nowo\AuthKitBundle\User\UserLookupInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
   ```
 
+- **1.46:** every event also exposes bundle value objects only: `userRef()` / `actorRef()` / `fromRef()` / `toRef()`
+  (`AuthUserRef`), `requestContext()` (`AuthRequestContext`), `challengeId()` / `challengeRef()` on the QR events. The
+  Symfony-typed members are deprecated (removed in 2.0); see [UPGRADING](UPGRADING.md#to-1460). Put scalars, not the
+  VOs, in a Messenger message.
 - React to AuthKit in your application layer through events and translate them into your own domain events:
   - `User\Event\UserRegisteredEvent` (1.41): profile, user class, `userId` (`(string) getId()`), identifier, source,
     roles — scalars only. Dispatched once the account is stored: after the flush of the registration page and of
@@ -551,9 +600,12 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
 
 ### Known limitations
 
-- Password-reset credentials are stored on the user (`password_reset.token_field`, `token_expires_field`) and found
-  with a DQL query on that column by the default `PasswordResetTokenManagerInterface`; with a non-Doctrine user,
-  provide your own implementation (the default one, and therefore `CredentialsChangedEvent`, need those columns).
+- By default password-reset credentials are stored on the user (`password_reset.token_field`, `token_expires_field`)
+  and found with a DQL query on that column. Since 1.46 `password_reset.storage: table` keeps them in the bundle's
+  `auth_kit_password_reset` table instead (no column on your user, no write to it, non-Doctrine users found again
+  through the user directory port); see [PASSWORD-RESET](PASSWORD-RESET.md).
+- Without `doctrine.private_entity_manager: true`, AuthKit writes its own rows through your default entity manager and
+  its flush also commits changes you left pending there (1.45 behaviour, until 2.0).
 - The invitation acceptance and `SocialAccountLinker::linkAndSignIn()` open their transaction on the bundle's entity
   manager connection. A host writer on another connection is not rolled back with them. AuthKit compensates with
   `remove()`, but between `add()` and that removal the account exists (and stays if `remove()` fails, which is logged).
@@ -561,5 +613,5 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   otherwise the recount after the insert cannot detect two concurrent first registrations.
 - `UserRegisteredEvent` / `PasswordResetCompletedEvent` follow the bundle's flush; if you call `UserRegistrar` or
   `PasswordResetCompleter` inside your own transaction, they fire before your commit.
-- QR login events carry the `QrLoginChallenge` entity, and `InvitationActionAuthorizerInterface` receives the
-  `Invitation` entity.
+- The concrete services you may call (`InvitationManager`, `MfaManager`, `AdminMagicLinkIssuer`, `UserRegistrar`,
+  `AccountVault`) still take Symfony users / requests: call them from an adapter, or use the ports and events.

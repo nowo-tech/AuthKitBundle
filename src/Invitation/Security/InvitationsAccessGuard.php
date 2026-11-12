@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Invitation\Security;
 
+use Nowo\AuthKitBundle\Port\Ports;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
@@ -72,7 +73,7 @@ final readonly class InvitationsAccessGuard
         if (!$user instanceof UserInterface || !$this->checkers->has($profile)) {
             return false;
         }
-        $checker = $this->checkers->get($profile);
+        $checker = Ports::invitationsAccessChecker($this->checkers->get($profile));
 
         return $checker instanceof InvitationsAccessCheckerInterface && $checker->canManage($user, $profile);
     }
