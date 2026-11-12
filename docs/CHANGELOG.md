@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.46.0] - 2026-11-12](#1460---2026-11-12)
 - [[1.45.2] - 2026-11-11](#1452---2026-11-11)
 - [[1.45.1] - 2026-11-11](#1451---2026-11-11)
 - [[1.45.0] - 2026-11-11](#1450---2026-11-11)
@@ -105,6 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.46.0] - 2026-11-12
 
 **REQ-ARCH-001 / REQ-RUNTIME-002 (1.46.0).** Every change below is additive and opt-in: with an unchanged
 configuration and unchanged host services AuthKit behaves exactly as 1.45.2 (proven by the equivalence tests against

@@ -4,6 +4,13 @@
 
 - [Unreleased](#unreleased)
 - [To 1.46.0](#to-1460)
+- [To 1.46.0](#to-1460-1)
+  - [Framework-free host ports (optional until 2.0)](#framework-free-host-ports-optional-until-20)
+  - [Event accessors](#event-accessors)
+  - [Private entity manager (`doctrine.private_entity_manager`)](#private-entity-manager-doctrineprivate_entity_manager)
+  - [XML mapping (`doctrine.mapping_type`)](#xml-mapping-doctrinemapping_type)
+  - [Reset credential in a bundle table (optional)](#reset-credential-in-a-bundle-table-optional)
+  - [Coming in 2.0](#coming-in-20)
 - [To 1.45.2](#to-1452)
 - [To 1.45.1](#to-1451)
 - [To 1.45.0](#to-1450)
@@ -116,6 +123,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.46.0
+
+From **1.45.2**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.46.0
 
