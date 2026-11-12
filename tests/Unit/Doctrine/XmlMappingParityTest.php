@@ -22,6 +22,7 @@ use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
+use Nowo\AuthKitBundle\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
@@ -58,6 +59,7 @@ final class XmlMappingParityTest extends TestCase
         MfaCredential::class,
         MfaRecoveryCode::class,
         MfaTrustedDevice::class,
+        PasswordResetRequest::class,
         QrLoginChallenge::class,
         SocialLoginAccount::class,
         SocialLoginCredential::class,
@@ -103,7 +105,7 @@ final class XmlMappingParityTest extends TestCase
         $from      = (new SchemaTool($attribute))->getSchemaFromMetadata($attribute->getMetadataFactory()->getAllMetadata());
         $to        = (new SchemaTool($xml))->getSchemaFromMetadata($xml->getMetadataFactory()->getAllMetadata());
 
-        self::assertCount(8, $xml->getMetadataFactory()->getAllMetadata());
+        self::assertCount(9, $xml->getMetadataFactory()->getAllMetadata());
         $schemaManager = $attribute->getConnection()->createSchemaManager();
         $comparator    = class_exists(ComparatorConfig::class) ? $schemaManager->createComparator((new ComparatorConfig())->withReportModifiedIndexes(false)) : $schemaManager->createComparator();
         self::assertTrue($comparator->compareSchemas($from, $to)->isEmpty());
