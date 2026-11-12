@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Mfa;
 
+use Closure;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
@@ -12,6 +13,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
+use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
@@ -84,11 +86,11 @@ final readonly class MfaStore
      */
     public function claimStep(MfaCredential $credential, int $step): bool
     {
-        return $this->connection()->executeStatement(
+        return $this->write(fn (Connection $connection): int|string => $connection->executeStatement(
             'UPDATE ' . $this->table(MfaCredential::class) . ' SET last_used_step = :step WHERE id = :id AND totp_secret IS NOT NULL AND (last_used_step IS NULL OR last_used_step < :step)',
             ['step' => $step, 'id' => $this->id($credential)],
             ['step' => ParameterType::INTEGER, 'id' => ParameterType::INTEGER],
-        ) === 1;
+        )) === 1;
     }
 
     /**
@@ -113,11 +115,11 @@ final readonly class MfaStore
      */
     public function useRecoveryCode(MfaCredential $credential, string $hash, DateTimeImmutable $now): bool
     {
-        return $this->connection()->executeStatement(
+        return $this->write(fn (Connection $connection): int|string => $connection->executeStatement(
             'UPDATE ' . $this->table(MfaRecoveryCode::class) . ' SET used_at = :now WHERE mfa_id = :id AND code_hash = :hash AND used_at IS NULL',
             ['now' => $now, 'id' => $this->id($credential), 'hash' => $hash],
             ['now' => Types::DATETIME_IMMUTABLE, 'id' => ParameterType::INTEGER],
-        ) === 1;
+        )) === 1;
     }
 
     public function unusedRecoveryCodes(MfaCredential $credential): int
@@ -131,7 +133,7 @@ final readonly class MfaStore
 
     public function insertDevice(MfaCredential $credential, string $publicId, string $tokenHash, string $label, ?string $deviceId, DateTimeImmutable $now, DateTimeImmutable $expiresAt): void
     {
-        $this->connection()->insert($this->table(MfaTrustedDevice::class), [
+        $this->write(fn (Connection $connection): int|string => $connection->insert($this->table(MfaTrustedDevice::class), [
             'public_id'    => $publicId,
             'mfa_id'       => $this->id($credential),
             'token_hash'   => $tokenHash,
@@ -140,7 +142,7 @@ final readonly class MfaStore
             'created_at'   => $now,
             'last_used_at' => $now,
             'expires_at'   => $expiresAt,
-        ], ['mfa_id' => ParameterType::INTEGER, 'created_at' => Types::DATETIME_IMMUTABLE, 'last_used_at' => Types::DATETIME_IMMUTABLE, 'expires_at' => Types::DATETIME_IMMUTABLE]);
+        ], ['mfa_id' => ParameterType::INTEGER, 'created_at' => Types::DATETIME_IMMUTABLE, 'last_used_at' => Types::DATETIME_IMMUTABLE, 'expires_at' => Types::DATETIME_IMMUTABLE]));
     }
 
     /**
@@ -148,11 +150,11 @@ final readonly class MfaStore
      */
     public function rotateDevice(MfaCredential $credential, string $tokenHash, string $newHash, DateTimeImmutable $now): bool
     {
-        return $this->connection()->executeStatement(
+        return $this->write(fn (Connection $connection): int|string => $connection->executeStatement(
             'UPDATE ' . $this->table(MfaTrustedDevice::class) . ' SET token_hash = :new, last_used_at = :now WHERE mfa_id = :id AND token_hash = :hash AND expires_at > :now',
             ['new' => $newHash, 'now' => $now, 'id' => $this->id($credential), 'hash' => $tokenHash],
             ['now' => Types::DATETIME_IMMUTABLE, 'id' => ParameterType::INTEGER],
-        ) === 1;
+        )) === 1;
     }
 
     /**
@@ -200,7 +202,7 @@ final readonly class MfaStore
         $where  = 'mfa_id = :id' . ($publicId !== null ? ' AND public_id = :public' : '');
         $params = ['id' => $this->id($credential)] + ($publicId !== null ? ['public' => $publicId] : []);
         $ids    = $this->connection()->fetchFirstColumn('SELECT device_id FROM ' . $table . ' WHERE ' . $where, $params, ['id' => ParameterType::INTEGER]);
-        $this->connection()->executeStatement('DELETE FROM ' . $table . ' WHERE ' . $where, $params, ['id' => ParameterType::INTEGER]);
+        $this->write(static fn (Connection $connection): int|string => $connection->executeStatement('DELETE FROM ' . $table . ' WHERE ' . $where, $params, ['id' => ParameterType::INTEGER]));
 
         return array_map(static fn (mixed $id): ?string => $id !== null ? (string) $id : null, $ids);
     }
@@ -213,10 +215,12 @@ final readonly class MfaStore
     public function deleteWithoutFlush(MfaCredential $credential): void
     {
         $id = $this->id($credential);
-        foreach ([MfaRecoveryCode::class, MfaTrustedDevice::class] as $class) {
-            $this->connection()->executeStatement('DELETE FROM ' . $this->table($class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
-        }
-        $this->connection()->executeStatement('DELETE FROM ' . $this->table(MfaCredential::class) . ' WHERE id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+        $this->write(function (Connection $connection) use ($id): void {
+            foreach ([MfaRecoveryCode::class, MfaTrustedDevice::class] as $class) {
+                $connection->executeStatement('DELETE FROM ' . $this->table($class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+            }
+            $connection->executeStatement('DELETE FROM ' . $this->table(MfaCredential::class) . ' WHERE id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+        });
         $em = $this->entityManager();
         if ($em->contains($credential)) {
             // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
@@ -230,8 +234,10 @@ final readonly class MfaStore
     public function delete(MfaCredential $credential): void
     {
         $id = $this->id($credential);
-        $this->connection()->executeStatement('DELETE FROM ' . $this->table(MfaRecoveryCode::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
-        $this->connection()->executeStatement('DELETE FROM ' . $this->table(MfaTrustedDevice::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+        $this->write(function (Connection $connection) use ($id): void {
+            $connection->executeStatement('DELETE FROM ' . $this->table(MfaRecoveryCode::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+            $connection->executeStatement('DELETE FROM ' . $this->table(MfaTrustedDevice::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+        });
         $em = $this->entityManager();
         // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
         $em->remove($credential);
@@ -254,6 +260,24 @@ final readonly class MfaStore
     private function table(string $class): string
     {
         return $this->entityManager()->getClassMetadata($class)->getTableName();
+    }
+
+    /**
+     * A DBAL write: in a savepoint inside an open transaction with the private entity manager (1.46.0), exactly as
+     * before otherwise (the statement runs on the same connection).
+     *
+     * @template T
+     *
+     * @param Closure(Connection): T $statement
+     *
+     * @return T
+     */
+    private function write(Closure $statement): mixed
+    {
+        $em         = $this->entityManager();
+        $connection = $em->getConnection();
+
+        return AuthKitSavepoint::write($connection, static fn (): mixed => $statement($connection), $em);
     }
 
     private function connection(): Connection

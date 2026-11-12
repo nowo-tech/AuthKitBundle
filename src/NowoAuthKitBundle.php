@@ -13,10 +13,12 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginLinkHandlerLocatorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\LoginThrottleRequiredPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MfaLockRequiredPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\ProgrammaticLoginAuthenticatorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\QrCodeGeneratorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
+use Symfony\Component\DependencyInjection\Compiler\PassConfig;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
@@ -50,8 +52,16 @@ class NowoAuthKitBundle extends Bundle
                 NowoAuthKitExtension::MAPPING_ENABLED_PARAMETER,
             ));
         }
+        // 1.46.0: doctrine.mapping_type xml maps the same tables from XML (enabled by its own parameter).
+        $container->addCompilerPass(DoctrineOrmMappingsPass::createXmlMappingDriver(
+            [__DIR__ . '/Resources/config/doctrine-xml' => 'Nowo\\AuthKitBundle\\Entity'],
+            [],
+            NowoAuthKitExtension::XML_MAPPING_ENABLED_PARAMETER,
+        ));
         // 1.43.0 (audit LD-AK-M1): after the mapping passes, so the named manager's driver chain is complete.
         $container->addCompilerPass(new EntityManagerOptionPass());
+        // 1.46.0: before DoctrineBundle's MiddlewaresPass (the rollback middleware of the private entity manager).
+        $container->addCompilerPass(new PrivateEntityManagerPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 10);
     }
 
     public function getContainerExtension(): ?ExtensionInterface

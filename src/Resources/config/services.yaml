@@ -8,6 +8,12 @@ services:
         resource: '../../'
         exclude:
             - '../../DependencyInjection/'
+            # 1.46.0: registered by NowoAuthKitExtension only with doctrine.private_entity_manager: true.
+            - '../../Doctrine/AuthKitEntityManager.php'
+            - '../../Doctrine/AuthKitManagerRegistry.php'
+            - '../../Doctrine/AuthKitSavepoint.php'
+            - '../../Doctrine/PrivateEntityManager*.php'
+            - '../../Doctrine/UnitOfWorkBoundaries.php'
             - '../../Entity/'
             - '../../Enum/'
             - '../../Form/'
