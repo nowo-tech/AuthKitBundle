@@ -67,6 +67,7 @@ final class SocialAccountLinker
         ?UserFactoryInterface $userFactory = null,
         ?UserWriterInterface $userWriter = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?EntityManagerInterface $privateEntityManager = null,
     ) {
         $this->userLookup  = $userLookup ?? new DoctrineUserLookup($entityManager, $this->identifierMatcher);
         $this->userFactory = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
@@ -103,6 +104,11 @@ final class SocialAccountLinker
             // The objects in memory still hold what was rolled back.
             // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
             $this->entityManager->clear();
+            if ($this->privateEntityManager instanceof EntityManagerInterface) {
+                // 1.46.0: the private manager holds the social account row of the rolled-back link.
+                // @igor-ignore - Unit of work of the bundle's private manager (dropped at every boundary), not worker state.
+                $this->privateEntityManager->clear();
+            }
             $this->compensate($profile, $created);
 
             throw $exception;
@@ -155,7 +161,7 @@ final class SocialAccountLinker
         if ($account instanceof SocialLoginAccount) {
             $user = $this->loadUser($profile, $profile->userClass, $account->getUserId());
             $this->refreshAccountTokens($account, $socialProfile, $tokens);
-            $this->entityManagerRecovery->flush($this->entityManager);
+            $this->entityManagerRecovery->flush($this->accountManager());
 
             return [$user, []];
         }
@@ -205,8 +211,9 @@ final class SocialAccountLinker
             ->setDisplayName($socialProfile->name)
             ->setRawProfile($socialProfile->raw);
         $this->refreshAccountTokens($account, $socialProfile, $tokens);
-        $this->entityManager->persist($account);
-        $this->entityManagerRecovery->flush($this->entityManager);
+        $accounts = $this->accountManager();
+        $accounts->persist($account);
+        $this->entityManagerRecovery->flush($accounts);
 
         return [$user, $events];
     }
@@ -340,5 +347,14 @@ final class SocialAccountLinker
     private function resolveUserId(UserInterface $user): string
     {
         return UserIds::of($user, $this->propertyAccessor) ?? $user->getUserIdentifier();
+    }
+
+    /**
+     * The manager of the social account rows: the private one with `doctrine.private_entity_manager: true` (1.46.0),
+     * else the application's (1.45). Both share the connection, so the link transaction covers them.
+     */
+    private function accountManager(): EntityManagerInterface
+    {
+        return $this->privateEntityManager ?? $this->entityManager;
     }
 }

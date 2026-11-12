@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 1.46.0 (doctrine.mapping_type: xml): the same table, columns, indexes and constraints as the attributes of
+     SocialLoginAccount. Kept in parity by tests/Unit/Doctrine/XmlMappingParityTest. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\AuthKitBundle\Entity\SocialLoginAccount" table="auth_kit_social_account" repository-class="Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository">
+        <unique-constraints>
+            <unique-constraint name="uniq_auth_kit_social_account_provider_subject_class" columns="provider,provider_user_id,user_class"/>
+        </unique-constraints>
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="provider" type="string" length="64"/>
+        <field name="providerUserId" column="provider_user_id" type="string" length="255"/>
+        <field name="userClass" column="user_class" type="string" length="255"/>
+        <field name="userId" column="user_id" type="string" length="64"/>
+        <field name="userIdentifier" column="user_identifier" type="string" length="255"/>
+        <field name="accessToken" column="access_token" type="text" nullable="true"/>
+        <field name="refreshToken" column="refresh_token" type="text" nullable="true"/>
+        <field name="tokenExpiresAt" column="token_expires_at" type="datetime_immutable" nullable="true"/>
+        <field name="email" type="string" length="255" nullable="true"/>
+        <field name="displayName" column="display_name" type="string" length="255" nullable="true"/>
+        <field name="rawProfile" column="raw_profile" type="json"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+        <field name="updatedAt" column="updated_at" type="datetime_immutable"/>
+    </entity>
+</doctrine-mapping>

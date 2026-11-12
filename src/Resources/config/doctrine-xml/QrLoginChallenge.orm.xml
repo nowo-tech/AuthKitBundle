@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 1.46.0 (doctrine.mapping_type: xml): the same table, columns, indexes and constraints as the attributes of
+     QrLoginChallenge. Kept in parity by tests/Unit/Doctrine/XmlMappingParityTest. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\AuthKitBundle\Entity\QrLoginChallenge" table="auth_kit_qr_login_challenge" repository-class="Nowo\AuthKitBundle\Repository\QrLoginChallengeRepository">
+        <indexes>
+            <index name="idx_qr_challenge_status_expires" columns="status,expires_at"/>
+        </indexes>
+        <id name="id" type="string" length="36"/>
+        <field name="publicCode" column="public_code" type="string" length="8" unique="true"/>
+        <field name="status" type="string" length="16"/>
+        <field name="userClass" column="user_class" type="string" length="255" nullable="true"/>
+        <field name="userId" column="user_id" type="string" length="64" nullable="true"/>
+        <field name="phoneHint" column="phone_hint" type="string" length="32" nullable="true"/>
+        <field name="desktopCookieHash" column="desktop_cookie_hash" type="string" length="64"/>
+        <field name="desktopIpHash" column="desktop_ip_hash" type="string" length="64"/>
+        <field name="desktopUaHash" column="desktop_ua_hash" type="string" length="64"/>
+        <field name="desktopUaLabel" column="desktop_ua_label" type="string" length="128"/>
+        <field name="approveTokenHash" column="approve_token_hash" type="string" length="64"/>
+        <field name="approveTokenUsedAt" column="approve_token_used_at" type="datetime_immutable" nullable="true"/>
+        <field name="expiresAt" column="expires_at" type="datetime_immutable"/>
+        <field name="approvedAt" column="approved_at" type="datetime_immutable" nullable="true"/>
+        <field name="consumedAt" column="consumed_at" type="datetime_immutable" nullable="true"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+        <field name="updatedAt" column="updated_at" type="datetime_immutable"/>
+    </entity>
+</doctrine-mapping>

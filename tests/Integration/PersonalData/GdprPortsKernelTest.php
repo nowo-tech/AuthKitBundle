@@ -29,7 +29,7 @@ use function random_bytes;
  * The GDPR ports through UserKit (1.45): invitations and social login are off, the rows are still erased and exported,
  * before the host identity eraser (priority 90) renames the e-mail.
  */
-final class GdprPortsKernelTest extends KernelTestCase
+class GdprPortsKernelTest extends KernelTestCase
 {
     private EntityManagerInterface $em;
 

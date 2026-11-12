@@ -24,7 +24,7 @@ use function str_ends_with;
  * credential errors shown in the panel, password reset by link and by code with the confirmation field before the
  * submit button and the validation errors displayed.
  */
-final class AuthPagesKernelTest extends WebTestCase
+class AuthPagesKernelTest extends WebTestCase
 {
     private KernelBrowser $client;
 

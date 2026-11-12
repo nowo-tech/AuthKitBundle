@@ -13,9 +13,16 @@ use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
+use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
+use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerMiddleware;
+use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
+use Nowo\AuthKitBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
@@ -49,6 +56,10 @@ use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataEraser;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataExporterInterface;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountUserKitExportProvider;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\Repository\InvitationRepository;
+use Nowo\AuthKitBundle\Repository\QrLoginChallengeRepository;
+use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
+use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\LoginTarget\BackgroundTargetPathPreserver;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetCacheWarmer;
@@ -56,6 +67,7 @@ use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetGuard;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetVoterInterface;
 use Nowo\AuthKitBundle\Security\SessionExpired\SessionExpiredResponder;
+use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
@@ -63,6 +75,8 @@ use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExportProviderInterface;
 use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\DependencyInjection\Argument\BoundArgument;
+use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -92,6 +106,8 @@ use function is_array;
 use function is_bool;
 use function is_string;
 use function sprintf;
+use function str_starts_with;
+use function trigger_deprecation;
 use function trim;
 
 /**
@@ -103,6 +119,15 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     public const MAPPING_ENABLED_PARAMETER = 'nowo_auth_kit.doctrine.mapping_enabled';
 
     public const BUNDLE_NAME = 'NowoAuthKitBundle';
+
+    /** 1.46.0: present when doctrine.mapping_type is xml and the bundle entities are mapped. */
+    public const XML_MAPPING_ENABLED_PARAMETER = 'nowo_auth_kit.doctrine.xml_mapping_enabled';
+
+    /** 1.46.0: whether doctrine.private_entity_manager is true. */
+    public const PRIVATE_ENTITY_MANAGER_PARAMETER = 'nowo_auth_kit.doctrine.private_entity_manager';
+
+    /** 1.46.0: service id prefix of the repositories bound to the private entity manager (followed by the class). */
+    public const PRIVATE_REPOSITORY_PREFIX = 'nowo_auth_kit.private_entity_manager.repository.';
 
     public function load(array $configs, ContainerBuilder $container): void
     {
@@ -206,8 +231,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $registerMapping = $this->resolveRegisterMapping($config['doctrine']['register_mapping'], $profiles);
         $container->setParameter('nowo_auth_kit.doctrine.register_mapping', $registerMapping);
         if ($registerMapping) {
-            // Read by the DoctrineOrmMappingsPass of NowoAuthKitBundle::build() (enabled when the parameter exists).
-            $container->setParameter(self::MAPPING_ENABLED_PARAMETER, true);
+            // Read by the DoctrineOrmMappingsPass of NowoAuthKitBundle::build() (enabled when the parameter exists);
+            // 1.46.0: the XML driver instead of the attribute one with doctrine.mapping_type xml.
+            $container->setParameter($config['doctrine']['mapping_type'] === Configuration::MAPPING_TYPE_XML ? self::XML_MAPPING_ENABLED_PARAMETER : self::MAPPING_ENABLED_PARAMETER, true);
         }
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
@@ -245,6 +271,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $container->removeDefinition(AuthKitFlashExtension::class);
         }
 
+        $this->registerPrivateEntityManager($container, $config['doctrine']['private_entity_manager'], $registerMapping);
+
         $resolverServiceId = $config['recipient_locale']['resolver'];
         if (is_string($resolverServiceId) && $resolverServiceId !== '') {
             $container->setAlias(RecipientLocaleResolverInterface::class, $resolverServiceId);
@@ -258,6 +286,111 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         $container->setAlias(OutboundMailReadyCheckerInterface::class, AlwaysOutboundMailReadyChecker::class);
+    }
+
+    /**
+     * 1.46.0 (REQ-ARCH-001 rule 6): `doctrine.private_entity_manager: true` points every service that reads or writes
+     * the AuthKit entities at {@see AuthKitEntityManager} / {@see AuthKitManagerRegistry} (inline definitions
+     * included), registers the boundary subscriber and, with doctrine/dbal 4, the rollback middleware (attached to the
+     * connection by {@see PrivateEntityManagerPass}). null keeps the 1.45 wiring; false too, with a deprecation (the
+     * private manager becomes the only mode in 2.0).
+     */
+    private function registerPrivateEntityManager(ContainerBuilder $container, ?bool $private, bool $registerMapping): void
+    {
+        $container->setParameter(self::PRIVATE_ENTITY_MANAGER_PARAMETER, $private === true);
+        // Never autowired: a host entity manager named like the parameter must not become the private one.
+        foreach ([SocialAccountLinker::class, InvitationAcceptor::class] as $service) {
+            if ($container->hasDefinition($service)) {
+                $container->getDefinition($service)->setArgument('$privateEntityManager', null);
+            }
+        }
+        if ($private === false) {
+            trigger_deprecation('nowo-tech/auth-kit-bundle', '1.46', '"nowo_auth_kit.doctrine.private_entity_manager: false" is deprecated: the AuthKit writes then flush the application\'s entity manager, including its pending changes; the private entity manager becomes the only mode in 2.0. Set it to true (see UPGRADING.md "To 1.46.0").');
+        }
+        if ($private !== true) {
+            return;
+        }
+        if (!$registerMapping) {
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.private_entity_manager: true" needs the AuthKit entities mapped on the default entity manager (doctrine.register_mapping: true or auto with a feature that uses them).');
+        }
+
+        $container->register(AuthKitEntityManager::class, AuthKitEntityManager::class)
+            ->setArguments([new Reference('doctrine'), 'default', new Reference('logger', ContainerInterface::IGNORE_ON_INVALID_REFERENCE)])
+            ->addTag('kernel.reset', ['method' => 'reset'])
+            // Audit NJV-1 (Vault): loads of the private manager inside a transaction are tracked like its writes.
+            ->addTag('doctrine.event_listener', ['event' => 'postLoad', 'method' => 'postLoad', 'lazy' => true]);
+        $container->register(AuthKitManagerRegistry::class, AuthKitManagerRegistry::class)
+            ->setArguments([new Reference('doctrine'), new Reference(AuthKitEntityManager::class), 'default']);
+        $container->register(UnitOfWorkBoundaries::class, UnitOfWorkBoundaries::class)
+            ->addTag('kernel.event_subscriber');
+        $container->register(PrivateEntityManagerSubscriber::class, PrivateEntityManagerSubscriber::class)
+            ->setArguments([
+                new Reference(UnitOfWorkBoundaries::class),
+                new IteratorArgument([new Reference(AuthKitEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE)]),
+            ])
+            ->addTag('kernel.event_subscriber');
+        if (PrivateEntityManagerPass::supportsRollbackMiddleware()) {
+            $container->register(PrivateEntityManagerMiddleware::class, PrivateEntityManagerMiddleware::class)
+                ->setArguments([new Reference(AuthKitEntityManager::class)])
+                ->addTag('doctrine.middleware');
+        }
+
+        $entityManager = new Reference(AuthKitEntityManager::class);
+        $registry      = new Reference(AuthKitManagerRegistry::class);
+        // The two Doctrine service repositories are what $entityManager->getRepository() returns for the social rows,
+        // whichever manager asks: they stay exactly as in 1.45 (bound to the application's manager), so host code that
+        // edits social credentials or accounts through them and flushes its own manager keeps working. The bundle
+        // services get private copies bound to the private manager instead (type bindings).
+        $bindings = [];
+        foreach ([SocialLoginAccountRepository::class, SocialLoginCredentialRepository::class] as $class) {
+            $id = self::PRIVATE_REPOSITORY_PREFIX . $class;
+            $container->register($id, $class)->setAutowired(true)->setArgument('$registry', $registry);
+            $bindings[$class] = new BoundArgument(new Reference($id), false);
+        }
+        foreach ($container->getDefinitions() as $id => $definition) {
+            $class = $definition->getClass() ?? $id;
+            if (str_starts_with($class, 'Nowo\\AuthKitBundle\\') && !isset($bindings[$class]) && !str_starts_with($id, self::PRIVATE_REPOSITORY_PREFIX)) {
+                $definition->setBindings($definition->getBindings() + $bindings);
+            }
+        }
+
+        $arguments = [
+            // Plain repositories (not reachable through getRepository()): the bundle's own, bound to the private manager.
+            QrLoginChallengeRepository::class                => ['$em' => $entityManager],
+            InvitationRepository::class                      => ['$em' => $entityManager],
+            MfaStore::class                                  => ['$doctrine' => $registry],
+            AccountVaultStore::class                         => ['$doctrine' => $registry],
+            DoctrineInvitationPersonalData::class            => ['$doctrine' => $registry],
+            DoctrineSocialAccountPersonalDataExporter::class => ['$doctrine' => $registry],
+            SocialAccountPersonalDataEraser::class           => ['$doctrine' => $registry],
+            SocialAccountLinker::class                       => ['$privateEntityManager' => $entityManager],
+            InvitationAcceptor::class                        => ['$privateEntityManager' => $entityManager],
+        ];
+        foreach ($container->getDefinitions() as $id => $definition) {
+            $this->usePrivateEntityManager($definition, $arguments, $id);
+        }
+    }
+
+    /**
+     * Sets the private manager / registry arguments on a definition of one of the classes and on its inline
+     * definitions (the dormant erasers build their store inline).
+     *
+     * @param array<class-string, array<string, Reference>> $arguments
+     */
+    private function usePrivateEntityManager(Definition $definition, array $arguments, ?string $id = null): void
+    {
+        // Definitions loaded from a resource have no class yet: their id is the class.
+        $class = $definition->getClass() ?? $id;
+        if (is_string($class) && isset($arguments[$class])) {
+            foreach ($arguments[$class] as $name => $reference) {
+                $definition->setArgument($name, $reference);
+            }
+        }
+        foreach ($definition->getArguments() as $argument) {
+            if ($argument instanceof Definition) {
+                $this->usePrivateEntityManager($argument, $arguments);
+            }
+        }
     }
 
     /**

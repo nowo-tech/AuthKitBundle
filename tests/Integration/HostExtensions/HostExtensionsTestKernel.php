@@ -16,7 +16,7 @@ use function sys_get_temp_dir;
 /**
  * The auth pages kernel with the 1.37 host extensions: both availability checkers and a social callback handler.
  */
-final class HostExtensionsTestKernel extends AuthKitTestKernel
+class HostExtensionsTestKernel extends AuthKitTestKernel
 {
     public function getCacheDir(): string
     {

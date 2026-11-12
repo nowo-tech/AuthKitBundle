@@ -9,6 +9,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query;
+use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Psr\Clock\ClockInterface;
@@ -53,13 +54,15 @@ class QrLoginChallengeRepository extends EntityRepository
      */
     public function transitionStatus(QrLoginChallenge $challenge, QrLoginChallengeStatus $from, QrLoginChallengeStatus $to): bool
     {
-        $affected = $this->getEntityManager()
+        $manager = $this->getEntityManager();
+        $query   = $manager
             ->createQuery('UPDATE ' . QrLoginChallenge::class . ' c SET c.status = :to, c.updatedAt = :now WHERE c.id = :id AND c.status = :from')
             ->setParameter('to', $to->value)
             ->setParameter('now', $this->clock?->now() ?? new DateTimeImmutable(), Types::DATETIME_IMMUTABLE)
             ->setParameter('id', $challenge->getId())
-            ->setParameter('from', $from->value)
-            ->execute();
+            ->setParameter('from', $from->value);
+        // 1.46.0: a savepoint inside an open transaction with the private entity manager (exactly as before otherwise).
+        $affected = AuthKitSavepoint::write($manager->getConnection(), static fn (): mixed => $query->execute(), $manager);
 
         return $affected === 1;
     }

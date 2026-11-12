@@ -84,6 +84,7 @@ final readonly class InvitationAcceptor
         private EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
         private ?AuthKitAttemptLimiter $limiter = null,
         private ?UserWriterInterface $userWriter = null,
+        private ?EntityManagerInterface $privateEntityManager = null,
     ) {
     }
 
@@ -371,6 +372,11 @@ final readonly class InvitationAcceptor
             foreach ($this->grants as $grant) {
                 $grant->grant($snapshot, $user);
             }
+            if ($this->privateEntityManager instanceof EntityManagerInterface) {
+                // 1.46.0 private entity manager: the invitation row (same connection, same transaction).
+                $this->entityManagerRecovery->flush($this->privateEntityManager);
+            }
+            // The application's manager (the account, the grants) inside the transaction this method opened.
             $this->entityManagerRecovery->flush($this->entityManager);
             $connection->commit();
         } catch (Throwable $exception) {
@@ -381,6 +387,8 @@ final readonly class InvitationAcceptor
             if ($this->entityManager->isOpen()) {
                 $this->entityManager->clear();
             }
+            // @igor-ignore - Unit of work of the bundle's private manager (1.46.0), dropped at every boundary anyway.
+            $this->privateEntityManager?->clear();
             $this->compensate($profile, $created);
             if (!$exception instanceof RuntimeException) {
                 throw $exception;
