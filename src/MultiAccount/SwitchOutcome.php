@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\MultiAccount;
 
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -22,6 +24,7 @@ final readonly class SwitchOutcome
     public const NOT_FOUND = 'not_found';
 
     /**
+     * @param UserInterface|null $user @deprecated since 1.46.0, use userRef(); removed in 2.0
      * @param array<string, mixed> $parameters translation parameters of `$message`
      */
     private function __construct(
@@ -58,5 +61,13 @@ final readonly class SwitchOutcome
     public static function notFound(): self
     {
         return new self(self::NOT_FOUND, null, 'accounts.flash.unknown');
+    }
+
+    /**
+     * The account switched to, framework-free (1.46.0); null unless switched or revived.
+     */
+    public function userRef(): ?AuthUserRef
+    {
+        return AuthUserRefs::fromNullableUser($this->user);
     }
 }

@@ -8,6 +8,8 @@ use DateTimeImmutable;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusal;
 use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -26,6 +28,9 @@ final class InvitationAcceptingEvent
 
     private bool $refused = false;
 
+    /**
+     * @param UserInterface|null $user @deprecated since 1.46.0, use userRef(); removed in 2.0
+     */
     public function __construct(
         public readonly InvitationSnapshot $invitation,
         public readonly DateTimeImmutable $occurredAt,
@@ -58,5 +63,13 @@ final class InvitationAcceptingEvent
     public function getRefusal(): ?InvitationRefusal
     {
         return $this->refusal;
+    }
+
+    /**
+     * The existing account accepting it, framework-free (1.46.0); null: a new account is about to be created.
+     */
+    public function userRef(): ?AuthUserRef
+    {
+        return AuthUserRefs::fromNullableUser($this->user);
     }
 }

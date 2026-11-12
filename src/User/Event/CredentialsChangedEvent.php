@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\User\Event;
 
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -18,9 +20,20 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final readonly class CredentialsChangedEvent
 {
+    /**
+     * @param UserInterface $user @deprecated since 1.46.0, use userRef(); removed in 2.0
+     */
     public function __construct(
         public UserInterface $user,
         public bool $passwordChanged = true,
     ) {
+    }
+
+    /**
+     * The user, framework-free (1.46.0, REQ-ARCH-001 rule 3).
+     */
+    public function userRef(): AuthUserRef
+    {
+        return AuthUserRefs::fromUser($this->user);
     }
 }
