@@ -4,7 +4,6 @@
 
 - [Unreleased](#unreleased)
 - [To 1.46.0](#to-1460)
-- [To 1.46.0](#to-1460-1)
   - [Framework-free host ports (optional until 2.0)](#framework-free-host-ports-optional-until-20)
   - [Event accessors](#event-accessors)
   - [Private entity manager (`doctrine.private_entity_manager`)](#private-entity-manager-doctrineprivate_entity_manager)
@@ -123,14 +122,6 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
-
-## To 1.46.0
-
-From **1.45.2**:
-
-```bash
-composer update nowo-tech/auth-kit-bundle
-```
 
 ## To 1.46.0
 
