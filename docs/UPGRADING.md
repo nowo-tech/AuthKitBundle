@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.46.1](#to-1461)
+  - [Identity columns matched byte for byte (MySQL / MariaDB)](#identity-columns-matched-byte-for-byte-mysql--mariadb)
 - [To 1.46.0](#to-1460)
   - [Framework-free host ports (optional until 2.0)](#framework-free-host-ports-optional-until-20)
   - [Event accessors](#event-accessors)
@@ -122,6 +124,102 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.46.1
+
+From **1.46.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+Security release (REQ-SEC-006). Nothing to change in the configuration. PostgreSQL and SQLite: nothing to do.
+MySQL / MariaDB: run the detection queries below, then the ALTERs (or `doctrine:migrations:diff`, which now generates
+them).
+
+Behaviour changes:
+
+- MFA owners, social provider subjects, switcher identifiers and invitation e-mails / inviters are compared **byte for
+  byte**: a case variant or another Unicode normalisation form (`José` NFC vs NFD) is another user. 1.36 to 1.46.0
+  compared the switcher and social-link erasure lower-cased and NFC-normalised.
+- An MFA owner id (the user identifier of users that are not Doctrine entities, or a string primary key) with edge white
+  space or NBSP, a control or format character (ZWSP, BOM, bidi marks, line separators), invalid UTF-8 or more than 191
+  characters cannot have MFA (`MfaOwner::usable()`). If such a user must have MFA, or enrolled before 1.46.1, the sign-in
+  stops at the enrolment step (a warning is logged): fix the identifier, then let the user enrol again.
+- A social provider subject with such characters, or longer than 255 characters, is refused.
+- When the MFA table still has a folding unique key, the second of two look-alike users cannot enrol: it fails with a
+  `RuntimeException` instead of taking the first user's credential.
+- A warning is logged when the binary collation falls back to the PAD SPACE `utf8mb4_bin`: MySQL 5.7, or a
+  `doctrine.dbal.server_version` without the patch number (`8`, `8.0`). Set the full version (e.g. `8.4.0`,
+  `11.4.0-MariaDB`).
+
+### Identity columns matched byte for byte (MySQL / MariaDB)
+
+The code re-checks every row in PHP, so the fix holds without the ALTERs. The ALTERs make the database exact too:
+
+- **Required** for `auth_kit_mfa` (`user_type`, `user_id`) when your MFA owner ids are strings (users that are not
+  Doctrine entities, or string primary keys): its unique key `uniq_auth_kit_mfa_owner` folds, so a look-alike user
+  (`Jose@` next to `jose@`) cannot enrol until the column is binary.
+- **Recommended** for the other columns (exact SQL, no look-alike candidates to read and drop).
+
+Use the table names of your prefix (`doctrine.table_prefix`). Run the detection queries **before** the ALTER: they group
+by the column's current collation (as the old code matched) and count the distinct byte values, so each row is a set of
+look-alike values. `TRIM`, `DISTINCT`, `LOWER` and `_ai_ci` comparisons fold too; only `CAST(… AS BINARY)` and `HEX()`
+show the stored bytes.
+
+```sql
+-- 1. Look-alike groups per identity column (one row per group; HEX shows which values differ).
+SELECT profile, user_type, user_id, COUNT(*) AS n, GROUP_CONCAT(HEX(user_id)) AS ids
+  FROM auth_kit_mfa GROUP BY profile, user_type, user_id
+  HAVING COUNT(DISTINCT CAST(user_type AS BINARY), CAST(user_id AS BINARY)) > 1;
+SELECT provider, provider_user_id, user_class, COUNT(*) AS n, GROUP_CONCAT(HEX(provider_user_id)) AS subjects
+  FROM auth_kit_social_account GROUP BY provider, provider_user_id, user_class
+  HAVING COUNT(DISTINCT CAST(provider_user_id AS BINARY)) > 1;
+SELECT user_class, user_id, COUNT(*) AS n, GROUP_CONCAT(HEX(user_id)) AS ids
+  FROM auth_kit_social_account GROUP BY user_class, user_id
+  HAVING COUNT(DISTINCT CAST(user_id AS BINARY)) > 1;
+SELECT profile, user_identifier, COUNT(*) AS n, GROUP_CONCAT(HEX(user_identifier)) AS identifiers
+  FROM auth_kit_account_vault GROUP BY profile, user_identifier
+  HAVING COUNT(DISTINCT CAST(user_identifier AS BINARY)) > 1;
+SELECT profile, email, COUNT(*) AS n, GROUP_CONCAT(HEX(email)) AS emails
+  FROM auth_kit_invitation WHERE accepted_at IS NULL AND revoked_at IS NULL GROUP BY profile, email
+  HAVING COUNT(DISTINCT CAST(email AS BINARY)) > 1;
+SELECT invited_by, COUNT(*) AS n, GROUP_CONCAT(HEX(invited_by)) AS inviters
+  FROM auth_kit_invitation WHERE invited_by IS NOT NULL GROUP BY invited_by
+  HAVING COUNT(DISTINCT CAST(invited_by AS BINARY)) > 1;
+
+-- 2. MFA credentials that 1.46.1 no longer reaches (edge white space or NBSP; control or format characters anywhere:
+--    ZWSP / ZWNJ / ZWJ, LRM / RLM, line separators, bidi embeddings and isolates, BOM).
+SELECT id, profile, user_type, HEX(user_id) FROM auth_kit_mfa
+ WHERE CAST(user_id AS BINARY) <> CAST(TRIM(user_id) AS BINARY)
+    OR HEX(user_id) REGEXP '^C2A0|C2A0$|^([0-9A-F]{2})*(0[0-9A-F]|1[0-9A-F]|7F|E2808[B-F]|E280A[8-E]|E281A[6-9]|EFBBBF)';
+```
+
+A group in query 1 for `auth_kit_mfa` cannot exist while the folding unique key is there; for the other tables it means
+two users (or subjects) that the old code could confuse: check them before the ALTER. The ALTER itself never fails on
+duplicates (a binary collation only splits groups). A look-alike enrolment before 1.46.1 left no trace in
+`auth_kit_mfa` (the row keeps its owner id): with string owner ids, reset the MFA of a user whose authenticator stopped
+working rather than assuming a lost device.
+
+MySQL 8.0.17+ (`utf8mb4_0900_bin`; MariaDB: `utf8mb4_nopad_bin`; MySQL 5.7 only: `utf8mb4_bin`):
+
+```sql
+ALTER TABLE auth_kit_mfa
+  MODIFY user_type VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
+  MODIFY user_id VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL;
+ALTER TABLE auth_kit_social_account
+  MODIFY provider_user_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
+  MODIFY user_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
+  MODIFY user_identifier VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL;
+ALTER TABLE auth_kit_account_vault
+  MODIFY user_identifier VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL;
+ALTER TABLE auth_kit_invitation
+  MODIFY email VARCHAR(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL,
+  MODIFY invited_by VARCHAR(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin DEFAULT NULL;
+```
+
+Check afterwards: `SELECT TABLE_NAME, COLUMN_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA =
+DATABASE() AND TABLE_NAME LIKE '%auth_kit_%' AND COLLATION_NAME IS NOT NULL;`
 
 ## To 1.46.0
 

@@ -12,7 +12,6 @@ use Nowo\AuthKitBundle\Mfa\MfaOwner;
 use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
-use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\UserKitBundle\PersonalData\ErasureRequest;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -21,6 +20,7 @@ use function array_filter;
 use function array_map;
 use function array_values;
 use function get_object_vars;
+use function in_array;
 use function is_string;
 
 /**
@@ -72,12 +72,12 @@ final readonly class SocialAccountPersonalDataEraser implements PersonalDataEras
         // must match: a username equal to another user's id must never reach that user's link (GY-M1).
         $wantedIds = [];
         foreach ($ids as $id) {
-            $wantedIds[UserIdentifierMatcher::normalize($id)] = $id;
+            $wantedIds[$id] = $id;
         }
         $legacy = [];
         foreach ([$user->getUserIdentifier(), $original] as $identifier) {
             if ($identifier !== null && $identifier !== '') {
-                $legacy[UserIdentifierMatcher::normalize($identifier)] = $identifier;
+                $legacy[$identifier] = $identifier;
             }
         }
         $rows = $connection->fetchAllAssociative(
@@ -85,11 +85,12 @@ final readonly class SocialAccountPersonalDataEraser implements PersonalDataEras
             ['class' => $profile->userClass, 'ids' => array_values($wantedIds), 'legacy' => array_values($legacy)],
             ['ids' => ArrayParameterType::STRING, 'legacy' => ArrayParameterType::STRING],
         );
-        // GY-I8: an accent-insensitive collation also returns look-alikes of a natural key (jose@ for josé@).
+        // GY-I8 / REQ-SEC-006 item 7: a folding collation also returns look-alikes of a natural key (jose@ for josé@, Jose@
+        // for jose@): only byte-identical keys are this user's (string keys: an integer-like id is compared as a string).
         $rows = array_filter($rows, static function (array $row) use ($wantedIds, $legacy): bool {
-            $userId = UserIdentifierMatcher::normalize((string) $row['user_id']);
+            $userId = (string) $row['user_id'];
 
-            return isset($wantedIds[$userId]) || (isset($legacy[$userId]) && isset($legacy[UserIdentifierMatcher::normalize((string) $row['user_identifier'])]));
+            return in_array($userId, $wantedIds, true) || (in_array($userId, $legacy, true) && in_array((string) $row['user_identifier'], $legacy, true));
         });
         if ($rows !== []) {
             $connection->executeStatement('DELETE FROM ' . $table . ' WHERE id IN (:rows)', ['rows' => array_map(static fn (array $row): int => (int) $row['id'], array_values($rows))], ['rows' => ArrayParameterType::INTEGER]);

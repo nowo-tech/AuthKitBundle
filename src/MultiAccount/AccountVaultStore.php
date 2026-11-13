@@ -14,7 +14,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
-use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 
 use function array_map;
 
@@ -126,8 +125,9 @@ final readonly class AccountVaultStore
         $rows = $this->connection()->fetchAllAssociative('SELECT id, user_identifier FROM ' . $this->table() . ' WHERE profile = :profile AND user_identifier = :identifier', ['profile' => $profile, 'identifier' => $userIdentifier]);
         $ids  = [];
         foreach ($rows as $row) {
-            // GY-I8: an accent-insensitive collation also returns look-alikes of the identifier (jose@ for josé@).
-            if ((int) $row['id'] !== $exceptId && UserIdentifierMatcher::normalize((string) $row['user_identifier']) === UserIdentifierMatcher::normalize($userIdentifier)) {
+            // GY-I8 / REQ-SEC-006 item 7: a folding collation also returns look-alikes of the identifier (jose@ for josé@,
+            // Jose@ for jose@, `jose@ ` on PAD SPACE): only the byte-identical identifier is this user's.
+            if ((int) $row['id'] !== $exceptId && (string) $row['user_identifier'] === $userIdentifier) {
                 $ids[] = (int) $row['id'];
             }
         }

@@ -15,12 +15,15 @@ use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Stub\ChildTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Security\Core\User\UserInterface;
+
+use function str_repeat;
 
 /**
  * SEC-004 regressions of the social login linker: H1 (look-alike e-mail), H2 (cross-profile account), M1
@@ -77,6 +80,39 @@ final class SocialAccountLinkerHardeningTest extends TestCase
             $this->profile(ChildTestUser::class),
             'google',
             new SocialUserProfile('sub-1', 'x@example.com', null, [], true),
+            ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
+        );
+    }
+
+    /**
+     * REQ-SEC-006 (1.46.1): a provider subject that cannot be told apart from a look-alike is refused before any lookup.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function unusableSubjects(): iterable
+    {
+        yield 'trailing space' => ['sub-1 '];
+        yield 'leading NBSP' => ["\u{00A0}sub-1"];
+        yield 'zero-width space' => ["sub\u{200B}-1"];
+        yield 'new line' => ["sub-1\n"];
+        yield 'invalid UTF-8' => ["sub-\xC3"];
+        yield 'too long' => [str_repeat('s', 256)];
+    }
+
+    #[DataProvider('unusableSubjects')]
+    public function testAnUnusableProviderSubjectIsRefused(string $subject): void
+    {
+        $accounts = $this->createMock(SocialLoginAccountRepository::class);
+        $accounts->expects(self::never())->method('findOneByProviderSubject');
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('persist');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('unusable subject identifier');
+        $this->linker($em, $accounts)->linkOrCreate(
+            $this->profile(TestUser::class, ['create_user_if_missing' => true]),
+            'google',
+            new SocialUserProfile($subject, 'new@example.com', null, [], true),
             ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
         );
     }

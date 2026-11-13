@@ -31,7 +31,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class LookAlikeIdentifierTest extends TestCase
 {
-    public function testTheVaultDeletesTheIdentifierAndItsCaseVariantButNotALookAlike(): void
+    public function testTheVaultDeletesOnlyTheByteIdenticalIdentifier(): void
     {
         $connection = $this->createMock(Connection::class);
         $connection->method('fetchAllAssociative')->willReturn([
@@ -40,10 +40,11 @@ final class LookAlikeIdentifierTest extends TestCase
             ['id' => 3, 'user_identifier' => 'josé@example.com'],
         ]);
         $connection->expects(self::once())->method('executeStatement')
-            ->with(self::stringContains('DELETE'), ['ids' => [1, 2]], self::anything())
-            ->willReturn(2);
+            ->with(self::stringContains('DELETE'), ['ids' => [1]], self::anything())
+            ->willReturn(1);
 
-        self::assertSame(2, (new AccountVaultStore($this->doctrine($connection, AccountVaultEntry::class)))->deleteForUser('default', 'jose@example.com'));
+        // REQ-SEC-006 item 7 (1.46.1): a case variant is another identifier too.
+        self::assertSame(1, (new AccountVaultStore($this->doctrine($connection, AccountVaultEntry::class)))->deleteForUser('default', 'jose@example.com'));
     }
 
     public function testTheVaultRunsNoDeleteForOnlyALookAlike(): void

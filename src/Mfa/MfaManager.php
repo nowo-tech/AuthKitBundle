@@ -161,6 +161,15 @@ final readonly class MfaManager
     {
         $profile = $this->profileFor($user);
         $owner   = $this->owners->resolve($user);
+        if ($profile instanceof ProfileSettings && !$owner instanceof MfaOwner && ($refused = $this->owners->refusedReference($user)) !== null
+            && ($this->requirement($user) === MfaRequirement::Required || $this->store->hasEnabledCredentialFor($profile->name, $refused[0], $refused[1]))) {
+            // REQ-SEC-006 (1.46.1): an id refused as a key (edge white space, control or format characters) cannot have
+            // MFA. A required user, or one who enrolled under that id before 1.46.1, must not sign in with the first factor
+            // alone: the enrolment step refuses this user, so the sign-in stays closed until the host fixes the id.
+            $this->logger->warning('MFA cannot be used with this user identifier (REQ-SEC-006); the sign-in stays closed.', ['profile' => $profile->name]);
+
+            return true;
+        }
         if (!$profile instanceof ProfileSettings || !$owner instanceof MfaOwner || $this->requirement($user) !== MfaRequirement::Required) {
             return false;
         }

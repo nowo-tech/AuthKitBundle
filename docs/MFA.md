@@ -272,6 +272,12 @@ audit), `auth_kit_mfa_recovery_code` (HMACs, used date), `auth_kit_mfa_trusted_d
 UserKit device id, dates). All table-prefix aware. Owners are stable ids, never e-mails: changing an e-mail keeps the
 factor.
 
+Owners are matched byte for byte (1.46.1, REQ-SEC-006): `Jose@`, `josé@` and `jose@` are three owners. On MySQL /
+MariaDB `user_type` and `user_id` get a binary NO PAD collation (`IdentityCollationListener`; ALTERs for existing
+tables in [UPGRADING](UPGRADING.md#to-1461)). An owner id with edge white space or NBSP, a control or format character
+or invalid UTF-8 cannot have MFA; a user who must have MFA (or enrolled under such an id before 1.46.1) stays at the
+enrolment step.
+
 ## Security notes
 
 - The secret exists only in the session during enrolment, is stored encrypted, and is shown only on the enrolment

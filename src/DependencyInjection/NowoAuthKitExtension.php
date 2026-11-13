@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
+use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetTableInvalidationListener;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerMiddleware;
@@ -275,6 +276,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
         if ($config['doctrine']['table_prefix'] === '') {
             $container->removeDefinition(TablePrefixListener::class);
+        }
+        // REQ-SEC-006 (1.46.1): binary NO PAD collation of the MFA, social, vault and invitation identity columns.
+        if ($registerMapping) {
+            $container->getDefinition(IdentityCollationListener::class)
+                ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchemaTable']);
         }
 
         $this->registerPasswordResetStorage($container, $profiles);

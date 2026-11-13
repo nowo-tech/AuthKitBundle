@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Mfa;
 use Closure;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
@@ -17,7 +18,7 @@ use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
-use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
+use RuntimeException;
 
 use function array_filter;
 use function array_map;
@@ -36,18 +37,28 @@ final readonly class MfaStore
     ) {
     }
 
+    /**
+     * The credential of the owner in the profile. The SQL equality only pre-selects: on a folding collation (MySQL /
+     * MariaDB `*_ci`, PAD SPACE) it also returns a look-alike owner's row (`josé@` for `jose@`, `bob ` for `bob`), which
+     * the byte-for-byte re-check drops (REQ-SEC-006, 1.46.1).
+     */
     public function credential(string $profile, MfaOwner $owner): ?MfaCredential
     {
-        return $this->entityManager()->getRepository(MfaCredential::class)->findOneBy([
-            'profile'  => $profile,
-            'userType' => $owner->type,
-            'userId'   => $owner->id,
-        ]);
+        return $this->exactCredential($profile, $owner->type, $owner->id);
+    }
+
+    /**
+     * Whether an enabled credential is stored under exactly this (raw) type and id. For a reference {@see MfaOwner}
+     * refuses (1.46.1): a second factor enrolled under it before 1.46.1 must keep the sign-in closed.
+     */
+    public function hasEnabledCredentialFor(string $profile, string $type, string $id): bool
+    {
+        return $this->exactCredential($profile, $type, $id)?->isEnabled() === true;
     }
 
     /**
      * Every credential of an owner, in every profile (1.36, personal data: also a profile whose MFA was turned off
-     * after enrolment, or that the user class no longer resolves to).
+     * after enrolment, or that the user class no longer resolves to). Byte-for-byte re-check, see {@see credential()}.
      *
      * @return list<MfaCredential>
      */
@@ -58,10 +69,18 @@ final readonly class MfaStore
             'userId'   => $owner->id,
         ], ['id' => 'ASC']);
 
-        // GY-I8: an accent-insensitive collation also returns look-alikes of a natural key (jose@ for josé@).
-        return array_values(array_filter($credentials, static fn (MfaCredential $credential): bool => UserIdentifierMatcher::normalize($credential->getUserId()) === UserIdentifierMatcher::normalize($owner->id)));
+        // GY-I8 / REQ-SEC-006 item 7: a folding collation also returns look-alikes (jose@ for josé@, Bob for bob); case
+        // and normalisation forms are different ids.
+        return array_values(array_filter($credentials, static fn (MfaCredential $credential): bool => $credential->getUserType() === $owner->type && $credential->getUserId() === $owner->id));
     }
 
+    /**
+     * The credential of the owner, created when there is none. When the unique key `uniq_auth_kit_mfa_owner` still folds
+     * (a table created before 1.46.1 and not altered, see UPGRADING) a look-alike owner's row makes the insert fail:
+     * this fails closed and never falls back to that row.
+     *
+     * @throws RuntimeException when the insert collides with a look-alike owner's credential
+     */
     public function credentialOrNew(string $profile, MfaOwner $owner, DateTimeImmutable $now): MfaCredential
     {
         $credential = $this->credential($profile, $owner);
@@ -69,9 +88,29 @@ final readonly class MfaStore
             return $credential;
         }
         $credential = new MfaCredential($profile, $owner->type, $owner->id, $now);
-        $this->save($credential);
+        try {
+            $this->save($credential);
+        } catch (UniqueConstraintViolationException $e) {
+            throw new RuntimeException('The MFA credential cannot be created: the unique key uniq_auth_kit_mfa_owner matched another owner\'s row (folding collation). Apply the binary collation of the AuthKit 1.46.1 UPGRADING notes.', 0, $e);
+        }
 
         return $credential;
+    }
+
+    private function exactCredential(string $profile, string $type, string $id): ?MfaCredential
+    {
+        $candidates = $this->entityManager()->getRepository(MfaCredential::class)->findBy([
+            'profile'  => $profile,
+            'userType' => $type,
+            'userId'   => $id,
+        ], ['id' => 'ASC']);
+        foreach ($candidates as $candidate) {
+            if ($candidate->getProfile() === $profile && $candidate->getUserType() === $type && $candidate->getUserId() === $id) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     public function save(MfaCredential $credential): void
