@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Admin\AdminUserCreator;
 use Nowo\AuthKitBundle\Command\CreateAdminCommand;
 use Nowo\AuthKitBundle\Controller\LoginController;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
+use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Locale\PreferredLocaleAwareRecipientLocaleResolver;
@@ -500,6 +501,17 @@ final class NowoAuthKitExtensionTest extends TestCase
         $listener = $this->container->getDefinition(TablePrefixListener::class);
         self::assertSame('%nowo_auth_kit.doctrine.table_prefix%', $listener->getArgument('$tablePrefix'));
         self::assertSame([['event' => 'loadClassMetadata']], $listener->getTag('doctrine.event_listener'));
+    }
+
+    /** REQ-SEC-006 (1.47.0): the identity collation listener is tagged only when the bundle maps its entities. */
+    public function testTheIdentityCollationListenerFollowsTheMapping(): void
+    {
+        $this->extension->load([['user_class' => 'App\\Entity\\User', 'doctrine' => ['register_mapping' => true]]], $this->container);
+        self::assertSame([['event' => 'postGenerateSchemaTable']], $this->container->getDefinition(IdentityCollationListener::class)->getTag('doctrine.event_listener'));
+
+        $container = new ContainerBuilder();
+        $this->extension->load([['user_class' => 'App\\Entity\\User', 'doctrine' => ['register_mapping' => false]]], $container);
+        self::assertSame([], $container->getDefinition(IdentityCollationListener::class)->getTag('doctrine.event_listener'));
     }
 
     public function testTablePrefixRejectsInvalidCharacters(): void

@@ -291,6 +291,7 @@ mfa:
         expired: La verificación ha tardado demasiado. Vuelve a iniciar sesión.
         locked_out: Demasiados códigos incorrectos. Espera unos minutos y vuelve a iniciar sesión.
         too_many_attempts: Demasiados códigos incorrectos. Vuelve a iniciar sesión.
+        unavailable: "No se puede configurar la verificación en dos pasos para esta cuenta. Contacta con el administrador."
         enabled: La verificación en dos pasos está activada.
         disabled: La verificación en dos pasos está desactivada.
         codes_regenerated: Se han creado nuevos códigos de recuperación. Los anteriores ya no sirven.

@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
+use Psr\Log\LoggerInterface;
 
 use function method_exists;
 
@@ -32,9 +33,25 @@ final readonly class PasswordResetCollationListener
     /** @var list<string> */
     public const FIELDS = ['userId', 'userIdentifier', 'tokenHash', 'codeHash'];
 
+    /** The MySQL 5.7 fallback: binary, but PAD SPACE (`bob` = `bob `). */
+    public const PAD_SPACE_FALLBACK = 'utf8mb4_bin';
+
     public function __construct(
         private ManagerRegistry $doctrine,
+        private ?LoggerInterface $logger = null,
     ) {
+    }
+
+    /**
+     * REQ-SEC-006 item 8 (1.47.0): `utf8mb4_bin` is chosen for MySQL 5.7, and also when `server_version` lacks the patch
+     * number (`8`, `8.0`: Doctrine then cannot pick the MySQL 8 platform). It still ignores trailing spaces, so the
+     * fallback is logged with the fix.
+     */
+    public static function warnOnPadSpace(string $collation, string $table, ?LoggerInterface $logger): void
+    {
+        if ($collation === self::PAD_SPACE_FALLBACK) {
+            $logger?->warning('AuthKit falls back to the PAD SPACE collation utf8mb4_bin for the identity columns of {table}: MySQL 5.7, or a doctrine.dbal server_version without the patch number (set the full version, e.g. "8.4.0", to get utf8mb4_0900_bin).', ['table' => $table]);
+        }
     }
 
     /**
@@ -47,7 +64,7 @@ final readonly class PasswordResetCollationListener
         return match (true) {
             $platform instanceof MariaDBPlatform       => 'utf8mb4_nopad_bin',
             $platform instanceof MySQL80Platform       => 'utf8mb4_0900_bin',
-            $platform instanceof AbstractMySQLPlatform => 'utf8mb4_bin',
+            $platform instanceof AbstractMySQLPlatform => self::PAD_SPACE_FALLBACK,
             default                                    => null,
         };
     }
@@ -63,6 +80,7 @@ final readonly class PasswordResetCollationListener
         if ($collation === null) {
             return;
         }
+        self::warnOnPadSpace($collation, $metadata->getTableName(), $this->logger);
 
         $table = $args->getClassTable();
         foreach (self::FIELDS as $field) {

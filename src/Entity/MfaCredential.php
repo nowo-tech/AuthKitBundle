@@ -80,6 +80,12 @@ class MfaCredential
         return $this->userId;
     }
 
+    /** The owner's Doctrine root class (or security user class), see {@see MfaOwner} (1.47.0). */
+    public function getUserType(): string
+    {
+        return $this->userType;
+    }
+
     public function getProfile(): string
     {
         return $this->profile;

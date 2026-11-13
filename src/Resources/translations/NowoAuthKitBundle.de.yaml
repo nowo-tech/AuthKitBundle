@@ -293,6 +293,7 @@ mfa:
         expired: Die Bestätigung hat zu lange gedauert. Melden Sie sich erneut an.
         locked_out: Zu viele falsche Codes. Warten Sie einige Minuten und melden Sie sich erneut an.
         too_many_attempts: Zu viele falsche Codes. Melden Sie sich erneut an.
+        unavailable: "Die Bestätigung in zwei Schritten kann für dieses Konto nicht eingerichtet werden. Wenden Sie sich an den Administrator."
         enabled: Die Bestätigung in zwei Schritten ist aktiviert.
         disabled: Die Bestätigung in zwei Schritten ist deaktiviert.
         codes_regenerated: Neue Wiederherstellungscodes wurden erstellt. Die alten funktionieren nicht mehr.

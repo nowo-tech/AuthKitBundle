@@ -107,6 +107,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.47.0 (adds public API). See [UPGRADING](UPGRADING.md#to-1470).
+
+### Added
+
+- `Mfa\MfaUnavailableException` (a `RuntimeException`): `MfaManager::enable()` throws it, before any write, for a user
+  without a usable MFA owner id or when a look-alike owner's row blocks the credential.
+- `MfaOwner::usable()`, `MfaOwnerResolver::refusedReference()` / `personalDataOwner()`,
+  `MfaStore::hasEnabledCredentialFor()`, `MfaCredential::getUserType()`, `SocialLoginAccount::PROVIDER_USER_ID_MAX_LENGTH`.
+- Translation key `mfa.flash.unavailable` (all locales).
+
+### Changed
+
+- `MfaManager::enable()` throws `MfaUnavailableException` instead of a `LogicException` for a user without a usable
+  owner id.
+
+### Security
+
+- **MFA credentials are matched byte for byte (REQ-SEC-006).** With a string owner id (users that are not Doctrine
+  entities, or a string primary key), the second factor of one user was looked up by SQL only: on the default MySQL /
+  MariaDB collations (case-, accent- and PAD SPACE-insensitive) an account `josé@` (or `Jose@`) resolved, re-enrolled
+  and disabled the MFA credential of `jose@`, replacing its secret and recovery codes. Affected: 1.34.0 to 1.46.0.
+  Now:
+  - `MfaStore::credential()` / `credentialsOf()` keep only the rows whose profile, owner type and id are equal byte for
+    byte (case and Unicode normalisation forms are different ids);
+  - when the unique key `uniq_auth_kit_mfa_owner` still folds (table not altered yet), creating the look-alike's
+    credential is refused with `MfaUnavailableException` **before** any write and never falls back to the other user's
+    row: the entity manager stays open, so a look-alike account cannot break the FrankenPHP workers of a host whose
+    kernel reset is off; a concurrent insert that still collides goes through `EntityManagerRecovery`;
+  - `MfaOwner` refuses ids with edge white space or NBSP, control or format characters (ZWSP, BOM, bidi marks), invalid
+    UTF-8 or more than 191 characters (`MfaOwner::usable()`): such a user cannot have MFA, and a user who must have MFA,
+    or who enrolled under such an id before, stays at the enrolment step instead of signing in with the password alone.
+    The enrolment pages show `mfa.flash.unavailable` instead of an error page.
+- **Required MFA fails closed without a usable owner.** A user of a profile where MFA is required, whose id cannot be an
+  MFA owner (composite, empty or over-long; now also refused characters), was let in with the first factor alone; it
+  now stays at the enrolment step.
+- **Binary NO PAD collation of the identity columns** (`IdentityCollationListener`, applied to the generated schema and
+  migrations): MFA `user_type` / `user_id`, social `provider_user_id` / `user_id` / `user_identifier`, account switcher
+  `user_identifier`, invitation `email` / `invited_by`; `utf8mb4_0900_bin` on MySQL 8, `utf8mb4_nopad_bin` on MariaDB,
+  `utf8mb4_bin` only as the MySQL 5.7 fallback. Existing tables need the ALTERs of UPGRADING.
+- **The PAD SPACE fallback is logged.** Both collation listeners log a warning when they fall back to `utf8mb4_bin`
+  (MySQL 5.7, or a `server_version` without the patch number such as `8` or `8.0`).
+- **Social login:** the exact provider subject is matched before the page limit (candidates are read by batches until
+  the exact one is found), so ten or more look-alike subjects can no longer hide a link; a provider subject with edge
+  white space, control or format characters, invalid UTF-8 or more than 255 characters is refused.
+- **Invitations:** the open invitation of an e-mail (`findOpenByEmail`, the `merge_key` lookup) and the open
+  invitations of an inviter (`findOpenByInviter`, used by `InvitationManager::revokeOpenBy()`) are matched byte for byte
+  before the limit: re-inviting or revoking never reuses or closes a look-alike address's or inviter's invitation.
+- **Personal data reaches legacy rows:** MFA export, erasure and user removal, and the social-link export, use the
+  owner stored before this release even when its identifier is now refused (byte for byte).
+- **Account switcher and social-link erasure** compare identifiers byte for byte: `AccountVaultStore::deleteForUser()`
+  and the social-link personal-data eraser no longer treat a case variant or another normalisation form as the same
+  identifier (1.36 to 1.46.0 compared them lower-cased and NFC-normalised).
+- **The personal-data erasers match exactly:** the MFA, social-link and switcher erasers delete only rows whose stored
+  identifier is byte-identical to the user's (before: lower-cased and NFC-normalised for the switcher and social links).
+- Tests: `MfaLookAlikeKernelTest`, `LookAlikeIdentityTest` (look-alikes `Bob`, `bób`, `bob `, `bob\n`, NBSP, ZWSP, BOM, bidi; folding tables and
+  the listener's schema; SQLite here, MySQL 8.4 and MariaDB 11.4 in the `real-databases` CI job),
+  `IdentityCollationListenerTest`.
+
 ## [1.46.0] - 2026-11-12
 
 **REQ-ARCH-001 / REQ-RUNTIME-002 (1.46.0).** Every change below is additive and opt-in: with an unchanged

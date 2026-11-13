@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Mfa\MfaEnrolment;
 use Nowo\AuthKitBundle\Mfa\MfaLoginCompleter;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\MfaTrustedDevices;
+use Nowo\AuthKitBundle\Mfa\MfaUnavailableException;
 use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -138,8 +139,14 @@ final class MfaChallengeController
                 if (!$this->attempt($pending, $profile)) {
                     return $this->completer->abort($request, $pending, 'mfa.flash.too_many_attempts');
                 }
-                // @igor-ignore - Stateless service call (the second factor is stored in the database), not a mutation of worker state.
-                $codes = $this->manager->enable($user, $secret, MfaCodeFormType::submittedCode($form), $request);
+                try {
+                    // @igor-ignore - Stateless service call (the second factor is stored in the database), not a mutation of worker state.
+                    $codes = $this->manager->enable($user, $secret, MfaCodeFormType::submittedCode($form), $request);
+                } catch (MfaUnavailableException) {
+                    // 1.47.0 (REQ-SEC-006): no usable owner id, or a look-alike's row on a folding key: the sign-in ends
+                    // with a message instead of an error page.
+                    return $this->completer->abort($request, $pending, 'mfa.flash.unavailable');
+                }
                 if ($codes !== null) {
                     // @igor-ignore - Removes the enrolment secret from the request's own session.
                     $this->enrolment->clear($request);

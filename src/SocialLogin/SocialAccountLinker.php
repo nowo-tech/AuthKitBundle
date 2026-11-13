@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
+use Nowo\AuthKitBundle\Security\ExactIdentifier;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
@@ -156,6 +157,11 @@ final class SocialAccountLinker
         array $tokens,
         ?UserInterface &$created,
     ): array {
+        // REQ-SEC-006 (1.47.0): the provider subject is a key matched byte for byte; one that cannot be told apart from
+        // a look-alike (edge white space, control or format characters, invalid UTF-8, too long) is refused.
+        if (!ExactIdentifier::usable($socialProfile->id, SocialLoginAccount::PROVIDER_USER_ID_MAX_LENGTH)) {
+            throw new RuntimeException('The social provider returned an unusable subject identifier.');
+        }
         // SEC-004 H2: only a link made for this profile's user class signs in here.
         $account = $this->accountRepository->findOneByProviderSubject($provider, $socialProfile->id, $profile->userClass);
         if ($account instanceof SocialLoginAccount) {

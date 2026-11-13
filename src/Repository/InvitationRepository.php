@@ -40,6 +40,9 @@ class InvitationRepository extends EntityRepository
     /** Open invitations of one e-mail scanned for `invitations.merge_key` (more: refused, SEC-004 CP I1). */
     public const MERGE_SCAN_LIMIT = 500;
 
+    /** Collation-equal rows read per query while looking for exact e-mail matches (1.47.0). */
+    public const CANDIDATE_BATCH = 50;
+
     /** Rows deleted per statement by {@see self::deleteClosedBefore()}. */
     public const PURGE_BATCH = 500;
 
@@ -60,23 +63,10 @@ class InvitationRepository extends EntityRepository
         $this->getEntityManager()->flush();
     }
 
-    /** The invitation still open (pending or expired) for the e-mail in the profile, if any. */
+    /** The invitation still open (pending or expired) for the e-mail in the profile, if any (the newest). */
     public function findOpenByEmail(string $profile, string $email): ?Invitation
     {
-        /** @var Invitation|null $invitation */
-        $invitation = $this->createQueryBuilder('i')
-            ->andWhere('i.profile = :profile')
-            ->andWhere('i.email = :email')
-            ->andWhere('i.acceptedAt IS NULL')
-            ->andWhere('i.revokedAt IS NULL')
-            ->setParameter('profile', $profile)
-            ->setParameter('email', Invitation::normalizeEmail($email))
-            ->orderBy('i.id', SortDirection::Descending)
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
-
-        return $invitation;
+        return $this->exactOpenByEmail($profile, $email, null, null, 1)[0] ?? null;
     }
 
     /**
@@ -117,22 +107,54 @@ class InvitationRepository extends EntityRepository
      */
     private function openByEmail(string $profile, string $email, DateTimeImmutable $now, bool $unexpired): array
     {
-        /** @var list<Invitation> $open */
-        $open = $this->createQueryBuilder('i')
-            ->andWhere('i.profile = :profile')
-            ->andWhere('i.email = :email')
-            ->andWhere('i.acceptedAt IS NULL')
-            ->andWhere('i.revokedAt IS NULL')
-            ->andWhere($unexpired ? 'i.expiresAt > :now' : 'i.expiresAt <= :now')
-            ->setParameter('profile', $profile)
-            ->setParameter('email', Invitation::normalizeEmail($email))
-            ->setParameter('now', $now)
-            ->orderBy('i.id', SortDirection::Descending)
-            ->setMaxResults(self::MERGE_SCAN_LIMIT + 1)
-            ->getQuery()
-            ->getResult();
+        return $this->exactOpenByEmail($profile, $email, $now, $unexpired, self::MERGE_SCAN_LIMIT + 1);
+    }
 
-        return $open;
+    /**
+     * Open invitations whose stored e-mail is byte-identical to the normalised `$email`, newest first, at most `$limit`
+     * (REQ-SEC-006, 1.47.0). The SQL equality only pre-selects: on a folding collation it also returns look-alike
+     * addresses (`josé@` for `jose@`, `jose@ ` on PAD SPACE). Candidates are read in batches by descending id until
+     * `$limit` exact rows are found or none is left, so look-alikes never hide (nor stand in for) the e-mail's own rows.
+     *
+     * @param bool|null $unexpired null: pending and expired
+     *
+     * @return list<Invitation>
+     */
+    private function exactOpenByEmail(string $profile, string $email, ?DateTimeImmutable $now, ?bool $unexpired, int $limit): array
+    {
+        $email    = Invitation::normalizeEmail($email);
+        $exact    = [];
+        $beforeId = null;
+        do {
+            $qb = $this->createQueryBuilder('i')
+                ->andWhere('i.profile = :profile')
+                ->andWhere('i.email = :email')
+                ->andWhere('i.acceptedAt IS NULL')
+                ->andWhere('i.revokedAt IS NULL')
+                ->setParameter('profile', $profile)
+                ->setParameter('email', $email)
+                ->orderBy('i.id', SortDirection::Descending)
+                ->setMaxResults(self::CANDIDATE_BATCH);
+            if ($unexpired !== null) {
+                $qb->andWhere($unexpired ? 'i.expiresAt > :now' : 'i.expiresAt <= :now')->setParameter('now', $now ?? new DateTimeImmutable());
+            }
+            if ($beforeId !== null) {
+                $qb->andWhere('i.id < :beforeId')->setParameter('beforeId', $beforeId);
+            }
+            /** @var list<Invitation> $rows */
+            $rows = $qb->getQuery()->getResult();
+            foreach ($rows as $invitation) {
+                $beforeId = (int) $invitation->getId();
+                if ($invitation->getProfile() === $profile && $invitation->getEmail() === $email) {
+                    $exact[] = $invitation;
+                    if (count($exact) >= $limit) {
+                        return $exact;
+                    }
+                }
+            }
+        } while (count($rows) === self::CANDIDATE_BATCH);
+
+        return $exact;
     }
 
     /**
@@ -156,20 +178,39 @@ class InvitationRepository extends EntityRepository
      */
     public function findOpenByInviter(string $inviter, int $limit, ?string $profile = null): array
     {
-        $qb = $this->createQueryBuilder('i')
-            ->andWhere('i.invitedBy = :inviter')
-            ->andWhere('i.acceptedAt IS NULL')
-            ->andWhere('i.revokedAt IS NULL')
-            ->setParameter('inviter', $inviter)
-            ->orderBy('i.id', SortDirection::Ascending)
-            ->setMaxResults(max(1, min(self::MAX_PAGE_SIZE, $limit)));
-        if ($profile !== null) {
-            $qb->andWhere('i.profile = :profile')->setParameter('profile', $profile);
-        }
-        /** @var list<Invitation> $rows */
-        $rows = $qb->getQuery()->getResult();
+        // REQ-SEC-006 (1.47.0): exact inviter before the limit. A folding collation also returns a look-alike inviter's
+        // invitations (`Admin` for `admin`, `admin ` on PAD SPACE); they are skipped while reading by ascending id, so
+        // revoking one inviter's invitations never closes another's.
+        $limit   = max(1, min(self::MAX_PAGE_SIZE, $limit));
+        $exact   = [];
+        $afterId = 0;
+        do {
+            $qb = $this->createQueryBuilder('i')
+                ->andWhere('i.invitedBy = :inviter')
+                ->andWhere('i.acceptedAt IS NULL')
+                ->andWhere('i.revokedAt IS NULL')
+                ->andWhere('i.id > :afterId')
+                ->setParameter('inviter', $inviter)
+                ->setParameter('afterId', $afterId)
+                ->orderBy('i.id', SortDirection::Ascending)
+                ->setMaxResults($limit);
+            if ($profile !== null) {
+                $qb->andWhere('i.profile = :profile')->setParameter('profile', $profile);
+            }
+            /** @var list<Invitation> $rows */
+            $rows = $qb->getQuery()->getResult();
+            foreach ($rows as $invitation) {
+                $afterId = (int) $invitation->getId();
+                if ($invitation->getInvitedBy() === $inviter && ($profile === null || $invitation->getProfile() === $profile)) {
+                    $exact[] = $invitation;
+                    if (count($exact) >= $limit) {
+                        return $exact;
+                    }
+                }
+            }
+        } while (count($rows) === $limit);
 
-        return $rows;
+        return $exact;
     }
 
     public function findOneByTokenHash(string $tokenHash): ?Invitation

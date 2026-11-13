@@ -92,7 +92,7 @@ jobs:
         run: bash .scripts/check-no-raw-html-form.sh
 
   real-databases:
-    name: Sign-in transaction and GDPR ports on PostgreSQL and MySQL
+    name: Sign-in transaction, GDPR ports and look-alike ids on PostgreSQL, MySQL and MariaDB
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -111,6 +111,14 @@ jobs:
         ports: ['3306:3306']
         options: >-
           --health-cmd "mysqladmin ping -h 127.0.0.1 -pci-placeholder" --health-interval 5s --health-timeout 5s --health-retries 30
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-placeholder
+          MARIADB_DATABASE: auth_kit
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 5s --health-timeout 5s --health-retries 30
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
@@ -122,11 +130,15 @@ jobs:
       - name: PostgreSQL
         env:
           AUTH_KIT_TEST_DB_URL: postgresql://postgres:ci-placeholder@127.0.0.1:5432/auth_kit?serverVersion=17&charset=utf8
-        run: vendor/bin/phpunit --no-coverage tests/Integration/ProgrammaticLogin/SwallowedDatabaseErrorKernelTest.php tests/Integration/HostExtensions/RevocationOnTheLockKernelTest.php && vendor/bin/phpunit --no-coverage tests/Integration/PersonalData/InvitationPersonalDataPortTest.php && vendor/bin/phpunit --no-coverage tests/Integration/PersonalData/SocialAccountPersonalDataExportTest.php
+        run: vendor/bin/phpunit --no-coverage tests/Integration/ProgrammaticLogin/SwallowedDatabaseErrorKernelTest.php tests/Integration/HostExtensions/RevocationOnTheLockKernelTest.php && vendor/bin/phpunit --no-coverage tests/Integration/PersonalData/InvitationPersonalDataPortTest.php && vendor/bin/phpunit --no-coverage tests/Integration/PersonalData/SocialAccountPersonalDataExportTest.php && vendor/bin/phpunit --no-coverage tests/Integration/LookAlike
       - name: MySQL
         env:
           AUTH_KIT_TEST_DB_URL: mysql://root:ci-placeholder@127.0.0.1:3306/auth_kit?serverVersion=8.4.0&charset=utf8mb4
-        run: vendor/bin/phpunit --no-coverage tests/Integration/ProgrammaticLogin/SwallowedDatabaseErrorKernelTest.php tests/Integration/HostExtensions/RevocationOnTheLockKernelTest.php && vendor/bin/phpunit --no-coverage tests/Integration/PersonalData/InvitationPersonalDataPortTest.php && vendor/bin/phpunit --no-coverage tests/Integration/PersonalData/SocialAccountPersonalDataExportTest.php
+        run: vendor/bin/phpunit --no-coverage tests/Integration/ProgrammaticLogin/SwallowedDatabaseErrorKernelTest.php tests/Integration/HostExtensions/RevocationOnTheLockKernelTest.php && vendor/bin/phpunit --no-coverage tests/Integration/PersonalData/InvitationPersonalDataPortTest.php && vendor/bin/phpunit --no-coverage tests/Integration/PersonalData/SocialAccountPersonalDataExportTest.php && vendor/bin/phpunit --no-coverage tests/Integration/LookAlike
+      - name: MariaDB (REQ-SEC-006 look-alike ids)
+        env:
+          AUTH_KIT_TEST_DB_URL: mysql://root:ci-placeholder@127.0.0.1:3307/auth_kit?serverVersion=11.4.0-MariaDB&charset=utf8mb4
+        run: vendor/bin/phpunit --no-coverage tests/Integration/LookAlike
 
   coverage:
     runs-on: ubuntu-latest
