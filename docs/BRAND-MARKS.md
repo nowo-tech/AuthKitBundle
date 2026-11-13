@@ -39,6 +39,10 @@ package (`nowo_auth_kit` → `/bundles/nowoauthkit`), so no `framework.assets` e
 
 Every file is byte-for-byte what the source serves. They are **not** re-drawn, re-coloured or re-exported.
 
+`google.svg` carries Google's own copyright comment. `assets:install` copies the file byte for byte, so the default
+deployment keeps it; if your build pipeline runs an SVG optimiser (SVGO and friends) over `public/bundles/`, exclude
+`img/social/` or configure it to keep comments, so the notice is not stripped out of the shipped asset.
+
 ### Why Google's current asset pack is not the file shipped
 
 Google's [branding guidelines](https://developers.google.com/identity/branding-guidelines) link a pre-approved asset

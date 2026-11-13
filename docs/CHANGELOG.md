@@ -120,6 +120,20 @@ authorization request of the built-in google / microsoft providers). See [UPGRAD
   where they did not before. To restore the previous behaviour, remove the parameter per provider with a `null` value
   (`authorization_params: { google: { prompt: ~ } }`). Custom providers are unaffected.
   See [UPGRADING](UPGRADING.md#the-account-chooser-on-google-and-microsoft-promptselect_account-148).
+- **The migration for the new `authorization_params` column must not be the one `doctrine:migrations:diff` generates.**
+  Its single `ALTER TABLE … ADD authorization_params JSON NOT NULL` is refused by PostgreSQL but **succeeds on MySQL and
+  MariaDB**, leaving the existing rows holding the JSON scalar `null` (MySQL) or the empty string (MariaDB), which is
+  not a JSON object and is not re-validated by the `ALTER`. Replace the generated body with the add / backfill /
+  tighten steps in [UPGRADING](UPGRADING.md#schema-replace-the-generated-migration-148--required-on-mysql--mariadb);
+  if you already ran it, the `UPDATE` there repairs the rows. The entity now reads such a row as an empty map instead
+  of raising a `TypeError` while hydrating, so the login and invitation pages stay up either way (the social gate is
+  consulted on every render); `scopes` is read with the same tolerance.
+- **A parameter embedded in a credential's `authorize_url` is no longer repeated.** That was the only pre-1.48 way to
+  send one (`…/auth?prompt=consent`), and appending ours next to it would repeat the parameter, which RFC 6749 §3.1
+  forbids and which Google and Entra answer with `invalid_request` — i.e. sign-in would break on upgrade with no
+  action by the host. A parameter the bundle sends is now removed from the authorize URL's own query instead, the
+  value from `authorization_params` (or the built-in default) winning, and the rest of the query is kept byte for
+  byte. Move such a parameter to `authorization_params`, or set it to `~`, to control which value is sent.
 
 ### Added
 
@@ -151,12 +165,22 @@ authorization request of the built-in google / microsoft providers). See [UPGRAD
 ### Security
 
 - The protocol parameters of the authorization request stay the bundle's: `state`, `redirect_uri`, `scope`,
-  `client_id`, `client_secret`, `response_type`, `code_challenge` and `code_challenge_method` cannot be set through
-  `authorization_params`. A host that tries fails container compilation; `setAuthorizationParams()` throws an
+  `client_id`, `client_secret`, `response_type`, `code_challenge` and `code_challenge_method` — and `request`,
+  `request_uri`, `response_mode`, `nonce`, `claims`, `client_assertion`, `client_assertion_type`, `code` and
+  `grant_type`, each of which could carry a request of its own (at a JAR-capable authorization server, RFC 9101, the
+  parameters inside a `request` object *replace* the query parameters, `redirect_uri` and `state` included) — cannot
+  be set through `authorization_params`. A host that tries fails container compilation; `setAuthorizationParams()` throws an
   `InvalidArgumentException` naming the parameter; and a value written straight into the database row is dropped
   whatever its letter case, with the bundle's own parameters written last. Moving `state` or `redirect_uri` would break
   the CSRF / PKCE binding of the callback and turn the start route into an open redirect that leaks the authorization
   code.
+
+### Fixed
+
+- **A provider key with edge white space no longer loses its per-provider settings.** Such a credential matched the
+  start route and its brand mark but not `social_login.pkce` or `authorization_params`, so it silently sent no
+  `code_challenge`. `setProvider()` trims the key, and the PKCE, authorization-parameter and endpoint lookups compare
+  it trimmed.
 
 ### Changed
 

@@ -107,5 +107,8 @@ final class ProviderEndpointCatalogTest extends TestCase
         self::assertSame(['prompt' => 'select_account'], $catalog->defaultAuthorizationParams('Microsoft'));
         self::assertSame([], $catalog->defaultAuthorizationParams('github'));
         self::assertSame([], $catalog->defaultAuthorizationParams('my_idp'));
+        // Audit L-3: edge white space on the provider key does not hide the per-provider settings.
+        self::assertSame(['prompt' => 'select_account'], $catalog->defaultAuthorizationParams('  google '));
+        self::assertTrue($catalog->supportsPkceByDefault(' github '));
     }
 }

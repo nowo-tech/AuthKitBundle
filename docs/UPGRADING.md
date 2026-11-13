@@ -4,6 +4,8 @@
 
 - [Unreleased](#unreleased)
   - [Extra authorization parameters (1.48)](#extra-authorization-parameters-148)
+  - [Schema: replace the generated migration (1.48) — required on MySQL / MariaDB](#schema-replace-the-generated-migration-148--required-on-mysql--mariadb)
+  - [An extra parameter embedded in `authorize_url` (1.48)](#an-extra-parameter-embedded-in-authorize_url-148)
   - [The account chooser on google and microsoft (`prompt=select_account`, 1.48)](#the-account-chooser-on-google-and-microsoft-promptselect_account-148)
   - [Provider brand marks on the social / SSO buttons (1.48)](#provider-brand-marks-on-the-social--sso-buttons-148)
 - [To 1.47.0](#to-1470)
@@ -133,22 +135,68 @@
 `authorization_params` (on the profile, or `setAuthorizationParams()` on the credential) adds parameters such as
 `access_type=offline`, `login_hint` or `hd` to the authorization request. The client assembles and encodes the query, so
 never paste a query string into `authorize_url`. The protocol parameters the bundle owns — `state`, `redirect_uri`,
-`scope`, `client_id`, `client_secret`, `response_type`, `code_challenge`, `code_challenge_method` — cannot be set: the
+`scope`, `client_id`, `client_secret`, `response_type`, `code_challenge`, `code_challenge_method`, and the parameters
+that would carry a whole request of their own (`request`, `request_uri`, `response_mode`, `nonce`, `claims`,
+`client_assertion`, `client_assertion_type`, `code`, `grant_type`) — cannot be set: the
 configuration refuses them at compile time, `setAuthorizationParams()` throws, and a value written straight into the
 database row is ignored. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#extra-authorization-parameters).
 
-**Schema.** The credential table gains one column. Run `php bin/console doctrine:migrations:diff` (or
-`doctrine:schema:update`) as usual; by hand, on MySQL / MariaDB a `JSON NOT NULL` column cannot carry a literal
-default, so add it in three steps:
+### Schema: replace the generated migration (1.48) — required on MySQL / MariaDB
+
+The credential table gains one column, `auth_kit_social_credential.authorization_params`. **Do not ship the migration
+`doctrine:migrations:diff` generates for it unchanged.** Diff emits one statement:
 
 ```sql
+-- WRONG on a table that already has rows:
+ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL;
+```
+
+On PostgreSQL that statement is refused outright, so you cannot get it wrong. On **MySQL and MariaDB it succeeds and
+leaves the existing rows holding a value that is not a JSON object** — the JSON scalar `null` on MySQL 8, the empty
+string on MariaDB (which slips past `CHECK (json_valid(…))`, because `ALTER` does not re-validate existing rows).
+Since 1.48 the entity tolerates such a row and reads it as an empty map, so the page stays up, but those rows still
+carry a value you did not intend and the column is not really populated. Replace the generated body with the three
+steps below:
+
+```sql
+-- MySQL / MariaDB (a JSON NOT NULL column cannot carry a literal default, so add, backfill, then tighten):
 ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NULL;
-UPDATE auth_kit_social_credential SET authorization_params = '{}' WHERE authorization_params IS NULL;
+UPDATE auth_kit_social_credential SET authorization_params = '{}' WHERE authorization_params IS NULL OR NOT JSON_VALID(authorization_params);
 ALTER TABLE auth_kit_social_credential MODIFY authorization_params JSON NOT NULL;
 ```
 
-On PostgreSQL: `ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL DEFAULT '{}';`
-(drop the default afterwards if you prefer the mapping's shape: `ALTER COLUMN authorization_params DROP DEFAULT`).
+```sql
+-- PostgreSQL:
+ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL DEFAULT '{}';
+ALTER TABLE auth_kit_social_credential ALTER COLUMN authorization_params DROP DEFAULT;
+```
+
+If you already ran the generated statement, run the `UPDATE` above on its own: it repairs the rows.
+
+The same shape applies to the older `scopes` column of that table (`JSON NOT NULL`): it has always been created with
+the table rather than added by an `ALTER`, but since 1.48 it is read with the same tolerance, so a host that added it
+by hand as nullable is no longer at risk either.
+
+### An extra parameter embedded in `authorize_url` (1.48)
+
+If you worked around the missing option by putting the parameter in the credential's `authorize_url` — for example
+`https://accounts.google.com/o/oauth2/v2/auth?prompt=consent` — nothing breaks: since 1.48 a parameter the bundle
+sends is **removed from the authorize URL's own query** rather than repeated, because repeating a parameter is
+forbidden (RFC 6749 §3.1) and Google and Microsoft Entra answer `invalid_request`. The rest of your query string is
+kept untouched.
+
+Which value wins: the one from `authorization_params` (or the built-in default), not the one in the URL. So move the
+parameter to where it belongs:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                authorization_params:
+                    google:
+                        prompt: consent     # or prompt: ~ to send none at all
+```
 
 ### The account chooser on google and microsoft (`prompt=select_account`, 1.48)
 

@@ -80,7 +80,7 @@ Every page receives:
 | `auth_kit_page` | the page key (`login`, `register`, …) |
 | 1.x variables | `layout_template` (the override, else the deprecated bridge `@NowoAuthKitBundle/layout.html.twig`), `login_form` / `registration_form` / `reset_*_form` / `magic_login_*_form` / `approve_form`, routes (`login_route`, `register_route`, …), flags (`registration_allowed`, `password_reset_enabled`, …) — kept for host templates written against 1.x |
 
-Login also gets `social_links` / `sso_links` (`list<View\Link>`), QR show `status_url`, `complete_url`, `start_url`,
+Login also gets `social_links` / `sso_links` (`list<View\ProviderLink>`, 1.48: `provider`, `label`, `href`, `mark`), QR show `status_url`, `complete_url`, `start_url`,
 `expires_at`, `expires_in`, `poll_interval_ms`, `public_code`, `qr_data_uri`, `qr_payload`,
 `qr_stimulus_controller`, QR approve `approve_details` (`list<View\DetailItem>`), `deny_url`.
 

@@ -70,7 +70,9 @@ are all in [BRAND-MARKS.md](BRAND-MARKS.md).
 `authorize_url`, `token_url`, `userinfo_url` and `scopes` of a credential describe *where* the IdP is. Anything else the
 authorization request needs (`prompt`, `access_type`, `login_hint`, `hd`, `ui_locales` …) goes through
 **`authorization_params`** (1.48) — never by pasting a query string into `authorize_url`, which is for custom IdPs and
-would leave you concatenating `?` or `&` yourself. The client assembles and percent-encodes the whole query.
+would leave you concatenating `?` or `&` yourself. The client assembles and percent-encodes the whole query, and a
+parameter it sends is removed from the authorize URL's own query rather than repeated (RFC 6749 §3.1 forbids repeating
+one, and Google and Entra answer `invalid_request`); the value from `authorization_params` wins.
 
 Three layers set them, lowest precedence first:
 
@@ -130,12 +132,29 @@ nowo_auth_kit:
 Any other value simply replaces it (`prompt: consent`, `prompt: login`, …). Custom providers get no default: an IdP
 that rejects unknown parameters is unaffected.
 
+Two consequences worth knowing before you keep the default:
+
+- **`login_hint` stops pre-selecting the account.** Both Google and Microsoft Entra show the chooser instead of
+  honouring the hint when `prompt=select_account` is sent, so a flow that pre-fills the account wants `prompt: ~`.
+- **Seamless / silent SSO is suppressed.** `prompt=select_account` is mutually exclusive with `prompt=none`, so a host
+  relying on a silent re-authentication (or on Entra's seamless SSO) sets `prompt: ~` for that provider, or sends
+  `prompt: none` itself.
+
+The default follows the **provider key**, not the endpoint: a *custom* provider keyed `google` or `microsoft` behind an
+overridden `authorize_url` also gets `prompt=select_account`. Key it something else, or set `prompt: ~`, if its IdP
+does not understand the parameter.
+
 ### What the bundle never lets a host set
 
 The protocol parameters the bundle owns — `state`, `redirect_uri`, `scope`, `client_id`, `client_secret`,
 `response_type`, `code_challenge`, `code_challenge_method` — **always** win. `state` and `redirect_uri` especially:
 moving either would break the CSRF / PKCE binding of the callback, and an attacker-chosen `redirect_uri` is an open
 redirect that leaks the authorization code.
+
+Also reserved, because each would carry a request of its own and could put back what the list above protects: `request`
+and `request_uri` (at a JAR-capable server, RFC 9101, the parameters inside the request object *replace* the query
+parameters, `redirect_uri` and `state` included), `response_mode`, and `nonce`, `claims`, `client_assertion`,
+`client_assertion_type`, `code` and `grant_type`.
 
 - setting one in `authorization_params` fails container compilation with a clear message;
 - `setAuthorizationParams()` throws an `InvalidArgumentException` naming the parameter;

@@ -89,7 +89,7 @@ Every page: `page` (`AuthPage`), `document_title`, `form_themes`, `auth_kit_page
 | `reset_password_route` / `password_reset_enabled` | Password reset request route / flag |
 | `magic_login_route` / `magic_login_enabled` | Magic login request route / flag |
 | `qr_login_start_route` / `qr_login_enabled` | QR start route / flag |
-| `social_login_providers` / `sso_login_providers` | Enabled credentials; rendered from `social_links` / `sso_links` (`View\Link`) |
+| `social_login_providers` / `sso_login_providers` | Enabled credentials; rendered from `social_links` / `sso_links` (`View\ProviderLink` since 1.48, with the provider's brand mark) |
 
 **Register** (`security/register.html.twig`): `registration_form`, `login_route`, `slide_to_confirm_mode`
 (SlideToConfirm profile when registration consent uses a slider, otherwise null).

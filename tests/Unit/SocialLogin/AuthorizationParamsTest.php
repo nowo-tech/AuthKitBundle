@@ -16,6 +16,7 @@ use Symfony\Component\HttpClient\MockHttpClient;
 
 use function parse_str;
 use function parse_url;
+use function substr_count;
 
 use const PHP_URL_QUERY;
 
@@ -313,6 +314,104 @@ final class AuthorizationParamsTest extends TestCase
         $credential = (new SocialLoginCredential())->setProvider('google')->setClientId('client-123')->setAuthorizationParams(['prompt' => 'consent']);
 
         self::assertSame(['prompt' => 'consent'], $this->client()->authorizationParams($credential));
+    }
+
+    /**
+     * Audit M-1: a row whose JSON column was added by the single-statement migration Doctrine generates hydrates as
+     * PHP null (a JSON scalar `null` on MySQL, the empty string on MariaDB). Reading it must answer an empty map
+     * instead of raising a TypeError while hydrating, which would take down every page that consults the social
+     * gate — the whole login page, not just the buttons.
+     */
+    public function testANullJsonColumnReadsAsAnEmptyMap(): void
+    {
+        $credential = $this->credential('google');
+        foreach (['authorizationParams', 'scopes'] as $property) {
+            (new ReflectionProperty(SocialLoginCredential::class, $property))->setValue($credential, null);
+        }
+
+        self::assertSame([], $credential->getAuthorizationParams());
+        self::assertSame([], $credential->getScopes());
+
+        // The page still renders and the provider still gets its defaults and the catalogue's scopes.
+        $params = $this->query($this->client()->buildAuthorizeUrl($credential, 'https://app.test/cb', 'st'));
+        self::assertSame('select_account', $params['prompt']);
+        self::assertSame('openid email profile', $params['scope']);
+    }
+
+    /**
+     * Audit L-2: before `authorization_params` existed the only way to send an extra parameter was to embed it in
+     * `authorize_url`. Repeating it would break the request (RFC 6749 §3.1; Google and Entra answer
+     * invalid_request), so the parameter we send wins and the rest of the host's query survives untouched.
+     */
+    public function testAParameterAlreadyInTheAuthorizeUrlIsNotRepeated(): void
+    {
+        $credential = (new SocialLoginCredential())
+            ->setProvider('google')
+            ->setClientId('client-123')
+            ->setAuthorizeUrl('https://accounts.google.test/auth?tenant=acme&PROMPT=consent&hd=example.com');
+
+        $url = $this->client()->buildAuthorizeUrl($credential, 'https://app.test/cb', 'st');
+
+        self::assertSame(1, substr_count($url, 'prompt='), 'The parameter is sent once.');
+        self::assertSame('select_account', $this->query($url)['prompt'], 'Ours wins over the one in authorize_url.');
+        self::assertStringContainsString('https://accounts.google.test/auth?tenant=acme&hd=example.com&', $url);
+        self::assertSame('acme', $this->query($url)['tenant']);
+        self::assertSame('example.com', $this->query($url)['hd']);
+    }
+
+    /**
+     * The same for a parameter the host configured explicitly, and for the bundle's own protocol parameters: a
+     * `state` or `redirect_uri` pasted into authorize_url is replaced, never repeated.
+     */
+    public function testTheAuthorizeUrlNeverRepeatsAConfiguredOrProtocolParameter(): void
+    {
+        $credential = $this->credential('my_idp')
+            ->setAuthorizeUrl('https://idp.test/authorize?prompt=consent&state=stale&redirect_uri=https%3A%2F%2Fevil.test&keep=1')
+            ->setAuthorizationParams(['prompt' => 'login']);
+
+        $url    = $this->client()->buildAuthorizeUrl($credential, 'https://app.test/cb', 'state-1');
+        $params = $this->query($url);
+
+        self::assertSame('login', $params['prompt']);
+        self::assertSame('state-1', $params['state']);
+        self::assertSame('https://app.test/cb', $params['redirect_uri']);
+        self::assertSame('1', $params['keep']);
+        self::assertSame(1, substr_count($url, 'state='));
+        self::assertSame(1, substr_count($url, 'redirect_uri='));
+        self::assertStringNotContainsString('evil.test', $url);
+        self::assertStringNotContainsString('stale', $url);
+    }
+
+    /**
+     * An authorize URL with an empty or value-less query keeps working.
+     */
+    public function testAuthorizeUrlWithAnOddQueryStillBuilds(): void
+    {
+        $client = $this->client();
+
+        $empty = $client->buildAuthorizeUrl($this->credential('my_idp')->setAuthorizeUrl('https://idp.test/authorize?'), 'https://app.test/cb', 'st');
+        self::assertStringStartsWith('https://idp.test/authorize?client_id=', $empty);
+
+        $flag = $client->buildAuthorizeUrl($this->credential('my_idp')->setAuthorizeUrl('https://idp.test/authorize?debug'), 'https://app.test/cb', 'st');
+        self::assertStringStartsWith('https://idp.test/authorize?debug&', $flag);
+        self::assertSame('st', $this->query($flag)['state']);
+    }
+
+    /**
+     * Audit L-3: edge white space on the provider key no longer splits the per-provider settings from the rest.
+     * Before the trim such a credential matched the route and the brand mark, but got no defaults, ignored its own
+     * authorization_params and silently sent no PKCE.
+     */
+    public function testProviderKeyWithEdgeWhiteSpaceStillResolvesItsSettings(): void
+    {
+        $client     = $this->client();
+        $credential = (new SocialLoginCredential())->setProvider('  google  ')->setClientId('client-123');
+
+        self::assertSame('google', $credential->getProvider(), 'The key is trimmed at the source.');
+        self::assertSame(['prompt' => 'select_account'], $client->authorizationParams($credential));
+        self::assertTrue($client->usesPkce($credential), 'PKCE is not silently skipped.');
+        self::assertSame(['prompt' => 'consent'], $client->authorizationParams($credential, [' GOOGLE ' => ['prompt' => 'consent']]));
+        self::assertFalse($client->usesPkce($credential, [' Google ' => false]));
     }
 
     public function testCredentialStartsWithoutParams(): void

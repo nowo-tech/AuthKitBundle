@@ -10,13 +10,19 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 use function array_key_exists;
 use function array_merge;
+use function explode;
+use function implode;
 use function in_array;
 use function is_array;
 use function is_bool;
 use function is_scalar;
 use function is_string;
+use function strpos;
+use function strstr;
 use function strtolower;
+use function substr;
 use function trim;
+use function urldecode;
 
 /**
  * Minimal OAuth2 authorization-code client (authorize URL + token + userinfo), with optional PKCE (S256).
@@ -45,6 +51,19 @@ final class OAuth2Client
         'state',
         'code_challenge',
         'code_challenge_method',
+        // 1.48 (audit L-1): at a JAR-capable authorization server (RFC 9101) the parameters inside a request object
+        // REPLACE the query parameters, `redirect_uri` and `state` included, so `request` / `request_uri` would be a
+        // way round every guard above. `response_mode` moves the response (and the code) to another channel.
+        'request',
+        'request_uri',
+        'response_mode',
+        // Belong to the protocol exchanges the bundle drives itself, not to a host's extra parameters.
+        'nonce',
+        'claims',
+        'client_assertion',
+        'client_assertion_type',
+        'code',
+        'grant_type',
     ];
 
     /**
@@ -67,9 +86,9 @@ final class OAuth2Client
      */
     public function usesPkce(SocialLoginCredential $credential, array $overrides = []): bool
     {
-        $provider = strtolower($credential->getProvider());
+        $provider = strtolower(trim($credential->getProvider()));
         foreach ($overrides as $key => $enabled) {
-            if (strtolower((string) $key) === $provider) {
+            if (strtolower(trim((string) $key)) === $provider) {
                 return (bool) $enabled;
             }
         }
@@ -93,7 +112,7 @@ final class OAuth2Client
      */
     public function authorizationParams(SocialLoginCredential $credential, array $overrides = []): array
     {
-        $provider = strtolower($credential->getProvider());
+        $provider = strtolower(trim($credential->getProvider()));
         // Names are normalised before each merge, so a layer removes or replaces a parameter of a lower one whatever
         // the case and spacing it spells the name with.
         $merged = $this->normalizeParamNames($this->endpoints->defaultAuthorizationParams($provider));
@@ -156,7 +175,43 @@ final class OAuth2Client
         // http_build_query percent-encodes every name and value (REQ: the host never assembles the query itself).
         $query = http_build_query($params);
 
-        return $resolved['authorize_url'] . (str_contains($resolved['authorize_url'], '?') ? '&' : '?') . $query;
+        return $this->withQuery($resolved['authorize_url'], $params) . $query;
+    }
+
+    /**
+     * The authorize URL with every parameter we are about to send dropped from its own query string, and ready for
+     * the new query to be appended (1.48, audit L-2).
+     *
+     * Before `authorization_params` existed, the only way to send an extra parameter was to embed it in
+     * `authorize_url` (e.g. `…/auth?prompt=consent`), which is supported and documented for custom IdPs. Appending
+     * our own `prompt` next to it would repeat the parameter, which RFC 6749 §3.1 forbids and which Google and
+     * Entra answer with `invalid_request` — so a host that did that would lose sign-in on upgrade without touching
+     * anything. The parameter we send wins instead, and the rest of the host's query string is kept untouched,
+     * byte for byte (no re-encoding, no array-key mangling).
+     *
+     * @param array<string, string> $params
+     */
+    private function withQuery(string $authorizeUrl, array $params): string
+    {
+        $mark = strpos($authorizeUrl, '?');
+        if ($mark === false) {
+            return $authorizeUrl . '?';
+        }
+
+        $base = substr($authorizeUrl, 0, $mark);
+        $kept = [];
+        foreach (explode('&', substr($authorizeUrl, $mark + 1)) as $pair) {
+            if ($pair === '') {
+                continue;
+            }
+            $name = strstr($pair, '=', true);
+            $name = strtolower(trim(urldecode($name === false ? $pair : $name)));
+            if (!array_key_exists($name, $params)) {
+                $kept[] = $pair;
+            }
+        }
+
+        return $base . '?' . ($kept === [] ? '' : implode('&', $kept) . '&');
     }
 
     /**
