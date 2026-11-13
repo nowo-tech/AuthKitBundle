@@ -269,6 +269,52 @@ final class AuthorizationParamsTest extends TestCase
         self::assertSame(['prompt' => 'select_account'], $client->authorizationParams($first));
     }
 
+    /**
+     * 1.48: the built-in google / microsoft providers ask for the account chooser by default, so a multi-account
+     * browser is never bound to whichever account it happened to have open.
+     */
+    public function testGoogleAndMicrosoftAskForTheAccountChooserByDefault(): void
+    {
+        foreach (['google', 'microsoft'] as $provider) {
+            $credential = (new SocialLoginCredential())->setProvider($provider)->setClientId('client-123');
+            $params     = $this->query($this->client()->buildAuthorizeUrl($credential, 'https://app.test/cb', 'st'));
+
+            self::assertSame('select_account', $params['prompt'], $provider . ' asks which account to use.');
+        }
+
+        // A custom provider gets nothing: an IdP that rejects unknown parameters keeps working.
+        self::assertSame([], $this->client()->authorizationParams($this->credential('my_idp')));
+    }
+
+    /**
+     * The documented opt-out: a null value removes the default instead of sending it empty — from the profile
+     * configuration or from the credential.
+     */
+    public function testTheAccountChooserCanBeTurnedOff(): void
+    {
+        $client     = $this->client();
+        $credential = (new SocialLoginCredential())->setProvider('google')->setClientId('client-123');
+
+        $byConfig = $client->buildAuthorizeUrl($credential, 'https://app.test/cb', 'st', null, ['google' => ['prompt' => null]]);
+        self::assertArrayNotHasKey('prompt', $this->query($byConfig));
+        self::assertStringNotContainsString('prompt', $byConfig);
+
+        $credential->setAuthorizationParams(['prompt' => null]);
+        $byCredential = $client->buildAuthorizeUrl($credential, 'https://app.test/cb', 'st');
+        self::assertArrayNotHasKey('prompt', $this->query($byCredential));
+        self::assertStringNotContainsString('prompt', $byCredential);
+    }
+
+    /**
+     * Another value replaces the default rather than being added next to it.
+     */
+    public function testTheDefaultCanBeReplaced(): void
+    {
+        $credential = (new SocialLoginCredential())->setProvider('google')->setClientId('client-123')->setAuthorizationParams(['prompt' => 'consent']);
+
+        self::assertSame(['prompt' => 'consent'], $this->client()->authorizationParams($credential));
+    }
+
     public function testCredentialStartsWithoutParams(): void
     {
         self::assertSame([], (new SocialLoginCredential())->getAuthorizationParams());

@@ -4,6 +4,7 @@
 
 - [Unreleased](#unreleased)
   - [Extra authorization parameters (1.48)](#extra-authorization-parameters-148)
+  - [The account chooser on google and microsoft (`prompt=select_account`, 1.48)](#the-account-chooser-on-google-and-microsoft-promptselect_account-148)
   - [Provider brand marks on the social / SSO buttons (1.48)](#provider-brand-marks-on-the-social--sso-buttons-148)
 - [To 1.47.0](#to-1470)
   - [Identity columns matched byte for byte (MySQL / MariaDB)](#identity-columns-matched-byte-for-byte-mysql--mariadb)
@@ -148,6 +149,44 @@ ALTER TABLE auth_kit_social_credential MODIFY authorization_params JSON NOT NULL
 
 On PostgreSQL: `ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL DEFAULT '{}';`
 (drop the default afterwards if you prefer the mapping's shape: `ALTER COLUMN authorization_params DROP DEFAULT`).
+
+### The account chooser on google and microsoft (`prompt=select_account`, 1.48)
+
+**What changed.** The built-in `google` and `microsoft` providers now send `prompt=select_account` on the authorization
+request. The provider asks which account to use, every time, instead of reusing whichever one the browser has open.
+
+**Why.** Without the parameter the provider reuses the open session silently. Someone signed in to a personal Gmail and
+a work account at the same time is bound to whichever account the browser happened to have open, with no chance to
+choose — and the provider's subsequent error page has no account switcher either, so the only way out is unlinking the
+wrong identity and signing out of the other account in that browser. That binds a local account to an unintended
+identity, so it is treated as an identity-correctness bug rather than a preference.
+
+**Who is affected.** Every host already using the built-in `google` or `microsoft` providers: people will see an account
+chooser where they did not before. Nothing else about the flow changes, no data migration is involved, and custom
+providers are untouched.
+
+**How to restore the previous behaviour.** Remove the parameter with a `null` value — per profile:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                authorization_params:
+                    google:
+                        prompt: ~
+                    microsoft:
+                        prompt: ~
+```
+
+or per credential, which wins over the configuration:
+
+```php
+$credential->setAuthorizationParams(['prompt' => null]);
+```
+
+A `null` value removes the parameter from the authorization request; it is never sent as an empty value. Any other value
+replaces it (`prompt: consent`, `prompt: login`, …).
 
 ### Provider brand marks on the social / SSO buttons (1.48)
 

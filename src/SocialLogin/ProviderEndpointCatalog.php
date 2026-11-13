@@ -77,7 +77,13 @@ final class ProviderEndpointCatalog
     public function defaultAuthorizationParams(string $provider): array
     {
         return match (strtolower($provider)) {
-            default => [],
+            // Both providers reuse whichever account the browser already has open, silently. With two accounts
+            // signed in (a personal one and a work one) that binds the local account to an unintended identity,
+            // with no chooser on the provider's own error page either: the only way out is unlinking and signing
+            // out of the other account. So the chooser is asked for by default; a host opts out with
+            // `authorization_params: { google: { prompt: ~ } }`.
+            'google', 'microsoft' => ['prompt' => 'select_account'],
+            default               => [],
         };
     }
 

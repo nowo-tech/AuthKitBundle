@@ -62,10 +62,16 @@
 
 .nowo-auth-kit-providers__list a {
   display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Mark + label side by side, with the clear space the brand guidelines ask for (anchor and POST-form button alike). */
+.nowo-auth-kit-providers__button {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  width: 100%;
 }
 
 /*

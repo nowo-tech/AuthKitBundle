@@ -108,8 +108,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Target: 1.48.0 (adds public API and an asset, changes the type of two login template variables).
-See [UPGRADING](UPGRADING.md#unreleased).
+Target: 1.48.0 (adds public API and an asset, changes the type of two login template variables, and changes the
+authorization request of the built-in google / microsoft providers). See [UPGRADING](UPGRADING.md#unreleased).
+
+### Behaviour change (action needed only to opt out)
+
+- **The built-in `google` and `microsoft` providers now send `prompt=select_account`**, so the provider asks which
+  account to use instead of silently reusing whichever one the browser has open. Someone signed in to a personal and a
+  work account at once was bound to whichever account the browser happened to have open, with no chooser on the
+  provider's own error page either — an identity-correctness bug. Hosts already on AuthKit will see an account chooser
+  where they did not before. To restore the previous behaviour, remove the parameter per provider with a `null` value
+  (`authorization_params: { google: { prompt: ~ } }`). Custom providers are unaffected.
+  See [UPGRADING](UPGRADING.md#the-account-chooser-on-google-and-microsoft-promptselect_account-148).
 
 ### Added
 

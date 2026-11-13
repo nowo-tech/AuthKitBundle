@@ -28,7 +28,7 @@
                         <li>
                             {{ form_start(_provider.form) }}
                                 {{ form_widget(_provider.form) }}
-                                <button type="submit" class="{{ nowo_ui_class('btn_secondary', page.bundle) }}" data-testid="auth-kit-invitation-social-{{ _provider.provider }}">
+                                <button type="submit" class="{{ nowo_ui_class('btn_secondary', page.bundle) }} nowo-auth-kit-providers__button" data-testid="auth-kit-invitation-social-{{ _provider.provider }}">
                                     {%- if _provider.mark|default(null) -%}
                                         {#- Decorative mark; the accessible name stays the button text (brand guidelines, see login.html.twig). -#}
                                         <img class="nowo-auth-kit-providers__mark{{ _provider.mark.onWhite ? ' nowo-auth-kit-providers__mark--on-white' : '' }}" src="{{ asset(_provider.mark.path, _provider.mark.package) }}" width="18" height="18" alt="" aria-hidden="true">

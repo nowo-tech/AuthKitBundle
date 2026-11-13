@@ -95,4 +95,17 @@ final class ProviderEndpointCatalogTest extends TestCase
         self::assertTrue($catalog->supportsPkceByDefault('microsoft'));
         self::assertFalse($catalog->supportsPkceByDefault('keycloak'));
     }
+
+    /**
+     * 1.48: only the built-in google / microsoft providers carry a default authorization parameter.
+     */
+    public function testDefaultAuthorizationParams(): void
+    {
+        $catalog = new ProviderEndpointCatalog();
+
+        self::assertSame(['prompt' => 'select_account'], $catalog->defaultAuthorizationParams('google'));
+        self::assertSame(['prompt' => 'select_account'], $catalog->defaultAuthorizationParams('Microsoft'));
+        self::assertSame([], $catalog->defaultAuthorizationParams('github'));
+        self::assertSame([], $catalog->defaultAuthorizationParams('my_idp'));
+    }
 }

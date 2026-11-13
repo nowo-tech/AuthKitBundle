@@ -8,6 +8,7 @@ AuthKit can expose **Continue with …** buttons on the login page. Provider **c
 - [Configuration](#configuration)
 - [Brand marks on the buttons](#brand-marks-on-the-buttons)
 - [Extra authorization parameters](#extra-authorization-parameters)
+  - [`prompt=select_account` on google and microsoft](#promptselect_account-on-google-and-microsoft)
 - [Seed credentials (example)](#seed-credentials-example)
 - [Security / routes](#security--routes)
 - [Callback handlers](#callback-handlers)
@@ -71,9 +72,9 @@ authorization request needs (`prompt`, `access_type`, `login_hint`, `hd`, `ui_lo
 **`authorization_params`** (1.48) — never by pasting a query string into `authorize_url`, which is for custom IdPs and
 would leave you concatenating `?` or `&` yourself. The client assembles and percent-encodes the whole query.
 
-Two places can set them, lowest precedence first:
+Three layers set them, lowest precedence first:
 
-1. the per-provider defaults of a built-in provider;
+1. the per-provider defaults of a built-in provider (see [`prompt=select_account`](#promptselect_account-on-google-and-microsoft) below);
 2. `social_login.authorization_params` of the profile, keyed by provider (case-insensitive);
 3. the credential's own map: `$credential->setAuthorizationParams(['access_type' => 'offline'])`.
 
@@ -101,6 +102,34 @@ nowo_auth_kit:
 Values may be strings, numbers or booleans (`true` / `false` are sent as `true` / `false`); anything else is refused.
 Names are trimmed and lower-cased on the wire.
 
+### `prompt=select_account` on google and microsoft
+
+Since **1.48** the built-in `google` and `microsoft` providers send **`prompt=select_account`** by default, so the
+provider always asks which account to use.
+
+Why it is the default: without it, Google silently reuses whichever Google account the browser has open. Someone with a
+personal Gmail and a work account signed in at the same time gets bound to whichever one the browser happened to have
+open, with no chance to choose — and the provider's subsequent error page carries no account switcher either, so the
+only way out is unlinking the wrong identity and signing out of the other account in that browser. That is an
+identity-correctness bug, not a nicety.
+
+To restore the pre-1.48 behaviour, remove the parameter with a `null` value:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                authorization_params:
+                    google:
+                        prompt: ~        # or on the credential: setAuthorizationParams(['prompt' => null])
+                    microsoft:
+                        prompt: ~
+```
+
+Any other value simply replaces it (`prompt: consent`, `prompt: login`, …). Custom providers get no default: an IdP
+that rejects unknown parameters is unaffected.
+
 ### What the bundle never lets a host set
 
 The protocol parameters the bundle owns — `state`, `redirect_uri`, `scope`, `client_id`, `client_secret`,
@@ -123,6 +152,7 @@ $credential = (new \Nowo\AuthKitBundle\Entity\SocialLoginCredential())
     ->setClientSecret($clientSecret)
     ->setEnabled(true);
 // Optional: setAuthorizeUrl / tokenUrl / userinfoUrl / scopes for custom IdPs.
+// Optional (1.48): setAuthorizationParams(['access_type' => 'offline']) — extra authorize-request parameters.
 $em->persist($credential);
 $em->flush();
 ```
