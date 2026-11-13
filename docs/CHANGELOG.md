@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.48.0] - 2026-11-13](#1480---2026-11-13)
 - [[1.47.0] - 2026-11-13](#1470---2026-11-13)
 - [[1.46.0] - 2026-11-12](#1460---2026-11-12)
 - [[1.45.2] - 2026-11-11](#1452---2026-11-11)
@@ -108,8 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.48.0] - 2026-11-13
+
 Target: 1.48.0 (adds public API and an asset, changes the type of two login template variables, and changes the
-authorization request of the built-in google / microsoft providers). See [UPGRADING](UPGRADING.md#unreleased).
+authorization request of the built-in google / microsoft providers). See [UPGRADING](UPGRADING.md#to-1480).
 
 ### Behaviour change (action needed only to opt out)
 

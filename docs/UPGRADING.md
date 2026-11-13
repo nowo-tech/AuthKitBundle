@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.48.0](#to-1480)
   - [Extra authorization parameters (1.48)](#extra-authorization-parameters-148)
   - [Schema: write the migration by hand (1.48) — required on MySQL / MariaDB](#schema-write-the-migration-by-hand-148--required-on-mysql--mariadb)
   - [An extra parameter embedded in `authorize_url` (1.48)](#an-extra-parameter-embedded-in-authorize_url-148)
@@ -129,6 +130,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.48.0
+
+From **1.47.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ### Extra authorization parameters (1.48)
 
