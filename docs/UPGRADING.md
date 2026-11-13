@@ -4,7 +4,6 @@
 
 - [Unreleased](#unreleased)
 - [To 1.47.0](#to-1470)
-- [To 1.47.0](#to-1470-1)
   - [Identity columns matched byte for byte (MySQL / MariaDB)](#identity-columns-matched-byte-for-byte-mysql--mariadb)
 - [To 1.46.0](#to-1460)
   - [Framework-free host ports (optional until 2.0)](#framework-free-host-ports-optional-until-20)
@@ -125,14 +124,6 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
-
-## To 1.47.0
-
-From **1.46.0**:
-
-```bash
-composer update nowo-tech/auth-kit-bundle
-```
 
 ## To 1.47.0
 
