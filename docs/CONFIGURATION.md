@@ -233,6 +233,9 @@ nowo_auth_kit:
         require_verified_email: true
         link_existing_account: reset_password  # 1.31+: reset_password | deny | keep
         pkce: {}                    # provider → bool; unset = on for google/github/microsoft, off for custom IdPs
+        provider_marks: {}          # 1.48: provider → false | 'asset/path.svg' | {path, package, on_white}
+        authorization_params: {}    # 1.48: provider → map of extra authorize-request params (null removes one)
+                                    #       google/microsoft send prompt=select_account unless you set prompt: ~
 
     registration_rate_limit: 5      # 0 = disabled
     registration_rate_window: 900
@@ -567,6 +570,12 @@ See [MAGIC-LOGIN.md](MAGIC-LOGIN.md).
 When `social_login.mode` is `enabled` **and** at least one enabled `SocialLoginCredential` exists in the database, the login page shows provider buttons. Client secrets and linked-user tokens live in Doctrine tables owned by the bundle (`auth_kit_social_credential`, `auth_kit_social_account`).
 
 `social_login.pkce` toggles PKCE (RFC 7636, `S256` only) per provider key. Built-in `google`, `github` and `microsoft` default to enabled (verifier stored in the session with the OAuth `state`, `code_challenge` on the authorize redirect, `code_verifier` on the token exchange); custom providers default to disabled. Example: `pkce: { github: false, my_idp: true }`.
+
+`social_login.provider_marks` (1.48) sets the brand mark of each provider button. Unset, the built-in `google`, `github` and `microsoft` buttons carry the official mark the bundle ships (Google's guidelines require its "G" on the button) and every other provider carries none. Per provider: `false` removes the mark, a string is an asset path, or a map `{path, package, on_white}`. Keys are case-insensitive. Provenance and the trademark position of each shipped mark: [BRAND-MARKS.md](BRAND-MARKS.md).
+
+Since 1.48 the built-in `google` and `microsoft` providers send `prompt=select_account` by default (the provider asks which account to use); set `prompt: ~` for that provider to restore the previous behaviour.
+
+`social_login.authorization_params` (1.48) adds parameters to the authorization request per provider, e.g. `{google: {access_type: offline, login_hint: ada@example.com}}`. A `null` value removes a parameter the bundle would send by default. The credential's own `setAuthorizationParams()` wins over this map, and the protocol parameters the bundle owns (`state`, `redirect_uri`, `scope`, `client_id`, `client_secret`, `response_type`, `code_challenge*`) are refused here and ignored if a raw database row carries them. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#extra-authorization-parameters).
 
 See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md).
 

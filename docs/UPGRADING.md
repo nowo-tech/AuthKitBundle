@@ -3,6 +3,11 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Extra authorization parameters (1.48)](#extra-authorization-parameters-148)
+  - [Schema: write the migration by hand (1.48) — required on MySQL / MariaDB](#schema-write-the-migration-by-hand-148--required-on-mysql--mariadb)
+  - [An extra parameter embedded in `authorize_url` (1.48)](#an-extra-parameter-embedded-in-authorize_url-148)
+  - [The account chooser on google and microsoft (`prompt=select_account`, 1.48)](#the-account-chooser-on-google-and-microsoft-promptselect_account-148)
+  - [Provider brand marks on the social / SSO buttons (1.48)](#provider-brand-marks-on-the-social--sso-buttons-148)
 - [To 1.47.0](#to-1470)
   - [Identity columns matched byte for byte (MySQL / MariaDB)](#identity-columns-matched-byte-for-byte-mysql--mariadb)
 - [To 1.46.0](#to-1460)
@@ -124,6 +129,180 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### Extra authorization parameters (1.48)
+
+`authorization_params` (on the profile, or `setAuthorizationParams()` on the credential) adds parameters such as
+`access_type=offline`, `login_hint` or `hd` to the authorization request. The client assembles and encodes the query, so
+never paste a query string into `authorize_url`. The protocol parameters the bundle owns — `state`, `redirect_uri`,
+`scope`, `client_id`, `client_secret`, `response_type`, `code_challenge`, `code_challenge_method`, and the parameters
+that would carry a whole request of their own (`request`, `request_uri`, `response_mode`, `nonce`, `claims`,
+`client_assertion`, `client_assertion_type`, `code`, `grant_type`) — cannot be set: the
+configuration refuses them at compile time, `setAuthorizationParams()` throws, and a value written straight into the
+database row is ignored. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#extra-authorization-parameters).
+
+### Schema: write the migration by hand (1.48) — required on MySQL / MariaDB
+
+The credential table gains one column, `auth_kit_social_credential.authorization_params`.
+
+**Write the migration by hand, as you do for this bundle's other tables.** That is the standing practice, not a
+workaround for this column: the bundle's tables live outside your ORM metadata, so `doctrine:migrations:diff` also
+proposes destructive, unrelated changes for them — hosts have seen it offer two hundred lines including
+`DROP TABLE messenger_messages`. Never ship its output for these tables unreviewed.
+
+For this column specifically, the single statement `diff` generates is wrong on a table that already has rows:
+
+```sql
+-- WRONG on a non-empty table:
+ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL;
+```
+
+PostgreSQL refuses it outright, so you cannot get it wrong there. On **MySQL and MariaDB it succeeds** and leaves the
+existing rows holding a value that is not a JSON object: the JSON scalar `null` on MySQL 8, and the **empty string** on
+MariaDB (which slips past `CHECK (json_valid(…))`, because `ALTER` does not re-validate existing rows). Since 1.48 the
+entity reads such a row as an empty map, so the login and invitation pages stay up, but the column is not really
+populated. Use this instead:
+
+```sql
+-- MySQL / MariaDB (a JSON NOT NULL column cannot carry a literal default, so add, backfill, then tighten):
+ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NULL;
+UPDATE auth_kit_social_credential SET authorization_params = '[]' WHERE authorization_params IS NULL;
+ALTER TABLE auth_kit_social_credential MODIFY authorization_params JSON NOT NULL;
+```
+
+```sql
+-- PostgreSQL:
+ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL DEFAULT '[]';
+ALTER TABLE auth_kit_social_credential ALTER COLUMN authorization_params DROP DEFAULT;
+```
+
+#### The document shape, pinned
+
+**An empty map is stored as `[]`**, because that is what the bundle itself writes: Doctrine's `json` type encodes the
+PHP empty array as the JSON array `[]`. A map with entries is a JSON object
+(`{"prompt":"select_account"}`), and both `[]` and `{}` decode back to an empty PHP array, so `{}` is read correctly —
+it is simply not what the bundle writes. Backfill with `'[]'` and a repaired row is indistinguishable from one the
+bundle wrote itself. The same holds for the older `scopes` column (a JSON array, empty as `[]`).
+
+#### Repairing rows if you already ran the generated statement
+
+This statement is **idempotent** (safe to run twice) and **scoped to exactly the three states the bad `ALTER` can
+leave**, so it cannot touch a row that this or a later version wrote legitimately:
+
+```sql
+UPDATE auth_kit_social_credential
+   SET authorization_params = '[]'
+ WHERE authorization_params IS NULL
+    OR CAST(authorization_params AS CHAR) IN ('', 'null');
+```
+
+- `IS NULL` — the column added as nullable (by hand, or by a `diff` you adjusted).
+- `''` — **the MariaDB case.** A repair that only tests `IS NULL` misses it, because MariaDB fills the existing rows
+  with the empty string, not with SQL `NULL` and not with JSON `null`.
+- `'null'` — the MySQL 8 case, the JSON scalar `null`. The `CAST(… AS CHAR)` comparison is deliberate: `JSON_TYPE()`
+  raises an error on the MariaDB empty string, and SQL does not promise you left-to-right `OR` evaluation to protect
+  you from it.
+
+Rows holding `[]`, `{}` or real parameters match none of those predicates and are left alone.
+
+A row left as SQL `NULL` is **harmless at read time** — the entity reads it as an empty map, which is why the pages
+stay up — but rewrite it anyway: the mapping declares the column `NOT NULL`, so a later `MODIFY … NOT NULL` (or a
+schema validation) fails while such a row exists.
+
+The older `scopes` column of the same table has the identical `JSON NOT NULL` shape. It has always been created with
+the table rather than added by an `ALTER`, so no host should have a bad row in it; since 1.48 it is read with the same
+tolerance, so a host that did add it by hand as nullable is no longer at risk either.
+
+### An extra parameter embedded in `authorize_url` (1.48)
+
+If you worked around the missing option by putting the parameter in the credential's `authorize_url` — for example
+`https://accounts.google.com/o/oauth2/v2/auth?prompt=consent` — nothing breaks: since 1.48 a parameter the bundle
+sends is **removed from the authorize URL's own query** rather than repeated, because repeating a parameter is
+forbidden (RFC 6749 §3.1) and Google and Microsoft Entra answer `invalid_request`. The rest of your query string is
+kept untouched.
+
+Which value wins: the one from `authorization_params` (or the built-in default), not the one in the URL. So move the
+parameter to where it belongs:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                authorization_params:
+                    google:
+                        prompt: consent     # or prompt: ~ to send none at all
+```
+
+### The account chooser on google and microsoft (`prompt=select_account`, 1.48)
+
+**What changed.** The built-in `google` and `microsoft` providers now send `prompt=select_account` on the authorization
+request. The provider asks which account to use, every time, instead of reusing whichever one the browser has open.
+
+**Why.** Without the parameter the provider reuses the open session silently. Someone signed in to a personal Gmail and
+a work account at the same time is bound to whichever account the browser happened to have open, with no chance to
+choose — and the provider's subsequent error page has no account switcher either, so the only way out is unlinking the
+wrong identity and signing out of the other account in that browser. That binds a local account to an unintended
+identity, so it is treated as an identity-correctness bug rather than a preference.
+
+**Who is affected.** Every host already using the built-in `google` or `microsoft` providers: people will see an account
+chooser where they did not before. Nothing else about the flow changes, no data migration is involved, and custom
+providers are untouched.
+
+**How to restore the previous behaviour.** Remove the parameter with a `null` value — per profile:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                authorization_params:
+                    google:
+                        prompt: ~
+                    microsoft:
+                        prompt: ~
+```
+
+or per credential, which wins over the configuration:
+
+```php
+$credential->setAuthorizationParams(['prompt' => null]);
+```
+
+A `null` value removes the parameter from the authorization request; it is never sent as an empty value. Any other value
+replaces it (`prompt: consent`, `prompt: login`, …).
+
+### Provider brand marks on the social / SSO buttons (1.48)
+
+Nothing to do for a compliant button: an enabled `google`, `github` or `microsoft` credential now renders the
+provider's official mark next to the label on the login page, with no configuration and no template override. Run
+`php bin/console assets:install` if your deployment does not already run it (Flex does it on `composer install`) —
+the marks ship in the bundle's public assets, like its CSS.
+
+Two host-visible contracts changed:
+
+- **`social_links` / `sso_links`** of the login template are now `Nowo\AuthKitBundle\View\ProviderLink` instead of
+  `Nowo\UiKitBundle\View\Link`. `label` and `href` keep their names, so a template that prints `_link.label` /
+  `_link.href` keeps working. Code or a partial that type-hints `Link` calls `$providerLink->link()`.
+- **`invitation_social_providers`** rows carry an extra `mark` key (`?View\ProviderMark`).
+
+A host that overrode `security/login.html.twig` keeps its own markup and gets no mark; move the override to the new
+`nowo_auth_kit_provider_link` block (`_link` in scope, `{{ parent() }}` renders the compliant default) to get one.
+
+To replace or remove a mark — for instance to ship your own copy of a provider's artwork, or not to redistribute one:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                provider_marks:
+                    github: false
+                    google: { path: 'images/google-g.svg', on_white: true }
+```
+
+See [BRAND-MARKS.md](BRAND-MARKS.md) for the source and the trademark position of every shipped mark, and why no Apple
+mark is shipped.
 
 ## To 1.47.0
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
+use InvalidArgumentException;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -491,6 +492,99 @@ final class ConfigurationTest extends TestCase
             ]],
         ]]);
         self::assertSame(['google' => false, 'my-idp' => true], $config['profiles']['default']['social_login']['pkce']);
+    }
+
+    /**
+     * 1.48 social_login.provider_marks: not listed means the mark the bundle ships, `false` or an empty path means
+     * none, a bare string is the asset path, a map configures package and the white backdrop.
+     */
+    public function testSocialLoginProviderMarks(): void
+    {
+        $processor = new Processor();
+        $defaults  = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => ['user_class' => TestUser::class]],
+        ]]);
+        self::assertSame([], $defaults['profiles']['default']['social_login']['provider_marks']);
+
+        $config = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['provider_marks' => [
+                    'github' => false,
+                    'my-idp' => 'images/idp.svg',
+                    'google' => ['path' => 'images/g.svg', 'package' => 'app', 'on_white' => true],
+                ]],
+            ]],
+        ]]);
+        self::assertSame([
+            'github' => ['path' => null, 'package' => null, 'on_white' => null],
+            'my-idp' => ['path' => 'images/idp.svg', 'package' => null, 'on_white' => null],
+            'google' => ['path' => 'images/g.svg', 'package' => 'app', 'on_white' => true],
+        ], $config['profiles']['default']['social_login']['provider_marks']);
+    }
+
+    public function testSocialLoginProviderMarkRejectsAnUnusableEntry(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('provider_marks');
+
+        (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['provider_marks' => ['google' => 42]],
+            ]],
+        ]]);
+    }
+
+    /**
+     * 1.48 social_login.authorization_params: a per-provider map of extra authorization-request parameters; the
+     * protocol parameters the bundle owns are refused.
+     */
+    public function testSocialLoginAuthorizationParams(): void
+    {
+        $processor = new Processor();
+        $defaults  = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => ['user_class' => TestUser::class]],
+        ]]);
+        self::assertSame([], $defaults['profiles']['default']['social_login']['authorization_params']);
+
+        $config = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['authorization_params' => [
+                    'google' => ['prompt' => 'select_account', 'access_type' => 'offline'],
+                    'my-idp' => ['prompt' => null],
+                ]],
+            ]],
+        ]]);
+        self::assertSame([
+            'google' => ['prompt' => 'select_account', 'access_type' => 'offline'],
+            'my-idp' => ['prompt' => null],
+        ], $config['profiles']['default']['social_login']['authorization_params']);
+    }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function reservedAuthorizationParams(): iterable
+    {
+        yield 'state' => ['state'];
+        yield 'redirect_uri' => ['redirect_uri'];
+        yield 'another case' => ['Scope'];
+    }
+
+    #[DataProvider('reservedAuthorizationParams')]
+    public function testSocialLoginAuthorizationParamsRefuseTheBundlesOwnParameters(string $name): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('owned by the bundle');
+
+        (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['authorization_params' => ['google' => [$name => 'attacker']]],
+            ]],
+        ]]);
     }
 
     /**

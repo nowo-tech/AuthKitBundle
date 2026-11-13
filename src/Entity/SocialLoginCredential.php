@@ -7,8 +7,17 @@ namespace Nowo\AuthKitBundle\Entity;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use InvalidArgumentException;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
+use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
+
+use function in_array;
+use function is_bool;
+use function is_scalar;
+use function sprintf;
+use function strtolower;
+use function trim;
 
 /**
  * OAuth application credentials for a social provider (stored in the database).
@@ -47,9 +56,30 @@ class SocialLoginCredential
     #[ORM\Column(name: 'enterprise_sso', type: Types::BOOLEAN, options: ['default' => false])]
     private bool $enterpriseSso = false;
 
-    /** @var list<string> */
+    /**
+     * Nullable on the PHP side although the column is NOT NULL (1.48, audit M-1): a column added to a non-empty
+     * table by the single-statement migration Doctrine generates leaves the existing rows holding a JSON scalar
+     * `null` (MySQL) or the empty string (MariaDB), which hydrates as PHP null. A non-nullable property would then
+     * raise a TypeError while hydrating and take every page that consults the social gate down with it. The getters
+     * answer `[]` instead; see UPGRADING for the migration that fixes the rows.
+     *
+     * @var list<string>|null
+     */
     #[ORM\Column(type: Types::JSON)]
-    private array $scopes = [];
+    private ?array $scopes = []; // @phpstan-ignore property.unusedType (Doctrine hydrates null from such a row)
+
+    /**
+     * Extra parameters merged into the authorization request of this provider (1.48), e.g.
+     * `['prompt' => 'select_account', 'access_type' => 'offline']`. A null value removes a parameter the bundle
+     * would otherwise send for a built-in provider. The protocol parameters the bundle owns
+     * ({@see OAuth2Client::RESERVED_AUTHORIZATION_PARAMS}) are refused here and ignored when read.
+     *
+     * Nullable on the PHP side for the reason given on {@see self::$scopes} (audit M-1).
+     *
+     * @var array<string, string|null>|null
+     */
+    #[ORM\Column(name: 'authorization_params', type: Types::JSON)]
+    private ?array $authorizationParams = []; // @phpstan-ignore property.unusedType (Doctrine hydrates null from such a row)
 
     #[ORM\Column(name: 'authorize_url', type: Types::STRING, length: 512, nullable: true)]
     private ?string $authorizeUrl = null;
@@ -85,8 +115,10 @@ class SocialLoginCredential
 
     public function setProvider(string $provider): self
     {
+        // Trimmed (1.48, audit L-3): edge white space made a credential match the route and the brand mark but not
+        // the per-provider settings (PKCE, authorization_params), so it silently sent no code_challenge.
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->provider = $provider;
+        $this->provider = trim($provider);
         $this->touch();
 
         return $this;
@@ -165,7 +197,7 @@ class SocialLoginCredential
     /** @return list<string> */
     public function getScopes(): array
     {
-        return $this->scopes;
+        return $this->scopes ?? [];
     }
 
     /** @param array<int, string> $scopes */
@@ -173,6 +205,45 @@ class SocialLoginCredential
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->scopes = array_values($scopes);
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    public function getAuthorizationParams(): array
+    {
+        return $this->authorizationParams ?? [];
+    }
+
+    /**
+     * @param array<string, mixed> $params parameter name => value; null removes a parameter the bundle would send by
+     *                                     default for this provider
+     *
+     * @throws InvalidArgumentException for an empty name, a non-scalar value, or one of the protocol parameters the
+     *                                  bundle owns (a host must not be able to move `state` or `redirect_uri`)
+     */
+    public function setAuthorizationParams(array $params): self
+    {
+        $clean = [];
+        foreach ($params as $name => $value) {
+            $key = trim((string) $name);
+            if ($key === '') {
+                throw new InvalidArgumentException('An authorization parameter needs a non-empty name.');
+            }
+            if (in_array(strtolower($key), OAuth2Client::RESERVED_AUTHORIZATION_PARAMS, true)) {
+                throw new InvalidArgumentException(sprintf('The authorization parameter "%s" is owned by the bundle and cannot be set on a credential.', $key));
+            }
+            if ($value !== null && !is_scalar($value)) {
+                throw new InvalidArgumentException(sprintf('The authorization parameter "%s" must be a scalar value or null.', $key));
+            }
+            $clean[$key] = $value === null ? null : (is_bool($value) ? ($value ? 'true' : 'false') : (string) $value);
+        }
+
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->authorizationParams = $clean;
         $this->touch();
 
         return $this;

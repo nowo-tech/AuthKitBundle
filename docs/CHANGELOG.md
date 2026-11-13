@@ -108,6 +108,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.48.0 (adds public API and an asset, changes the type of two login template variables, and changes the
+authorization request of the built-in google / microsoft providers). See [UPGRADING](UPGRADING.md#unreleased).
+
+### Behaviour change (action needed only to opt out)
+
+- **The built-in `google` and `microsoft` providers now send `prompt=select_account`**, so the provider asks which
+  account to use instead of silently reusing whichever one the browser has open. Someone signed in to a personal and a
+  work account at once was bound to whichever account the browser happened to have open, with no chooser on the
+  provider's own error page either — an identity-correctness bug. Hosts already on AuthKit will see an account chooser
+  where they did not before. To restore the previous behaviour, remove the parameter per provider with a `null` value
+  (`authorization_params: { google: { prompt: ~ } }`). Custom providers are unaffected.
+  See [UPGRADING](UPGRADING.md#the-account-chooser-on-google-and-microsoft-promptselect_account-148).
+- **Write the migration for the new `authorization_params` column by hand** (as for this bundle's other tables, whose
+  `doctrine:migrations:diff` output also proposes destructive unrelated changes because they sit outside the host's ORM
+  metadata). The single `ALTER TABLE … ADD authorization_params JSON NOT NULL` that `diff` generates is refused by
+  PostgreSQL but **succeeds on MySQL and MariaDB**, leaving the existing rows holding the JSON scalar `null` (MySQL) or
+  the empty string (MariaDB) — not a JSON object, and not re-validated by the `ALTER`. The add / backfill / tighten
+  steps, the pinned document shape (an empty map is `[]`, which is what the bundle itself writes) and an idempotent
+  repair `UPDATE` scoped to exactly the states the bad `ALTER` leaves — `NULL`, the MariaDB empty string and the MySQL
+  JSON `null` — are in
+  [UPGRADING](UPGRADING.md#schema-write-the-migration-by-hand-148--required-on-mysql--mariadb). The entity now reads
+  such a row as an empty map instead of raising a `TypeError` while hydrating, so the login and invitation pages stay
+  up either way (the social gate is consulted on every render); `scopes` is read with the same tolerance.
+- **A parameter embedded in a credential's `authorize_url` is no longer repeated.** That was the only pre-1.48 way to
+  send one (`…/auth?prompt=consent`), and appending ours next to it would repeat the parameter, which RFC 6749 §3.1
+  forbids and which Google and Entra answer with `invalid_request` — i.e. sign-in would break on upgrade with no
+  action by the host. A parameter the bundle sends is now removed from the authorize URL's own query instead, the
+  value from `authorization_params` (or the built-in default) winning, and the rest of the query is kept byte for
+  byte. Move such a parameter to `authorization_params`, or set it to `~`, to control which value is sent.
+
+### Added
+
+- **Official provider brand marks on the social / SSO buttons** (`social_login.provider_marks`). The built-in
+  `google`, `github` and `microsoft` buttons now render the provider's own mark next to the label, with no host
+  template or configuration work: Google's branding guidelines *require* the standard colour "G" on the button and a
+  verification review can be failed without it. The marks are shipped as bundle assets
+  (`src/Resources/public/img/social/*.svg`, package `nowo_auth_kit`), byte for byte as each provider publishes them.
+  Per provider a host can replace the mark (`path`, `package`, `on_white`), give an asset path as a bare string, or
+  remove it with `false`. Any provider the bundle ships no mark for (including `apple`) renders as text only.
+  Provenance, the trademark position of each mark, and why no Apple artwork is shipped: [BRAND-MARKS.md](BRAND-MARKS.md).
+- `View\ProviderLink` (provider key, label, href, optional mark) and `View\ProviderMark` (asset path, package,
+  white-backdrop flag), plus `SocialLogin\ProviderMarkResolver` (stateless; built-in marks and the host overrides).
+  `ProviderLink::link()` hands back a plain UiKit `Link` for partials typed against it.
+- Twig block `nowo_auth_kit_provider_link` (inside `nowo_auth_kit_providers`, once per provider, `_link` in scope):
+  decorate or replace a single provider button without copying the providers loop.
+- **Extra authorization-request parameters per provider** (`social_login.authorization_params` on the profile, and
+  `SocialLoginCredential::setAuthorizationParams()` / `getAuthorizationParams()` on the credential, new JSON column
+  `authorization_params`). `prompt`, `access_type`, `login_hint`, `hd`, `ui_locales` … reach the authorize endpoint
+  without pasting a query string into `authorize_url`: `OAuth2Client` merges and percent-encodes the whole query, so a
+  host never has to guess between `?` and `&`. Precedence, lowest first: the defaults of a built-in provider, the
+  profile map, the credential's map; a `null` value removes a parameter instead of sending it empty. The column is
+  added by a migration / `doctrine:schema:update`; UPGRADING carries the SQL for a hand-written migration.
+- `OAuth2Client::authorizationParams()` and `OAuth2Client::RESERVED_AUTHORIZATION_PARAMS`,
+  `ProviderEndpointCatalog::defaultAuthorizationParams()`. `OAuth2Client::buildAuthorizeUrl()` takes the profile map as
+  a fifth, optional argument.
+- `docs/BRAND-MARKS.md`.
+
+### Security
+
+- The protocol parameters of the authorization request stay the bundle's: `state`, `redirect_uri`, `scope`,
+  `client_id`, `client_secret`, `response_type`, `code_challenge` and `code_challenge_method` — and `request`,
+  `request_uri`, `response_mode`, `nonce`, `claims`, `client_assertion`, `client_assertion_type`, `code` and
+  `grant_type`, each of which could carry a request of its own (at a JAR-capable authorization server, RFC 9101, the
+  parameters inside a `request` object *replace* the query parameters, `redirect_uri` and `state` included) — cannot
+  be set through `authorization_params`. A host that tries fails container compilation; `setAuthorizationParams()` throws an
+  `InvalidArgumentException` naming the parameter; and a value written straight into the database row is dropped
+  whatever its letter case, with the bundle's own parameters written last. Moving `state` or `redirect_uri` would break
+  the CSRF / PKCE binding of the callback and turn the start route into an open redirect that leaks the authorization
+  code.
+
+### Fixed
+
+- **A provider key with edge white space no longer loses its per-provider settings.** Such a credential matched the
+  start route and its brand mark but not `social_login.pkce` or `authorization_params`, so it silently sent no
+  `code_challenge`. `setProvider()` trims the key, and the PKCE, authorization-parameter and endpoint lookups compare
+  it trimmed.
+
+### Changed
+
+- `social_links` / `sso_links` of the login template carry `View\ProviderLink` instead of UiKit `View\Link`. A
+  template that prints `_link.label` / `_link.href` is unaffected (both keep their names); a host that type-hints
+  `Link` calls `_link.link()`. The invitation acceptance page's `invitation_social_providers` rows gain `mark`.
+- The provider button markup is now a mark plus a `<span class="nowo-auth-kit-providers__label">`: the mark is an
+  `<img>` (host CSS cannot recolour it) in a fixed square box with `object-fit: contain` (never distorted), decorative
+  (`alt=""`, `aria-hidden="true"`) so the accessible name stays the translated label, with clear space around it and a
+  white backdrop under the marks that require one.
+
 ## [1.47.0] - 2026-11-13
 
 Target: 1.47.0 (adds public API). See [UPGRADING](UPGRADING.md#to-1470).

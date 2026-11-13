@@ -3,7 +3,8 @@
   profile registration_fields, the registration submit) with the invited e-mail pre-filled (read-only with
   invitations.lock_email) and the inviter's message, if any, above the fields. Extra variables: invitation_message
   (string|null, auto-escaped); 1.42: invitation (Invitation\InvitationSnapshot: read-only, never the token nor its
-  hash) and invitation_social_providers (list of {provider, label: Label, form: FormView}; empty unless
+  hash) and invitation_social_providers (list of {provider, label: Label, mark: ?View\ProviderMark, form:
+  FormView}; empty unless
   invitations.social.accept_page), rendered in block nowo_auth_kit_invitation_providers. The link token is never part
   of the page (it lives in the session).
 #}
@@ -27,7 +28,13 @@
                         <li>
                             {{ form_start(_provider.form) }}
                                 {{ form_widget(_provider.form) }}
-                                <button type="submit" class="{{ nowo_ui_class('btn_secondary', page.bundle) }}" data-testid="auth-kit-invitation-social-{{ _provider.provider }}">{{ _provider.label|nowo_ui_trans }}</button>
+                                <button type="submit" class="{{ nowo_ui_class('btn_secondary', page.bundle) }} nowo-auth-kit-providers__button" data-testid="auth-kit-invitation-social-{{ _provider.provider }}">
+                                    {%- if _provider.mark|default(null) -%}
+                                        {#- Decorative mark; the accessible name stays the button text (brand guidelines, see login.html.twig). -#}
+                                        <img class="nowo-auth-kit-providers__mark{{ _provider.mark.onWhite ? ' nowo-auth-kit-providers__mark--on-white' : '' }}" src="{{ asset(_provider.mark.path, _provider.mark.package) }}" width="18" height="18" alt="" aria-hidden="true">
+                                    {%- endif -%}
+                                    <span class="nowo-auth-kit-providers__label">{{ _provider.label|nowo_ui_trans }}</span>
+                                </button>
                             {{ form_end(_provider.form) }}
                         </li>
                     {% endfor %}

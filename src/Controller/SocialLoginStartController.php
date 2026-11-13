@@ -52,9 +52,11 @@ final class SocialLoginStartController
         );
         /** @var array<string, bool> $pkceOverrides */
         $pkceOverrides = $profile->socialLogin['pkce'] ?? [];
-        $codeVerifier  = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
-        $state         = $this->stateStore->issue($provider, $codeVerifier);
-        $url           = $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier);
+        /** @var array<string, mixed> $authorizationParams */
+        $authorizationParams = $profile->socialLogin['authorization_params'] ?? [];
+        $codeVerifier        = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
+        $state               = $this->stateStore->issue($provider, $codeVerifier);
+        $url                 = $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier, $authorizationParams);
 
         return new RedirectResponse($url);
     }
