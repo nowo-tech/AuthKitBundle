@@ -320,6 +320,8 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         $redirectUri = $this->urlGenerator->generate($profile->routes['social_login_check']['name'], ['provider' => $provider], UrlGeneratorInterface::ABSOLUTE_URL);
         /** @var array<string, bool> $pkceOverrides */
         $pkceOverrides = $profile->socialLogin['pkce'] ?? [];
+        /** @var array<string, mixed> $authorizationParams */
+        $authorizationParams = $profile->socialLogin['authorization_params'] ?? [];
         $codeVerifier        = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
         $state               = $this->stateStore->issue($provider, $codeVerifier);
         $session->set(self::SOCIAL_SESSION_KEY, [
@@ -330,7 +332,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
             'hash'     => $tokenHash,
         ]);
 
-        return $this->private(new Response('', Response::HTTP_SEE_OTHER, ['Location' => $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier)]));
+        return $this->private(new Response('', Response::HTTP_SEE_OTHER, ['Location' => $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier, $authorizationParams)]));
     }
 
     /**

@@ -7,8 +7,17 @@ namespace Nowo\AuthKitBundle\Entity;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use InvalidArgumentException;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
+use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
+
+use function in_array;
+use function is_bool;
+use function is_scalar;
+use function sprintf;
+use function strtolower;
+use function trim;
 
 /**
  * OAuth application credentials for a social provider (stored in the database).
@@ -50,6 +59,17 @@ class SocialLoginCredential
     /** @var list<string> */
     #[ORM\Column(type: Types::JSON)]
     private array $scopes = [];
+
+    /**
+     * Extra parameters merged into the authorization request of this provider (1.48), e.g.
+     * `['prompt' => 'select_account', 'access_type' => 'offline']`. A null value removes a parameter the bundle
+     * would otherwise send for a built-in provider. The protocol parameters the bundle owns
+     * ({@see OAuth2Client::RESERVED_AUTHORIZATION_PARAMS}) are refused here and ignored when read.
+     *
+     * @var array<string, string|null>
+     */
+    #[ORM\Column(name: 'authorization_params', type: Types::JSON)]
+    private array $authorizationParams = [];
 
     #[ORM\Column(name: 'authorize_url', type: Types::STRING, length: 512, nullable: true)]
     private ?string $authorizeUrl = null;
@@ -173,6 +193,45 @@ class SocialLoginCredential
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->scopes = array_values($scopes);
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    public function getAuthorizationParams(): array
+    {
+        return $this->authorizationParams;
+    }
+
+    /**
+     * @param array<string, mixed> $params parameter name => value; null removes a parameter the bundle would send by
+     *                                     default for this provider
+     *
+     * @throws InvalidArgumentException for an empty name, a non-scalar value, or one of the protocol parameters the
+     *                                  bundle owns (a host must not be able to move `state` or `redirect_uri`)
+     */
+    public function setAuthorizationParams(array $params): self
+    {
+        $clean = [];
+        foreach ($params as $name => $value) {
+            $key = trim((string) $name);
+            if ($key === '') {
+                throw new InvalidArgumentException('An authorization parameter needs a non-empty name.');
+            }
+            if (in_array(strtolower($key), OAuth2Client::RESERVED_AUTHORIZATION_PARAMS, true)) {
+                throw new InvalidArgumentException(sprintf('The authorization parameter "%s" is owned by the bundle and cannot be set on a credential.', $key));
+            }
+            if ($value !== null && !is_scalar($value)) {
+                throw new InvalidArgumentException(sprintf('The authorization parameter "%s" must be a scalar value or null.', $key));
+            }
+            $clean[$key] = $value === null ? null : (is_bool($value) ? ($value ? 'true' : 'false') : (string) $value);
+        }
+
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->authorizationParams = $clean;
         $this->touch();
 
         return $this;

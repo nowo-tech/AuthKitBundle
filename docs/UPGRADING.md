@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Extra authorization parameters (1.48)](#extra-authorization-parameters-148)
   - [Provider brand marks on the social / SSO buttons (1.48)](#provider-brand-marks-on-the-social--sso-buttons-148)
 - [To 1.47.0](#to-1470)
   - [Identity columns matched byte for byte (MySQL / MariaDB)](#identity-columns-matched-byte-for-byte-mysql--mariadb)
@@ -125,6 +126,28 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### Extra authorization parameters (1.48)
+
+`authorization_params` (on the profile, or `setAuthorizationParams()` on the credential) adds parameters such as
+`access_type=offline`, `login_hint` or `hd` to the authorization request. The client assembles and encodes the query, so
+never paste a query string into `authorize_url`. The protocol parameters the bundle owns — `state`, `redirect_uri`,
+`scope`, `client_id`, `client_secret`, `response_type`, `code_challenge`, `code_challenge_method` — cannot be set: the
+configuration refuses them at compile time, `setAuthorizationParams()` throws, and a value written straight into the
+database row is ignored. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#extra-authorization-parameters).
+
+**Schema.** The credential table gains one column. Run `php bin/console doctrine:migrations:diff` (or
+`doctrine:schema:update`) as usual; by hand, on MySQL / MariaDB a `JSON NOT NULL` column cannot carry a literal
+default, so add it in three steps:
+
+```sql
+ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NULL;
+UPDATE auth_kit_social_credential SET authorization_params = '{}' WHERE authorization_params IS NULL;
+ALTER TABLE auth_kit_social_credential MODIFY authorization_params JSON NOT NULL;
+```
+
+On PostgreSQL: `ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL DEFAULT '{}';`
+(drop the default afterwards if you prefer the mapping's shape: `ALTER COLUMN authorization_params DROP DEFAULT`).
 
 ### Provider brand marks on the social / SSO buttons (1.48)
 

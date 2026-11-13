@@ -69,6 +69,19 @@ final class ProviderEndpointCatalog
     }
 
     /**
+     * Extra authorization-request parameters the bundle sends for a built-in provider unless the host removes or
+     * replaces them (`social_login.authorization_params`, or the credential's own map; a null value removes one).
+     *
+     * @return array<string, string>
+     */
+    public function defaultAuthorizationParams(string $provider): array
+    {
+        return match (strtolower($provider)) {
+            default => [],
+        };
+    }
+
+    /**
      * @return array{authorize_url?: string, token_url?: string, userinfo_url?: string, scopes?: list<string>}|array{}
      */
     private function defaultsFor(string $provider): array

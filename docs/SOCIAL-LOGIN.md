@@ -7,6 +7,7 @@ AuthKit can expose **Continue with …** buttons on the login page. Provider **c
 - [Tables](#tables)
 - [Configuration](#configuration)
 - [Brand marks on the buttons](#brand-marks-on-the-buttons)
+- [Extra authorization parameters](#extra-authorization-parameters)
 - [Seed credentials (example)](#seed-credentials-example)
 - [Security / routes](#security--routes)
 - [Callback handlers](#callback-handlers)
@@ -38,6 +39,11 @@ nowo_auth_kit:
                 provider_marks:             # 1.48: brand mark per provider (unset = the mark the bundle ships)
                     github: false           # false = no mark
                     my_idp: 'images/idp.svg'
+                authorization_params:       # 1.48: extra parameters of the authorization request
+                    google:
+                        access_type: offline
+                    my_idp:
+                        prompt: consent
 ```
 
 - **`mode: enabled`** alone is not enough: the login UI only shows buttons when at least one **enabled** row exists in `auth_kit_social_credential` (start/check handlers redirect to login otherwise).
@@ -57,6 +63,55 @@ branding guidelines *require* its "G" on the button, so this is a compliance mat
 map = `path` / `package` / `on_white`). Which marks are shipped, where each file comes from, the trademark position of
 each one, why no Apple mark is shipped, and how the markup keeps the clear space, the colours and the accessible label
 are all in [BRAND-MARKS.md](BRAND-MARKS.md).
+
+## Extra authorization parameters
+
+`authorize_url`, `token_url`, `userinfo_url` and `scopes` of a credential describe *where* the IdP is. Anything else the
+authorization request needs (`prompt`, `access_type`, `login_hint`, `hd`, `ui_locales` …) goes through
+**`authorization_params`** (1.48) — never by pasting a query string into `authorize_url`, which is for custom IdPs and
+would leave you concatenating `?` or `&` yourself. The client assembles and percent-encodes the whole query.
+
+Two places can set them, lowest precedence first:
+
+1. the per-provider defaults of a built-in provider;
+2. `social_login.authorization_params` of the profile, keyed by provider (case-insensitive);
+3. the credential's own map: `$credential->setAuthorizationParams(['access_type' => 'offline'])`.
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                authorization_params:
+                    google:
+                        access_type: offline     # ask for a refresh token
+                        login_hint: '%env(SUPPORT_MAILBOX)%'
+                    my_idp:
+                        prompt: consent
+```
+
+**A `null` value removes the parameter** instead of sending it empty, which is how a host opts out of a default:
+
+```yaml
+                authorization_params:
+                    google:
+                        prompt: ~                # do not send prompt at all
+```
+
+Values may be strings, numbers or booleans (`true` / `false` are sent as `true` / `false`); anything else is refused.
+Names are trimmed and lower-cased on the wire.
+
+### What the bundle never lets a host set
+
+The protocol parameters the bundle owns — `state`, `redirect_uri`, `scope`, `client_id`, `client_secret`,
+`response_type`, `code_challenge`, `code_challenge_method` — **always** win. `state` and `redirect_uri` especially:
+moving either would break the CSRF / PKCE binding of the callback, and an attacker-chosen `redirect_uri` is an open
+redirect that leaks the authorization code.
+
+- setting one in `authorization_params` fails container compilation with a clear message;
+- `setAuthorizationParams()` throws an `InvalidArgumentException` naming the parameter;
+- a value that reaches the client anyway (a row written by raw SQL or a fixture) is dropped, in any letter case, and the
+  bundle writes its own parameters last.
 
 ## Seed credentials (example)
 

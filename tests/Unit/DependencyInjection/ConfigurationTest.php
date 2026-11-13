@@ -537,6 +537,57 @@ final class ConfigurationTest extends TestCase
     }
 
     /**
+     * 1.48 social_login.authorization_params: a per-provider map of extra authorization-request parameters; the
+     * protocol parameters the bundle owns are refused.
+     */
+    public function testSocialLoginAuthorizationParams(): void
+    {
+        $processor = new Processor();
+        $defaults  = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => ['user_class' => TestUser::class]],
+        ]]);
+        self::assertSame([], $defaults['profiles']['default']['social_login']['authorization_params']);
+
+        $config = $processor->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['authorization_params' => [
+                    'google' => ['prompt' => 'select_account', 'access_type' => 'offline'],
+                    'my-idp' => ['prompt' => null],
+                ]],
+            ]],
+        ]]);
+        self::assertSame([
+            'google' => ['prompt' => 'select_account', 'access_type' => 'offline'],
+            'my-idp' => ['prompt' => null],
+        ], $config['profiles']['default']['social_login']['authorization_params']);
+    }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function reservedAuthorizationParams(): iterable
+    {
+        yield 'state' => ['state'];
+        yield 'redirect_uri' => ['redirect_uri'];
+        yield 'another case' => ['Scope'];
+    }
+
+    #[DataProvider('reservedAuthorizationParams')]
+    public function testSocialLoginAuthorizationParamsRefuseTheBundlesOwnParameters(string $name): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('owned by the bundle');
+
+        (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['authorization_params' => ['google' => [$name => 'attacker']]],
+            ]],
+        ]]);
+    }
+
+    /**
      * @return iterable<string, array{string, string, bool}>
      */
     public static function passwordResetFields(): iterable

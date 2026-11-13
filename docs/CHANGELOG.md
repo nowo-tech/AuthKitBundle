@@ -126,7 +126,27 @@ See [UPGRADING](UPGRADING.md#unreleased).
   `ProviderLink::link()` hands back a plain UiKit `Link` for partials typed against it.
 - Twig block `nowo_auth_kit_provider_link` (inside `nowo_auth_kit_providers`, once per provider, `_link` in scope):
   decorate or replace a single provider button without copying the providers loop.
+- **Extra authorization-request parameters per provider** (`social_login.authorization_params` on the profile, and
+  `SocialLoginCredential::setAuthorizationParams()` / `getAuthorizationParams()` on the credential, new JSON column
+  `authorization_params`). `prompt`, `access_type`, `login_hint`, `hd`, `ui_locales` … reach the authorize endpoint
+  without pasting a query string into `authorize_url`: `OAuth2Client` merges and percent-encodes the whole query, so a
+  host never has to guess between `?` and `&`. Precedence, lowest first: the defaults of a built-in provider, the
+  profile map, the credential's map; a `null` value removes a parameter instead of sending it empty. The column is
+  added by a migration / `doctrine:schema:update`; UPGRADING carries the SQL for a hand-written migration.
+- `OAuth2Client::authorizationParams()` and `OAuth2Client::RESERVED_AUTHORIZATION_PARAMS`,
+  `ProviderEndpointCatalog::defaultAuthorizationParams()`. `OAuth2Client::buildAuthorizeUrl()` takes the profile map as
+  a fifth, optional argument.
 - `docs/BRAND-MARKS.md`.
+
+### Security
+
+- The protocol parameters of the authorization request stay the bundle's: `state`, `redirect_uri`, `scope`,
+  `client_id`, `client_secret`, `response_type`, `code_challenge` and `code_challenge_method` cannot be set through
+  `authorization_params`. A host that tries fails container compilation; `setAuthorizationParams()` throws an
+  `InvalidArgumentException` naming the parameter; and a value written straight into the database row is dropped
+  whatever its letter case, with the bundle's own parameters written last. Moving `state` or `redirect_uri` would break
+  the CSRF / PKCE binding of the callback and turn the start route into an open redirect that leaks the authorization
+  code.
 
 ### Changed
 

@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Enum\QrLoginMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
+use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
@@ -31,6 +32,7 @@ use function is_bool;
 use function is_string;
 use function preg_match;
 use function sprintf;
+use function strtolower;
 use function trigger_deprecation;
 use function trim;
 
@@ -1296,6 +1298,28 @@ final class Configuration implements ConfigurationInterface
                     ->useAttributeAsKey('provider')
                     ->normalizeKeys(false)
                     ->booleanPrototype()->end()
+                    ->defaultValue([])
+                ->end()
+                ->arrayNode('authorization_params')
+                    ->info('Extra parameters merged into the authorization request, keyed by provider (e.g. google: {prompt: select_account, access_type: offline}). A null value removes a parameter the bundle sends by default for a built-in provider. The credential\'s own authorization_params win over this. The protocol parameters the bundle owns (state, redirect_uri, scope, client_id, response_type, code_challenge*) are refused here.')
+                    ->useAttributeAsKey('provider')
+                    ->normalizeKeys(false)
+                    ->arrayPrototype()
+                        ->normalizeKeys(false)
+                        ->scalarPrototype()->end()
+                        ->validate()
+                            ->always()
+                            ->then(static function (array $params): array {
+                                foreach (array_keys($params) as $name) {
+                                    if (in_array(strtolower(trim((string) $name)), OAuth2Client::RESERVED_AUTHORIZATION_PARAMS, true)) {
+                                        throw new InvalidArgumentException(sprintf('The authorization parameter "%s" is owned by the bundle and cannot be set in "nowo_auth_kit.*.social_login.authorization_params".', $name));
+                                    }
+                                }
+
+                                return $params;
+                            })
+                        ->end()
+                    ->end()
                     ->defaultValue([])
                 ->end()
                 ->arrayNode('provider_marks')
