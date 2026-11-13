@@ -21,6 +21,9 @@ services:
             - '../../Internal/'
             - '../../Port/'
             - '../../ValueObject/'
+            # 1.48.0: presentation VOs of the provider buttons (built per render, never services).
+            - '../../View/ProviderLink.php'
+            - '../../View/ProviderMark.php'
             - '../../Form/'
             - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'

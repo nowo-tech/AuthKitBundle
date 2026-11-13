@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Provider brand marks on the social / SSO buttons (1.48)](#provider-brand-marks-on-the-social--sso-buttons-148)
 - [To 1.47.0](#to-1470)
   - [Identity columns matched byte for byte (MySQL / MariaDB)](#identity-columns-matched-byte-for-byte-mysql--mariadb)
 - [To 1.46.0](#to-1460)
@@ -124,6 +125,38 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### Provider brand marks on the social / SSO buttons (1.48)
+
+Nothing to do for a compliant button: an enabled `google`, `github` or `microsoft` credential now renders the
+provider's official mark next to the label on the login page, with no configuration and no template override. Run
+`php bin/console assets:install` if your deployment does not already run it (Flex does it on `composer install`) —
+the marks ship in the bundle's public assets, like its CSS.
+
+Two host-visible contracts changed:
+
+- **`social_links` / `sso_links`** of the login template are now `Nowo\AuthKitBundle\View\ProviderLink` instead of
+  `Nowo\UiKitBundle\View\Link`. `label` and `href` keep their names, so a template that prints `_link.label` /
+  `_link.href` keeps working. Code or a partial that type-hints `Link` calls `$providerLink->link()`.
+- **`invitation_social_providers`** rows carry an extra `mark` key (`?View\ProviderMark`).
+
+A host that overrode `security/login.html.twig` keeps its own markup and gets no mark; move the override to the new
+`nowo_auth_kit_provider_link` block (`_link` in scope, `{{ parent() }}` renders the compliant default) to get one.
+
+To replace or remove a mark — for instance to ship your own copy of a provider's artwork, or not to redistribute one:
+
+```yaml
+nowo_auth_kit:
+    profiles:
+        default:
+            social_login:
+                provider_marks:
+                    github: false
+                    google: { path: 'images/google-g.svg', on_white: true }
+```
+
+See [BRAND-MARKS.md](BRAND-MARKS.md) for the source and the trademark position of every shipped mark, and why no Apple
+mark is shipped.
 
 ## To 1.47.0
 

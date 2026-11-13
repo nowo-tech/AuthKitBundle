@@ -6,6 +6,7 @@ AuthKit can expose **Continue with …** buttons on the login page. Provider **c
 
 - [Tables](#tables)
 - [Configuration](#configuration)
+- [Brand marks on the buttons](#brand-marks-on-the-buttons)
 - [Seed credentials (example)](#seed-credentials-example)
 - [Security / routes](#security--routes)
 - [Callback handlers](#callback-handlers)
@@ -34,6 +35,9 @@ nowo_auth_kit:
                 pkce:                       # optional per-provider overrides (keys = credential provider)
                     google: true
                     my_idp: false
+                provider_marks:             # 1.48: brand mark per provider (unset = the mark the bundle ships)
+                    github: false           # false = no mark
+                    my_idp: 'images/idp.svg'
 ```
 
 - **`mode: enabled`** alone is not enough: the login UI only shows buttons when at least one **enabled** row exists in `auth_kit_social_credential` (start/check handlers redirect to login otherwise).
@@ -42,6 +46,17 @@ nowo_auth_kit:
 - **Profiles:** a link belongs to the user class of the profile that made it (unique `provider + provider_user_id + user_class`); see UPGRADING for the 1.31 index change.
 - **`require_verified_email`**: when true (default), linking or creating a local user requires the IdP to assert a verified email (`email_verified` / GitHub `verified`). Prevents account takeover via unverified provider emails.
 - **`pkce`**: map of provider → bool for [PKCE](https://datatracker.ietf.org/doc/html/rfc7636) (`S256`). When enabled, the start handler generates a `code_verifier`, keeps it in the session next to the OAuth `state`, sends `code_challenge` + `code_challenge_method=S256` to the authorize endpoint, and sends `code_verifier` in the token exchange (the client secret is still sent). Providers without an entry default to **enabled** for the built-in `google`, `github` and `microsoft` (all accept PKCE for confidential web clients) and **disabled** for custom providers, so an IdP that rejects unknown parameters keeps working until you opt in with `pkce: { my_idp: true }`. Keys are matched case-insensitively.
+
+## Brand marks on the buttons
+
+Since **1.48** every provider button carries the official brand mark of the provider, with no host template work:
+`google`, `github` and `microsoft` default to the artwork the bundle ships, any other provider to no mark. Google's
+branding guidelines *require* its "G" on the button, so this is a compliance matter, not decoration.
+
+`social_login.provider_marks` replaces or removes a mark per provider (`false` = no mark, a string = an asset path, a
+map = `path` / `package` / `on_white`). Which marks are shipped, where each file comes from, the trademark position of
+each one, why no Apple mark is shipped, and how the markup keeps the clear space, the colours and the accessible label
+are all in [BRAND-MARKS.md](BRAND-MARKS.md).
 
 ## Seed credentials (example)
 
@@ -162,5 +177,8 @@ Handlers are shared services: no per-request state on properties (FrankenPHP wor
 | `social_login_enabled` | Mode enabled **and** enabled credentials in DB |
 | `social_login_providers` | List of `SocialLoginCredential` |
 | `social_login_route` | Start route name |
+| `social_links` / `sso_links` | List of `View\ProviderLink` (1.48: `provider`, `label`, `href`, `mark`) |
 
-Override `templates/bundles/NowoAuthKitBundle/security/login.html.twig` to restyle the buttons.
+Override `templates/bundles/NowoAuthKitBundle/security/login.html.twig` to restyle the buttons, or — since 1.48 — only
+the block `nowo_auth_kit_provider_link` to decorate a single button without copying the providers loop (see
+[TEMPLATES.md](TEMPLATES.md)).

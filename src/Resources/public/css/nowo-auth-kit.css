@@ -62,8 +62,30 @@
 
 .nowo-auth-kit-providers__list a {
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   width: 100%;
+}
+
+/*
+ * Provider brand mark (1.48): a fixed square box the image is contained in, so the mark keeps its aspect ratio and
+ * is never stretched; being an <img>, no host rule can recolour it. The gap above and the padding below are the
+ * clear space the brand guidelines ask for around the mark.
+ */
+.nowo-auth-kit-providers__mark {
+  flex: 0 0 auto;
+  width: 1.125rem;
+  height: 1.125rem;
+  object-fit: contain;
+}
+
+/* Google requires its "G" on a white background, whatever colour the host gives the button. */
+.nowo-auth-kit-providers__mark--on-white {
+  box-sizing: content-box;
+  padding: 0.1875rem;
+  border-radius: 2px;
+  background-color: #fff;
 }
 
 /* QR challenge (desktop) */

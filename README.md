@@ -34,7 +34,7 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 - Registration with Doctrine persistence and password hashing
 - **Password reset** (link, code, or both) with pluggable notifier
 - **Magic login** (passwordless email link via Symfony `login_link`; optional CSRF confirm interstitial)
-- **Social login** (OAuth; see [SOCIAL-LOGIN.md](docs/SOCIAL-LOGIN.md))
+- **Social login** (OAuth; see [SOCIAL-LOGIN.md](docs/SOCIAL-LOGIN.md)) with the provider's official brand mark on every button out of the box (1.48; see [BRAND-MARKS.md](docs/BRAND-MARKS.md))
 - **Enterprise SSO (OIDC)** via social credentials + `enterpriseSso` flag (see [SSO.md](docs/SSO.md))
 - **QR phone login** (opt-in; see [QR-LOGIN.md](docs/QR-LOGIN.md))
 - **Invitations** (opt-in, 1.32): invite by e-mail instead of open registration (`registration_mode: invite_only`), hashed single-use expiring links, administration pages (list, invite, resend, revoke) on the UiKit scaffolds, acceptance on the registration form, Symfony Mailer delivery, audit events, grant SPI and purge command (see [INVITATIONS.md](docs/INVITATIONS.md))

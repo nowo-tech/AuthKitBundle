@@ -15,7 +15,6 @@ use Nowo\AuthKitBundle\Enum\QrLoginMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
-use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
@@ -1297,6 +1296,44 @@ final class Configuration implements ConfigurationInterface
                     ->useAttributeAsKey('provider')
                     ->normalizeKeys(false)
                     ->booleanPrototype()->end()
+                    ->defaultValue([])
+                ->end()
+                ->arrayNode('provider_marks')
+                    ->info('Per-provider brand mark of the login button, keyed by provider. Not listed: the mark the bundle ships for google / github / microsoft, none for any other provider. `false` (or an empty path) removes the mark; a string is the asset path of the host\'s own mark.')
+                    ->useAttributeAsKey('provider')
+                    ->normalizeKeys(false)
+                    ->arrayPrototype()
+                        ->beforeNormalization()
+                            ->always()
+                            ->then(static function (mixed $mark): array {
+                                if ($mark === false || $mark === null) {
+                                    return ['path' => null];
+                                }
+                                if (is_string($mark)) {
+                                    return ['path' => $mark];
+                                }
+                                if (!is_array($mark)) {
+                                    throw new InvalidArgumentException('A "nowo_auth_kit.*.social_login.provider_marks" entry is false (no mark), an asset path, or a map with "path", "package" and "on_white".');
+                                }
+
+                                return $mark;
+                            })
+                        ->end()
+                        ->children()
+                            ->scalarNode('path')
+                                ->info('Asset path of the mark (e.g. "images/my-idp.svg"). null: no mark for this provider, which also removes a built-in one.')
+                                ->defaultNull()
+                            ->end()
+                            ->scalarNode('package')
+                                ->info('Asset package holding the mark. null: the host\'s default package.')
+                                ->defaultNull()
+                            ->end()
+                            ->booleanNode('on_white')
+                                ->info('Render the mark on a white backdrop with clear space (Google requires its "G" on white). Not set: as the bundle ships it for a built-in provider, off for any other.')
+                                ->defaultNull()
+                            ->end()
+                        ->end()
+                    ->end()
                     ->defaultValue([])
                 ->end()
             ->end();

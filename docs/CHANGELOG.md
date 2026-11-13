@@ -108,6 +108,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.48.0 (adds public API and an asset, changes the type of two login template variables).
+See [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **Official provider brand marks on the social / SSO buttons** (`social_login.provider_marks`). The built-in
+  `google`, `github` and `microsoft` buttons now render the provider's own mark next to the label, with no host
+  template or configuration work: Google's branding guidelines *require* the standard colour "G" on the button and a
+  verification review can be failed without it. The marks are shipped as bundle assets
+  (`src/Resources/public/img/social/*.svg`, package `nowo_auth_kit`), byte for byte as each provider publishes them.
+  Per provider a host can replace the mark (`path`, `package`, `on_white`), give an asset path as a bare string, or
+  remove it with `false`. Any provider the bundle ships no mark for (including `apple`) renders as text only.
+  Provenance, the trademark position of each mark, and why no Apple artwork is shipped: [BRAND-MARKS.md](BRAND-MARKS.md).
+- `View\ProviderLink` (provider key, label, href, optional mark) and `View\ProviderMark` (asset path, package,
+  white-backdrop flag), plus `SocialLogin\ProviderMarkResolver` (stateless; built-in marks and the host overrides).
+  `ProviderLink::link()` hands back a plain UiKit `Link` for partials typed against it.
+- Twig block `nowo_auth_kit_provider_link` (inside `nowo_auth_kit_providers`, once per provider, `_link` in scope):
+  decorate or replace a single provider button without copying the providers loop.
+- `docs/BRAND-MARKS.md`.
+
+### Changed
+
+- `social_links` / `sso_links` of the login template carry `View\ProviderLink` instead of UiKit `View\Link`. A
+  template that prints `_link.label` / `_link.href` is unaffected (both keep their names); a host that type-hints
+  `Link` calls `_link.link()`. The invitation acceptance page's `invitation_social_providers` rows gain `mark`.
+- The provider button markup is now a mark plus a `<span class="nowo-auth-kit-providers__label">`: the mark is an
+  `<img>` (host CSS cannot recolour it) in a fixed square box with `object-fit: contain` (never distorted), decorative
+  (`alt=""`, `aria-hidden="true"`) so the accessible name stays the translated label, with clear space around it and a
+  white backdrop under the marks that require one.
+
 ## [1.47.0] - 2026-11-13
 
 Target: 1.47.0 (adds public API). See [UPGRADING](UPGRADING.md#to-1470).

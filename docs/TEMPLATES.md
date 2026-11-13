@@ -28,7 +28,7 @@ the host's own pages, not a page: it uses theme slots only (see [Widgets](#widge
 
 | Page | Template (`web_ui.templates.<page>`) | Scaffold | View model | Data blocks filled |
 | --- | --- | --- | --- | --- |
-| Sign in (`login`) | `security/login.html.twig` | `page/auth` | `AuthPage` (title `login.heading`, security error of the last attempt as `error`, form = form_login form, submit `login.submit`, links: magic link, QR, forgot password, register — each only when enabled) | `nowo_ui_auth_fields` (`_auth_page`: form errors + UiKit loop), `nowo_ui_auth_footer` (social / SSO providers before the links: `nowo_auth_kit_providers`) |
+| Sign in (`login`) | `security/login.html.twig` | `page/auth` | `AuthPage` (title `login.heading`, security error of the last attempt as `error`, form = form_login form, submit `login.submit`, links: magic link, QR, forgot password, register — each only when enabled) | `nowo_ui_auth_fields` (`_auth_page`: form errors + UiKit loop), `nowo_ui_auth_footer` (social / SSO providers before the links: `nowo_auth_kit_providers`, one button `nowo_auth_kit_provider_link`) |
 | Register (`register`) | `security/register.html.twig` | `page/auth` | `AuthPage` (`register.*`, link back to sign in) | `nowo_ui_auth_fields`, `nowo_ui_auth_actions` (`_registration_submit.html.twig`: disabled until the SlideToConfirm consent in `gate` mode) |
 | Reset request (`reset_request`) | `security/reset_request.html.twig` | `page/auth` | `AuthPage` (`reset.request.*`, intro = help; links: "I already have a code" when `password_reset.delivery` is `code` or `both`, back to sign in) | `nowo_ui_auth_fields` |
 | New password (`reset_password`) | `security/reset_password.html.twig` | `page/auth` | `AuthPage` (`reset.password.*`) | `nowo_ui_auth_fields` — password **and confirmation** (and CSRF) render before the submit button |
@@ -92,6 +92,7 @@ Blocks of `_auth_page.html.twig` (besides the UiKit data blocks):
 | `nowo_auth_kit_footer_before` | footer, before `page.links` | empty (login: providers; QR approve: Deny form) |
 | `auth_footer_extra` | footer, after `page.links` | empty (1.x block, kept) |
 | `nowo_auth_kit_providers` | login footer | social + SSO provider buttons (`btn_secondary` slot) |
+| `nowo_auth_kit_provider_link` (1.48) | inside `nowo_auth_kit_providers`, once per provider | one provider button: the brand mark (`<img>`, decorative) and the label. `_link` (`View\ProviderLink`: `provider`, `label`, `href`, `mark`) is in scope, so a host decorates a single provider without copying the providers loop; `{{ parent() }}` keeps the compliant default markup |
 
 1.x blocks that no longer exist on the default pages: `auth_panel_heading` (use `page.title` or override the UiKit
 auth scaffold), `auth_brand` (`web_ui.brand` / `AuthPage::brand`), `title` (`nowo_ui_document_title`), `auth_panel`

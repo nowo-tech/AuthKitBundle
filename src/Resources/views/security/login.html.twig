@@ -2,7 +2,9 @@
   Sign in (web_ui.templates.login) — @NowoUiKit/page/auth through _auth_page.html.twig. page (View\AuthPage): heading,
   security error of the last attempt, the form_login form (fields in form order: identifier, password, remember me,
   CSRF), submit, footer links (magic link, QR, forgot password, register). Social / SSO providers render in the
-  footer before the links (block nowo_auth_kit_providers; social_links / sso_links: list<View\Link>). With
+  footer before the links (block nowo_auth_kit_providers; social_links / sso_links: list<View\ProviderLink>, each
+  with provider, label, href and an optional brand mark; one button on its own is block
+  nowo_auth_kit_provider_link, with _link in scope). With
   multi_account (1.34) the accounts of this browser come first (accounts_switcher, masked identifiers).
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
@@ -24,7 +26,17 @@
                     <p class="{{ nowo_ui_class('muted', page.bundle) }} nowo-auth-kit-providers__heading">{{ _group.heading|trans({}, 'NowoAuthKitBundle') }}</p>
                     <ul class="nowo-auth-kit-providers__list">
                         {% for _link in _group.links %}
-                            <li><a class="{{ nowo_ui_class('btn_secondary', page.bundle) }}" href="{{ _link.href }}">{{ _link.label|nowo_ui_trans }}</a></li>
+                            <li>
+                                {%- block nowo_auth_kit_provider_link -%}
+                                    <a class="{{ nowo_ui_class('btn_secondary', page.bundle) }} nowo-auth-kit-providers__button" href="{{ _link.href }}"{% if _link.provider|default(null) %} data-nowo-auth-kit-provider="{{ _link.provider }}"{% endif %}>
+                                        {%- if _link.mark|default(null) -%}
+                                            {#- Decorative: the accessible name stays the button text. The mark is an image, so host CSS cannot recolour it, and `object-fit: contain` in a square box keeps its aspect ratio (brand guidelines). -#}
+                                            <img class="nowo-auth-kit-providers__mark{{ _link.mark.onWhite ? ' nowo-auth-kit-providers__mark--on-white' : '' }}" src="{{ asset(_link.mark.path, _link.mark.package) }}" width="18" height="18" alt="" aria-hidden="true">
+                                        {%- endif -%}
+                                        <span class="nowo-auth-kit-providers__label">{{ _link.label|nowo_ui_trans }}</span>
+                                    </a>
+                                {%- endblock -%}
+                            </li>
                         {% endfor %}
                     </ul>
                 </div>

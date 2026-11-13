@@ -30,6 +30,7 @@ use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\Pkce;
+use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
@@ -38,6 +39,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\AuthKitBundle\View\ProviderMark;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Nowo\UiKitBundle\View\Label;
 use Nowo\UiKitBundle\View\Link;
@@ -135,6 +137,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         private readonly ?LoggerInterface $logger = null,
         private readonly ?OAuth2Client $oauth2Client = null,
         private readonly ?SocialLoginStateStore $stateStore = null,
+        private readonly ProviderMarkResolver $marks = new ProviderMarkResolver(),
     ) {
     }
 
@@ -317,8 +320,8 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         $redirectUri = $this->urlGenerator->generate($profile->routes['social_login_check']['name'], ['provider' => $provider], UrlGeneratorInterface::ABSOLUTE_URL);
         /** @var array<string, bool> $pkceOverrides */
         $pkceOverrides = $profile->socialLogin['pkce'] ?? [];
-        $codeVerifier  = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
-        $state         = $this->stateStore->issue($provider, $codeVerifier);
+        $codeVerifier        = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
+        $state               = $this->stateStore->issue($provider, $codeVerifier);
         $session->set(self::SOCIAL_SESSION_KEY, [
             'profile'  => $profile->name,
             'provider' => $provider,
@@ -519,7 +522,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
     /**
      * The enabled social providers of the page (not the enterprise SSO ones), each with its CSRF form (1.42).
      *
-     * @return list<array{provider: string, label: Label, form: FormView}>
+     * @return list<array{provider: string, label: Label, mark: ?ProviderMark, form: FormView}>
      */
     private function socialProviders(ProfileSettings $profile, Invitation $invitation): array
     {
@@ -527,8 +530,10 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
             return [];
         }
         /** @var array{social: array{name: string}} $routes */
-        $routes    = $profile->invitations['routes'];
-        $providers = [];
+        $routes = $profile->invitations['routes'];
+        /** @var array<string, mixed> $markOverrides */
+        $markOverrides = $profile->socialLogin['provider_marks'] ?? [];
+        $providers     = [];
         foreach ($this->socialCredentials?->findEnabledOrdered() ?? [] as $credential) {
             if ($credential->isEnterpriseSso()) {
                 continue;
@@ -537,7 +542,9 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
             $providers[] = [
                 'provider' => $provider,
                 'label'    => new Label('invitation.page.social_continue', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => $credential->getLabel()]),
-                'form'     => $this->csrfForms()->createNamed(
+                // 1.48: the same brand mark as the login buttons (social_login.provider_marks).
+                'mark' => $this->marks->resolve($provider, $markOverrides),
+                'form' => $this->csrfForms()->createNamed(
                     $this->urlGenerator->generate($routes['social']['name'], ['provider' => $provider]),
                     self::socialCsrfTokenId($profile->name, $invitation->getPublicId()),
                 )->createView(),

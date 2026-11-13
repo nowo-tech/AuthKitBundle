@@ -106,6 +106,38 @@ final class PageContractTest extends PageContractTestCase
         self::assertCount(1, $withoutImage->filter('a[href="' . $payload . '"]'));
     }
 
+    /**
+     * 1.48: the built-in providers render the brand mark the bundle ships, as a decorative image whose accessible
+     * name stays the button text; a provider without a mark renders the plain button. A host gets a brand-compliant
+     * Google button without overriding the template.
+     */
+    public function testProviderButtonsCarryTheBrandMark(): void
+    {
+        $crawler = new Crawler($this->renderPage(new PageFixture(self::VIEWS . 'login.html.twig', AuthPageFixtures::login(false, true)))->html);
+
+        $google = $crawler->filter('[data-nowo-auth-kit-provider="google"]');
+        self::assertCount(1, $google);
+        self::assertSame('Continue with Google', trim($google->text()), 'The mark is decorative: the label stays the accessible name.');
+
+        $mark = $google->filter('img');
+        self::assertCount(1, $mark);
+        self::assertSame('/assets/img/social/google.svg', $mark->attr('src'));
+        self::assertSame('', $mark->attr('alt'));
+        self::assertSame('true', $mark->attr('aria-hidden'));
+        self::assertSame('18', $mark->attr('width'));
+        self::assertSame('18', $mark->attr('height'));
+        self::assertStringContainsString('nowo-auth-kit-providers__mark--on-white', (string) $mark->attr('class'));
+
+        $custom = $crawler->filter('[data-nowo-auth-kit-provider="my_idp"]');
+        self::assertCount(1, $custom);
+        self::assertCount(0, $custom->filter('img'));
+        self::assertSame('Continue with My IdP', trim($custom->text()));
+
+        $sso = $crawler->filter('[data-nowo-auth-kit-region="sso"] [data-nowo-auth-kit-provider="okta"]');
+        self::assertCount(1, $sso);
+        self::assertCount(0, $sso->filter('img'));
+    }
+
     protected static function templatePaths(): array
     {
         return ['NowoAuthKitBundle' => dirname(__DIR__, 3) . '/src/Resources/views'];
