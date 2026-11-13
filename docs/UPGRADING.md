@@ -4,7 +4,7 @@
 
 - [Unreleased](#unreleased)
   - [Extra authorization parameters (1.48)](#extra-authorization-parameters-148)
-  - [Schema: replace the generated migration (1.48) — required on MySQL / MariaDB](#schema-replace-the-generated-migration-148--required-on-mysql--mariadb)
+  - [Schema: write the migration by hand (1.48) — required on MySQL / MariaDB](#schema-write-the-migration-by-hand-148--required-on-mysql--mariadb)
   - [An extra parameter embedded in `authorize_url` (1.48)](#an-extra-parameter-embedded-in-authorize_url-148)
   - [The account chooser on google and microsoft (`prompt=select_account`, 1.48)](#the-account-chooser-on-google-and-microsoft-promptselect_account-148)
   - [Provider brand marks on the social / SSO buttons (1.48)](#provider-brand-marks-on-the-social--sso-buttons-148)
@@ -141,41 +141,77 @@ that would carry a whole request of their own (`request`, `request_uri`, `respon
 configuration refuses them at compile time, `setAuthorizationParams()` throws, and a value written straight into the
 database row is ignored. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#extra-authorization-parameters).
 
-### Schema: replace the generated migration (1.48) — required on MySQL / MariaDB
+### Schema: write the migration by hand (1.48) — required on MySQL / MariaDB
 
-The credential table gains one column, `auth_kit_social_credential.authorization_params`. **Do not ship the migration
-`doctrine:migrations:diff` generates for it unchanged.** Diff emits one statement:
+The credential table gains one column, `auth_kit_social_credential.authorization_params`.
+
+**Write the migration by hand, as you do for this bundle's other tables.** That is the standing practice, not a
+workaround for this column: the bundle's tables live outside your ORM metadata, so `doctrine:migrations:diff` also
+proposes destructive, unrelated changes for them — hosts have seen it offer two hundred lines including
+`DROP TABLE messenger_messages`. Never ship its output for these tables unreviewed.
+
+For this column specifically, the single statement `diff` generates is wrong on a table that already has rows:
 
 ```sql
--- WRONG on a table that already has rows:
+-- WRONG on a non-empty table:
 ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL;
 ```
 
-On PostgreSQL that statement is refused outright, so you cannot get it wrong. On **MySQL and MariaDB it succeeds and
-leaves the existing rows holding a value that is not a JSON object** — the JSON scalar `null` on MySQL 8, the empty
-string on MariaDB (which slips past `CHECK (json_valid(…))`, because `ALTER` does not re-validate existing rows).
-Since 1.48 the entity tolerates such a row and reads it as an empty map, so the page stays up, but those rows still
-carry a value you did not intend and the column is not really populated. Replace the generated body with the three
-steps below:
+PostgreSQL refuses it outright, so you cannot get it wrong there. On **MySQL and MariaDB it succeeds** and leaves the
+existing rows holding a value that is not a JSON object: the JSON scalar `null` on MySQL 8, and the **empty string** on
+MariaDB (which slips past `CHECK (json_valid(…))`, because `ALTER` does not re-validate existing rows). Since 1.48 the
+entity reads such a row as an empty map, so the login and invitation pages stay up, but the column is not really
+populated. Use this instead:
 
 ```sql
 -- MySQL / MariaDB (a JSON NOT NULL column cannot carry a literal default, so add, backfill, then tighten):
 ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NULL;
-UPDATE auth_kit_social_credential SET authorization_params = '{}' WHERE authorization_params IS NULL OR NOT JSON_VALID(authorization_params);
+UPDATE auth_kit_social_credential SET authorization_params = '[]' WHERE authorization_params IS NULL;
 ALTER TABLE auth_kit_social_credential MODIFY authorization_params JSON NOT NULL;
 ```
 
 ```sql
 -- PostgreSQL:
-ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL DEFAULT '{}';
+ALTER TABLE auth_kit_social_credential ADD authorization_params JSON NOT NULL DEFAULT '[]';
 ALTER TABLE auth_kit_social_credential ALTER COLUMN authorization_params DROP DEFAULT;
 ```
 
-If you already ran the generated statement, run the `UPDATE` above on its own: it repairs the rows.
+#### The document shape, pinned
 
-The same shape applies to the older `scopes` column of that table (`JSON NOT NULL`): it has always been created with
-the table rather than added by an `ALTER`, but since 1.48 it is read with the same tolerance, so a host that added it
-by hand as nullable is no longer at risk either.
+**An empty map is stored as `[]`**, because that is what the bundle itself writes: Doctrine's `json` type encodes the
+PHP empty array as the JSON array `[]`. A map with entries is a JSON object
+(`{"prompt":"select_account"}`), and both `[]` and `{}` decode back to an empty PHP array, so `{}` is read correctly —
+it is simply not what the bundle writes. Backfill with `'[]'` and a repaired row is indistinguishable from one the
+bundle wrote itself. The same holds for the older `scopes` column (a JSON array, empty as `[]`).
+
+#### Repairing rows if you already ran the generated statement
+
+This statement is **idempotent** (safe to run twice) and **scoped to exactly the three states the bad `ALTER` can
+leave**, so it cannot touch a row that this or a later version wrote legitimately:
+
+```sql
+UPDATE auth_kit_social_credential
+   SET authorization_params = '[]'
+ WHERE authorization_params IS NULL
+    OR CAST(authorization_params AS CHAR) IN ('', 'null');
+```
+
+- `IS NULL` — the column added as nullable (by hand, or by a `diff` you adjusted).
+- `''` — **the MariaDB case.** A repair that only tests `IS NULL` misses it, because MariaDB fills the existing rows
+  with the empty string, not with SQL `NULL` and not with JSON `null`.
+- `'null'` — the MySQL 8 case, the JSON scalar `null`. The `CAST(… AS CHAR)` comparison is deliberate: `JSON_TYPE()`
+  raises an error on the MariaDB empty string, and SQL does not promise you left-to-right `OR` evaluation to protect
+  you from it.
+
+Rows holding `[]`, `{}` or real parameters match none of those predicates and are left alone.
+
+A row left as SQL `NULL` is **harmless at read time** — the entity reads it as an empty map, which is why the pages
+stay up — but rewrite it anyway: the mapping declares the column `NOT NULL`, so a later `MODIFY … NOT NULL` (or a
+schema validation) fails while such a row exists.
+
+The older `scopes` column of the same table has the identical `JSON NOT NULL` shape. It has always been created with
+the table rather than added by an `ALTER`, so no host should have a bad row in it; since 1.48 it is read with the same
+tolerance, so a host that did add it by hand as nullable is no longer at risk either.
 
 ### An extra parameter embedded in `authorize_url` (1.48)
 

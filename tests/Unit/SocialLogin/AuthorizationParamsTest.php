@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\SocialLogin;
 
+use Doctrine\DBAL\Platforms\MySQL80Platform;
+use Doctrine\DBAL\Types\Type;
+use Doctrine\DBAL\Types\Types;
 use InvalidArgumentException;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
@@ -336,6 +339,24 @@ final class AuthorizationParamsTest extends TestCase
         $params = $this->query($this->client()->buildAuthorizeUrl($credential, 'https://app.test/cb', 'st'));
         self::assertSame('select_account', $params['prompt']);
         self::assertSame('openid email profile', $params['scope']);
+    }
+
+    /**
+     * The document shape UPGRADING pins for the repair `UPDATE`: an empty map is stored as the JSON array `[]`,
+     * because that is what Doctrine's `json` type writes for a PHP empty array — so a repaired row is
+     * indistinguishable from one the bundle wrote. `{}` and `[]` both read back as an empty map; SQL NULL reads back
+     * as PHP null, which is why the properties are nullable (audit M-1).
+     */
+    public function testEmptyMapIsStoredAsAJsonArray(): void
+    {
+        $type     = Type::getType(Types::JSON);
+        $platform = new MySQL80Platform();
+
+        self::assertSame('[]', $type->convertToDatabaseValue([], $platform));
+        self::assertSame('{"prompt":"select_account"}', $type->convertToDatabaseValue(['prompt' => 'select_account'], $platform));
+        self::assertSame([], $type->convertToPHPValue('[]', $platform));
+        self::assertSame([], $type->convertToPHPValue('{}', $platform));
+        self::assertNull($type->convertToPHPValue(null, $platform));
     }
 
     /**

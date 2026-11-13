@@ -120,14 +120,17 @@ authorization request of the built-in google / microsoft providers). See [UPGRAD
   where they did not before. To restore the previous behaviour, remove the parameter per provider with a `null` value
   (`authorization_params: { google: { prompt: ~ } }`). Custom providers are unaffected.
   See [UPGRADING](UPGRADING.md#the-account-chooser-on-google-and-microsoft-promptselect_account-148).
-- **The migration for the new `authorization_params` column must not be the one `doctrine:migrations:diff` generates.**
-  Its single `ALTER TABLE … ADD authorization_params JSON NOT NULL` is refused by PostgreSQL but **succeeds on MySQL and
-  MariaDB**, leaving the existing rows holding the JSON scalar `null` (MySQL) or the empty string (MariaDB), which is
-  not a JSON object and is not re-validated by the `ALTER`. Replace the generated body with the add / backfill /
-  tighten steps in [UPGRADING](UPGRADING.md#schema-replace-the-generated-migration-148--required-on-mysql--mariadb);
-  if you already ran it, the `UPDATE` there repairs the rows. The entity now reads such a row as an empty map instead
-  of raising a `TypeError` while hydrating, so the login and invitation pages stay up either way (the social gate is
-  consulted on every render); `scopes` is read with the same tolerance.
+- **Write the migration for the new `authorization_params` column by hand** (as for this bundle's other tables, whose
+  `doctrine:migrations:diff` output also proposes destructive unrelated changes because they sit outside the host's ORM
+  metadata). The single `ALTER TABLE … ADD authorization_params JSON NOT NULL` that `diff` generates is refused by
+  PostgreSQL but **succeeds on MySQL and MariaDB**, leaving the existing rows holding the JSON scalar `null` (MySQL) or
+  the empty string (MariaDB) — not a JSON object, and not re-validated by the `ALTER`. The add / backfill / tighten
+  steps, the pinned document shape (an empty map is `[]`, which is what the bundle itself writes) and an idempotent
+  repair `UPDATE` scoped to exactly the states the bad `ALTER` leaves — `NULL`, the MariaDB empty string and the MySQL
+  JSON `null` — are in
+  [UPGRADING](UPGRADING.md#schema-write-the-migration-by-hand-148--required-on-mysql--mariadb). The entity now reads
+  such a row as an empty map instead of raising a `TypeError` while hydrating, so the login and invitation pages stay
+  up either way (the social gate is consulted on every render); `scopes` is read with the same tolerance.
 - **A parameter embedded in a credential's `authorize_url` is no longer repeated.** That was the only pre-1.48 way to
   send one (`…/auth?prompt=consent`), and appending ours next to it would repeat the parameter, which RFC 6749 §3.1
   forbids and which Google and Entra answer with `invalid_request` — i.e. sign-in would break on upgrade with no
