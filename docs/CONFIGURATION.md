@@ -33,6 +33,7 @@
 - [Rate-limit counters (attempt_limiter)](#rate-limit-counters-attempt_limiter)
 - [Personal data (personal_data)](#personal-data-personal_data)
 - [Post-login target and expired-session 401](#post-login-target-and-expired-session-401)
+- [Identifier normaliser (identifier_normalizer)](#identifier-normaliser-identifier_normalizer)
 - [Admin CLI (create-admin)](#admin-cli-create-admin)
 - [Templates](#templates)
   - [FormKit profile (`auth_kit`)](#formkit-profile-auth_kit)
@@ -817,6 +818,31 @@ nowo_auth_kit:
 ```
 
 Every option, the default deny lists, host voters and the front-end snippet: [LOGIN-TARGET.md](LOGIN-TARGET.md).
+
+## Identifier normaliser (identifier_normalizer)
+
+Since 1.48.0. Root option (all profiles).
+
+```yaml
+nowo_auth_kit:
+    identifier_normalizer: ~   # ~ / exact (default) | lowercase_ascii_email | <service id>
+```
+
+| Value | Normaliser | Effect |
+|-------|------------|--------|
+| `~` (default), `exact` | `Identity\ExactIdentifierNormalizer` | Refuses unusable values (empty, invalid UTF-8, edge white space, control / format / separator characters, more than 1024 characters); every other value unchanged. Same lookups as 1.47.0. |
+| `lowercase_ascii_email` | `Identity\LowercaseAsciiEmailIdentifierNormalizer` | The above, then lower-cases `A`-`Z` of a value with exactly one `@` and text on both sides. No Unicode case folding, no accent stripping. Needs lower-case stored identifiers (UPGRADING "To 1.48.0"). |
+| a service id | your `Identity\UserIdentifierNormalizerInterface` | `normalize(string $raw): ?string`, null = refused. The build fails when the service does not implement it. |
+
+An application alias of `Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface` wins over the option.
+
+Applied before every lookup by identifier: password sign-in (the AuthKit login form's `login_form[_username]`, replaced
+at `kernel.request` priority 16 before the firewall, so the user provider and login throttling see it), magic login,
+password reset request and code, social e-mail match, QR completion, MFA admin reset, admin creation. Host lookup
+adapters (`UserDirectoryInterface` / `UserLookupInterface`) receive the normalised identifier. Accounts AuthKit creates
+(registration, invitation, admin, social) store the normalised form. Use `lowercase_ascii_email` (or your own) to move
+the identifier column to a binary collation (`utf8mb4_0900_bin`): recipe in
+[UPGRADING](UPGRADING.md#moving-the-identifier-column-to-a-binary-collation).
 
 ## Admin CLI (create-admin)
 

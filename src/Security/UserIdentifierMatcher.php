@@ -6,6 +6,8 @@ namespace Nowo\AuthKitBundle\Security;
 
 use Doctrine\Persistence\ObjectRepository;
 use Normalizer;
+use Nowo\AuthKitBundle\Identity\ExactIdentifierNormalizer;
+use Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
@@ -22,6 +24,10 @@ use function mb_strtolower;
  * The database comparison may be accent- and case-insensitive (MySQL utf8mb4_0900_ai_ci, MariaDB *_unicode_ci, ...):
  * without this check `victim@exámple.com` (an IDN domain the attacker owns) resolves to `victim@example.com`, and the
  * magic / reset link of the victim is mailed to the look-alike address (account takeover).
+ *
+ * 1.48.0: the typed identifier first goes through the {@see UserIdentifierNormalizerInterface} (default: refuse unusable
+ * values, change nothing else); the query and the re-check use its result, so a host can move the identifier column to
+ * a binary collation. Stateless (worker safe).
  */
 final class UserIdentifierMatcher
 {
@@ -30,9 +36,35 @@ final class UserIdentifierMatcher
 
     private readonly PropertyAccessorInterface $propertyAccessor;
 
-    public function __construct(?PropertyAccessorInterface $propertyAccessor = null)
+    private readonly UserIdentifierNormalizerInterface $normalizer;
+
+    public function __construct(?PropertyAccessorInterface $propertyAccessor = null, ?UserIdentifierNormalizerInterface $normalizer = null)
     {
         $this->propertyAccessor = $propertyAccessor ?? PropertyAccess::createPropertyAccessor();
+        $this->normalizer       = $normalizer ?? new ExactIdentifierNormalizer();
+    }
+
+    /** 1.48.0: the identifier to look up, or null when the configured normaliser refuses it. */
+    public function normalizeInput(string $identifier): ?string
+    {
+        return $identifier === '' ? null : $this->normalizer->normalize($identifier);
+    }
+
+    /**
+     * 1.48.0: stores the normalised form of the identifier of an account AuthKit creates (registration, invitation,
+     * admin, social), when the normaliser changes it. A refused or unreadable value is left as it is.
+     */
+    public function normalizeStored(object $user, string $field): void
+    {
+        $stored = $this->storedIdentifier($user, $field);
+        if ($stored === null || !$this->propertyAccessor->isWritable($user, $field)) {
+            return;
+        }
+        $normalized = $this->normalizer->normalize($stored);
+        if ($normalized !== null && $normalized !== $stored) {
+            // @igor-ignore - Writes the property of the new user object, not of the stateless accessor.
+            $this->propertyAccessor->setValue($user, $field, $normalized);
+        }
     }
 
     /**
@@ -44,7 +76,8 @@ final class UserIdentifierMatcher
      */
     public function find(ObjectRepository $repository, string $field, string $identifier): ?object
     {
-        if ($identifier === '') {
+        $identifier = $this->normalizeInput($identifier);
+        if ($identifier === null) {
             return null;
         }
 
@@ -60,9 +93,10 @@ final class UserIdentifierMatcher
     /** Whether the identifier stored on `$user` (property `$field`) equals `$identifier` (NFC, case-insensitive). */
     public function matches(object $user, string $field, string $identifier): bool
     {
-        $stored = $this->storedIdentifier($user, $field);
+        $stored     = $this->storedIdentifier($user, $field);
+        $identifier = $this->normalizeInput($identifier);
 
-        return $stored !== null && self::normalize($stored) === self::normalize($identifier);
+        return $stored !== null && $identifier !== null && self::normalize($stored) === self::normalize($identifier);
     }
 
     /**
@@ -72,9 +106,10 @@ final class UserIdentifierMatcher
      */
     public function matchesUser(UserInterface $user, string $field, string $identifier): bool
     {
-        $stored = $this->storedIdentifier($user, $field) ?? $user->getUserIdentifier();
+        $stored     = $this->storedIdentifier($user, $field) ?? $user->getUserIdentifier();
+        $identifier = $this->normalizeInput($identifier);
 
-        return self::normalize($stored) === self::normalize($identifier);
+        return $identifier !== null && self::normalize($stored) === self::normalize($identifier);
     }
 
     /** The identifier as stored on the user (the address notifiers must use), or null when unreadable. */

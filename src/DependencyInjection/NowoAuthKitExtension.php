@@ -26,6 +26,9 @@ use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Identity\ExactIdentifierNormalizer;
+use Nowo\AuthKitBundle\Identity\LowercaseAsciiEmailIdentifierNormalizer;
+use Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
@@ -304,6 +307,13 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         if (is_string($resolverServiceId) && $resolverServiceId !== '') {
             $container->setAlias(RecipientLocaleResolverInterface::class, $resolverServiceId);
         }
+
+        // 1.48.0: identifier normaliser (an application alias of the interface wins over this one).
+        $container->setAlias(UserIdentifierNormalizerInterface::class, match ($config['identifier_normalizer'] ?? null) {
+            null, 'exact'           => ExactIdentifierNormalizer::class,
+            'lowercase_ascii_email' => LowercaseAsciiEmailIdentifierNormalizer::class,
+            default                 => (string) $config['identifier_normalizer'],
+        })->setPublic(false);
 
         $checkerServiceId = $config['outbound_mail_ready_checker'];
         if (is_string($checkerServiceId) && $checkerServiceId !== '') {

@@ -3,6 +3,11 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.48.0](#to-1480)
+  - [Identifier normaliser (default unchanged)](#identifier-normaliser-default-unchanged)
+  - [Moving the identifier column to a binary collation](#moving-the-identifier-column-to-a-binary-collation)
+  - [Throttling, MFA and LoginThrottleBundle](#throttling-mfa-and-loginthrottlebundle)
+  - [Writing your own normaliser](#writing-your-own-normaliser)
 - [To 1.47.0](#to-1470)
   - [Identity columns matched byte for byte (MySQL / MariaDB)](#identity-columns-matched-byte-for-byte-mysql--mariadb)
 - [To 1.46.0](#to-1460)
@@ -124,6 +129,137 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.48.0
+
+From **1.47.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+Nothing to change: the default identifier normaliser keeps the 1.47.0 behaviour. Read on if you want to move your
+identifier column (`user.email`) to a binary collation.
+
+### Identifier normaliser (default unchanged)
+
+Every identifier AuthKit looks a user up by now goes through `Identity\UserIdentifierNormalizerInterface` first:
+password sign-in (the AuthKit login form, before the firewall), magic login, password reset request and code, social
+e-mail match, QR completion, MFA admin reset and admin creation. Accounts AuthKit creates (registration, invitation,
+admin, social) store the normalised form.
+
+Why the default changes nothing: AuthKit queries the identifier **as typed**, so a folding column (MySQL
+`utf8mb4_0900_ai_ci` / `utf8mb4_unicode_ci`, MariaDB `*_general_ci`) returns the stored `Bob@x` for the typed `bob@x`.
+The exact re-check that follows (`UserIdentifierMatcher`) compares the **stored** identifier with the typed one **after
+NFC + lower-casing both**, not byte for byte, so it accepts that row. The default normaliser (`exact`) returns usable
+values unchanged, so the query and the re-check see exactly what they saw in 1.47.0. Hosts that store mixed-case
+identifiers keep working.
+
+The default refuses (finds no user, sends no query) an identifier with a control or format character (ZWSP, BOM, bidi
+marks), edge white space, invalid UTF-8 or more than 1024 characters. Those values could not match through the re-check
+before either, except a stored identifier that itself contains such characters: such an account no longer receives a
+magic link or a reset e-mail. Password sign-in leaves those values to your user provider as before.
+
+### Moving the identifier column to a binary collation
+
+With a binary collation (`utf8mb4_0900_bin`, REQ-SEC-004) the database compares byte for byte: the typed `Bob@x` no
+longer finds the stored `bob@x`, at sign-in included. Opt in to `lowercase_ascii_email` **before** the ALTER:
+
+```yaml
+# config/packages/nowo_auth_kit.yaml
+nowo_auth_kit:
+    identifier_normalizer: lowercase_ascii_email   # or the id of your own UserIdentifierNormalizerInterface service
+```
+
+It lower-cases the ASCII letters `A`-`Z` of a value with exactly one `@` and text on both sides, and changes nothing
+else: no Unicode case folding, no accent stripping, no trimming. `josÉ@x` stays apart from `josé@x`, `AdminUser` (not an
+e-mail) stays as typed. It is safe on the folding column too (the lower-cased value still folds to the same row), so the
+order below works without downtime.
+
+**Precondition: every stored e-mail identifier is already in normalised form** (no ASCII capital letter). The
+normaliser lower-cases what people type; a row stored as `Bob@x` would no longer be found once the column is binary, and
+two rows `Bob@x` and `bob@x` would be one person for the normaliser. Steps for MySQL 8.0+ / MariaDB 10.6+ (table
+`user`, column `email`; adapt the names):
+
+1. Deploy 1.48.0 with `identifier_normalizer: lowercase_ascii_email`.
+2. **Collisions** — accounts the normaliser would make one. Must return no row; otherwise merge or rename those accounts
+   by hand first. It may also list Unicode case variants (`JOSÉ@x` / `josé@x`) that the ASCII normaliser keeps apart;
+   review them.
+
+   ```sql
+   SELECT LOWER(email) COLLATE utf8mb4_bin AS normalised, COUNT(*) AS accounts
+   FROM user
+   GROUP BY LOWER(email) COLLATE utf8mb4_bin
+   HAVING COUNT(*) > 1;
+   ```
+
+3. **Detection** — the e-mail identifiers not in normalised form (an ASCII capital letter, exactly one `@`):
+
+   ```sql
+   SELECT email
+   FROM user
+   WHERE email COLLATE utf8mb4_bin REGEXP '[A-Z]'
+     AND email LIKE '_%@_%' AND email NOT LIKE '%@%@%';
+   ```
+
+4. **Fix** the pure-ASCII rows (bytes = characters; SQL `LOWER()` would also lower-case non-ASCII letters, which the
+   normaliser keeps):
+
+   ```sql
+   UPDATE user
+   SET email = LOWER(email)
+   WHERE email COLLATE utf8mb4_bin REGEXP '[A-Z]'
+     AND email LIKE '_%@_%' AND email NOT LIKE '%@%@%'
+     AND CHAR_LENGTH(email) = LENGTH(email);
+   ```
+
+   Run step 3 again. Any row left contains non-ASCII characters: set it by hand to the normaliser's result (only `A`-`Z`
+   lower-cased, e.g. `JOSÉ@Example.com` → `josÉ@example.com`), or with
+   `(new LowercaseAsciiEmailIdentifierNormalizer())->normalize($email)` in a one-off script. Step 3 must return no row.
+5. **Your own write paths** must store the normalised form from now on (profile e-mail change, imports, your own
+   registration): call the `UserIdentifierNormalizerInterface` service, or lower-case `A`-`Z` in the entity setter.
+   AuthKit's own creation paths already do it.
+6. **ALTER** the column (keep its length, nullability and indexes; MariaDB has no `utf8mb4_0900_bin`, use
+   `utf8mb4_nopad_bin`):
+
+   ```sql
+   -- MySQL 8.0+
+   ALTER TABLE user MODIFY email VARCHAR(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL;
+   -- MariaDB
+   ALTER TABLE user MODIFY email VARCHAR(180) CHARACTER SET utf8mb4 COLLATE utf8mb4_nopad_bin NOT NULL;
+   ```
+
+   Declare the collation on the mapping so `doctrine:migrations:diff` keeps it:
+   `#[ORM\Column(length: 180, options: ['collation' => 'utf8mb4_0900_bin'])]`.
+7. Check: sign in as `Bob@Example.COM` for the stored `bob@example.com`.
+
+PostgreSQL compares exactly already (deterministic collation): run steps 1 to 5 with `email ~ '[A-Z]'` instead of the
+`REGEXP` condition, `GROUP BY LOWER(email)` and `OCTET_LENGTH(email)` instead of `LENGTH(email)`; there is no ALTER.
+SQLite compares exactly unless the column is declared `NOCASE`: fix the rows with a one-off script using the normaliser.
+
+These exact statements (MySQL 8.4, MariaDB 11.4, PostgreSQL 17) run in
+`tests/Integration/LookAlike/IdentifierNormalizerKernelTest::testTheBinaryCollationMigrationRecipe()`.
+
+### Throttling, MFA and LoginThrottleBundle
+
+- **Password sign-in throttling** reads the identifier after the normaliser (the AuthKit form value is replaced at
+  `kernel.request` priority 16, before the firewall at 8): Symfony `login_throttling` and LoginThrottleBundle count
+  `Bob@x` and `bob@x` as one user. Both already lower-case the username for their keys (LoginThrottleBundle database
+  storage also trims), so nothing changes for them. A host listener that reads `login_form[_username]` at a priority
+  above 16 sees the raw value.
+- **Magic login / reset request limits** are per client IP and device, not per identifier: unchanged. The **reset-code
+  attempt key** is the stored identifier of the resolved account (else the NFC + lower-cased input): unchanged.
+- **MFA owners** come from the loaded user (its id, or `getUserIdentifier()` for users that are not Doctrine entities),
+  never from the typed value: unchanged. Since 1.47.0 `getUserIdentifier()` must return the stored value; with the
+  normaliser and a binary column the stored value is the normalised one.
+
+### Writing your own normaliser
+
+Implement `Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface` and set `identifier_normalizer: <service id>`
+(or alias the interface). Rules: return null to refuse; be idempotent; never map two values that can belong to two
+stored accounts to the same result (no accent stripping, no Unicode case folding, no `+tag` removal unless your store
+enforces it); keep it stateless (one instance serves every request of a FrankenPHP worker). Host lookup adapters
+(`UserDirectoryInterface` / `UserLookupInterface`) receive the normalised identifier.
 
 ## To 1.47.0
 

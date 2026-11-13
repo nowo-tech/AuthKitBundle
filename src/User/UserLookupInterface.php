@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\User;
 
+use Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -21,7 +22,8 @@ interface UserLookupInterface
      * The user whose STORED identifier equals `$identifier` after Unicode NFC normalisation and lower-casing, never a
      * collation look-alike (SEC-004 H1, see {@see UserIdentifierMatcher}); null when no user or MORE THAN ONE user
      * matches (case variants on a case-sensitive store). Must return fresh state (long-lived workers: bans and
-     * identifier changes apply). Social linking and QR completion re-check the stored identifier.
+     * identifier changes apply). Social linking and QR completion re-check the stored identifier. 1.48.0: AuthKit passes
+     * `$identifier` normalised by {@see UserIdentifierNormalizerInterface}.
      */
     public function findByIdentifier(ProfileSettings $profile, string $identifier): ?UserInterface;
 

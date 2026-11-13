@@ -15,6 +15,7 @@
 - [Registration flow](#registration-flow)
 - [Invitation flow](#invitation-flow)
 - [Login flow](#login-flow)
+  - [Identifiers and binary collations (1.48)](#identifiers-and-binary-collations-148)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
   - [Enable](#enable)
   - [Render in Twig](#render-in-twig)
@@ -221,6 +222,38 @@ Full example: [INVITATIONS.md — Host with its own invitation UI](INVITATIONS.m
 2. Controller renders the form; POST is handled by Symfony `form_login` on the firewall.
 3. CSRF token id: `authenticate` (Symfony default).
 4. Optional device intelligence: layout `collect()` does not change the login form. After `LoginSuccess`, `new_device_notify` may set session `nowo_auth_kit.new_device` and call `NewDeviceLoginNotifierInterface`. Device ID is not a credential.
+
+### Identifiers and binary collations (1.48)
+
+AuthKit looks users up by the identifier the person types (sign-in, magic link, reset, social e-mail, QR, MFA admin).
+On a folding column (`utf8mb4_0900_ai_ci`) `Bob@Example.com` finds `bob@example.com`; on a binary one
+(`utf8mb4_0900_bin`, REQ-SEC-004) it does not. To use a binary column, store e-mails lower-cased and set:
+
+```yaml
+nowo_auth_kit:
+    identifier_normalizer: lowercase_ascii_email
+```
+
+The typed value is then lower-cased (ASCII letters of e-mail addresses only) before every lookup, and the accounts
+AuthKit creates are stored that way. Your own write paths (profile e-mail change, imports) must do the same; inject the
+port:
+
+```php
+use Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface;
+
+final class ChangeEmail
+{
+    public function __construct(private UserIdentifierNormalizerInterface $identifiers) {}
+
+    public function __invoke(User $user, string $email): void
+    {
+        $user->setEmail($this->identifiers->normalize($email) ?? throw new \InvalidArgumentException('Unusable e-mail.'));
+    }
+}
+```
+
+Migration of an existing table (detection queries, fix, ALTER): [UPGRADING](UPGRADING.md#moving-the-identifier-column-to-a-binary-collation).
+Options: [CONFIGURATION](CONFIGURATION.md#identifier-normaliser-identifier_normalizer).
 
 ## Embedded login/register (dropdown)
 

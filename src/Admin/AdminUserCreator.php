@@ -9,6 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
 use Nowo\AuthKitBundle\User\DuplicateUserException;
@@ -56,6 +57,7 @@ final class AdminUserCreator
         ?UserFactoryInterface $userFactory = null,
         ?UserWriterInterface $userWriter = null,
         ?UserLookupInterface $userLookup = null,
+        private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
     ) {
         $this->userFactory = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
         $this->userWriter  = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery);
@@ -84,6 +86,8 @@ final class AdminUserCreator
         $profile = $this->profile($profileName);
 
         $user = $this->userFactory->create($profile, NewUser::forAdmin($identifier, $plainPassword, $roles));
+        // 1.48.0: stored in the form lookups use (identifier_normalizer); unchanged with the default normaliser.
+        $this->identifierMatcher->normalizeStored($user, $profile->userIdentifierField);
 
         $this->eventDispatcher?->dispatch(new AdminUserCreatingEvent($user, $profile->name));
 
