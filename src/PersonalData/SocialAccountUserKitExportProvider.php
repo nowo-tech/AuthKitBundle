@@ -50,7 +50,8 @@ final readonly class SocialAccountUserKitExportProvider implements PersonalDataE
         if (!$user instanceof UserInterface || !$profile instanceof ProfileSettings) {
             return [];
         }
-        $owner      = $this->owners->resolve($user);
+        // 1.47.0 (audit OG-4): also a reference refused since REQ-SEC-006, for links stored under it before.
+        $owner      = $this->owners->personalDataOwner($user);
         $identifier = $user->getUserIdentifier();
         $subjects   = [];
         try {

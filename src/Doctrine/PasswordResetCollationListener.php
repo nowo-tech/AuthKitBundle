@@ -43,7 +43,7 @@ final readonly class PasswordResetCollationListener
     }
 
     /**
-     * REQ-SEC-006 item 8 (1.46.1): `utf8mb4_bin` is chosen for MySQL 5.7, and also when `server_version` lacks the patch
+     * REQ-SEC-006 item 8 (1.47.0): `utf8mb4_bin` is chosen for MySQL 5.7, and also when `server_version` lacks the patch
      * number (`8`, `8.0`: Doctrine then cannot pick the MySQL 8 platform). It still ignores trailing spaces, so the
      * fallback is logged with the fix.
      */

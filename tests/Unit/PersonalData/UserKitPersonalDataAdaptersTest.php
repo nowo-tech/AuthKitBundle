@@ -183,6 +183,11 @@ final class UserKitPersonalDataAdaptersTest extends TestCase
         $provider->export(new TestUser(str_repeat('a', 300)));
         self::assertSame([], $port->calls);
         self::assertSame([], $provider->export(new stdClass()));
+
+        // OG-4 (1.47.0): an identifier refused as an MFA key since REQ-SEC-006 is still exported, byte for byte.
+        $port->calls = [];
+        $provider->export(new TestUser('alice '));
+        self::assertSame([[TestUser::class, 'alice ', false]], $port->calls);
     }
 
     /**

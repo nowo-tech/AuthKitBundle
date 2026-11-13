@@ -293,6 +293,7 @@ mfa:
         expired: De verificatie duurde te lang. Log opnieuw in.
         locked_out: Te veel onjuiste codes. Wacht een paar minuten en log opnieuw in.
         too_many_attempts: Te veel onjuiste codes. Log opnieuw in.
+        unavailable: "Verificatie in twee stappen kan voor dit account niet worden ingesteld. Neem contact op met de beheerder."
         enabled: Verificatie in twee stappen is ingeschakeld.
         disabled: Verificatie in twee stappen is uitgeschakeld.
         codes_regenerated: Er zijn nieuwe herstelcodes gemaakt. De oude werken niet meer.

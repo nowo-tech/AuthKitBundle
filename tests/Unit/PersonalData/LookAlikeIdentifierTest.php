@@ -43,7 +43,7 @@ final class LookAlikeIdentifierTest extends TestCase
             ->with(self::stringContains('DELETE'), ['ids' => [1]], self::anything())
             ->willReturn(1);
 
-        // REQ-SEC-006 item 7 (1.46.1): a case variant is another identifier too.
+        // REQ-SEC-006 item 7 (1.47.0): a case variant is another identifier too.
         self::assertSame(1, (new AccountVaultStore($this->doctrine($connection, AccountVaultEntry::class)))->deleteForUser('default', 'jose@example.com'));
     }
 

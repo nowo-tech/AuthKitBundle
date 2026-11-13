@@ -33,7 +33,7 @@ use const PHP_VERSION_ID;
 /**
  * The MFA, social, vault and invitation tables on the database of `AUTH_KIT_TEST_DB_URL` (CI job `real-databases`:
  * MySQL 8.4, MariaDB 11.4, PostgreSQL), else in-memory SQLite. `folding`: the identity columns keep a folding collation
- * (a table created before 1.46.1: `utf8mb4_unicode_ci` on MySQL / MariaDB, `NOCASE` on SQLite; PostgreSQL compares
+ * (a table created before 1.47.0: `utf8mb4_unicode_ci` on MySQL / MariaDB, `NOCASE` on SQLite; PostgreSQL compares
  * exactly anyway). Otherwise the schema comes from the bundle's {@see IdentityCollationListener}.
  */
 final class LookAlikeDatabase
@@ -74,11 +74,5 @@ final class LookAlikeDatabase
     public static function isMysql(EntityManagerInterface $em): bool
     {
         return $em->getConnection()->getDatabasePlatform() instanceof AbstractMySQLPlatform;
-    }
-
-    /** A new entity manager on the same connection (a failed flush closes the old one). */
-    public static function reconnect(EntityManagerInterface $em): EntityManagerInterface
-    {
-        return new EntityManager($em->getConnection(), $em->getConfiguration());
     }
 }

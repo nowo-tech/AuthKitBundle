@@ -9,7 +9,7 @@ use function mb_strlen;
 use function preg_match;
 
 /**
- * Identities used as database keys (REQ-SEC-006, 1.46.1): an MFA owner id, a social provider subject, a vault user
+ * Identities used as database keys (REQ-SEC-006, 1.47.0): an MFA owner id, a social provider subject, a vault user
  * identifier, an invitation inviter. They are matched byte for byte, so a value that cannot be told apart from another
  * one on screen or by a folding collation is refused instead of being trimmed or truncated: edge whitespace (NBSP
  * included), control and format characters (ZWSP, BOM, bidi marks, line separators), invalid UTF-8, longer than the

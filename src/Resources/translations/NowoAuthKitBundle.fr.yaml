@@ -293,6 +293,7 @@ mfa:
         expired: La vérification a pris trop de temps. Reconnectez-vous.
         locked_out: Trop de codes incorrects. Patientez quelques minutes puis reconnectez-vous.
         too_many_attempts: Trop de codes incorrects. Reconnectez-vous.
+        unavailable: "La vérification en deux étapes ne peut pas être configurée pour ce compte. Contactez l'administrateur."
         enabled: La validation en deux étapes est activée.
         disabled: La validation en deux étapes est désactivée.
         codes_regenerated: De nouveaux codes de récupération ont été créés. Les anciens ne fonctionnent plus.

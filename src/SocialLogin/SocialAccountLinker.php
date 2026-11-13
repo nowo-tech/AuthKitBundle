@@ -157,7 +157,7 @@ final class SocialAccountLinker
         array $tokens,
         ?UserInterface &$created,
     ): array {
-        // REQ-SEC-006 (1.46.1): the provider subject is a key matched byte for byte; one that cannot be told apart from
+        // REQ-SEC-006 (1.47.0): the provider subject is a key matched byte for byte; one that cannot be told apart from
         // a look-alike (edge white space, control or format characters, invalid UTF-8, too long) is refused.
         if (!ExactIdentifier::usable($socialProfile->id, SocialLoginAccount::PROVIDER_USER_ID_MAX_LENGTH)) {
             throw new RuntimeException('The social provider returned an unusable subject identifier.');

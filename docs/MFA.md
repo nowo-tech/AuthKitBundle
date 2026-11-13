@@ -272,11 +272,17 @@ audit), `auth_kit_mfa_recovery_code` (HMACs, used date), `auth_kit_mfa_trusted_d
 UserKit device id, dates). All table-prefix aware. Owners are stable ids, never e-mails: changing an e-mail keeps the
 factor.
 
-Owners are matched byte for byte (1.46.1, REQ-SEC-006): `Jose@`, `josé@` and `jose@` are three owners. On MySQL /
+Owners are matched byte for byte (1.47.0, REQ-SEC-006): `Jose@`, `josé@` and `jose@` are three owners. On MySQL /
 MariaDB `user_type` and `user_id` get a binary NO PAD collation (`IdentityCollationListener`; ALTERs for existing
-tables in [UPGRADING](UPGRADING.md#to-1461)). An owner id with edge white space or NBSP, a control or format character
-or invalid UTF-8 cannot have MFA; a user who must have MFA (or enrolled under such an id before 1.46.1) stays at the
+tables in [UPGRADING](UPGRADING.md#to-1470)). An owner id with edge white space or NBSP, a control or format character
+or invalid UTF-8 cannot have MFA; a user who must have MFA (or enrolled under such an id before 1.47.0) stays at the
 enrolment step.
+
+`getUserIdentifier()` must return the **stored, canonical** identifier when it is the owner id (users that are not
+Doctrine entities): a user provider that loads case-insensitively and returns the identifier as typed (`Jose@` for the
+stored `jose@`) makes that sign-in another owner, and the user's second factor is not found. When MFA is required and
+the user has no usable owner id (composite, empty, over-long or refused id), the sign-in stays at the enrolment step,
+which shows `mfa.flash.unavailable`.
 
 ## Security notes
 

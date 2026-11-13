@@ -277,7 +277,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         if ($config['doctrine']['table_prefix'] === '') {
             $container->removeDefinition(TablePrefixListener::class);
         }
-        // REQ-SEC-006 (1.46.1): binary NO PAD collation of the MFA, social, vault and invitation identity columns.
+        // REQ-SEC-006 (1.47.0): binary NO PAD collation of the MFA, social, vault and invitation identity columns.
         if ($registerMapping) {
             $container->getDefinition(IdentityCollationListener::class)
                 ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchemaTable']);

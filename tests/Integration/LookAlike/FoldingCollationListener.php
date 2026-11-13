@@ -13,7 +13,7 @@ use function method_exists;
 
 /**
  * Gives the identity columns of {@see IdentityCollationListener::FIELDS} a folding collation, like a table created
- * before 1.46.1 on the server default (`utf8mb4_unicode_ci` on MySQL / MariaDB, `NOCASE` on SQLite).
+ * before 1.47.0 on the server default (`utf8mb4_unicode_ci` on MySQL / MariaDB, `NOCASE` on SQLite).
  */
 final readonly class FoldingCollationListener
 {

@@ -37,8 +37,8 @@ final readonly class MfaOwnerResolver
 
     /**
      * Whether the user has a single, non-empty reference that {@see MfaOwner} refuses although it fits the column (edge
-     * white space, control or format characters, invalid UTF-8; REQ-SEC-006, 1.46.1). Such a user cannot have MFA, and
-     * a credential stored under that id before 1.46.1 is unreachable: {@see MfaManager::mustEnrolNow()} fails closed.
+     * white space, control or format characters, invalid UTF-8; REQ-SEC-006, 1.47.0). Such a user cannot have MFA, and
+     * a credential stored under that id before 1.47.0 is unreachable: {@see MfaManager::mustEnrolNow()} fails closed.
      *
      * @return array{0: string, 1: string}|null the raw type and id when refused
      */
@@ -54,6 +54,18 @@ final readonly class MfaOwnerResolver
     }
 
     /**
+     * The owner for personal data (1.47.0): {@see resolve()}, or, for a reference refused since REQ-SEC-006, a legacy
+     * owner ({@see MfaOwner::legacy()}) so rows stored under it before 1.47.0 are still exported and erased, byte for
+     * byte. Never used to create a credential or to sign in.
+     */
+    public function personalDataOwner(object $user): ?MfaOwner
+    {
+        $refused = $this->refusedReference($user);
+
+        return $this->resolve($user) ?? ($refused !== null ? MfaOwner::legacy($refused[0], $refused[1]) : null);
+    }
+
+    /**
      * The owner, plus the owner under the identifier captured when the erasure started when the id is the identifier
      * (see {@see MfaManager::eraseUser()} for the trust rule).
      *
@@ -61,9 +73,7 @@ final readonly class MfaOwnerResolver
      */
     public function erasureOwners(UserInterface $user, ?string $originalIdentifier): array
     {
-        // 1.46.1: a reference refused since REQ-SEC-006 is still erased (byte for byte) when rows were stored under it.
-        $refused = $this->refusedReference($user);
-        $owner   = $this->resolve($user) ?? ($refused !== null ? MfaOwner::legacy($refused[0], $refused[1]) : null);
+        $owner = $this->personalDataOwner($user);
         if (!$owner instanceof MfaOwner) {
             return [];
         }

@@ -291,6 +291,7 @@ mfa:
         expired: The verification took too long. Sign in again.
         locked_out: Too many wrong codes. Wait a few minutes and sign in again.
         too_many_attempts: Too many wrong codes. Sign in again.
+        unavailable: "Two-step verification cannot be set up for this account. Contact the administrator."
         enabled: Two-step verification is on.
         disabled: Two-step verification is off.
         codes_regenerated: New recovery codes created. The old ones no longer work.

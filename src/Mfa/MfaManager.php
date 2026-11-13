@@ -160,20 +160,35 @@ final readonly class MfaManager
     public function mustEnrolNow(UserInterface $user): bool
     {
         $profile = $this->profileFor($user);
-        $owner   = $this->owners->resolve($user);
-        if ($profile instanceof ProfileSettings && !$owner instanceof MfaOwner && ($refused = $this->owners->refusedReference($user)) !== null
-            && ($this->requirement($user) === MfaRequirement::Required || $this->store->hasEnabledCredentialFor($profile->name, $refused[0], $refused[1]))) {
-            // REQ-SEC-006 (1.46.1): an id refused as a key (edge white space, control or format characters) cannot have
-            // MFA. A required user, or one who enrolled under that id before 1.46.1, must not sign in with the first factor
-            // alone: the enrolment step refuses this user, so the sign-in stays closed until the host fixes the id.
-            $this->logger->warning('MFA cannot be used with this user identifier (REQ-SEC-006); the sign-in stays closed.', ['profile' => $profile->name]);
-
-            return true;
-        }
-        if (!$profile instanceof ProfileSettings || !$owner instanceof MfaOwner || $this->requirement($user) !== MfaRequirement::Required) {
+        if (!$profile instanceof ProfileSettings) {
             return false;
         }
-        $credential = $this->store->credentialOrNew($profile->name, $owner, $this->now());
+        $owner = $this->owners->resolve($user);
+        if (!$owner instanceof MfaOwner) {
+            // A user that cannot have MFA (composite, empty or over-long id; REQ-SEC-006 1.47.0: an id refused as a key)
+            // must not sign in with the first factor alone when MFA is required (audit OG-3: it failed open before 1.47.0),
+            // nor when it enrolled under a now refused id: the enrolment step refuses it, so the sign-in stays closed
+            // until the host fixes the identifier.
+            $refused = $this->owners->refusedReference($user);
+            if ($this->requirement($user) === MfaRequirement::Required
+                || ($refused !== null && $this->store->hasEnabledCredentialFor($profile->name, $refused[0], $refused[1]))) {
+                $this->logger->warning('MFA is required or was enrolled, but this user has no usable MFA owner id; the sign-in stays closed.', ['profile' => $profile->name]);
+
+                return true;
+            }
+
+            return false;
+        }
+        if ($this->requirement($user) !== MfaRequirement::Required) {
+            return false;
+        }
+        try {
+            $credential = $this->store->credentialOrNew($profile->name, $owner, $this->now());
+        } catch (MfaUnavailableException) {
+            // A look-alike owner's row blocks this user's credential (folding unique key): fail closed at the setup step,
+            // which shows the refusal instead of an error page.
+            return true;
+        }
         if ($credential->isEnabled()) {
             return false;
         }
@@ -213,8 +228,10 @@ final readonly class MfaManager
     public function enable(UserInterface $user, string $secret, string $code, ?Request $request = null): ?array
     {
         $profile = $this->requireProfile($user);
-        $owner   = $this->requireOwner($user);
-        $step    = $this->totp($profile)->verify($secret, $code, $this->now()->getTimestamp());
+        // 1.47.0 (REQ-SEC-006): a user without a usable owner id is refused with an exception the enrolment pages turn
+        // into a message (1.46 threw a LogicException, an error page).
+        $owner = $this->owners->resolve($user) ?? throw new MfaUnavailableException('This user cannot have MFA: its identifier is not a usable MFA owner id.');
+        $step  = $this->totp($profile)->verify($secret, $code, $this->now()->getTimestamp());
         if ($step === null) {
             return null;
         }
@@ -358,7 +375,7 @@ final readonly class MfaManager
      */
     public function forgetUser(UserInterface $user): void
     {
-        $credential = $this->credential($user);
+        $credential = $this->personalDataCredential($user);
         if ($credential instanceof MfaCredential) {
             $this->store->delete($credential);
         }
@@ -418,7 +435,7 @@ final readonly class MfaManager
      */
     public function exportUser(UserInterface $user): ?array
     {
-        $credential = $this->credential($user);
+        $credential = $this->personalDataCredential($user);
         if (!$credential instanceof MfaCredential) {
             return null;
         }
@@ -448,6 +465,18 @@ final readonly class MfaManager
     {
         $profile = $this->profileFor($user);
         $owner   = $this->owners->resolve($user);
+
+        return $profile instanceof ProfileSettings && $owner instanceof MfaOwner ? $this->store->credential($profile->name, $owner) : null;
+    }
+
+    /**
+     * The credential for personal data and user removal (1.47.0, audit OG-4): also the one stored before 1.47.0 under a
+     * reference refused since REQ-SEC-006 ({@see MfaOwnerResolver::personalDataOwner()}).
+     */
+    private function personalDataCredential(UserInterface $user): ?MfaCredential
+    {
+        $profile = $this->profileFor($user);
+        $owner   = $this->owners->personalDataOwner($user);
 
         return $profile instanceof ProfileSettings && $owner instanceof MfaOwner ? $this->store->credential($profile->name, $owner) : null;
     }
@@ -587,11 +616,6 @@ final readonly class MfaManager
     private function requireProfile(UserInterface $user): ProfileSettings
     {
         return $this->profileFor($user) ?? throw new LogicException(sprintf('No AuthKit profile with mfa.enabled for %s.', $user::class));
-    }
-
-    private function requireOwner(UserInterface $user): MfaOwner
-    {
-        return $this->owners->resolve($user) ?? throw new LogicException('This user cannot have MFA (no stable identifier).');
     }
 
     private function dispatch(object $event): void

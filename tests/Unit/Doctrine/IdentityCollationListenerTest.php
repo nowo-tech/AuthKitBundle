@@ -28,7 +28,7 @@ use Psr\Log\LoggerInterface;
 use function method_exists;
 
 /**
- * REQ-SEC-006 (1.46.1): the identity columns of the MFA, social, vault and invitation tables get the binary NO PAD
+ * REQ-SEC-006 (1.47.0): the identity columns of the MFA, social, vault and invitation tables get the binary NO PAD
  * collation on MySQL / MariaDB, and the PAD SPACE fallback (MySQL 5.7, or a server_version without the patch number)
  * is logged.
  */

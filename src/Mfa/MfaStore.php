@@ -15,10 +15,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
-use RuntimeException;
 
 use function array_filter;
 use function array_map;
@@ -32,15 +32,18 @@ use function array_values;
  */
 final readonly class MfaStore
 {
+    private const COLLISION = 'The MFA credential cannot be created: another owner\'s row matches it on the folding unique key uniq_auth_kit_mfa_owner. Apply the binary collation of the AuthKit 1.47.0 UPGRADING notes.';
+
     public function __construct(
         private ManagerRegistry $doctrine,
+        private ?EntityManagerRecovery $recovery = null,
     ) {
     }
 
     /**
      * The credential of the owner in the profile. The SQL equality only pre-selects: on a folding collation (MySQL /
      * MariaDB `*_ci`, PAD SPACE) it also returns a look-alike owner's row (`josé@` for `jose@`, `bob ` for `bob`), which
-     * the byte-for-byte re-check drops (REQ-SEC-006, 1.46.1).
+     * the byte-for-byte re-check drops (REQ-SEC-006, 1.47.0).
      */
     public function credential(string $profile, MfaOwner $owner): ?MfaCredential
     {
@@ -49,7 +52,7 @@ final readonly class MfaStore
 
     /**
      * Whether an enabled credential is stored under exactly this (raw) type and id. For a reference {@see MfaOwner}
-     * refuses (1.46.1): a second factor enrolled under it before 1.46.1 must keep the sign-in closed.
+     * refuses (1.47.0): a second factor enrolled under it before 1.47.0 must keep the sign-in closed.
      */
     public function hasEnabledCredentialFor(string $profile, string $type, string $id): bool
     {
@@ -76,28 +79,43 @@ final readonly class MfaStore
 
     /**
      * The credential of the owner, created when there is none. When the unique key `uniq_auth_kit_mfa_owner` still folds
-     * (a table created before 1.46.1 and not altered, see UPGRADING) a look-alike owner's row makes the insert fail:
-     * this fails closed and never falls back to that row.
+     * (a table created before 1.47.0 and not altered, see UPGRADING) and a look-alike owner's row exists, this fails
+     * closed BEFORE any write (audit OG-1): no insert that would collide and close the entity manager, and never a
+     * fall back to that row. A concurrent insert that still collides is written through {@see EntityManagerRecovery},
+     * which reopens the bundle's entity managers (FrankenPHP worker mode, kernel reset off).
      *
-     * @throws RuntimeException when the insert collides with a look-alike owner's credential
+     * @throws MfaUnavailableException when a look-alike owner's credential blocks the insert
      */
     public function credentialOrNew(string $profile, MfaOwner $owner, DateTimeImmutable $now): MfaCredential
     {
-        $credential = $this->credential($profile, $owner);
+        [$credential, $lookAlikes] = $this->lookup($profile, $owner->type, $owner->id);
         if ($credential instanceof MfaCredential) {
             return $credential;
+        }
+        if ($lookAlikes) {
+            throw new MfaUnavailableException(self::COLLISION);
         }
         $credential = new MfaCredential($profile, $owner->type, $owner->id, $now);
         try {
             $this->save($credential);
         } catch (UniqueConstraintViolationException $e) {
-            throw new RuntimeException('The MFA credential cannot be created: the unique key uniq_auth_kit_mfa_owner matched another owner\'s row (folding collation). Apply the binary collation of the AuthKit 1.46.1 UPGRADING notes.', 0, $e);
+            throw new MfaUnavailableException(self::COLLISION, 0, $e);
         }
 
         return $credential;
     }
 
     private function exactCredential(string $profile, string $type, string $id): ?MfaCredential
+    {
+        return $this->lookup($profile, $type, $id)[0];
+    }
+
+    /**
+     * The byte-identical credential, and whether the SQL equality also returned look-alike rows.
+     *
+     * @return array{0: MfaCredential|null, 1: bool}
+     */
+    private function lookup(string $profile, string $type, string $id): array
     {
         $candidates = $this->entityManager()->getRepository(MfaCredential::class)->findBy([
             'profile'  => $profile,
@@ -106,18 +124,22 @@ final readonly class MfaStore
         ], ['id' => 'ASC']);
         foreach ($candidates as $candidate) {
             if ($candidate->getProfile() === $profile && $candidate->getUserType() === $type && $candidate->getUserId() === $id) {
-                return $candidate;
+                return [$candidate, true];
             }
         }
 
-        return null;
+        return [null, $candidates !== []];
     }
 
     public function save(MfaCredential $credential): void
     {
-        $em = $this->entityManager();
-        $em->persist($credential);
-        $em->flush();
+        $em    = $this->entityManager();
+        $write = static function () use ($em, $credential): void {
+            $em->persist($credential);
+            $em->flush();
+        };
+        // OG-1 (1.47.0): a failed flush closes the manager; the recovery reopens the bundle's managers for later requests.
+        $this->recovery instanceof EntityManagerRecovery ? $this->recovery->run($write, $em) : $write();
     }
 
     /**

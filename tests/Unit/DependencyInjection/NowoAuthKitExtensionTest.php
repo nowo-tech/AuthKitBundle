@@ -503,7 +503,7 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertSame([['event' => 'loadClassMetadata']], $listener->getTag('doctrine.event_listener'));
     }
 
-    /** REQ-SEC-006 (1.46.1): the identity collation listener is tagged only when the bundle maps its entities. */
+    /** REQ-SEC-006 (1.47.0): the identity collation listener is tagged only when the bundle maps its entities. */
     public function testTheIdentityCollationListenerFollowsTheMapping(): void
     {
         $this->extension->load([['user_class' => 'App\\Entity\\User', 'doctrine' => ['register_mapping' => true]]], $this->container);

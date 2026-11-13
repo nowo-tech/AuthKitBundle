@@ -85,7 +85,7 @@ final class SocialAccountLinkerHardeningTest extends TestCase
     }
 
     /**
-     * REQ-SEC-006 (1.46.1): a provider subject that cannot be told apart from a look-alike is refused before any lookup.
+     * REQ-SEC-006 (1.47.0): a provider subject that cannot be told apart from a look-alike is refused before any lookup.
      *
      * @return iterable<string, array{string}>
      */

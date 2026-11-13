@@ -3,7 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
-- [To 1.46.1](#to-1461)
+- [To 1.47.0](#to-1470)
   - [Identity columns matched byte for byte (MySQL / MariaDB)](#identity-columns-matched-byte-for-byte-mysql--mariadb)
 - [To 1.46.0](#to-1460)
   - [Framework-free host ports (optional until 2.0)](#framework-free-host-ports-optional-until-20)
@@ -125,7 +125,7 @@
 
 ## Unreleased
 
-## To 1.46.1
+## To 1.47.0
 
 From **1.46.0**:
 
@@ -142,13 +142,27 @@ Behaviour changes:
 - MFA owners, social provider subjects, switcher identifiers and invitation e-mails / inviters are compared **byte for
   byte**: a case variant or another Unicode normalisation form (`José` NFC vs NFD) is another user. 1.36 to 1.46.0
   compared the switcher and social-link erasure lower-cased and NFC-normalised.
+- **`getUserIdentifier()` must return the stored, canonical value** when it is the MFA owner id (users that are not
+  Doctrine entities). Owner ids are byte-exact: a user provider that loads users case-insensitively and returns the
+  identifier **as typed** (`Jose@` for the stored `jose@`) gives that sign-in another owner, so the user's second factor
+  is not found (and a required user is asked to enrol). Return the value from your storage, not the login input.
 - An MFA owner id (the user identifier of users that are not Doctrine entities, or a string primary key) with edge white
-  space or NBSP, a control or format character (ZWSP, BOM, bidi marks, line separators), invalid UTF-8 or more than 191
-  characters cannot have MFA (`MfaOwner::usable()`). If such a user must have MFA, or enrolled before 1.46.1, the sign-in
-  stops at the enrolment step (a warning is logged): fix the identifier, then let the user enrol again.
+  space or NBSP, a control or format character (ZWSP, ZWNJ, ZWJ, BOM, bidi marks, soft hyphen, line separators), invalid
+  UTF-8 or more than 191 characters cannot have MFA (`MfaOwner::usable()`). If MFA is required for such a user, or the
+  user enrolled before 1.47.0, the sign-in stops at the enrolment step, which refuses it with the message
+  `mfa.flash.unavailable` (a warning is logged): fix the identifier, then let the user enrol again. Identifiers with
+  ZWNJ / ZWJ are legitimate in some scripts (Persian, Indic); give those users an id without them (e.g. a numeric
+  primary key) if they need MFA.
+- **Required MFA fails closed** without a usable owner (also a composite, empty or over-long id): 1.46 let such a user
+  sign in with the password alone.
+- `MfaManager::enable()` throws the new `MfaUnavailableException` (a `RuntimeException`) for a user without a usable
+  owner id (1.46: a `LogicException`), and when the MFA table still has a folding unique key and a look-alike owner's
+  row matches (the second of two look-alike users cannot enrol until the ALTER). It is thrown **before** any write, so
+  the entity manager stays open. AuthKit's enrolment pages show `mfa.flash.unavailable` instead of an error page; catch
+  it if you call `enable()` yourself.
+- Personal-data export, erasure and user removal still reach MFA rows and social links stored under an identifier that
+  is now refused, byte for byte.
 - A social provider subject with such characters, or longer than 255 characters, is refused.
-- When the MFA table still has a folding unique key, the second of two look-alike users cannot enrol: it fails with a
-  `RuntimeException` instead of taking the first user's credential.
 - A warning is logged when the binary collation falls back to the PAD SPACE `utf8mb4_bin`: MySQL 5.7, or a
   `doctrine.dbal.server_version` without the patch number (`8`, `8.0`). Set the full version (e.g. `8.4.0`,
   `11.4.0-MariaDB`).
@@ -188,16 +202,27 @@ SELECT invited_by, COUNT(*) AS n, GROUP_CONCAT(HEX(invited_by)) AS inviters
   FROM auth_kit_invitation WHERE invited_by IS NOT NULL GROUP BY invited_by
   HAVING COUNT(DISTINCT CAST(invited_by AS BINARY)) > 1;
 
--- 2. MFA credentials that 1.46.1 no longer reaches (edge white space or NBSP; control or format characters anywhere:
---    ZWSP / ZWNJ / ZWJ, LRM / RLM, line separators, bidi embeddings and isolates, BOM).
+-- 2. MFA credentials that 1.47.0 no longer reaches. A heuristic on the UTF-8 bytes: edge white space (ASCII space via
+--    TRIM; NBSP, Ogham, EN/EM/thin/hair spaces, narrow NBSP, medium math space, ideographic space), and anywhere ASCII
+--    and C1 controls (NEL...), soft hyphen, Arabic/Syriac format marks, Mongolian vowel separator, ZWSP / ZWNJ / ZWJ,
+--    LRM / RLM, line / paragraph separators, bidi embeddings and isolates, word joiner and invisible operators, BOM,
+--    interlinear annotations, tags. The code refuses by Unicode class (`ExactIdentifier`); a row this query misses is
+--    still never reached (fail closed), it only stays in the table.
 SELECT id, profile, user_type, HEX(user_id) FROM auth_kit_mfa
  WHERE CAST(user_id AS BINARY) <> CAST(TRIM(user_id) AS BINARY)
-    OR HEX(user_id) REGEXP '^C2A0|C2A0$|^([0-9A-F]{2})*(0[0-9A-F]|1[0-9A-F]|7F|E2808[B-F]|E280A[8-E]|E281A[6-9]|EFBBBF)';
+    OR HEX(user_id) REGEXP '^(09|0A|0B|0C|0D|C2A0|E19A80|E2808[0-9A]|E280AF|E2819F|E38080)|(09|0A|0B|0C|0D|C2A0|E19A80|E2808[0-9A]|E280AF|E2819F|E38080)$'
+    OR HEX(user_id) REGEXP '^([0-9A-F]{2})*(0[0-9A-F]|1[0-9A-F]|7F|C2[89][0-9A-F]|C2AD|D88[0-5]|D89C|DB9D|DC8F|E1A08E|E2808[B-F]|E280A[8-E]|E281A[0-9A-F]|EFBBBF|EFBFB[9AB]|F3A0)';
+
+-- 3. Such a row is orphaned (nobody can use it). Once the user's identifier is fixed (or the user is gone), delete it
+--    with its recovery codes and trusted devices (<id> from query 2; with the table prefix of your configuration):
+DELETE FROM auth_kit_mfa_recovery_code WHERE mfa_id = <id>;
+DELETE FROM auth_kit_mfa_trusted_device WHERE mfa_id = <id>;
+DELETE FROM auth_kit_mfa WHERE id = <id>;
 ```
 
 A group in query 1 for `auth_kit_mfa` cannot exist while the folding unique key is there; for the other tables it means
 two users (or subjects) that the old code could confuse: check them before the ALTER. The ALTER itself never fails on
-duplicates (a binary collation only splits groups). A look-alike enrolment before 1.46.1 left no trace in
+duplicates (a binary collation only splits groups). A look-alike enrolment before 1.47.0 left no trace in
 `auth_kit_mfa` (the row keeps its owner id): with string owner ids, reset the MFA of a user whose authenticator stopped
 working rather than assuming a lost device.
 

@@ -19,7 +19,7 @@ use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
 #[ORM\UniqueConstraint(name: 'uniq_auth_kit_social_account_provider_subject_class', columns: ['provider', 'provider_user_id', 'user_class'])]
 class SocialLoginAccount
 {
-    /** Length of the `provider_user_id` column (1.46.1). */
+    /** Length of the `provider_user_id` column (1.47.0). */
     public const PROVIDER_USER_ID_MAX_LENGTH = 255;
 
     #[ORM\Id]

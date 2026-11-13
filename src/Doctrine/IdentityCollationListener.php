@@ -17,7 +17,7 @@ use Psr\Log\LoggerInterface;
 use function method_exists;
 
 /**
- * Binary NO PAD collation of the identity columns used as keys on MySQL / MariaDB (REQ-SEC-006, 1.46.1):
+ * Binary NO PAD collation of the identity columns used as keys on MySQL / MariaDB (REQ-SEC-006, 1.47.0):
  *
  * - MFA (`auth_kit_mfa`): `user_type`, `user_id` (the unique key `uniq_auth_kit_mfa_owner`);
  * - social login (`auth_kit_social_account`): `provider_user_id` (the unique key of the provider subject), `user_id`,

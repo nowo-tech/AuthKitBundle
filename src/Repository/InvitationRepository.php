@@ -40,7 +40,7 @@ class InvitationRepository extends EntityRepository
     /** Open invitations of one e-mail scanned for `invitations.merge_key` (more: refused, SEC-004 CP I1). */
     public const MERGE_SCAN_LIMIT = 500;
 
-    /** Collation-equal rows read per query while looking for exact e-mail matches (1.46.1). */
+    /** Collation-equal rows read per query while looking for exact e-mail matches (1.47.0). */
     public const CANDIDATE_BATCH = 50;
 
     /** Rows deleted per statement by {@see self::deleteClosedBefore()}. */
@@ -112,7 +112,7 @@ class InvitationRepository extends EntityRepository
 
     /**
      * Open invitations whose stored e-mail is byte-identical to the normalised `$email`, newest first, at most `$limit`
-     * (REQ-SEC-006, 1.46.1). The SQL equality only pre-selects: on a folding collation it also returns look-alike
+     * (REQ-SEC-006, 1.47.0). The SQL equality only pre-selects: on a folding collation it also returns look-alike
      * addresses (`josé@` for `jose@`, `jose@ ` on PAD SPACE). Candidates are read in batches by descending id until
      * `$limit` exact rows are found or none is left, so look-alikes never hide (nor stand in for) the e-mail's own rows.
      *
@@ -178,7 +178,7 @@ class InvitationRepository extends EntityRepository
      */
     public function findOpenByInviter(string $inviter, int $limit, ?string $profile = null): array
     {
-        // REQ-SEC-006 (1.46.1): exact inviter before the limit. A folding collation also returns a look-alike inviter's
+        // REQ-SEC-006 (1.47.0): exact inviter before the limit. A folding collation also returns a look-alike inviter's
         // invitations (`Admin` for `admin`, `admin ` on PAD SPACE); they are skipped while reading by ascending id, so
         // revoking one inviter's invitations never closes another's.
         $limit   = max(1, min(self::MAX_PAGE_SIZE, $limit));

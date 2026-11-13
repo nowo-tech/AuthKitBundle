@@ -30,7 +30,7 @@ class SocialLoginAccountRepository extends ServiceEntityRepository
      * a user of one profile's class never resolves for a profile with another user class). The provider and subject
      * must match exactly (a case- or accent-insensitive collation must not match another subject).
      *
-     * REQ-SEC-006 item 6 (1.46.1): the exact match happens before the page limit. The candidates are read in batches of
+     * REQ-SEC-006 item 6 (1.47.0): the exact match happens before the page limit. The candidates are read in batches of
      * {@see self::CANDIDATE_BATCH} by ascending id until the exact row is found or none is left, so look-alike rows
      * (`AbC` for `abc`, `abc ` on PAD SPACE) can never hide the subject's own link.
      */

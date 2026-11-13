@@ -15,7 +15,7 @@ use function sprintf;
  * Stable reference of a user for MFA (1.34): the Doctrine root entity class and identifier, so an e-mail / username
  * change can never detach a second factor ({@see MfaOwnerResolver}).
  *
- * Both parts are database keys matched byte for byte (REQ-SEC-006, 1.46.1): edge whitespace or NBSP, control or format
+ * Both parts are database keys matched byte for byte (REQ-SEC-006, 1.47.0): edge whitespace or NBSP, control or format
  * characters (ZWSP, BOM, bidi marks), invalid UTF-8 and over-long values are refused ({@see ExactIdentifier}), so a
  * look-alike of another user's id can never be an owner.
  */
@@ -33,7 +33,7 @@ final readonly class MfaOwner
     }
 
     /**
-     * An owner under a reference stored before 1.46.1 that {@see self::usable()} now refuses (edge white space, control or
+     * An owner under a reference stored before 1.47.0 that {@see self::usable()} now refuses (edge white space, control or
      * format characters), for personal-data erasure only: its rows are still found byte for byte and deleted, never
      * created or used to sign in. Empty or over-long references are still refused.
      *

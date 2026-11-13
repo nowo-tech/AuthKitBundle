@@ -6,9 +6,13 @@ namespace Nowo\AuthKitBundle\Tests\Integration\LookAlike;
 
 use DateTimeImmutable;
 use Deprecated;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
@@ -17,6 +21,7 @@ use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\MfaOwner;
 use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
 use Nowo\AuthKitBundle\Mfa\MfaStore;
+use Nowo\AuthKitBundle\Mfa\MfaUnavailableException;
 use Nowo\AuthKitBundle\MultiAccount\AccountVaultStore;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
@@ -27,7 +32,6 @@ use Nowo\AuthKitBundle\Tests\Support\SingleManagerRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
-use RuntimeException;
 use stdClass;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
@@ -42,9 +46,9 @@ use function sprintf;
 use function str_repeat;
 
 /**
- * REQ-SEC-006 (1.46.1): MFA credentials, social links, switcher entries and invitations are matched byte for byte.
+ * REQ-SEC-006 (1.47.0): MFA credentials, social links, switcher entries and invitations are matched byte for byte.
  *
- * Every test runs twice: on tables whose identity columns still fold (created before 1.46.1: `NOCASE` on SQLite,
+ * Every test runs twice: on tables whose identity columns still fold (created before 1.47.0: `NOCASE` on SQLite,
  * `utf8mb4_unicode_ci` on MySQL 8.4 / MariaDB 11.4 in the CI job `real-databases`) and on the schema of the bundle's
  * collation listener. The {@see TestUser} is not a Doctrine entity, so its MFA owner id is its e-mail: the condition of
  * the finding (string owner ids).
@@ -56,7 +60,7 @@ final class LookAlikeIdentityTest extends TestCase
     /** @return iterable<string, array{bool}> */
     public static function schemas(): iterable
     {
-        yield 'folding collation (before 1.46.1)' => [true];
+        yield 'folding collation (before 1.47.0)' => [true];
         yield 'collation listener' => [false];
     }
 
@@ -92,12 +96,16 @@ final class LookAlikeIdentityTest extends TestCase
             $attackerCodes = $manager->enable(new TestUser($attacker), $attackerSecret, $this->code($manager, $attackerSecret));
             self::assertIsArray($attackerCodes);
             self::assertSame($attacker, $this->manager($em)->credential(new TestUser($attacker))?->getUserId());
-        } catch (RuntimeException $e) {
-            // A folding unique key (table not altered yet): the insert fails closed, never falls back to the victim's row.
+        } catch (MfaUnavailableException $e) {
+            // A folding unique key (table not altered yet): refused before any write, never the victim's row (OG-1).
             self::assertTrue($folding, 'Only a folding unique key may refuse the enrolment.');
             self::assertStringContainsString('uniq_auth_kit_mfa_owner', $e->getMessage());
-            $em = LookAlikeDatabase::reconnect($em);
+            self::assertNull($e->getPrevious(), 'Refused before the INSERT: no unique violation.');
         }
+        self::assertTrue($em->isOpen(), 'The entity manager stays open (FrankenPHP worker mode, kernel reset off).');
+        $other = new TestUser('other@x.test');
+        self::assertIsArray($manager->enable($other, $otherSecret = $manager->newSecret(), $this->code($manager, $otherSecret)), 'An unrelated user still enrols on the same manager.');
+        self::assertTrue($manager->isEnabled($other));
 
         self::assertSame($before, $this->victimRow($em), 'The victim\'s secret, enrolment and recovery codes are unchanged.');
         $manager = $this->manager($em);
@@ -148,7 +156,7 @@ final class LookAlikeIdentityTest extends TestCase
     public function testAUserWithARefusedIdWhoEnrolledBeforeStaysClosed(bool $folding): void
     {
         $em = LookAlikeDatabase::entityManager($folding);
-        // A credential enrolled under a padded id before 1.46.1 (the bundle no longer reaches it).
+        // A credential enrolled under a padded id before 1.47.0 (the bundle no longer reaches it).
         $legacy = new MfaCredential('default', TestUser::class, 'bob ', new DateTimeImmutable('2026-11-01 10:00:00'));
         $legacy->enable('PLACEHOLDERSECRET', 1, new DateTimeImmutable('2026-11-01 10:00:00'));
         $em->persist($legacy);
@@ -313,6 +321,72 @@ final class LookAlikeIdentityTest extends TestCase
                 self::assertSame($expected, $connection->fetchOne('SELECT COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', [$table, $name]), $table . '.' . $name); // @codeCoverageIgnore
             }
         }
+    }
+
+    /** OG-3 (1.47.0): a required profile never signs in a user without a usable owner with the first factor alone. */
+    public function testRequiredMfaFailsClosedWithoutAnOwner(): void
+    {
+        $em   = LookAlikeDatabase::entityManager(false);
+        $long = new TestUser(str_repeat('j', MfaOwner::MAX_LENGTH + 1));
+
+        self::assertTrue($this->manager($em, ['required_roles' => ['ROLE_USER']])->mustEnrolNow($long));
+        self::assertFalse($this->manager($em)->mustEnrolNow($long), 'Optional MFA: nothing to enrol, as before.');
+        $this->expectException(MfaUnavailableException::class);
+        $this->manager($em)->enable($long, 'JBSWY3DPEHPK3PXP', '000000');
+    }
+
+    /** A required look-alike blocked by a folding unique key goes to the setup step (refusal there), not an error. */
+    public function testARequiredLookAlikeBlockedByAFoldingKeyStaysAtSetup(): void
+    {
+        $em = LookAlikeDatabase::entityManager(true);
+        if ($em->getConnection()->getDatabasePlatform() instanceof PostgreSQLPlatform) {
+            self::markTestSkipped('PostgreSQL never folds.');
+        }
+        $em->getConnection()->insert(MfaCredential::TABLE, ['profile' => 'default', 'user_type' => TestUser::class, 'user_id' => self::VICTIM, 'created_at' => '2026-11-01 10:00:00', 'updated_at' => '2026-11-01 10:00:00']);
+
+        self::assertTrue($this->manager($em, ['required_roles' => ['ROLE_USER']])->mustEnrolNow(new TestUser('Jose@x.test')));
+        self::assertTrue($em->isOpen());
+    }
+
+    /** OG-4 (1.47.0): export and user removal still reach a credential stored under a now refused identifier. */
+    #[DataProvider('schemas')]
+    public function testPersonalDataReachesALegacyCredential(bool $folding): void
+    {
+        $em = LookAlikeDatabase::entityManager($folding);
+        $em->getConnection()->insert(MfaCredential::TABLE, ['profile' => 'default', 'user_type' => TestUser::class, 'user_id' => 'bob ', 'created_at' => '2026-11-01 10:00:00', 'updated_at' => '2026-11-01 10:00:00']);
+        $em->getConnection()->insert(MfaCredential::TABLE, ['profile' => 'other', 'user_type' => TestUser::class, 'user_id' => 'bob', 'created_at' => '2026-11-01 10:00:00', 'updated_at' => '2026-11-01 10:00:00']);
+        $manager = $this->manager($em);
+
+        self::assertSame('default', $manager->exportUser(new TestUser('bob '))['profile'] ?? null);
+        $manager->forgetUser(new TestUser('bob '));
+        self::assertSame(['bob'], $em->getConnection()->fetchFirstColumn('SELECT user_id FROM ' . MfaCredential::TABLE));
+        self::assertNull((new MfaOwnerResolver())->personalDataOwner(new TestUser(str_repeat('b', MfaOwner::MAX_LENGTH + 1))));
+    }
+
+    /**
+     * OG-1: an insert that still collides (a concurrent look-alike insert, or a unique key that folds where the lookup
+     * does not) is reported as MfaUnavailableException and goes through the entity-manager recovery.
+     */
+    public function testACollidingInsertIsRefusedThroughTheRecovery(): void
+    {
+        $em = LookAlikeDatabase::entityManager(false);
+        if (!$em->getConnection()->getDatabasePlatform() instanceof SQLitePlatform) {
+            self::markTestSkipped('Emulated with a SQLite index collation.');
+        }
+        $c = $em->getConnection();
+        $c->executeStatement('DROP INDEX uniq_auth_kit_mfa_owner');
+        $c->executeStatement('CREATE UNIQUE INDEX uniq_auth_kit_mfa_owner ON auth_kit_mfa (profile, user_type, user_id COLLATE NOCASE)');
+        $c->insert(MfaCredential::TABLE, ['profile' => 'default', 'user_type' => TestUser::class, 'user_id' => self::VICTIM, 'created_at' => '2026-11-01 10:00:00', 'updated_at' => '2026-11-01 10:00:00']);
+        $registry = new SingleManagerRegistry($em);
+        $store    = new MfaStore($registry, new EntityManagerRecovery($registry));
+
+        try {
+            $store->credentialOrNew('default', new MfaOwner(TestUser::class, 'JOSE@x.test'), new DateTimeImmutable());
+            self::fail('The colliding insert must be refused.');
+        } catch (MfaUnavailableException $e) {
+            self::assertInstanceOf(UniqueConstraintViolationException::class, $e->getPrevious());
+        }
+        self::assertSame([self::VICTIM], $c->fetchFirstColumn('SELECT user_id FROM ' . MfaCredential::TABLE));
     }
 
     /**
