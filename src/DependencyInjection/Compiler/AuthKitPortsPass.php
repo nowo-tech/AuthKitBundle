@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\DependencyInjection\Compiler;
 
 use LogicException;
+use Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
@@ -122,6 +123,15 @@ final class AuthKitPortsPass implements CompilerPassInterface
             }
             [$legacy, $twin] = self::PER_PROFILE[$entry[0]];
             $this->assertImplements($container, $entry[1], $legacy, $twin, is_string($entry[2] ?? null) ? $entry[2] : $entry[0]);
+        }
+
+        // 1.49.0: nowo_auth_kit.identifier_normalizer (or an application alias) must name a normaliser.
+        if ($container->hasAlias(UserIdentifierNormalizerInterface::class)) {
+            $normalizer = $this->resolve($container, UserIdentifierNormalizerInterface::class);
+            $class      = $this->classOf($container, $normalizer);
+            if ($class !== null && !is_a($class, UserIdentifierNormalizerInterface::class, true)) {
+                throw new LogicException(sprintf('nowo_auth_kit: the identifier normaliser "%s" (%s) must implement "%s".', $normalizer, $class, UserIdentifierNormalizerInterface::class));
+            }
         }
 
         foreach (self::TAGGED as $tag => [$legacy, $twin]) {

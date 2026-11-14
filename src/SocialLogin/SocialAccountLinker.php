@@ -324,12 +324,16 @@ final class SocialAccountLinker
 
     private function createUser(ProfileSettings $profile, SocialUserProfile $socialProfile): UserInterface&PasswordAuthenticatedUserInterface
     {
-        $user = $this->userFactory->create($profile, NewUser::forSocial(
+        // 1.49.0 (audit OV): refused / case-variant identifiers never reach the factory, which receives the normalised one.
+        $newUser = $this->identifierMatcher->prepareNewUser($profile, NewUser::forSocial(
             (string) $socialProfile->email,
             $socialProfile->name,
             bin2hex(random_bytes(32)),
             [$profile->registrationRole],
-        ));
+        ), $this->userLookup, 'Social sign-up failed');
+        $user = $this->userFactory->create($profile, $newUser);
+        // 1.49.0: stored in the form lookups use (identifier_normalizer); unchanged with the default normaliser.
+        $this->identifierMatcher->normalizeStored($user, $profile->userIdentifierField);
         // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
         $this->userWriter->add($profile, $user);
 

@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\Ddd;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Nowo\AuthKitBundle\Identity\NormalizingUserLookup;
 use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\Port\QrLoginStepUpGate;
 use Nowo\AuthKitBundle\Port\UserDirectoryGate;
@@ -99,7 +100,10 @@ final class DddHostKernelTest extends WebTestCase
     public function testTheDeprecatedAliasesAreServedByTheGatesAndTheDeviceDecoratorStillWraps(): void
     {
         $container = self::getContainer();
-        self::assertInstanceOf(UserDirectoryGate::class, $container->get('test.ddd.user_lookup'));
+        // 1.49.0: the identifier normaliser is the outermost decorator; the gate serves the port behind it.
+        $lookup = $container->get('test.ddd.user_lookup');
+        self::assertInstanceOf(NormalizingUserLookup::class, $lookup);
+        self::assertInstanceOf(UserDirectoryGate::class, (new ReflectionProperty(NormalizingUserLookup::class, 'inner'))->getValue($lookup));
 
         $stepUp = $container->get('test.ddd.qr_step_up');
         self::assertInstanceOf(DeviceIntelligenceQrLoginStepUp::class, $stepUp);

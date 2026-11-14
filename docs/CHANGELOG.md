@@ -109,6 +109,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.49.0 (adds public API). See [UPGRADING](UPGRADING.md#to-1490).
+
+### Added
+
+- **Host-overridable identifier normaliser** (Symfony Beacon v1.155, REQ-SEC-004): the framework-free port
+  `Identity\UserIdentifierNormalizerInterface::normalize(string $raw): ?string` (null = refused) runs **before every
+  lookup by identifier**, so a host can move its identifier column (`user.email`) to a binary collation
+  (`utf8mb4_0900_bin`) and still find `bob@example.com` when the person types `Bob@Example.com`. Applied to:
+  - password sign-in: the AuthKit login form's `login_form[_username]` is replaced before the firewall
+    (`kernel.request` priority 16), so the host's user provider, Symfony `login_throttling` and LoginThrottleBundle all
+    see the normalised identifier;
+  - every call of the user lookup port (outermost decorator of `UserLookupInterface`, whoever serves it: the built-in
+    Doctrine lookup, a host `UserLookupInterface` or a host `UserDirectoryInterface`): magic login, password reset
+    request, reset by code, social e-mail match, QR completion, MFA admin reset, admin creation (`exists()`), and the
+    reset-table lookup of a row without a user id;
+  - the exact re-check (`UserIdentifierMatcher::find()` / `matches()` / `matchesUser()`), which now compares the stored
+    identifier with the normalised input;
+  - the identifier of accounts AuthKit creates (registration, invitation acceptance, admin creation, social sign-up) is
+    stored in normalised form: the factory or the host `UserCreatorInterface` receives it normalised in `NewUser`
+    (immutable entities and DDD aggregates included), and `UserIdentifierMatcher::normalizeStored()` remains as a
+    fallback for writable identifiers.
+- `Identity\ExactIdentifierNormalizer` (default): refuses unusable values (the `ExactIdentifier` rules: empty, invalid
+  UTF-8, edge white space, control / format / separator characters, more than 1024 characters) and returns everything
+  else unchanged.
+- `Identity\LowercaseAsciiEmailIdentifierNormalizer` (opt-in): additionally lower-cases the ASCII letters `A`-`Z` of
+  any value with exactly one `@` and text on both sides (every profile, usernames included); no Unicode case folding,
+  no accent stripping, no trimming.
+- Option `nowo_auth_kit.identifier_normalizer`: `null` / `exact` (default), `lowercase_ascii_email`, or a service id.
+  An application alias of the interface wins over the option. The build fails when the service does not implement the
+  port.
+- `NewUser::identifierValue()` / `normalizedWith()`; `UserIdentifierMatcher::prepareNewUser()` (checks and normalises
+  the identifier of an account before the factory runs).
+- `UserIdentifierMatcher::normalizeInput()` / `normalizeStored()`; optional constructor argument
+  `UserIdentifierNormalizerInterface $normalizer` on `UserIdentifierMatcher`, and `UserIdentifierMatcher
+  $identifierMatcher` on `UserRegistrar` and `AdminUserCreator`.
+
+### Changed
+
+- With the default normaliser nothing changes for usable identifiers: the typed value is queried as before (a folding
+  column still finds `Bob@x` for `bob@x`) and the re-check still compares NFC + lower case. An identifier that the
+  `ExactIdentifier` rules refuse (control or format characters, edge white space, invalid UTF-8) now finds no user in
+  the lookup-port flows without a query; the password sign-in form leaves such a value to the user provider as before.
+  BC: a stored identifier with such characters no longer gets magic links, reset e-mails, social e-mail matches, QR
+  completion or the MFA admin reset (password sign-in still works); UPGRADING step 3 finds those rows.
+- Account creation (registration, invitation acceptance, admin creation, social sign-up) refuses an identifier the
+  normaliser refuses (`RuntimeException` "… the identifier is not usable", handled like the other registration errors).
+  BC: such accounts could be created before. An empty or absent identifier is left to the host as before.
+- With a normaliser other than the default, every creation path refuses an identifier whose lower-cased form is
+  already stored (`UserLookupInterface::hasCaseVariant()`, raw value; until now only invitation acceptance checked it, on
+  the invited e-mail, and it still does with every normaliser): a new `bob@x` can no longer take over the lookups of a legacy `Bob@x` on an exact column. The default normaliser keeps the 1.48.0
+  behaviour (case variants stay distinct accounts on an exact column).
+
+### Documentation
+
+- UPGRADING "To 1.49.0": `lowercase_ascii_email` goes live in the same deploy as the row fix, never before, and on an
+  exact store (PostgreSQL, SQLite, a binary column) the rows are fixed first; the option covers every profile and every
+  value with one `@`; detection of unusable identifiers; migration of `auth_kit_mfa.user_id` (user classes that are not
+  Doctrine entities), `auth_kit_account_vault.user_identifier` and `auth_kit_social_account.user_identifier`; quoted
+  `"user"` for PostgreSQL; `hasCaseVariant()` receives the raw value; what the tests run.
+
 ## [1.48.0] - 2026-11-13
 
 Target: 1.48.0 (adds public API and an asset, changes the type of two login template variables, and changes the
