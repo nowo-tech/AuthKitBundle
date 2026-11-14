@@ -20,7 +20,7 @@ use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
- * 1.48.0: `nowo_auth_kit.identifier_normalizer` selects the normaliser behind the port; the lookup decorator and the
+ * 1.49.0: `nowo_auth_kit.identifier_normalizer` selects the normaliser behind the port; the lookup decorator and the
  * sign-in listener are always wired.
  */
 final class IdentifierNormalizerConfigTest extends TestCase

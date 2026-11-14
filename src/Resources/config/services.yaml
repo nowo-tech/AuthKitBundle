@@ -21,6 +21,9 @@ services:
             - '../../Internal/'
             - '../../Port/'
             - '../../ValueObject/'
+            # 1.48.0: presentation VOs of the provider buttons (built per render, never services).
+            - '../../View/ProviderLink.php'
+            - '../../View/ProviderMark.php'
             - '../../Form/'
             - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
@@ -100,12 +103,12 @@ services:
     Nowo\AuthKitBundle\User\UserLookupInterface:
         alias: Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup
 
-    # 1.48.0: identifier normaliser port. `nowo_auth_kit.identifier_normalizer` re-points the alias
+    # 1.49.0: identifier normaliser port. `nowo_auth_kit.identifier_normalizer` re-points the alias
     # (lowercase_ascii_email | a service id); an application alias of the interface wins over both.
     Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface:
         alias: Nowo\AuthKitBundle\Identity\ExactIdentifierNormalizer
 
-    # 1.48.0: outermost decorator of the user lookup port (after AuthKitPortsPass picked the gate or the host
+    # 1.49.0: outermost decorator of the user lookup port (after AuthKitPortsPass picked the gate or the host
     # adapter): every lookup by identifier receives the normalised identifier.
     Nowo\AuthKitBundle\Identity\NormalizingUserLookup:
         decorates: Nowo\AuthKitBundle\User\UserLookupInterface
@@ -113,7 +116,7 @@ services:
         arguments:
             $inner: '@.inner'
 
-    # 1.48.0: password sign-in, before the firewall (priority 8).
+    # 1.49.0: password sign-in, before the firewall (priority 8).
     Nowo\AuthKitBundle\Identity\LoginIdentifierNormalizationListener:
         tags:
             - { name: kernel.event_listener, event: kernel.request, method: onKernelRequest, priority: 16 }

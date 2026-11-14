@@ -10,7 +10,7 @@ use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Outermost decorator of the user lookup port (1.48.0): every lookup by identifier, whoever serves the port (the
+ * Outermost decorator of the user lookup port (1.49.0): every lookup by identifier, whoever serves the port (the
  * built-in Doctrine lookup, a host {@see UserLookupInterface} or a host {@see UserDirectoryInterface}), receives the
  * identifier normalised by {@see UserIdentifierNormalizerInterface}; a refused identifier finds no user and reaches no
  * query. The other methods are delegated unchanged. Stateless (worker safe).

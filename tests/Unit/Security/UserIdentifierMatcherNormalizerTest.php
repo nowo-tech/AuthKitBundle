@@ -13,7 +13,7 @@ use PHPUnit\Framework\TestCase;
 use stdClass;
 
 /**
- * 1.48.0: the matcher queries and re-checks the identifier the configured normaliser returns, and stores that form on
+ * 1.49.0: the matcher queries and re-checks the identifier the configured normaliser returns, and stores that form on
  * the accounts AuthKit creates.
  */
 final class UserIdentifierMatcherNormalizerTest extends TestCase
@@ -31,7 +31,7 @@ final class UserIdentifierMatcherNormalizerTest extends TestCase
 
     public function testTheDefaultQueriesTheTypedValueAndReChecksCaseInsensitively(): void
     {
-        // Before 1.48.0 and with the default: a folding column returns the stored `bob@...`, the re-check accepts it.
+        // Before 1.49.0 and with the default: a folding column returns the stored `bob@...`, the re-check accepts it.
         $stored     = new TestUser('bob@example.com');
         $repository = $this->createMock(ObjectRepository::class);
         $repository->expects(self::once())->method('findBy')

@@ -11,6 +11,7 @@ use RuntimeException;
 use function in_array;
 use function is_string;
 use function sprintf;
+use function trim;
 
 /**
  * Resolves OAuth2 endpoint URLs and default scopes for known providers.
@@ -65,7 +66,26 @@ final class ProviderEndpointCatalog
      */
     public function supportsPkceByDefault(string $provider): bool
     {
-        return in_array(strtolower($provider), ['google', 'github', 'microsoft'], true);
+        return in_array(strtolower(trim($provider)), ['google', 'github', 'microsoft'], true);
+    }
+
+    /**
+     * Extra authorization-request parameters the bundle sends for a built-in provider unless the host removes or
+     * replaces them (`social_login.authorization_params`, or the credential's own map; a null value removes one).
+     *
+     * @return array<string, string>
+     */
+    public function defaultAuthorizationParams(string $provider): array
+    {
+        return match (strtolower(trim($provider))) {
+            // Both providers reuse whichever account the browser already has open, silently. With two accounts
+            // signed in (a personal one and a work one) that binds the local account to an unintended identity,
+            // with no chooser on the provider's own error page either: the only way out is unlinking and signing
+            // out of the other account. So the chooser is asked for by default; a host opts out with
+            // `authorization_params: { google: { prompt: ~ } }`.
+            'google', 'microsoft' => ['prompt' => 'select_account'],
+            default               => [],
+        };
     }
 
     /**
@@ -73,7 +93,7 @@ final class ProviderEndpointCatalog
      */
     private function defaultsFor(string $provider): array
     {
-        return match (strtolower($provider)) {
+        return match (strtolower(trim($provider))) {
             'google' => [
                 'authorize_url' => 'https://accounts.google.com/o/oauth2/v2/auth',
                 'token_url'     => 'https://oauth2.googleapis.com/token',

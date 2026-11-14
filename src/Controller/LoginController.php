@@ -19,10 +19,11 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
+use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\AuthKitBundle\View\ProviderLink;
 use Nowo\UiKitBundle\View\Label;
-use Nowo\UiKitBundle\View\Link;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -56,6 +57,7 @@ final class LoginController
         private readonly AuthPageFactory $pages = new AuthPageFactory(),
         private readonly ?MultiAccountExtension $accounts = null,
         private readonly FeatureAvailability $availability = new FeatureAvailability(),
+        private readonly ProviderMarkResolver $marks = new ProviderMarkResolver(),
     ) {
     }
 
@@ -124,9 +126,13 @@ final class LoginController
 
         $page = $this->pages->create('login', $profile, $formView, $links, $this->pages->authenticationError($error));
 
-        $providerLink = fn (SocialLoginCredential $credential, string $key): Link => new Link(
+        /** @var array<string, mixed> $markOverrides */
+        $markOverrides = $profile->socialLogin['provider_marks'] ?? [];
+        $providerLink  = fn (SocialLoginCredential $credential, string $key): ProviderLink => new ProviderLink(
+            $credential->getProvider(),
             new Label($key, NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => $credential->getLabel()]),
             $this->urlGenerator->generate($profile->routes['social_login_start']['name'], ['provider' => $credential->getProvider()]),
+            $this->marks->resolve($credential->getProvider(), $markOverrides),
         );
 
         // 1.34 multi_account: the accounts of this browser above the form (name + masked identifier, D4).
@@ -151,8 +157,8 @@ final class LoginController
             'registration_allowed'   => $registrationAllowed,
             'qr_login_enabled'       => $qrLoginEnabled,
             'qr_login_start_route'   => $profile->routes['qr_login_start']['name'],
-            'social_links'           => array_map(static fn (SocialLoginCredential $c): Link => $providerLink($c, 'social.continue_with'), $socialProviders),
-            'sso_links'              => array_map(static fn (SocialLoginCredential $c): Link => $providerLink($c, 'sso.continue_with'), $ssoProviders),
+            'social_links'           => array_map(static fn (SocialLoginCredential $c): ProviderLink => $providerLink($c, 'social.continue_with'), $socialProviders),
+            'sso_links'              => array_map(static fn (SocialLoginCredential $c): ProviderLink => $providerLink($c, 'sso.continue_with'), $ssoProviders),
         ]));
 
         $response = new Response($content);

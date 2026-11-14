@@ -13,8 +13,8 @@ use PHPUnit\Framework\TestCase;
 use function str_repeat;
 
 /**
- * 1.48.0: the built-in identifier normalisers. The default keeps every usable value as typed (behaviour before
- * 1.48.0); the opt-in one lower-cases ASCII letters of e-mail addresses only, never folding a look-alike.
+ * 1.49.0: the built-in identifier normalisers. The default keeps every usable value as typed (behaviour before
+ * 1.49.0); the opt-in one lower-cases ASCII letters of e-mail addresses only, never folding a look-alike.
  */
 final class IdentifierNormalizersTest extends TestCase
 {

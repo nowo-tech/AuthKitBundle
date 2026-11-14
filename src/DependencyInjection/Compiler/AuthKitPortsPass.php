@@ -125,7 +125,7 @@ final class AuthKitPortsPass implements CompilerPassInterface
             $this->assertImplements($container, $entry[1], $legacy, $twin, is_string($entry[2] ?? null) ? $entry[2] : $entry[0]);
         }
 
-        // 1.48.0: nowo_auth_kit.identifier_normalizer (or an application alias) must name a normaliser.
+        // 1.49.0: nowo_auth_kit.identifier_normalizer (or an application alias) must name a normaliser.
         if ($container->hasAlias(UserIdentifierNormalizerInterface::class)) {
             $normalizer = $this->resolve($container, UserIdentifierNormalizerInterface::class);
             $class      = $this->classOf($container, $normalizer);

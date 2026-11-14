@@ -330,7 +330,7 @@ final class SocialAccountLinker
             bin2hex(random_bytes(32)),
             [$profile->registrationRole],
         ));
-        // 1.48.0: stored in the form lookups use (identifier_normalizer); unchanged with the default normaliser.
+        // 1.49.0: stored in the form lookups use (identifier_normalizer); unchanged with the default normaliser.
         $this->identifierMatcher->normalizeStored($user, $profile->userIdentifierField);
         // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
         $this->userWriter->add($profile, $user);

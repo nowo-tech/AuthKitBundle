@@ -10,13 +10,13 @@ use function strtolower;
 use function substr_count;
 
 /**
- * Opt-in {@see UserIdentifierNormalizerInterface} (1.48.0, `nowo_auth_kit.identifier_normalizer:
+ * Opt-in {@see UserIdentifierNormalizerInterface} (1.49.0, `nowo_auth_kit.identifier_normalizer:
  * lowercase_ascii_email`): after the {@see ExactIdentifierNormalizer} refusals, a value that looks like an e-mail
  * address (exactly one `@`, text on both sides) has its ASCII letters A-Z lower-cased; every other byte is kept
  * (no Unicode case folding, no accent stripping, no trimming). A value that is not an e-mail address is returned
  * unchanged.
  *
- * Precondition: the stored identifiers are lower-case ASCII already (see UPGRADING "To 1.48.0" for the detection query),
+ * Precondition: the stored identifiers are lower-case ASCII already (see UPGRADING "To 1.49.0" for the detection query),
  * so `Bob@Example.com` and `bob@example.com` cannot be two accounts. Then the lookup can run on a binary collation.
  * Stateless (worker safe).
  */

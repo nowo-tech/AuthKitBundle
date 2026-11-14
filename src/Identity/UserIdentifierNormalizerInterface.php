@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Identity;
 
 /**
- * Normalises a user identifier before AuthKit looks a user up by it (1.48.0). Framework-free port (REQ-ARCH-001):
+ * Normalises a user identifier before AuthKit looks a user up by it (1.49.0). Framework-free port (REQ-ARCH-001):
  * strings in, strings out.
  *
  * Applied to every identifier AuthKit looks a user up by (password sign-in form, magic login, password reset request

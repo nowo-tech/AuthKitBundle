@@ -25,7 +25,7 @@ use function mb_strtolower;
  * without this check `victim@exámple.com` (an IDN domain the attacker owns) resolves to `victim@example.com`, and the
  * magic / reset link of the victim is mailed to the look-alike address (account takeover).
  *
- * 1.48.0: the typed identifier first goes through the {@see UserIdentifierNormalizerInterface} (default: refuse unusable
+ * 1.49.0: the typed identifier first goes through the {@see UserIdentifierNormalizerInterface} (default: refuse unusable
  * values, change nothing else); the query and the re-check use its result, so a host can move the identifier column to
  * a binary collation. Stateless (worker safe).
  */
@@ -44,14 +44,14 @@ final class UserIdentifierMatcher
         $this->normalizer       = $normalizer ?? new ExactIdentifierNormalizer();
     }
 
-    /** 1.48.0: the identifier to look up, or null when the configured normaliser refuses it. */
+    /** 1.49.0: the identifier to look up, or null when the configured normaliser refuses it. */
     public function normalizeInput(string $identifier): ?string
     {
         return $identifier === '' ? null : $this->normalizer->normalize($identifier);
     }
 
     /**
-     * 1.48.0: stores the normalised form of the identifier of an account AuthKit creates (registration, invitation,
+     * 1.49.0: stores the normalised form of the identifier of an account AuthKit creates (registration, invitation,
      * admin, social), when the normaliser changes it. A refused or unreadable value is left as it is.
      */
     public function normalizeStored(object $user, string $field): void

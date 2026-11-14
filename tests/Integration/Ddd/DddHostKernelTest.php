@@ -100,7 +100,7 @@ final class DddHostKernelTest extends WebTestCase
     public function testTheDeprecatedAliasesAreServedByTheGatesAndTheDeviceDecoratorStillWraps(): void
     {
         $container = self::getContainer();
-        // 1.48.0: the identifier normaliser is the outermost decorator; the gate serves the port behind it.
+        // 1.49.0: the identifier normaliser is the outermost decorator; the gate serves the port behind it.
         $lookup = $container->get('test.ddd.user_lookup');
         self::assertInstanceOf(NormalizingUserLookup::class, $lookup);
         self::assertInstanceOf(UserDirectoryGate::class, (new ReflectionProperty(NormalizingUserLookup::class, 'inner'))->getValue($lookup));

@@ -32,6 +32,7 @@ use function is_bool;
 use function is_string;
 use function preg_match;
 use function sprintf;
+use function strtolower;
 use function trigger_deprecation;
 use function trim;
 
@@ -260,7 +261,7 @@ final class Configuration implements ConfigurationInterface
                     ->defaultNull()
                 ->end()
                 ->scalarNode('identifier_normalizer')
-                    ->info('1.48.0: normaliser applied to every identifier AuthKit looks a user up by (and stores). null / "exact": refuse unusable values, change nothing else (default). "lowercase_ascii_email": also lower-case ASCII letters of e-mail addresses (needs lower-case stored identifiers; see UPGRADING). Else the id of a service implementing Identity\\UserIdentifierNormalizerInterface.')
+                    ->info('1.49.0: normaliser applied to every identifier AuthKit looks a user up by (and stores). null / "exact": refuse unusable values, change nothing else (default). "lowercase_ascii_email": also lower-case ASCII letters of e-mail addresses (needs lower-case stored identifiers; see UPGRADING). Else the id of a service implementing Identity\\UserIdentifierNormalizerInterface.')
                     ->defaultNull()
                     ->validate()
                         ->ifTrue(static fn (mixed $value): bool => $value !== null && (!is_string($value) || trim($value) === ''))
@@ -1305,6 +1306,66 @@ final class Configuration implements ConfigurationInterface
                     ->useAttributeAsKey('provider')
                     ->normalizeKeys(false)
                     ->booleanPrototype()->end()
+                    ->defaultValue([])
+                ->end()
+                ->arrayNode('authorization_params')
+                    ->info('Extra parameters merged into the authorization request, keyed by provider (e.g. google: {prompt: select_account, access_type: offline}). A null value removes a parameter the bundle sends by default for a built-in provider. The credential\'s own authorization_params win over this. The protocol parameters the bundle owns (state, redirect_uri, scope, client_id, response_type, code_challenge*) are refused here.')
+                    ->useAttributeAsKey('provider')
+                    ->normalizeKeys(false)
+                    ->arrayPrototype()
+                        ->normalizeKeys(false)
+                        ->scalarPrototype()->end()
+                        ->validate()
+                            ->always()
+                            ->then(static function (array $params): array {
+                                foreach (array_keys($params) as $name) {
+                                    if (in_array(strtolower(trim((string) $name)), OAuth2Client::RESERVED_AUTHORIZATION_PARAMS, true)) {
+                                        throw new InvalidArgumentException(sprintf('The authorization parameter "%s" is owned by the bundle and cannot be set in "nowo_auth_kit.*.social_login.authorization_params".', $name));
+                                    }
+                                }
+
+                                return $params;
+                            })
+                        ->end()
+                    ->end()
+                    ->defaultValue([])
+                ->end()
+                ->arrayNode('provider_marks')
+                    ->info('Per-provider brand mark of the login button, keyed by provider. Not listed: the mark the bundle ships for google / github / microsoft, none for any other provider. `false` (or an empty path) removes the mark; a string is the asset path of the host\'s own mark.')
+                    ->useAttributeAsKey('provider')
+                    ->normalizeKeys(false)
+                    ->arrayPrototype()
+                        ->beforeNormalization()
+                            ->always()
+                            ->then(static function (mixed $mark): array {
+                                if ($mark === false || $mark === null) {
+                                    return ['path' => null];
+                                }
+                                if (is_string($mark)) {
+                                    return ['path' => $mark];
+                                }
+                                if (!is_array($mark)) {
+                                    throw new InvalidArgumentException('A "nowo_auth_kit.*.social_login.provider_marks" entry is false (no mark), an asset path, or a map with "path", "package" and "on_white".');
+                                }
+
+                                return $mark;
+                            })
+                        ->end()
+                        ->children()
+                            ->scalarNode('path')
+                                ->info('Asset path of the mark (e.g. "images/my-idp.svg"). null: no mark for this provider, which also removes a built-in one.')
+                                ->defaultNull()
+                            ->end()
+                            ->scalarNode('package')
+                                ->info('Asset package holding the mark. null: the host\'s default package.')
+                                ->defaultNull()
+                            ->end()
+                            ->booleanNode('on_white')
+                                ->info('Render the mark on a white backdrop with clear space (Google requires its "G" on white). Not set: as the bundle ships it for a built-in provider, off for any other.')
+                                ->defaultNull()
+                            ->end()
+                        ->end()
+                    ->end()
                     ->defaultValue([])
                 ->end()
             ->end();

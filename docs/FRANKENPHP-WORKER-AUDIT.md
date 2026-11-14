@@ -88,7 +88,7 @@ Worker demo: `demo/symfony8/Caddyfile` runs `php_server` with a `worker` block (
 | `Locale\RecipientLocale`, `Locale\PreferredLocaleAwareRecipientLocaleResolver` (1.23) | yes | none; `run()` switches locale through Symfony `LocaleSwitcher::runWithLocale()`, which restores translator / router context / ICU locale in `finally` | ✅ | ✅ |
 | `Flash\AuthKitFlashMessenger`, `Twig\AuthKitFlashExtension` (1.23) | yes | none (locale from the `Request` argument; catalogues cached by the translator) | ✅ | ✅ |
 | `Admin\AdminUserCreator` (1.23) | yes | none (EntityManager + readonly deps, `EntityManagerRecovery`) | ✅ | ✅ |
-| `Identity\ExactIdentifierNormalizer`, `Identity\LowercaseAsciiEmailIdentifierNormalizer`, `Identity\NormalizingUserLookup` (decorator), `Identity\LoginIdentifierNormalizationListener`, `Security\UserIdentifierMatcher` (1.48) | yes | none (`readonly`; the listener rewrites the `Request` argument only; `normalizeStored()` writes the new user object) | ✅ | ✅ |
+| `Identity\ExactIdentifierNormalizer`, `Identity\LowercaseAsciiEmailIdentifierNormalizer`, `Identity\NormalizingUserLookup` (decorator), `Identity\LoginIdentifierNormalizationListener`, `Security\UserIdentifierMatcher` (1.49) | yes | none (`readonly`; the listener rewrites the `Request` argument only; `normalizeStored()` writes the new user object) | ✅ | ✅ |
 | `Command\ConfigureSecurityCommand`, `Command\CreateAdminCommand` | CLI only | none | N/A | N/A |
 
 Entities (`QrLoginChallenge`, `SocialLoginAccount`, `SocialLoginCredential`), enums and value objects (`ProfileSettings`, `AuthEmbedOptions`, `AuthEmbedContext`, `SocialUserProfile`, notification contexts, events) are created per request or loaded by Doctrine; none is stored in a service property.

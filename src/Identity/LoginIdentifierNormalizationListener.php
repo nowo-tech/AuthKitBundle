@@ -11,7 +11,7 @@ use function is_array;
 use function is_string;
 
 /**
- * Password sign-in (1.48.0): the identifier posted by the AuthKit login form (`login_form[_username]`) is replaced by
+ * Password sign-in (1.49.0): the identifier posted by the AuthKit login form (`login_form[_username]`) is replaced by
  * its {@see UserIdentifierNormalizerInterface} form before the firewall runs (`kernel.request` priority 16, the firewall
  * listens at 8), so the host's user provider (`entity` provider: `findOneBy()`), Symfony's `login_throttling` and
  * LoginThrottleBundle all receive the normalised identifier. A refused value (null) and an unchanged value leave the

@@ -32,8 +32,11 @@ use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AuthKitRouteLocaleParameters;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\AuthKitBundle\View\ProviderLink;
+use Nowo\AuthKitBundle\View\ProviderMark;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Nowo\FormKitBundle\Form\FormTypeMap;
 use Nowo\FormKitBundle\Form\Type\CsrfOnlyType;
@@ -93,9 +96,13 @@ final class AuthPageFixtures
             'magic_login_enabled'    => true,
             'qr_login_enabled'       => true,
             'social_login_enabled'   => $withProviders,
-            'social_links'           => $withProviders ? [new Link(new Label('social.continue_with', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => 'GitHub']), '/connect/github')] : [],
-            'sso_login_enabled'      => $withProviders,
-            'sso_links'              => $withProviders ? [new Link(new Label('sso.continue_with', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => 'Okta']), '/connect/okta')] : [],
+            // 1.48: the built-in providers carry the mark the bundle ships (google), a custom provider none (my_idp).
+            'social_links' => $withProviders ? [
+                new ProviderLink('google', new Label('social.continue_with', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => 'Google']), '/connect/google', new ProviderMark('img/social/google.svg', ProviderMarkResolver::ASSET_PACKAGE, true)),
+                new ProviderLink('my_idp', new Label('social.continue_with', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => 'My IdP']), '/connect/my_idp'),
+            ] : [],
+            'sso_login_enabled' => $withProviders,
+            'sso_links'         => $withProviders ? [new ProviderLink('okta', new Label('sso.continue_with', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => 'Okta']), '/connect/okta')] : [],
         ]);
     }
 

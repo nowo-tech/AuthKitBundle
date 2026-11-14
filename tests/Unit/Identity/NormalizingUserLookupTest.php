@@ -14,7 +14,7 @@ use Nowo\AuthKitBundle\User\UserLookupInterface;
 use PHPUnit\Framework\TestCase;
 
 /**
- * 1.48.0: the outermost decorator of the user lookup port hands every adapter the normalised identifier and sends no
+ * 1.49.0: the outermost decorator of the user lookup port hands every adapter the normalised identifier and sends no
  * lookup for a refused one.
  */
 final class NormalizingUserLookupTest extends TestCase

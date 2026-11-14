@@ -15,7 +15,7 @@
 - [Registration flow](#registration-flow)
 - [Invitation flow](#invitation-flow)
 - [Login flow](#login-flow)
-  - [Identifiers and binary collations (1.48)](#identifiers-and-binary-collations-148)
+  - [Identifiers and binary collations (1.49)](#identifiers-and-binary-collations-149)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
   - [Enable](#enable)
   - [Render in Twig](#render-in-twig)
@@ -90,7 +90,7 @@ Every page: `page` (`AuthPage`), `document_title`, `form_themes`, `auth_kit_page
 | `reset_password_route` / `password_reset_enabled` | Password reset request route / flag |
 | `magic_login_route` / `magic_login_enabled` | Magic login request route / flag |
 | `qr_login_start_route` / `qr_login_enabled` | QR start route / flag |
-| `social_login_providers` / `sso_login_providers` | Enabled credentials; rendered from `social_links` / `sso_links` (`View\Link`) |
+| `social_login_providers` / `sso_login_providers` | Enabled credentials; rendered from `social_links` / `sso_links` (`View\ProviderLink` since 1.48, with the provider's brand mark) |
 
 **Register** (`security/register.html.twig`): `registration_form`, `login_route`, `slide_to_confirm_mode`
 (SlideToConfirm profile when registration consent uses a slider, otherwise null).
@@ -223,7 +223,7 @@ Full example: [INVITATIONS.md — Host with its own invitation UI](INVITATIONS.m
 3. CSRF token id: `authenticate` (Symfony default).
 4. Optional device intelligence: layout `collect()` does not change the login form. After `LoginSuccess`, `new_device_notify` may set session `nowo_auth_kit.new_device` and call `NewDeviceLoginNotifierInterface`. Device ID is not a credential.
 
-### Identifiers and binary collations (1.48)
+### Identifiers and binary collations (1.49)
 
 AuthKit looks users up by the identifier the person types (sign-in, magic link, reset, social e-mail, QR, MFA admin).
 On a folding column (`utf8mb4_0900_ai_ci`) `Bob@Example.com` finds `bob@example.com`; on a binary one

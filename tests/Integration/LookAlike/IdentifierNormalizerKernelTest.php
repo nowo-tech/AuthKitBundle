@@ -45,17 +45,17 @@ use function sprintf;
 use function str_ends_with;
 
 /**
- * 1.48.0 (Beacon v1.155, REQ-SEC-004): every lookup by identifier goes through the identifier normaliser, on a folding
+ * 1.49.0 (Beacon v1.155, REQ-SEC-004): every lookup by identifier goes through the identifier normaliser, on a folding
  * and on a binary identifier column, with the default normaliser and with `lowercase_ascii_email`.
  *
  * The account stores `ada@example.com`; the person types `Ada@Example.COM`. It is found when the column folds (the
- * behaviour before 1.48.0, kept by the default) or when the normaliser lower-cases it (the opt-in), never on a binary
+ * behaviour before 1.49.0, kept by the default) or when the normaliser lower-cases it (the opt-in), never on a binary
  * column with the default. PostgreSQL compares exactly whatever the "folding" case asks. The flows: password sign-in
  * (form_login + the entity user provider, through `http_kernel` on one booted kernel: FrankenPHP worker mode, kernel
  * reset off), magic login, password reset request and code, social e-mail match, the port QR completion and the MFA
  * admin reset use (with their re-check), admin creation and registration.
  *
- * {@see self::testTheBinaryCollationMigrationRecipe()} runs the SQL of UPGRADING "To 1.48.0" on MySQL / MariaDB /
+ * {@see self::testTheBinaryCollationMigrationRecipe()} runs the SQL of UPGRADING "To 1.49.0" on MySQL / MariaDB /
  * PostgreSQL.
  */
 final class IdentifierNormalizerKernelTest extends KernelTestCase
@@ -67,7 +67,7 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
     private const PASSWORD = 'ada-password-123';
 
     /**
-     * UPGRADING "To 1.48.0" step 1 (MySQL 8.0+ / MariaDB 10.x+): two accounts that the normaliser would make one.
+     * UPGRADING "To 1.49.0" step 1 (MySQL 8.0+ / MariaDB 10.x+): two accounts that the normaliser would make one.
      * Over-reports Unicode case variants on purpose (review them by hand).
      */
     public const RECIPE_COLLISIONS = <<<'SQL'
@@ -267,7 +267,7 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
     }
 
     /**
-     * UPGRADING "To 1.48.0": the detection queries, the fix, the ALTER (MySQL / MariaDB; PostgreSQL compares exactly
+     * UPGRADING "To 1.49.0": the detection queries, the fix, the ALTER (MySQL / MariaDB; PostgreSQL compares exactly
      * already), then sign-in by every ASCII spelling with `lowercase_ascii_email`; accented look-alikes stay apart.
      */
     public function testTheBinaryCollationMigrationRecipe(): void

@@ -308,7 +308,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $container->setAlias(RecipientLocaleResolverInterface::class, $resolverServiceId);
         }
 
-        // 1.48.0: identifier normaliser (an application alias of the interface wins over this one).
+        // 1.49.0: identifier normaliser (an application alias of the interface wins over this one).
         $container->setAlias(UserIdentifierNormalizerInterface::class, match ($config['identifier_normalizer'] ?? null) {
             null, 'exact'           => ExactIdentifierNormalizer::class,
             'lowercase_ascii_email' => LowercaseAsciiEmailIdentifierNormalizer::class,

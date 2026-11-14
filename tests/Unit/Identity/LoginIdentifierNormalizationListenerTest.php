@@ -14,7 +14,7 @@ use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 /**
- * 1.48.0: the password sign-in identifier is normalised before the firewall reads it.
+ * 1.49.0: the password sign-in identifier is normalised before the firewall reads it.
  */
 final class LoginIdentifierNormalizationListenerTest extends TestCase
 {
