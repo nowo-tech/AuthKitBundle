@@ -234,8 +234,9 @@ nowo_auth_kit:
     identifier_normalizer: lowercase_ascii_email
 ```
 
-The typed value is then lower-cased (ASCII letters of e-mail addresses only) before every lookup, and the accounts
-AuthKit creates are stored that way. Your own write paths (profile e-mail change, imports) must do the same; inject the
+The typed value is then lower-cased (ASCII letters of every value with exactly one `@`, in every profile) before every
+lookup, and the accounts AuthKit creates are stored that way. Switch it on in the same deploy as the fix of the stored
+rows, never before (UPGRADING). Your own write paths (profile e-mail change, imports) must do the same; inject the
 port:
 
 ```php
