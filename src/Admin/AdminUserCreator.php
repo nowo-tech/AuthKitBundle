@@ -85,7 +85,9 @@ final class AdminUserCreator
     {
         $profile = $this->profile($profileName);
 
-        $user = $this->userFactory->create($profile, NewUser::forAdmin($identifier, $plainPassword, $roles));
+        // 1.49.0 (audit OV): refused / case-variant identifiers never reach the factory, which receives the normalised one.
+        $newUser = $this->identifierMatcher->prepareNewUser($profile, NewUser::forAdmin($identifier, $plainPassword, $roles), $this->userLookup, 'Admin creation failed');
+        $user    = $this->userFactory->create($profile, $newUser);
         // 1.49.0: stored in the form lookups use (identifier_normalizer); unchanged with the default normaliser.
         $this->identifierMatcher->normalizeStored($user, $profile->userIdentifierField);
 

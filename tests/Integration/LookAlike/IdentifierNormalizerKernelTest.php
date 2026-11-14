@@ -67,7 +67,7 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
     private const PASSWORD = 'ada-password-123';
 
     /**
-     * UPGRADING "To 1.49.0" step 1 (MySQL 8.0+ / MariaDB 10.x+): two accounts that the normaliser would make one.
+     * UPGRADING "To 1.49.0" step 1 (MySQL 8.0+ / MariaDB 10.6+): two accounts that the normaliser would make one.
      * Over-reports Unicode case variants on purpose (review them by hand).
      */
     public const RECIPE_COLLISIONS = <<<'SQL'
@@ -77,7 +77,7 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
         HAVING COUNT(*) > 1
         SQL;
 
-    /** UPGRADING step 2: the e-mail identifiers not in normalised form (an ASCII capital letter, exactly one `@`). */
+    /** UPGRADING step 2: the identifiers not in normalised form (an ASCII capital letter, exactly one `@`). */
     public const RECIPE_DETECT = <<<'SQL'
         SELECT email
         FROM %s
@@ -85,7 +85,10 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
           AND email LIKE '_%%@_%%' AND email NOT LIKE '%%@%%@%%'
         SQL;
 
-    /** UPGRADING step 3: lower-case the pure-ASCII ones (bytes = characters); the rest is fixed by hand. */
+    /** UPGRADING step 3 (SQL quick check): control characters and edge white space. */
+    public const RECIPE_UNUSABLE = "SELECT email FROM %s WHERE email REGEXP '[[:cntrl:]]|^[[:space:]]|[[:space:]]$'";
+
+    /** UPGRADING step 4: lower-case the pure-ASCII ones (bytes = characters); the rest is fixed by hand. */
     public const RECIPE_FIX = <<<'SQL'
         UPDATE %s
         SET email = LOWER(email)
@@ -94,7 +97,7 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
           AND CHAR_LENGTH(email) = LENGTH(email)
         SQL;
 
-    /** UPGRADING step 4: the binary NO PAD collation (`utf8mb4_0900_bin` on MySQL 8.0+, `utf8mb4_nopad_bin` on MariaDB). */
+    /** UPGRADING step 7: the binary NO PAD collation (`utf8mb4_0900_bin` on MySQL 8.0+, `utf8mb4_nopad_bin` on MariaDB). */
     public const RECIPE_ALTER = 'ALTER TABLE %s MODIFY email VARCHAR(180) CHARACTER SET utf8mb4 COLLATE %s NOT NULL';
 
     /** UPGRADING step 1, PostgreSQL. */
@@ -114,6 +117,9 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
         SQL;
 
     /** UPGRADING step 3, PostgreSQL. */
+    public const RECIPE_PG_UNUSABLE = "SELECT email FROM %s WHERE email ~ '[[:cntrl:]]|^[[:space:]]|[[:space:]]$'";
+
+    /** UPGRADING step 4, PostgreSQL. */
     public const RECIPE_PG_FIX = <<<'SQL'
         UPDATE %s
         SET email = LOWER(email)
@@ -250,6 +256,51 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
     }
 
     /**
+     * Audit OV probe P1a: `lowercase_ascii_email` on an exact column (binary MySQL / MariaDB, PostgreSQL, SQLite) before
+     * the rows are fixed: the legacy `Bob@example.com` is found by no spelling. Hence UPGRADING "To 1.49.0": the option
+     * goes live in the same deploy as the row fix, never before, and on an exact store the rows are fixed first.
+     */
+    public function testTheLowercaserLocksAnUnfixedMixedCaseRowOutOfAnExactColumn(): void
+    {
+        $this->start('lower', false, ['Bob@example.com' => 'bob-legacy-pass-1']);
+        $profile = $this->service('test.identifier.profiles', ProfileRegistry::class)->getDefault();
+
+        self::assertNull($this->service('test.identifier.user_lookup', UserLookupInterface::class)->findByIdentifier($profile, 'Bob@example.com'));
+        self::assertFalse($this->signIn('Bob@example.com', 'bob-legacy-pass-1'));
+    }
+
+    /**
+     * Audit OV-M1, probe P1d: with `lowercase_ascii_email`, registering `BOB@Example.com` next to an unfixed
+     * `Bob@example.com` on an exact column would store `bob@example.com`, which every later lookup of `Bob@example.com`
+     * reaches (pre-hijack). Every creation path refuses it; the default normaliser keeps the 1.48.0 byte-exact behaviour.
+     */
+    public function testRegistrationNextToAnUnfixedCaseVariantIsRefusedWithTheLowercaser(): void
+    {
+        $this->start('lower', false, ['Bob@example.com' => 'pass-of-A-123']);
+        try {
+            $this->service('test.identifier.registrar', UserRegistrar::class)->register(['email' => 'BOB@Example.com', 'password' => 'attacker-pass-1']);
+            self::fail('The case variant must be refused.');
+        } catch (RuntimeException $exception) {
+            self::assertStringContainsString('same identifier (any case) already exists', $exception->getMessage());
+        }
+        try {
+            $this->service('test.identifier.admin', AdminUserCreator::class)->create('bob@example.com', 'attacker-pass-1', []);
+            self::fail('The case variant must be refused.');
+        } catch (RuntimeException $exception) {
+            self::assertStringContainsString('same identifier (any case) already exists', $exception->getMessage());
+        }
+        $this->entityManager()->clear();
+        self::assertSame(1, $this->entityManager()->getRepository(KernelUser::class)->count([]));
+        self::assertFalse($this->signIn('Bob@example.com', 'attacker-pass-1'));
+
+        $this->start('exact', false, ['Bob@example.com' => 'pass-of-A-123']);
+        $registered = $this->service('test.identifier.registrar', UserRegistrar::class)->register(['email' => 'bob@example.com', 'password' => 'pass-of-B-123']);
+        self::assertSame('bob@example.com', $registered->getUserIdentifier(), 'Default normaliser: case variants stay distinct accounts.');
+        $this->entityManager()->clear();
+        self::assertTrue($this->signIn('Bob@example.com', 'pass-of-A-123'));
+    }
+
+    /**
      * REQ-RUNTIME-002: one kernel, no reset, alternating identities and spellings; each sign-in is its own.
      */
     public function testOneWorkerKernelServesAlternatingSpellings(): void
@@ -277,6 +328,8 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
             'grace@example.com' => 'grace-password-1',
             'JOSÉ@Example.com'  => 'jose-password-1',
             'AdminUser'         => 'admin-password-1',
+            'pad@example.com '  => 'pad-password-1',
+            "ctl\t@example.com" => 'ctl-password-1',
         ]);
         $connection = $this->entityManager()->getConnection();
         $platform   = $connection->getDatabasePlatform();
@@ -284,14 +337,15 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
         if (!$mysql && !$platform instanceof PostgreSQLPlatform) {
             self::markTestSkipped('The recipe is MySQL / MariaDB / PostgreSQL SQL (CI job real-databases).');
         }
-        $table                       = 'kernel_users';
-        [$collisions, $detect, $fix] = $mysql
-            ? [self::RECIPE_COLLISIONS, self::RECIPE_DETECT, self::RECIPE_FIX]
-            : [self::RECIPE_PG_COLLISIONS, self::RECIPE_PG_DETECT, self::RECIPE_PG_FIX];
+        $table                                  = 'kernel_users';
+        [$collisions, $detect, $unusable, $fix] = $mysql
+            ? [self::RECIPE_COLLISIONS, self::RECIPE_DETECT, self::RECIPE_UNUSABLE, self::RECIPE_FIX]
+            : [self::RECIPE_PG_COLLISIONS, self::RECIPE_PG_DETECT, self::RECIPE_PG_UNUSABLE, self::RECIPE_PG_FIX];
         $detected = static fn (): array => array_column($connection->fetchAllAssociative(sprintf($detect, $table)), 'email');
 
         self::assertSame([], $connection->fetchAllAssociative(sprintf($collisions, $table)));
         self::assertEqualsCanonicalizing(['Ada@Example.COM', 'JOSÉ@Example.com'], $detected());
+        self::assertEqualsCanonicalizing(['pad@example.com ', "ctl\t@example.com"], array_column($connection->fetchAllAssociative(sprintf($unusable, $table)), 'email'));
 
         self::assertSame(1, (int) $connection->executeStatement(sprintf($fix, $table)));
         self::assertSame(['JOSÉ@Example.com'], $detected(), 'Non-ASCII rows are left for a manual fix.');

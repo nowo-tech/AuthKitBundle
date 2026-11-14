@@ -36,6 +36,8 @@ interface UserLookupInterface
     /**
      * Whether a user already stores `$value` in `$property` in any letter case (SEC-004 CD L2: invited registration
      * on case-sensitive databases). Return false when your store enforces case-insensitive uniqueness itself.
+     * 1.49.0: also asked by every creation path (registration, admin, social) when the identifier normaliser is not the
+     * default one. `$value` is the RAW identifier (not normalised): compare it case-insensitively.
      */
     public function hasCaseVariant(ProfileSettings $profile, string $property, string $value): bool;
 }

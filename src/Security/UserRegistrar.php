@@ -152,7 +152,9 @@ final class UserRegistrar
 
     private function createUser(ProfileSettings $profile, NewUser $newUser): UserInterface&PasswordAuthenticatedUserInterface
     {
-        $user = $this->userFactory->create($profile, $newUser);
+        // 1.49.0 (audit OV): refused / case-variant identifiers never reach the factory, which receives the normalised one.
+        $newUser = $this->identifierMatcher->prepareNewUser($profile, $newUser, $this->userLookup, 'Registration failed');
+        $user    = $this->userFactory->create($profile, $newUser);
         // 1.49.0: stored in the form lookups use (identifier_normalizer); unchanged with the default normaliser.
         $this->identifierMatcher->normalizeStored($user, $profile->userIdentifierField);
 
