@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.49.0] - 2026-11-14](#1490---2026-11-14)
 - [[1.48.0] - 2026-11-13](#1480---2026-11-13)
 - [[1.47.0] - 2026-11-13](#1470---2026-11-13)
 - [[1.46.0] - 2026-11-12](#1460---2026-11-12)
@@ -108,6 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.49.0] - 2026-11-14
 
 Target: 1.49.0 (adds public API). See [UPGRADING](UPGRADING.md#to-1490).
 

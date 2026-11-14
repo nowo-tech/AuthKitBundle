@@ -4,6 +4,7 @@
 
 - [Unreleased](#unreleased)
 - [To 1.49.0](#to-1490)
+- [To 1.49.0](#to-1490-1)
   - [Identifier normaliser (default unchanged)](#identifier-normaliser-default-unchanged)
   - [Moving the identifier column to a binary collation](#moving-the-identifier-column-to-a-binary-collation)
   - [Throttling, MFA and LoginThrottleBundle](#throttling-mfa-and-loginthrottlebundle)
@@ -135,6 +136,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.49.0
+
+From **1.48.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.49.0
 
