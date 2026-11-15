@@ -128,8 +128,18 @@ Target: 1.51.0.
     help and error texts (`aria-describedby`); the generic OtpInput label is dropped so the field has a single name,
     and each box is named by its position (`mfa.field.code_digit`, "Digit 1 of 6", 7 locales; axe-clean in the demo).
     Errors still show on the field row.
+  - **Works without JavaScript** (audit QV-M1): the field's own named input renders as a visible text input (numeric,
+    `one-time-code`, `maxlength`) and the boxes stay `hidden` until `otp-input.js` has bound them
+    (`data-nowo-otp-init="1"`); then the CSS shows the boxes and hides the text input. JavaScript off, assets not
+    installed, a CSP block or a script error leave the single text field, so nobody is locked out of the challenge, the
+    forced setup or the account page.
   - `otp_input.mfa_code_autosubmit: true` submits the form once every box is filled (`js/nowo-auth-kit-otp.js`,
-    loaded with `otp-input.js`; CSP nonce on both tags).
+    loaded with `otp-input.js`; CSP nonce on both tags) — only on the sign-in challenge and the forced setup, never on
+    the account page's disable / regenerate forms; not while the recovery code field holds text; a second submit of
+    the same form (Enter, the button) is blocked (audit QV-L2). New `MfaCodeFormType` options `otp_autosubmit`
+    (default `false`) and `code_autofocus` (default `true`; the account page forms pass `false`, so the page no longer
+    has several `autofocus`, audit QV-L3).
+  - `mfa.field.code_help` takes `%digits%` (`mfa.totp.digits`) instead of a fixed 6 in the 7 locales.
   - `MfaCodeFormType` option `otp_input` (the profile's `otp_input` array, default `null` = text field), Twig form theme
     `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` (block `nowo_auth_kit_mfa_otp_widget`, applied to the code
     field only), `OtpInputTypeResolver::wantsMfaCode()` / `wantsMfaCodeAutosubmit()` / `resolveMfaCodeType()`.
@@ -146,6 +156,9 @@ Target: 1.51.0.
 
 ### Changed
 
+- The `otp-input.js` asset flag also requires `NowoOtpInputBundle` in `kernel.bundles` (audit QV-L1): with the package
+  installed but the bundle not registered, the auth pages no longer fail with a missing `nowo_otp_input` asset package
+  (also affected the password-reset code since 1.4.x).
 - Rector 2.8: `NewUser::identifierFormField()` is an instance method and `IdentityCollationListener` checks the
   platform with `instanceof` (no behaviour change).
 

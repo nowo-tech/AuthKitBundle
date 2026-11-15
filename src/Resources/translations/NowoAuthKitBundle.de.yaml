@@ -253,7 +253,7 @@ invitation:
 mfa:
     field:
         code: Bestätigungscode
-        code_help: Der 6-stellige Code aus Ihrer Authenticator-App.
+        code_help: Der %digits%-stellige Code aus Ihrer Authenticator-App.
         code_digit: 'Ziffer %position% von %length%'
         recovery_code: Wiederherstellungscode
         recovery_code_help: 'Einer Ihrer gespeicherten Wiederherstellungscodes, zum Beispiel ABCDE-12345.'

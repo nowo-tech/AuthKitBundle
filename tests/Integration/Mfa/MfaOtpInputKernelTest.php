@@ -53,7 +53,18 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         self::assertSame('Digit 1 of 6', $digits->first()->attr('aria-label'));
         self::assertSame('Digit 6 of 6', $digits->last()->attr('aria-label'));
         self::assertNull($group->filter('[role="group"][aria-label]')->getNode(0), 'One name for the field: no generic OTP label.');
-        self::assertCount(1, $group->filter('input[type="hidden"][name="mfa_code_form[code]"]'));
+        // Audit QV-M1: the submitted input is a visible text input until otp-input.js binds the boxes (hidden until then).
+        $text = $group->filter('input[name="mfa_code_form[code]"]');
+        self::assertCount(1, $text);
+        self::assertSame('text', $text->attr('type'));
+        self::assertSame('numeric', $text->attr('inputmode'));
+        self::assertSame('one-time-code', $text->attr('autocomplete'));
+        self::assertSame('6', $text->attr('maxlength'));
+        self::assertSame('mfa_code_form_code', $text->attr('id'), 'The visible label points at it.');
+        self::assertStringContainsString('nowo-auth-kit-mfa-otp__text', (string) $text->attr('class'));
+        self::assertNull($text->attr('required'));
+        self::assertNotNull($group->filter('[data-nowo-otp-render-target]')->attr('hidden'), 'The boxes wait for the script.');
+        self::assertStringContainsString('The 6-digit code from your authenticator app.', $crawler->filter('#mfa_code_form_code_help')->text());
         self::assertSame('text', $crawler->filter('details[data-testid="auth-kit-mfa-recovery"] input[name="mfa_code_form[recovery_code]"]')->attr('type'), 'The recovery code stays a text field.');
         $scripts = $crawler->filter('script[src]')->each(static fn (Crawler $s): string => (string) $s->attr('src'));
         self::assertContains('/bundles/nowootpinput/otp-input.js', $scripts);
@@ -65,6 +76,8 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         $group = $page->filter('[data-testid="auth-kit-mfa-otp"]');
         self::assertSame('mfa_code_form_code_help mfa_code_form_code_error1', $group->attr('aria-describedby'));
         self::assertStringContainsString('nowo-auth-kit-mfa-otp--invalid', (string) $group->attr('class'));
+        self::assertSame('true', $group->filter('input[name="mfa_code_form[code]"]')->attr('aria-invalid'));
+        self::assertSame('1234567', $group->filter('input[name="mfa_code_form[code]"]')->attr('value'), 'The typed value is kept.');
         self::assertCount(1, $page->filter('#mfa_code_form_code_error1'));
         self::assertCount(0, $this->eventsOf(MfaChallengeFailedEvent::class), 'The 7-digit value is not cut to 6 digits.');
 
@@ -77,6 +90,27 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         $this->client->request('GET', '/mfa-home');
         self::assertSame('member@example.com|' . UsernamePasswordToken::class, $this->client->getResponse()->getContent());
         self::assertSame('totp', $this->eventsOf(MfaChallengePassedEvent::class)[0]->method);
+    }
+
+    /**
+     * Audit QV-M1: without JavaScript the browser posts only the visible text input (the boxes have no name).
+     */
+    public function testWithoutJavaScriptThePlainFieldSignsIn(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        [$secret] = $this->enrol();
+        $this->client->request('GET', '/logout');
+        $this->signIn('member@example.com', 'member-password-123');
+
+        $crawler = $this->client->request('GET', '/login/mfa');
+        $form    = $crawler->filter('form[name="mfa_code_form"]')->form();
+        $values  = $form->getPhpValues();
+        self::assertSame(['code' => '', 'recovery_code' => '', '_token' => $values['mfa_code_form']['_token']], $values['mfa_code_form'], 'Only named fields are posted: the text input, the recovery code, the token.');
+        $values['mfa_code_form']['code'] = $this->code($secret);
+        $this->client->request('POST', '/login/mfa', $values);
+        self::assertResponseStatusCodeSame(303);
+        $this->client->request('GET', '/mfa-home');
+        self::assertStringStartsWith('member@example.com|', (string) $this->client->getResponse()->getContent());
     }
 
     public function testTheRecoveryCodeStillSignsIn(): void
@@ -107,6 +141,9 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         self::assertResponseIsSuccessful();
         self::assertCount(6, $crawler->filter('form[name="mfa_code_form"] [data-testid="auth-kit-mfa-otp"] [data-nowo-otp-digit]'));
         self::assertCount(0, $crawler->filter('input[name="mfa_code_form[recovery_code]"]'));
+        self::assertSame('1', $crawler->filter('[data-testid="auth-kit-mfa-otp"]')->attr('data-nowo-auth-kit-otp-autosubmit'));
+        self::assertSame('text', $crawler->filter('input[name="mfa_code_form[code]"]')->attr('type'));
+        self::assertNull($crawler->filter('input[name="mfa_code_form[code]"]')->attr('required'), 'A hidden required input would block the submit.');
         $secret = str_replace(' ', '', $crawler->filter('[data-testid="auth-kit-mfa-secret"]')->text());
 
         $this->client->submit($crawler->filter('form[name="mfa_code_form"]')->form(['mfa_code_form[code]' => '123456']));
@@ -129,9 +166,14 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         self::assertContains('/bundles/nowootpinput/otp-input.js', $scripts);
         self::assertCount(1, $crawler->filter('link[href="/bundles/nowoauthkit/css/nowo-auth-kit.css"]'));
 
+        self::assertNull($crawler->filter('form[name="mfa_enable"] [data-testid="auth-kit-mfa-otp"]')->attr('data-nowo-auth-kit-otp-autosubmit'));
+        self::assertCount(0, $crawler->filter('[autofocus]'), 'Audit QV-L3: no autofocus on the account page.');
+
         $this->enrol();
         $crawler = $this->client->request('GET', '/account/security/mfa');
         self::assertCount(1, $crawler->filter('form[name="mfa_disable"] [data-testid="auth-kit-mfa-otp"]'));
+        self::assertCount(0, $crawler->filter('[data-nowo-auth-kit-otp-autosubmit]'), 'Audit QV-L2: disable / regenerate never submit themselves.');
+        self::assertCount(0, $crawler->filter('[autofocus]'));
         self::assertSame('text', $crawler->filter('form[name="mfa_disable"] input[name="mfa_disable[recovery_code]"]')->attr('type'));
     }
 

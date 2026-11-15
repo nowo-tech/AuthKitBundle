@@ -64,9 +64,10 @@ final class MfaCodeFormTypeTest extends TestCase
     public function testTheCodeIsAnOtpFieldWhenAskedFor(): void
     {
         $form = $this->factory()->create(MfaCodeFormType::class, null, [
-            'otp_input' => ['mfa_code_autosubmit' => true] + self::ON,
-            'digits'    => 8,
-            'recovery'  => true,
+            'otp_input'      => ['mfa_code_autosubmit' => true] + self::ON,
+            'otp_autosubmit' => true,
+            'digits'         => 8,
+            'recovery'       => true,
         ]);
 
         $code   = $form->get('code');
@@ -85,6 +86,26 @@ final class MfaCodeFormTypeTest extends TestCase
         self::assertSame($view['code']->vars['id'] . '_label', $view['code']->vars['label_attr']['id']);
         self::assertTrue($view['code']->vars['mfa_otp_autosubmit']);
         self::assertSame(8, $view['code']->vars['otp_length']);
+        self::assertSame(['%digits%' => 8], $config->getOption('help_translation_parameters'));
+        self::assertTrue($config->getOption('autofocus'));
+    }
+
+    /**
+     * Audit QV-L2 / QV-L3: the account page forms (no `otp_autosubmit`, `code_autofocus: false`) never submit
+     * themselves and take no focus, in both modes.
+     */
+    public function testAccountFormsNeitherAutosubmitNorAutofocus(): void
+    {
+        $otp = $this->factory()->create(MfaCodeFormType::class, null, [
+            'otp_input'      => ['mfa_code_autosubmit' => true] + self::ON,
+            'code_autofocus' => false,
+        ]);
+        self::assertFalse($otp->createView()['code']->vars['mfa_otp_autosubmit']);
+        self::assertFalse($otp->get('code')->getConfig()->getOption('autofocus'));
+
+        $text = $this->factory()->create(MfaCodeFormType::class, null, ['code_autofocus' => false]);
+        self::assertArrayNotHasKey('autofocus', $text->get('code')->getConfig()->getOption('attr'));
+        self::assertSame(['%digits%' => 6], $text->get('code')->getConfig()->getOption('help_translation_parameters'));
     }
 
     public function testTheSetupCodeIsRequiredAndAutosubmitIsOffByDefault(): void

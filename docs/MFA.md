@@ -178,8 +178,9 @@ to `true`), the authenticator code of the challenge, forced setup and account pa
 `otp_input.mfa_code_autosubmit: true` submits once the last box is filled. The recovery code stays a text field in the
 `<details>` switch (no JavaScript needed). The boxes are one group named by the label and described by the help and
 error texts. The server receives the same string as from the text field, so validation, the attempt limiter, CSRF and
-the constant-time check do not change. The boxes need JavaScript; without the package or with the option off the field
-stays text. See [CONFIGURATION.md](CONFIGURATION.md#otp-input-optional).
+the constant-time check do not change. Without JavaScript (or when `otp-input.js` fails to load) the field is a single
+text input, so the challenge, the forced setup and the account page keep working; without the package or with the
+option off the field stays text. Autosubmit only applies to the challenge and the setup. See [CONFIGURATION.md](CONFIGURATION.md#otp-input-optional).
 
 Account card for the host's own account page:
 

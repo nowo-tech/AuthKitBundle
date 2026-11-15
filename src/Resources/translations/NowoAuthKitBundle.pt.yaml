@@ -253,7 +253,7 @@ invitation:
 mfa:
     field:
         code: Código de verificação
-        code_help: O código de 6 dígitos da sua aplicação de autenticação.
+        code_help: O código de %digits% dígitos da sua aplicação de autenticação.
         code_digit: 'Dígito %position% de %length%'
         recovery_code: Código de recuperação
         recovery_code_help: 'Um dos seus códigos de recuperação guardados, por exemplo ABCDE-12345.'

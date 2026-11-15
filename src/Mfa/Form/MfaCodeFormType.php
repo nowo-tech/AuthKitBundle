@@ -56,17 +56,17 @@ final class MfaCodeFormType extends AbstractType
         $wanted   = is_array($otpInput) && $this->otpInputTypeResolver->wantsMfaCode($otpInput);
         $otpType  = $this->otpInputTypeResolver->resolveMfaCodeType($wanted);
         $code     = [
-            'label'       => 'mfa.field.code',
-            'help'        => 'mfa.field.code_help',
-            'placeholder' => false,
-            'required'    => !$options['recovery'],
-            'attr'        => [
+            'label'                       => 'mfa.field.code',
+            'help'                        => 'mfa.field.code_help',
+            'help_translation_parameters' => ['%digits%' => $digits],
+            'placeholder'                 => false,
+            'required'                    => !$options['recovery'],
+            'attr'                        => [
                 'autocomplete' => 'one-time-code',
                 'inputmode'    => 'numeric',
                 'pattern'      => '[0-9]*',
                 'maxlength'    => $digits,
-                'autofocus'    => 'autofocus',
-            ],
+            ] + ($options['code_autofocus'] ? ['autofocus' => 'autofocus'] : []),
             'constraints' => [new Length(max: $digits, maxMessage: 'mfa.error.code_format')],
         ];
         if ($otpType !== null) {
@@ -77,7 +77,7 @@ final class MfaCodeFormType extends AbstractType
                 'length'       => $digits,
                 'numeric_only' => true,
                 'uppercase'    => false,
-                'autofocus'    => true,
+                'autofocus'    => $options['code_autofocus'],
             ]);
             // Same submitted value as the text field (no digit filter, no truncation): the server checks stay as they were.
             $builder->get('code')->resetModelTransformers();
@@ -106,7 +106,8 @@ final class MfaCodeFormType extends AbstractType
 
     /**
      * 1.51: the OTP code field is named by its visible label (the digit group points at it) and says whether the form
-     * submits itself once every box is filled (`otp_input.mfa_code_autosubmit`).
+     * submits itself once every box is filled: `otp_input.mfa_code_autosubmit` and the `otp_autosubmit` option, which
+     * only the sign-in challenge and setup set (never the account page's disable / regenerate forms, audit QV-L2).
      */
     public function finishView(FormView $view, FormInterface $form, array $options): void
     {
@@ -117,7 +118,8 @@ final class MfaCodeFormType extends AbstractType
         /** @var OtpInputConfig|null $otpInput */
         $otpInput                         = $options['otp_input'];
         $code->vars['label_attr']['id']   = $code->vars['id'] . '_label';
-        $code->vars['mfa_otp_autosubmit'] = is_array($otpInput) && $this->otpInputTypeResolver->wantsMfaCodeAutosubmit($otpInput);
+        $code->vars['mfa_otp_autosubmit'] = $options['otp_autosubmit']
+            && is_array($otpInput) && $this->otpInputTypeResolver->wantsMfaCodeAutosubmit($otpInput);
     }
 
     /**
@@ -146,8 +148,12 @@ final class MfaCodeFormType extends AbstractType
             'trust_device_days'  => 30,
             'csrf_token_id'      => 'nowo_auth_kit_mfa',
             'otp_input'          => null,
+            'otp_autosubmit'     => false,
+            'code_autofocus'     => true,
         ]);
         $resolver->setAllowedTypes('otp_input', ['null', 'array']);
+        $resolver->setAllowedTypes('otp_autosubmit', 'bool');
+        $resolver->setAllowedTypes('code_autofocus', 'bool');
         $resolver->setAllowedTypes('digits', 'int');
         $resolver->setAllowedTypes('recovery', 'bool');
         $resolver->setAllowedTypes('trust_device', 'bool');

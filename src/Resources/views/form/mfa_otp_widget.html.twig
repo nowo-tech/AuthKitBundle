@@ -5,8 +5,14 @@
   the form's own theme (UiKit by default).
   The digit boxes are one group named by the visible label (aria-labelledby: the label id set by
   MfaCodeFormType::finishView()) and described by the help and error texts; the inner OTP group drops its generic
-  aria-label so the field has a single name, and each box is named by its position (mfa.field.code_digit). data-nowo-auth-kit-otp-autosubmit (otp_input.mfa_code_autosubmit):
-  js/nowo-auth-kit-otp.js submits the form once every box is filled.
+  aria-label so the field has a single name, and each box is named by its position (mfa.field.code_digit).
+  Works without JavaScript (audit QV-M1): the field's own named input is rendered as a visible text input (numeric,
+  one-time-code, maxlength) and the boxes carry `hidden` until otp-input.js has bound them (data-nowo-otp-init="1" on
+  the container); nowo-auth-kit.css then shows the boxes and hides the text input, which keeps the submitted value. If
+  the script never runs (JavaScript off, assets missing, CSP, error) the text input stays. The text input is not
+  `required` (a hidden required input would block the submit); the server checks an empty code as before.
+  data-nowo-auth-kit-otp-autosubmit (otp_input.mfa_code_autosubmit, challenge and setup only): js/nowo-auth-kit-otp.js
+  submits the form once every box is filled.
   Without the OtpInput form theme (bundle not registered) the plain text widget is rendered instead.
 -#}
 {%- block nowo_auth_kit_mfa_otp_widget -%}
@@ -19,14 +25,19 @@
             data-testid="auth-kit-mfa-otp" data-nowo-auth-kit-otp-length="{{ otp_length }}"
             {%- if mfa_otp_autosubmit|default(false) %} data-nowo-auth-kit-otp-autosubmit="1"{% endif %}>
             {#- each box gets its position as accessible name ("Digit 1 of 6"; the group carries the label) -#}
-            {%- set _boxes = {} -%}
+            {%- set _text_class = ('nowo-auth-kit-mfa-otp__text ' ~ nowo_ui_class('input') ~ (errors|length > 0 ? ' ' ~ nowo_ui_class('input_invalid') : ''))|trim -%}
+            {%- set _boxes = {
+                ('type="hidden" id="' ~ id ~ '"'): 'type="text" id="' ~ id ~ '" class="' ~ _text_class|e('html_attr') ~ '" inputmode="numeric" pattern="[0-9]*" maxlength="' ~ otp_length ~ '"' ~ (errors|length > 0 ? ' aria-invalid="true"' : ''),
+                ' required="required"': '',
+                'data-nowo-otp-render-target="1"': 'hidden data-nowo-otp-render-target="1"',
+            } -%}
             {%- for _i in 0..(otp_length - 1) -%}
                 {%- set _name = 'mfa.field.code_digit'|trans({'%position%': _i + 1, '%length%': otp_length}, 'NowoAuthKitBundle') -%}
                 {%- set _boxes = _boxes|merge({('data-nowo-otp-digit="' ~ _i ~ '"'): 'aria-label="' ~ _name|e('html_attr') ~ '" data-nowo-otp-digit="' ~ _i ~ '"'}) -%}
             {%- endfor -%}
             {%- set translation_domain = false -%}
             {%- set _widget -%}{{- block('nowo_otp_input_widget') -}}{%- endset -%}
-            {#- the OtpInput markup was escaped when rendered; only the aria-label attributes (escaped above) are added -#}
+            {#- the OtpInput markup was escaped when rendered; only the attributes above (escaped) are changed or added -#}
             {{- _widget|replace(_boxes)|raw -}}
         </div>
     {%- else -%}

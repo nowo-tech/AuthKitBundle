@@ -206,6 +206,8 @@ final class MfaAccountController
             'recovery'      => $action !== 'enable',
             'csrf_token_id' => 'nowo_auth_kit_mfa.' . $action . '.' . $profile->name,
             'otp_input'     => $profile->otpInput,
+            // 1.51 (audit QV-L3): several code forms on one page — none takes the focus (and none autosubmits, QV-L2).
+            'code_autofocus' => false,
         ]);
     }
 

@@ -176,8 +176,13 @@ No schema change and nothing to do unless you use `nowo-tech/otp-input-bundle`.
           mfa_code_autosubmit: false  # true: submit once every box is filled
   ```
 
-- The boxes need JavaScript (`otp-input.js`). Without it, a user can still sign in with a recovery code; keep
-  `mfa_code: false` if your users must enter the authenticator code without JavaScript.
+- No JavaScript needed: until `otp-input.js` has bound the boxes, the field is one visible text input (it stays if the
+  script is blocked, missing or fails), so nobody is locked out. Make sure `nowo-auth-kit.css` loads (default layouts
+  do): it hides that text input once the boxes are live.
+- With the package installed but `NowoOtpInputBundle` not registered, AuthKit now skips the OtpInput script instead of
+  failing on the missing `nowo_otp_input` asset package.
+- The account page code forms no longer carry `autofocus`, and `mfa.field.code_help` now takes `%digits%` (override
+  it in your translations if you changed the text).
 - **Overridden templates.** If you override `mfa/challenge.html.twig`, `mfa/setup.html.twig` or
   `mfa/_code_form.html.twig`, add `{% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}`
   before the code row to get the single-name group and the autosubmit marker; without it the field renders with the
@@ -186,7 +191,7 @@ No schema change and nothing to do unless you use `nowo-tech/otp-input-bundle`.
 - Your own `MfaCodeFormType` forms: pass the profile's config as the `otp_input` option to get the boxes; without the
   option the field stays text.
 - E2E tests that fill `input[name="mfa_code_form[code]"]` must type into the first box
-  (`[data-nowo-otp-digit="0"]`) instead: the named input is now hidden.
+  (`[data-nowo-otp-digit="0"]`) instead when JavaScript runs: the named text input is then hidden by the CSS.
 
 ## To 1.50.0
 

@@ -238,8 +238,8 @@ field (no JavaScript needed). In your own templates, keep the theme on the code 
 {{ form_row(form.code) }}
 ```
 
-In a test or e2e, the submitted input is the hidden `mfa_code_form[code]`; a browser types into
-`[data-nowo-otp-digit="0"]`. See [MFA.md](MFA.md#code-on-otp-boxes-151).
+In a kernel test or without JavaScript, post `mfa_code_form[code]` (a plain text input until the boxes are bound); a
+browser with JavaScript types into `[data-nowo-otp-digit="0"]`. See [MFA.md](MFA.md#code-on-otp-boxes-151).
 
 ### Identifiers and binary collations (1.49)
 

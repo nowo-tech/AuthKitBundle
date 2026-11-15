@@ -26,6 +26,7 @@ use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Form\OtpInputTypeResolver;
 use Nowo\AuthKitBundle\Identity\ExactIdentifierNormalizer;
 use Nowo\AuthKitBundle\Identity\LowercaseAsciiEmailIdentifierNormalizer;
 use Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface;
@@ -187,7 +188,12 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $defaultProfile['device_intelligence']['collect_endpoint'],
         );
         $container->setParameter('nowo_auth_kit.otp_input', $defaultProfile['otp_input']);
-        $container->setParameter('nowo_auth_kit.otp_input_assets', $this->anyOtpInputAssets($profiles));
+        // 1.51 (audit QV-L1): only with NowoOtpInputBundle registered — its `nowo_otp_input` asset package is used.
+        $container->setParameter(
+            'nowo_auth_kit.otp_input_assets',
+            $this->anyOtpInputAssets($profiles)
+                && (is_array($bundles) ? isset($bundles['NowoOtpInputBundle']) : class_exists(OtpInputTypeResolver::OTP_TYPE)),
+        );
         $container->setParameter(
             'nowo_auth_kit.password_toggle_assets',
             is_array($bundles) ? isset($bundles['NowoPasswordToggleBundle']) : class_exists(Configuration::PASSWORD_TOGGLE_TYPE),

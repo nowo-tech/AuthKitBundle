@@ -160,6 +160,27 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertTrue($config['password_reset_code']);
     }
 
+    /**
+     * Audit QV-L1: the package installed but its bundle not registered has no `nowo_otp_input` asset package.
+     */
+    public function testLoadSkipsOtpInputAssetsWhenTheBundleIsNotRegistered(): void
+    {
+        $this->container->setParameter('kernel.bundles', []);
+        $this->extension->load([[
+            'user_class' => 'App\\Entity\\User',
+            'otp_input'  => ['enabled' => true],
+        ]], $this->container);
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.otp_input_assets'));
+
+        $registered = new ContainerBuilder();
+        $registered->setParameter('kernel.bundles', ['NowoOtpInputBundle' => 'Nowo\\OtpInputBundle\\NowoOtpInputBundle']);
+        $this->extension->load([[
+            'user_class' => 'App\\Entity\\User',
+            'otp_input'  => ['enabled' => true],
+        ]], $registered);
+        self::assertTrue($registered->getParameter('nowo_auth_kit.otp_input_assets'));
+    }
+
     public function testLoadSkipsOtpInputAssetsWhenNoFieldUsesIt(): void
     {
         $this->extension->load([[

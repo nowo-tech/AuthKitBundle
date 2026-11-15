@@ -253,7 +253,7 @@ invitation:
 mfa:
     field:
         code: Verificatiecode
-        code_help: De 6-cijferige code uit je authenticator-app.
+        code_help: De %digits%-cijferige code uit je authenticator-app.
         code_digit: 'Cijfer %position% van %length%'
         recovery_code: Herstelcode
         recovery_code_help: 'Een van je opgeslagen herstelcodes, bijvoorbeeld ABCDE-12345.'
