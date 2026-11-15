@@ -51,6 +51,10 @@ nowo_auth_kit:
             access_roles: [ROLE_ADMIN]
     # Several accounts at once (1.34): avatar menu switcher on the home page, /{_locale}/accounts chooser. Needs UserKit
     # sessions (config/packages/nowo_user_kit.yaml).
+    # 1.51.1: the MFA account page through a host template (extends @!NowoAuthKit/mfa/account.html.twig, admin layout).
+    web_ui:
+        templates:
+            mfa_account: 'account/mfa_account.html.twig'
     multi_account:
         enabled: true
         # 1.35: avatars in the switcher (carol: a picture, ada: a broken URL, dave: an http: URL the policy drops).

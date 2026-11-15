@@ -1,5 +1,12 @@
 /*
- * AuthKit MFA code autosubmit (1.51, otp_input.mfa_code_autosubmit; sign-in challenge and setup only, never the
+ * AuthKit MFA code on OTP boxes (1.51.1): shows the boxes once otp-input.js has bound them. The page renders the code
+ * field as a visible text input and the boxes with `hidden` (works with no script at all); when a
+ * `.nowo-auth-kit-mfa-otp` container gets data-nowo-otp-init="1" this script removes `hidden` from the boxes and turns
+ * the text input into a hidden input (it keeps the value the boxes write). Done here, not in a stylesheet, so a host
+ * that does not load nowo-auth-kit.css, or whose CSS framework hides [hidden] with a layered !important (Tailwind 4),
+ * always sees either the boxes or the text input.
+ *
+ * Autosubmit (1.51, otp_input.mfa_code_autosubmit; sign-in challenge and setup only, never the
  * account page's disable / regenerate forms). Progressive enhancement, CSP-safe (no inline code, no eval):
  * nowo-tech/otp-input-bundle fires a bubbling `change` on the code input (the field's own named input, a text input
  * hidden once the boxes are bound) after every box edit or paste; once every box of a
@@ -22,6 +29,47 @@
 
         return recovery !== null && recovery.value.trim() !== '';
     }
+
+    var WIDGET = '.nowo-auth-kit-mfa-otp';
+    var HOST = '[data-nowo-otp-container]';
+
+    function enhance(host) {
+        if (host.getAttribute('data-nowo-otp-init') !== '1' || host.closest(WIDGET) === null) {
+            return;
+        }
+        var text = host.querySelector(CODE);
+        var boxes = host.querySelector('[data-nowo-otp-render-target]');
+        if (!(text instanceof HTMLInputElement) || boxes === null || text.type === 'hidden') {
+            return;
+        }
+        var focused = document.activeElement === text;
+        boxes.removeAttribute('hidden');
+        text.type = 'hidden';
+        host.closest(WIDGET).setAttribute('data-nowo-auth-kit-otp-ready', '1');
+        if (focused) {
+            var first = boxes.querySelector('[data-nowo-otp-digit]');
+            if (first instanceof HTMLElement) {
+                first.focus();
+            }
+        }
+    }
+
+    function enhanceAll() {
+        document.querySelectorAll(WIDGET + ' ' + HOST).forEach(enhance);
+    }
+
+    if (typeof MutationObserver !== 'undefined') {
+        new MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+                if (mutation.target instanceof HTMLElement && mutation.target.matches(HOST)) {
+                    enhance(mutation.target);
+                }
+            });
+        }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-nowo-otp-init'], subtree: true });
+    }
+    enhanceAll();
+    document.addEventListener('DOMContentLoaded', enhanceAll);
+    window.addEventListener('load', enhanceAll);
 
     window.addEventListener('pageshow', function () {
         document.querySelectorAll('form[' + SUBMITTED + ']').forEach(function (form) {

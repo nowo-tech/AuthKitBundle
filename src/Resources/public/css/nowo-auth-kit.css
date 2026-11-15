@@ -279,20 +279,12 @@ button.nowo-auth-kit-embed__item {
   margin-top: 1rem;
 }
 
-/* 1.51: MFA code on the OTP input boxes (form/mfa_otp_widget.html.twig, otp_input.mfa_code). The boxes carry
-   `hidden` and the text input is shown until otp-input.js marks the container data-nowo-otp-init="1" (audit QV-M1:
-   without the script the single text input works). */
-.nowo-auth-kit-mfa-otp [data-nowo-otp-init="1"] .nowo-auth-kit-mfa-otp__text {
-  display: none;
-}
-
-.nowo-auth-kit-mfa-otp .nowo-otp-input__gap[hidden] {
-  display: none;
-}
-
-/* !important: Bootstrap's reboot has `[hidden] { display: none !important; }`; this more specific rule wins. */
-.nowo-auth-kit-mfa-otp [data-nowo-otp-init="1"] .nowo-otp-input__gap[hidden] {
-  display: flex !important;
+/* 1.51: MFA code on the OTP input boxes (form/mfa_otp_widget.html.twig, otp_input.mfa_code). Visibility never depends
+   on this stylesheet (1.51.1): the boxes carry `hidden` and the text input is shown until js/nowo-auth-kit-otp.js sees
+   otp-input.js bind the boxes, then it removes `hidden` from the boxes and turns the text input into a hidden input.
+   This rule only keeps a host rule that forces `display` on the OtpInput classes from showing the unbound boxes. */
+.nowo-auth-kit-mfa-otp [data-nowo-otp-render-target][hidden] {
+  display: none !important;
 }
 
 .nowo-auth-kit-mfa-otp .nowo-otp-input__gap {

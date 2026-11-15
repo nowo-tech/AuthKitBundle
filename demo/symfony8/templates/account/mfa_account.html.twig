@@ -1,0 +1,12 @@
+{#
+  Demo host override of the MFA account page (web_ui.templates.mfa_account, AuthKit 1.37): extends the bundle page with
+  the `!` prefix and fills only the before block (the host's account navigation), like a real admin area does. The
+  page renders on the demo admin layout (nowo_ui_kit.layouts.admin).
+#}
+{% extends '@!NowoAuthKit/mfa/account.html.twig' %}
+
+{% block nowo_auth_kit_mfa_account_before %}
+    <nav class="mb-3" data-testid="demo-account-nav" aria-label="Account">
+        <a class="link-body-emphasis" href="{{ path('demo_home', auth_kit_route_params()) }}">{{ 'demo.home.title'|trans({}, 'demo') }}</a>
+    </nav>
+{% endblock %}
