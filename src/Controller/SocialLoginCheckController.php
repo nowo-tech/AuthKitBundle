@@ -23,6 +23,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
+use Nowo\TransactionContract\TransientStorageFailure;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -113,6 +114,10 @@ final class SocialLoginCheckController
                 // A failed sign-in keeps nothing: no link, no replaced password, no session (GY-L9, GY-L10).
                 $this->guarded($request, fn () => $this->accountLinker->linkAndSignIn($profile, $provider, $social, $tokens, fn (UserInterface $user): ?Response => $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall)));
             }
+        } catch (TransientStorageFailure $failure) {
+            // 1.50.0 (audit QG-L4): a deadlock or lock wait answers 503 + Retry-After (StorageFailureSubscriber), never a
+            // refusal; nothing was linked or signed in (the unit was rolled back).
+            throw $failure;
         } catch (RuntimeException $exception) {
             $this->logger?->warning('AuthKit social callback failed for provider {provider}.', ['provider' => $provider, 'exception' => $exception::class]);
 

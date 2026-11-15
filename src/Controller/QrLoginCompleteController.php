@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
+use Nowo\TransactionContract\TransientStorageFailure;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -114,6 +115,9 @@ final class QrLoginCompleteController
         try {
             $signIn = fn (): ?Response => $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall);
             $this->signInRollback instanceof SocialHandlerSignInRollback ? $this->signInRollback->guard($request, $signIn) : $signIn();
+        } catch (TransientStorageFailure $failure) {
+            // 1.50.0 (audit QG-L4): a deadlock or lock wait answers 503 + Retry-After (StorageFailureSubscriber).
+            throw $failure;
         } catch (RuntimeException) {
             // GY-L10: undone by the guard. The challenge is consumed: the user starts again.
             return $this->redirectToLogin($profile->routes['login']['name']);

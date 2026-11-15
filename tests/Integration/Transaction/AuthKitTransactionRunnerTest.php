@@ -177,11 +177,122 @@ final class AuthKitTransactionRunnerTest extends TestCase
 
         self::assertFalse($application->contains($account), 'what the unit changed in the application\'s manager is detached');
         self::assertFalse($application->contains($pending), 'flushed inside the failed unit, so its state is not trusted');
-        // The application's manager is never flushed by the runner itself.
+        // The application's manager is never flushed by the runner itself (REQ-ARCH-001 rule 6).
         $later = new LoadAccount('later', 'pending');
         $application->persist($later);
         $runner->runWithAccounts(static fn (): null => null);
         self::assertTrue($application->getUnitOfWork()->isScheduledForInsert($later));
+    }
+
+    /**
+     * Audit QG-L1: a change the caller made before the unit (not flushed) is neither stored, rolled back nor detached
+     * when a unit that did not flush the application's manager fails: it stays pending for the caller's own flush.
+     */
+    public function testTheCallersPendingChangeSurvivesAFailedUnitWithAccounts(): void
+    {
+        $application = $this->manager('other');
+        $this->schema($application);
+        $account = new LoadAccount('acc', 'Before');
+        $application->persist($account);
+        $application->flush();
+        $account->name = 'Seen by the caller';
+        $pending       = new LoadAccount('pending', 'host');
+        $application->persist($pending);
+        $runner = new AuthKitTransactionRunner($this->em, $application);
+
+        $this->failing($runner, static function (): never {
+            throw new RuntimeException('identifier taken');
+        });
+
+        self::assertTrue($application->contains($account), 'the caller\'s pending change is kept');
+        self::assertTrue($application->getUnitOfWork()->isScheduledForInsert($pending), 'the caller\'s pending insert is kept');
+        self::assertSame('Before', $application->getConnection()->fetchOne("SELECT name FROM load_account WHERE id = 'acc'"), 'not stored by AuthKit');
+        $application->flush();
+        self::assertSame('Seen by the caller', $application->getConnection()->fetchOne("SELECT name FROM load_account WHERE id = 'acc'"), 'stored by the caller\'s own flush');
+        self::assertSame('host', $application->getConnection()->fetchOne("SELECT name FROM load_account WHERE id = 'pending'"));
+    }
+
+    public function testALazyRowTheUnitDidNotLoadStaysManaged(): void
+    {
+        $application = $this->manager('other');
+        $this->schema($application);
+        $application->persist(new LoadAccount('lazy', 'Before'));
+        $application->flush();
+        $application->clear();
+        $reference = $application->getReference(LoadAccount::class, 'lazy');
+        self::assertNotNull($reference);
+        self::assertTrue($application->getUnitOfWork()->isUninitializedObject($reference));
+        $runner = new AuthKitTransactionRunner($this->em, $application);
+
+        $this->failing($runner, static function (): never {
+            throw new RuntimeException('identifier taken');
+        });
+
+        self::assertTrue($application->contains($reference));
+        self::assertTrue($application->getUnitOfWork()->isUninitializedObject($reference), 'never loaded by the runner');
+    }
+
+    /**
+     * Audit QG-L1: what the unit changed without flushing it (a replaced password before a refused write) is detached,
+     * so the caller's next flush never stores it; the caller's own pending change on another row stays.
+     */
+    public function testAnUnflushedChangeOfAFailedUnitIsDetachedButTheCallersIsKept(): void
+    {
+        $application = $this->manager('other');
+        $this->schema($application);
+        $mine   = new LoadAccount('mine', 'Before');
+        $theirs = new LoadAccount('theirs', 'Before');
+        $application->persist($mine);
+        $application->persist($theirs);
+        $application->flush();
+        $member = new LoadMembership($mine, 'member');
+        $moved  = new LoadMembership($mine, 'member');
+        $application->persist($member);
+        $application->persist($moved);
+        $application->flush();
+        $mine->name   = 'Seen by the caller';
+        $member->role = 'owner';
+        $runner       = new AuthKitTransactionRunner($this->em, $application);
+
+        $this->failing($runner, static function () use ($theirs, $moved): never {
+            $theirs->name   = 'Changed by the unit';
+            $moved->account = $theirs;
+
+            throw new RuntimeException('a grant refused');
+        });
+
+        self::assertTrue($application->contains($mine));
+        self::assertTrue($application->contains($member), 'the caller\'s pending change of a row with a to-one link is kept');
+        self::assertFalse($application->contains($moved), 'a to-one link the unit changed is detached');
+        self::assertFalse($application->contains($theirs), 'the unit\'s unflushed change is never stored later');
+        $application->flush();
+        self::assertSame('Seen by the caller', $application->getConnection()->fetchOne("SELECT name FROM load_account WHERE id = 'mine'"));
+        self::assertSame('Before', $application->getConnection()->fetchOne("SELECT name FROM load_account WHERE id = 'theirs'"));
+        self::assertSame('owner', $application->getConnection()->fetchOne('SELECT role FROM load_membership WHERE id = ?', [$member->id]));
+    }
+
+    /**
+     * Audit QG-L1: a host user port unit flushes nothing, so the caller's pending change stays pending (and managed)
+     * after a failed unit.
+     */
+    public function testTheCallersPendingChangeStaysPendingAfterAFailedUnitOnTheConnection(): void
+    {
+        $application = $this->manager('other');
+        $this->schema($application);
+        $account = new LoadAccount('acc', 'Before');
+        $application->persist($account);
+        $application->flush();
+        $account->name = 'Seen by the caller';
+        $runner        = new AuthKitTransactionRunner($this->em, $application);
+
+        $this->failing($runner, static function (): never {
+            throw new RuntimeException('identifier taken');
+        }, connectionOnly: true);
+
+        self::assertTrue($application->contains($account), 'the caller\'s pending change is kept');
+        self::assertSame('Before', $application->getConnection()->fetchOne("SELECT name FROM load_account WHERE id = 'acc'"), 'not stored by AuthKit');
+        $application->flush();
+        self::assertSame('Seen by the caller', $application->getConnection()->fetchOne("SELECT name FROM load_account WHERE id = 'acc'"), 'stored by the caller\'s own flush');
     }
 
     public function testAUnitOnTheConnectionFlushesNothing(): void
@@ -220,10 +331,10 @@ final class AuthKitTransactionRunnerTest extends TestCase
         self::assertNull($this->em->getConnection()->fetchOne('SELECT revoked_at FROM auth_kit_invitation'));
     }
 
-    private function failing(AuthKitTransactionRunner $runner, callable $work): void
+    private function failing(AuthKitTransactionRunner $runner, callable $work, bool $connectionOnly = false): void
     {
         try {
-            $runner->runWithAccounts($work);
+            $connectionOnly ? $runner->runOnConnection($work) : $runner->runWithAccounts($work);
             self::fail('the unit must fail');
         } catch (RuntimeException) {
         }

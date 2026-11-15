@@ -35,7 +35,12 @@ use function usleep;
  * - others (SQLite: a writing transaction locks the whole database): no lock.
  *
  * A lock not obtained within the timeout is a {@see TransientStorageFailure} (503 + Retry-After). Releasing never hides
- * the unit's own outcome; a release that fails (a connection the runner closed) loses the lock with the session.
+ * the unit's own outcome; a release that fails closes the connection, so the lock goes with the session (audit QG-M2).
+ *
+ * Session locks need one database session from the lock to the unlock (docs/USAGE.md "High load"): PgBouncer in
+ * transaction (or statement) pooling mode is not supported for AuthKit's connection (session pooling or a direct
+ * connection is); ProxySQL keeps the session (it disables multiplexing after `GET_LOCK()`); on Galera / Percona XtraDB
+ * Cluster the lock is local to one node, so AuthKit's writes must go to a single writer node.
  *
  * Inside a transaction the application opened, the lock is released before that transaction commits: the rows the
  * unit wrote stay invisible to a concurrent unit until then (the identifier's unique key, if any, is the remaining
@@ -84,11 +89,24 @@ final class AuthKitNamedLock
         try {
             return $work();
         } finally {
-            try {
-                $release();
-            } catch (Throwable) {
-                // The unit's own outcome is what the caller must see; a closed session already dropped the lock.
-            }
+            self::release($connection, $release);
+        }
+    }
+
+    /**
+     * Releases the lock. A release that fails (a network error, a statement timeout, a killed query) may leave the
+     * session alive with the lock held: the connection is then closed, which ends the session and drops every lock it
+     * holds, so a FrankenPHP worker (kernel reset off) never carries the lock into its next request (audit QG-M2). DBAL
+     * opens a new connection on the next statement. The unit's own outcome is what the caller sees either way.
+     *
+     * @param Closure(): mixed $release
+     */
+    private static function release(Connection $connection, Closure $release): void
+    {
+        try {
+            $release();
+        } catch (Throwable) {
+            $connection->close();
         }
     }
 

@@ -6,10 +6,13 @@ namespace Nowo\AuthKitBundle\Tests\Integration\Mfa;
 
 use DateTimeImmutable;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
+use Nowo\AuthKitBundle\Mfa\Event\MfaTrustedDeviceAddedEvent;
 use Nowo\AuthKitBundle\Mfa\MfaOwner;
 use Nowo\AuthKitBundle\Mfa\MfaStore;
+use Nowo\AuthKitBundle\Mfa\MfaTrustedDevices;
 use Nowo\AuthKitBundle\Mfa\MfaUnavailableException;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * 1.50.0 (Beacon spec 239): every change of a second factor runs under the credential's row lock and works on the row
@@ -58,6 +61,26 @@ final class MfaLoadReadinessKernelTest extends MfaKernelTestCase
         $store->save($credential);
         self::assertTrue($store->insertDevice($credential, 'PUB2', 'hash-2', 'Firefox', null, $now, $now->modify('+1 day')));
         self::assertSame(['PUB2'], $this->em()->getConnection()->fetchFirstColumn('SELECT public_id FROM auth_kit_mfa_trusted_device'));
+    }
+
+    /**
+     * Audit QG-L3: a device the store refused (the factor was disabled meanwhile) is not trusted: no cookie, no event.
+     */
+    public function testABrowserIsNotTrustedWhenTheFactorWasDisabledMeanwhile(): void
+    {
+        $this->signIn('member@example.com', 'member-password-123');
+        $this->enrol();
+        $user = $this->user('member@example.com');
+        self::assertNotNull($this->manager()->credential($user));
+        $this->em()->getConnection()->executeStatement('UPDATE auth_kit_mfa SET enabled_at = NULL, totp_secret = NULL');
+        $devices = self::getContainer()->get(MfaTrustedDevices::class);
+        self::assertInstanceOf(MfaTrustedDevices::class, $devices);
+        $request = new Request();
+
+        self::assertNull($devices->trust($request, $user));
+        self::assertFalse($request->attributes->has(MfaTrustedDevices::QUEUE_ATTRIBUTE), 'no cookie');
+        self::assertSame([], $this->eventsOf(MfaTrustedDeviceAddedEvent::class), 'no event');
+        self::assertSame(0, (int) $this->em()->getConnection()->fetchOne('SELECT COUNT(*) FROM auth_kit_mfa_trusted_device'));
     }
 
     public function testAChangeOfACredentialRemovedMeanwhileChangesNothing(): void

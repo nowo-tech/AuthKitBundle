@@ -16,6 +16,7 @@ use Symfony\Contracts\Service\ResetInterface;
 use Throwable;
 
 use function array_search;
+use function in_array;
 use function is_object;
 use function is_string;
 use function spl_object_id;
@@ -39,11 +40,18 @@ use function spl_object_id;
  *   back; the unit's changes are flushed inside the transaction.
  * - {@see self::runWithAccounts()}: the same, for a unit that may also write accounts (the application's user
  *   entities) through the application's manager: registration, invitation acceptance, social sign-up and linking,
- *   administrator creation, password reset. That manager is flushed only by the code that writes the accounts (the
- *   Doctrine user writer, the invitation grants), exactly as before 1.50.0, never by the runner; after a failure the
- *   rows the unit touched in it are detached too.
+ *   administrator creation, password reset. Inside the unit that manager is flushed only by the code that writes the
+ *   accounts (the Doctrine user writer, the invitation grants), exactly as before 1.50.0; after a failure the rows the
+ *   unit touched in it are detached too.
  * - {@see self::runOnConnection()}: a unit that writes through DBAL statements or the application's own user ports only
- *   (no AuthKit entity): no manager is flushed.
+ *   (no AuthKit entity): no manager is flushed, before nor inside the unit (the host user ports store the accounts).
+ *
+ * A watched manager the runner does not flush first (the application's with the private manager, every manager of
+ * {@see self::runOnConnection()}) may hold the caller's own pending changes: the runner never flushes it (REQ-ARCH-001
+ * rule 6) and keeps them pending after a failed unit (audit QG-L1). It compares each row's field values with a copy
+ * taken before the unit (without asking the ORM for change sets): a row the unit neither changed nor flushed stays
+ * managed with its pending changes. A pending change of the caller that an account write of the unit flushed (the
+ * Doctrine user writer flushes the whole manager) was rolled back with the unit: that row is detached.
  *
  * After a failure the managers are never reset nor cleared. Only the rows the unit added, wrote or changed are detached
  * (their database state was rolled back), with the rows that point at them; every other entity stays managed. A manager
@@ -173,8 +181,11 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
         }
         $watched = $watched === [] ? $managers : $watched;
         $before  = [];
+        $states  = [];
         foreach ($watched as $index => $manager) {
             $before[$index] = $this->rows($manager);
+            // Audit QG-L1: a manager not flushed above may hold the caller's pending changes; remember the field values.
+            $states[$index] = in_array($manager, $managers, true) ? null : $this->states($manager);
         }
 
         try {
@@ -190,7 +201,7 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
             foreach ($watched as $index => $manager) {
                 // A manager the ORM closed in a failed flush stays closed: loud, and replaced at the next boundary.
                 if ($manager->isOpen()) {
-                    $this->forget($manager, $before[$index]);
+                    $this->forget($manager, $before[$index], $states[$index]);
                 }
             }
 
@@ -222,6 +233,9 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
     {
         $unitOfWork = $manager->getUnitOfWork();
         $rows       = [];
+        foreach ($unitOfWork->getScheduledEntityInsertions() as $entity) {
+            $rows[spl_object_id($entity)] = $unitOfWork->getOriginalEntityData($entity);
+        }
         foreach ($unitOfWork->getIdentityMap() as $entities) {
             foreach ($entities as $entity) {
                 $rows[spl_object_id($entity)] = $unitOfWork->getOriginalEntityData($entity);
@@ -232,13 +246,63 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
     }
 
     /**
+     * The field values (and to-one targets) of the rows the manager holds, read through the class metadata only: no
+     * change set is computed, so the ORM's own bookkeeping of the caller's pending changes is left as it was.
+     *
+     * @return array<int, array<string, mixed>|null> object id => values (null: a lazy row not loaded)
+     */
+    private function states(EntityManagerInterface $manager): array
+    {
+        $unitOfWork = $manager->getUnitOfWork();
+        $states     = [];
+        foreach ($unitOfWork->getScheduledEntityInsertions() as $entity) {
+            $states[spl_object_id($entity)] = $this->state($manager, $entity);
+        }
+        foreach ($unitOfWork->getIdentityMap() as $entities) {
+            foreach ($entities as $entity) {
+                $states[spl_object_id($entity)] = $this->state($manager, $entity);
+            }
+        }
+
+        return $states;
+    }
+
+    /**
+     * @return array<string, mixed>|null null for a lazy row not loaded (reading it would load it)
+     */
+    private function state(EntityManagerInterface $manager, object $entity): ?array
+    {
+        if ($manager->getUnitOfWork()->isUninitializedObject($entity)) {
+            return null;
+        }
+        $metadata = $manager->getClassMetadata($entity::class);
+        $state    = [];
+        foreach ($metadata->getFieldNames() as $field) {
+            $state[$field] = $metadata->getFieldValue($entity, $field);
+        }
+        foreach ($metadata->associationMappings as $field => $mapping) {
+            if ($mapping->isToOne()) {
+                $state[$field] = $metadata->getFieldValue($entity, $field);
+            }
+        }
+
+        return $state;
+    }
+
+    /**
      * After a failed unit: detaches the rows it added, wrote or changed (their database state was rolled back); a row
      * the caller held and the unit did not change stays managed. A row that points at a detached one goes too (it would
      * drag it back as a new entity on the next flush).
      *
+     * A manager that was not flushed before the unit may hold the caller's own pending changes: there a row counts as
+     * touched when the unit added it, flushed it or changed one of its values (audit QG-L1), never for a change the caller
+     * made before the unit.
+     *
      * @param array<int, array<string, mixed>> $before {@see self::rows()} before the unit
+     * @param array<int, array<string, mixed>|null>|null $states {@see self::states()} before the unit; null when the
+     *                                                           manager was flushed first (its pending changes are the unit's)
      */
-    private function forget(EntityManagerInterface $manager, array $before): void
+    private function forget(EntityManagerInterface $manager, array $before, ?array $states): void
     {
         $unitOfWork = $manager->getUnitOfWork();
         $rows       = $unitOfWork->getScheduledEntityInsertions();
@@ -251,7 +315,7 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
         $kept  = [];
         foreach ($rows as $entity) {
             $id = spl_object_id($entity);
-            if (!isset($before[$id]) || $before[$id] !== $unitOfWork->getOriginalEntityData($entity) || $this->changed($manager, $entity)) {
+            if (!isset($before[$id]) || $before[$id] !== $unitOfWork->getOriginalEntityData($entity) || $this->touched($manager, $entity, $states)) {
                 $stale[$id] = $entity;
             } else {
                 $kept[$id] = $entity;
@@ -278,6 +342,20 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
                 $manager->detach($entity);
             }
         }
+    }
+
+    /**
+     * Whether the unit changed the row without flushing it.
+     *
+     * @param array<int, array<string, mixed>|null>|null $states {@see self::forget()}
+     */
+    private function touched(EntityManagerInterface $manager, object $entity, ?array $states): bool
+    {
+        if ($states === null) {
+            return $this->changed($manager, $entity);
+        }
+
+        return ($states[spl_object_id($entity)] ?? null) !== $this->state($manager, $entity);
     }
 
     /**
