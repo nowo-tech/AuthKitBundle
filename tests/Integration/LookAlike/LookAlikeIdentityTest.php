@@ -12,7 +12,6 @@ use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use InvalidArgumentException;
-use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
@@ -365,9 +364,9 @@ final class LookAlikeIdentityTest extends TestCase
 
     /**
      * OG-1: an insert that still collides (a concurrent look-alike insert, or a unique key that folds where the lookup
-     * does not) is reported as MfaUnavailableException and goes through the entity-manager recovery.
+     * does not) is reported as MfaUnavailableException. 1.50.0: written in a savepoint, so the entity manager stays open.
      */
-    public function testACollidingInsertIsRefusedThroughTheRecovery(): void
+    public function testACollidingInsertIsRefusedWithoutClosingTheManager(): void
     {
         $em = LookAlikeDatabase::entityManager(false);
         if (!$em->getConnection()->getDatabasePlatform() instanceof SQLitePlatform) {
@@ -377,8 +376,7 @@ final class LookAlikeIdentityTest extends TestCase
         $c->executeStatement('DROP INDEX uniq_auth_kit_mfa_owner');
         $c->executeStatement('CREATE UNIQUE INDEX uniq_auth_kit_mfa_owner ON auth_kit_mfa (profile, user_type, user_id COLLATE NOCASE)');
         $c->insert(MfaCredential::TABLE, ['profile' => 'default', 'user_type' => TestUser::class, 'user_id' => self::VICTIM, 'created_at' => '2026-11-01 10:00:00', 'updated_at' => '2026-11-01 10:00:00']);
-        $registry = new SingleManagerRegistry($em);
-        $store    = new MfaStore($registry, new EntityManagerRecovery($registry));
+        $store = new MfaStore(new SingleManagerRegistry($em));
 
         try {
             $store->credentialOrNew('default', new MfaOwner(TestUser::class, 'JOSE@x.test'), new DateTimeImmutable());
@@ -387,6 +385,8 @@ final class LookAlikeIdentityTest extends TestCase
             self::assertInstanceOf(UniqueConstraintViolationException::class, $e->getPrevious());
         }
         self::assertSame([self::VICTIM], $c->fetchFirstColumn('SELECT user_id FROM ' . MfaCredential::TABLE));
+        self::assertTrue($em->isOpen());
+        self::assertSame(0, $c->getTransactionNestingLevel());
     }
 
     /**

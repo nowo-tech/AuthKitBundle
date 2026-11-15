@@ -8,7 +8,6 @@ use DateTimeImmutable;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -46,14 +45,13 @@ final readonly class AccountVaultStore
             ['profile' => $profile, 'hashes' => $hashes],
             ['hashes' => ArrayParameterType::STRING],
         );
-        $platform = $this->connection()->getDatabasePlatform();
-        $date     = Type::getType(Types::DATETIME_IMMUTABLE);
+        $connection = $this->connection();
 
-        return array_map(static function (array $row) use ($date, $platform): array {
+        return array_map(static function (array $row) use ($connection): array {
             /** @var DateTimeImmutable $rotated */
-            $rotated = $date->convertToPHPValue($row['rotated_at'], $platform);
+            $rotated = $connection->convertToPHPValue($row['rotated_at'], Types::DATETIME_IMMUTABLE);
             /** @var DateTimeImmutable $expires */
-            $expires = $date->convertToPHPValue($row['expires_at'], $platform);
+            $expires = $connection->convertToPHPValue($row['expires_at'], Types::DATETIME_IMMUTABLE);
 
             return [
                 'id'                  => (int) $row['id'],

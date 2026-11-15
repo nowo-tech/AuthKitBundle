@@ -193,8 +193,14 @@ final readonly class MfaManager
             return false;
         }
         if (!$credential->getRequiredSince() instanceof DateTimeImmutable) {
-            $credential->markRequiredSince($this->now(), $this->now());
-            $this->store->save($credential);
+            // 1.50.0: under the credential's lock (an enrolment or reset may be running).
+            $credential = $this->store->locked($credential, function (MfaCredential $locked): MfaCredential {
+                if (!$locked->getRequiredSince() instanceof DateTimeImmutable) {
+                    $locked->markRequiredSince($this->now(), $this->now());
+                }
+
+                return $locked;
+            }) ?? $credential;
         }
 
         return !$this->graceEndsAt($profile, $credential) instanceof DateTimeImmutable;
@@ -236,13 +242,19 @@ final readonly class MfaManager
             return null;
         }
         $credential = $this->store->credentialOrNew($profile->name, $owner, $this->now());
-        $reEnrolled = $credential->isEnabled();
-        // @igor-ignore - A Doctrine entity of this request, not a shared service.
-        $credential->enable($secret, $step, $this->now());
-        $this->store->save($credential);
-        $codes = $this->newRecoveryCodes($profile, $credential);
+        // 1.50.0 (Beacon spec 239): the secret, the recovery codes and the trusted devices change in one unit of work under
+        // the credential's lock: a concurrent disabling or second enrolment runs before or after it, never in between.
+        // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
+        $enrolment = $this->store->locked($credential, function (MfaCredential $locked) use ($profile, $secret, $step): array {
+            $reEnrolled = $locked->isEnabled();
+            // @igor-ignore - A Doctrine entity of this request, not a shared service.
+            $locked->enable($secret, $step, $this->now());
+
+            return [$reEnrolled, $this->newRecoveryCodes($profile, $locked), $reEnrolled ? $this->store->deleteDevices($locked) : []];
+        }) ?? throw new MfaUnavailableException('The MFA credential was removed meanwhile; try again.');
+        [$reEnrolled, $codes, $deviceIds] = $enrolment;
         if ($reEnrolled) {
-            $this->dropDevices($profile, $user, $credential, 're_enrolled');
+            $this->devicesForgotten($profile, $user, 're_enrolled', $deviceIds);
             $this->signOutOthers($user, $request);
         }
         $this->dispatch(new MfaEnabledEvent($profile->name, $user));
@@ -325,10 +337,8 @@ final readonly class MfaManager
         if (!$credential instanceof MfaCredential || !$credential->isEnabled()) {
             return false;
         }
-        $this->clear($profile, $user, $credential, 'reset', $actor->getUserIdentifier());
         // Grace 0 after a reset: the required user enrols at the next sign-in.
-        $credential->markRequiredSince(new DateTimeImmutable('@0'), $this->now());
-        $this->store->save($credential);
+        $this->clear($profile, $user, $credential, 'reset', $actor->getUserIdentifier(), new DateTimeImmutable('@0'));
         $this->sessions?->revokeAll($user, $actor, RevocationReason::Admin);
         $this->dispatch(new MfaResetByAdminEvent($profile->name, $user, $actor));
         $this->logger->warning('MFA reset by an administrator.', ['profile' => $profile->name, 'owner' => $credential->owner()->key(), 'actor' => $actor->getUserIdentifier()]);
@@ -348,7 +358,11 @@ final readonly class MfaManager
         if (!$credential instanceof MfaCredential || !$credential->isEnabled()) {
             return [];
         }
-        $codes = $this->newRecoveryCodes($profile, $credential);
+        // 1.50.0: under the credential's lock, and only while it is still enabled.
+        $codes = $this->store->locked($credential, fn (MfaCredential $locked): ?array => $locked->isEnabled() ? $this->newRecoveryCodes($profile, $locked) : null);
+        if ($codes === null) {
+            return [];
+        }
         $this->dispatch(new MfaRecoveryCodesRegeneratedEvent($profile->name, $user));
 
         return $codes;
@@ -526,18 +540,39 @@ final readonly class MfaManager
         return $codes;
     }
 
-    private function clear(ProfileSettings $profile, UserInterface $user, MfaCredential $credential, string $reason, ?string $resetBy = null): void
+    /**
+     * 1.50.0 (Beacon spec 239): the secret, the recovery codes and the trusted devices go in one unit of work under the
+     * credential's lock (a concurrent enrolment runs before or after it, never in between); the device sessions and the
+     * event follow the commit.
+     */
+    private function clear(ProfileSettings $profile, UserInterface $user, MfaCredential $credential, string $reason, ?string $resetBy = null, ?DateTimeImmutable $requiredSince = null): void
     {
-        $credential->disable($this->now(), $resetBy);
-        $this->store->save($credential);
-        $this->store->replaceRecoveryCodes($credential, [], $this->now());
-        $this->dropDevices($profile, $user, $credential, $reason);
+        // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
+        $deviceIds = $this->store->locked($credential, function (MfaCredential $locked) use ($resetBy, $requiredSince): array {
+            $locked->disable($this->now(), $resetBy);
+            if ($requiredSince instanceof DateTimeImmutable) {
+                $locked->markRequiredSince($requiredSince, $this->now());
+            }
+            $this->store->replaceRecoveryCodes($locked, [], $this->now());
+
+            return $this->store->deleteDevices($locked);
+        }) ?? [];
+        $this->devicesForgotten($profile, $user, $reason, $deviceIds);
     }
 
     private function dropDevices(ProfileSettings $profile, UserInterface $user, MfaCredential $credential, string $reason, ?string $publicId = null, ?Request $request = null): int
     {
-        $deviceIds = $this->store->deleteDevices($credential, $publicId);
-        $current   = $this->currentSessionHash($request);
+        return $this->devicesForgotten($profile, $user, $reason, $this->store->deleteDevices($credential, $publicId), $request);
+    }
+
+    /**
+     * The sessions of the forgotten devices (reason `user`) and the event, after the devices were deleted.
+     *
+     * @param list<string|null> $deviceIds
+     */
+    private function devicesForgotten(ProfileSettings $profile, UserInterface $user, string $reason, array $deviceIds, ?Request $request = null): int
+    {
+        $current = $this->currentSessionHash($request);
         foreach ($deviceIds as $deviceId) {
             if ($deviceId !== null && $reason === 'user') {
                 $this->sessions?->revokeDevice($user, $deviceId, $current, $user);

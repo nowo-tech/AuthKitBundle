@@ -95,7 +95,7 @@ final readonly class MfaTrustedDevices
 
     /**
      * Trusts this browser for the user (after a valid code). Returns the device public id, or null when trusted
-     * devices are off.
+     * devices are off or the device was not stored (1.50.0: the factor was disabled or enrolled again meanwhile).
      */
     public function trust(Request $request, UserInterface $user): ?string
     {
@@ -108,7 +108,10 @@ final readonly class MfaTrustedDevices
         $now      = $this->manager->now();
         $token    = $this->newToken();
         $publicId = bin2hex(random_bytes(16));
-        $this->store->insertDevice($credential, $publicId, $this->hash($profile, $token), self::label((string) $request->headers->get('User-Agent')), $this->clients?->deviceId($request), $now, $now->modify(sprintf('+%d seconds', $lifetime)));
+        if (!$this->store->insertDevice($credential, $publicId, $this->hash($profile, $token), self::label((string) $request->headers->get('User-Agent')), $this->clients?->deviceId($request), $now, $now->modify(sprintf('+%d seconds', $lifetime)))) {
+            // 1.50.0 (audit QG-L3): the factor was disabled or enrolled again meanwhile; no row, so no cookie and no event.
+            return null;
+        }
         $this->queue($request, [...$this->tokens($request), $token], $profile);
         $this->dispatcher?->dispatch(new MfaTrustedDeviceAddedEvent($profile->name, $user, $publicId));
         $this->enforceLimit($profile, $user, $credential, $now);

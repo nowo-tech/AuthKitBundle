@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
+use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerMiddleware;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Doctrine\UnitOfWorkBoundaries;
@@ -22,13 +23,18 @@ use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\Argument\BoundArgument;
+use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Reference;
+
+use function array_keys;
+use function array_map;
 
 /**
  * 1.46.0 `doctrine.private_entity_manager` and `doctrine.mapping_type`: the default keeps the 1.45 wiring; true points
@@ -44,11 +50,18 @@ final class PrivateEntityManagerConfigTest extends TestCase
         self::assertFalse($container->getParameter(NowoAuthKitExtension::PRIVATE_ENTITY_MANAGER_PARAMETER));
         self::assertTrue($container->hasParameter(NowoAuthKitExtension::MAPPING_ENABLED_PARAMETER));
         self::assertFalse($container->hasParameter(NowoAuthKitExtension::XML_MAPPING_ENABLED_PARAMETER));
-        foreach ([AuthKitEntityManager::class, AuthKitManagerRegistry::class, UnitOfWorkBoundaries::class, PrivateEntityManagerSubscriber::class, PrivateEntityManagerMiddleware::class] as $id) {
+        foreach ([AuthKitEntityManager::class, AuthKitManagerRegistry::class, PrivateEntityManagerMiddleware::class] as $id) {
             self::assertTrue(!$container->hasDefinition($id) || $container->getDefinition($id)->hasTag('container.excluded'), $id);
         }
+        // 1.50.0: the boundaries are tracked in every mode; without the private manager the subscriber only replaces a
+        // manager closed by a failed AuthKit write (the runner and the recovery, never the private manager).
+        self::assertTrue($container->getDefinition(UnitOfWorkBoundaries::class)->hasTag('kernel.event_subscriber'));
+        $resettables = $container->getDefinition(PrivateEntityManagerSubscriber::class)->getArgument(1);
+        self::assertInstanceOf(IteratorArgument::class, $resettables);
+        self::assertSame([AuthKitTransactionRunner::SERVICE_ID, EntityManagerRecovery::class], array_map(static fn (Reference $reference): string => (string) $reference, $resettables->getValues()));
         self::assertSame([], $container->getDefinition(QrLoginChallengeRepository::class)->getArguments());
-        self::assertSame([], $container->getDefinition(SocialLoginGate::class)->getBindings());
+        // 1.50.0: only AuthKit's own runner is bound (never a runner the application binds to the interface).
+        self::assertSame([AuthKitTransactionRunner::class], array_keys($container->getDefinition(SocialLoginGate::class)->getBindings()));
         // Never autowired (a host manager named "private" must not be injected).
         self::assertNull($container->getDefinition(SocialAccountLinker::class)->getArgument('$privateEntityManager'));
         self::assertNull($container->getDefinition(InvitationAcceptor::class)->getArgument('$privateEntityManager'));

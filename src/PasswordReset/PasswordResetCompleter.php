@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
 use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Nowo\AuthKitBundle\User\UserIds;
@@ -27,6 +28,8 @@ final class PasswordResetCompleter
 {
     private readonly UserWriterInterface $userWriter;
 
+    private readonly AuthKitTransactionRunner $transactions;
+
     public function __construct(
         EntityManagerInterface $entityManager,
         private readonly UserPasswordHasherInterface $passwordHasher,
@@ -36,8 +39,10 @@ final class PasswordResetCompleter
         EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
         ?UserWriterInterface $userWriter = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        ?AuthKitTransactionRunner $transactions = null,
     ) {
-        $this->userWriter = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery);
+        $this->transactions = $transactions ?? new AuthKitTransactionRunner($entityManager);
+        $this->userWriter   = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions);
     }
 
     public function complete(PasswordAuthenticatedUserInterface $user, #[SensitiveParameter] string $plainPassword): void
@@ -45,11 +50,15 @@ final class PasswordResetCompleter
         $profile = $this->profileRegistry->resolveForObject($user) ?? $this->profileRegistry->getDefault();
         $hashed  = $this->passwordHasher->hashPassword($user, $plainPassword);
 
-        $this->userWriter->changePassword($profile, $user, $hashed);
-        // @igor-ignore - Not shared worker service state.
-        $this->tokenManager->clearForUser($user);
-
-        $this->userWriter->save($profile, $user);
+        // 1.50.0 (Beacon spec 239): the new password and the cleared credential are one unit of work: a failure keeps
+        // neither (the reset link stays usable), and never stores the password while the credential stays live.
+        $unit = function () use ($profile, $user, $hashed): void {
+            $this->userWriter->changePassword($profile, $user, $hashed);
+            // @igor-ignore - Not shared worker service state.
+            $this->tokenManager->clearForUser($user);
+            $this->userWriter->save($profile, $user);
+        };
+        $this->userWriter instanceof DoctrineUserWriter ? $this->transactions->runWithAccounts($unit) : $this->transactions->runOnConnection($unit);
 
         $this->eventDispatcher?->dispatch(new PasswordResetCompletedEvent(
             $profile->name,

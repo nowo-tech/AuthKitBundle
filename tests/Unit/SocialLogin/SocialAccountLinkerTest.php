@@ -35,7 +35,7 @@ final class SocialAccountLinkerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
         $em->expects(self::exactly(2))->method('persist');
-        $em->expects(self::exactly(2))->method('flush')->willReturnCallback(
+        $em->expects(self::atLeastOnce())->method('flush')->willReturnCallback(
             static function (): void {
                 // Assign id after first flush (user create)
             },
@@ -85,7 +85,7 @@ final class SocialAccountLinkerTest extends TestCase
         $em->expects(self::once())->method('refresh')->with($existing);
         // reset_password (default): the replaced password is saved first (JW-A1), then the account link.
         $em->expects(self::exactly(2))->method('persist');
-        $em->expects(self::exactly(2))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $linker = new SocialAccountLinker(
             $em,
@@ -126,7 +126,7 @@ final class SocialAccountLinkerTest extends TestCase
         $em->method('find')->with(TestUser::class, 7)->willReturn($existingUser);
         $em->method('contains')->with($existingUser)->willReturn(true);
         $em->expects(self::once())->method('refresh')->with($existingUser);
-        $em->expects(self::once())->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $linker = new SocialAccountLinker(
             $em,
@@ -190,7 +190,7 @@ final class SocialAccountLinkerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
         $em->expects(self::exactly(2))->method('persist');
-        $em->expects(self::exactly(2))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed');
@@ -225,7 +225,7 @@ final class SocialAccountLinkerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
         $em->expects(self::exactly(2))->method('persist');
-        $em->expects(self::exactly(2))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed');
@@ -260,7 +260,7 @@ final class SocialAccountLinkerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
         $em->expects(self::exactly(2))->method('persist');
-        $em->expects(self::exactly(2))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed');
@@ -301,7 +301,7 @@ final class SocialAccountLinkerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
         $em->expects(self::exactly(2))->method('persist');
-        $em->expects(self::exactly(2))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $linker = new SocialAccountLinker(
             $em,
@@ -341,7 +341,7 @@ final class SocialAccountLinkerTest extends TestCase
                 $persisted = $entity;
             },
         );
-        $em->expects(self::exactly(2))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $linker = new SocialAccountLinker(
             $em,
@@ -380,7 +380,7 @@ final class SocialAccountLinkerTest extends TestCase
 
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('find')->with(StringIdUser::class, 'uuid-1')->willReturn($existingUser);
-        $em->expects(self::once())->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $linker = new SocialAccountLinker(
             $em,

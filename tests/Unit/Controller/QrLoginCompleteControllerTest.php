@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
+use Nowo\TransactionContract\TransientStorageFailure;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\Request;
@@ -241,6 +242,44 @@ final class QrLoginCompleteControllerTest extends TestCase
         $response = $controller->complete(new Request(), 'complete-id');
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/dashboard', $response->headers->get('Location'));
+    }
+
+    /** 1.50.0 (audit QG-L4). */
+    public function testATransientStorageFailureOfTheSignInAnswers503(): void
+    {
+        $user = new TestUser();
+        $user->setEmail('user@test.com');
+        $challenge = $this->approvedChallenge();
+
+        $manager = $this->createMock(QrLoginChallengeManager::class);
+        $manager->method('find')->willReturn($challenge);
+        $manager->method('verifyDesktopCookie')->willReturn(true);
+        $manager->method('verifyDesktopBinding')->willReturn(true);
+        $manager->expects(self::once())->method('consume')->with($challenge, $user, 'default');
+
+        $repo = $this->createMock(EntityRepository::class);
+        $repo->method('findBy')->willReturn([$user]);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($repo);
+
+        $security = $this->createMock(Security::class);
+        $security->expects(self::once())->method('login')->with($user, null, 'main')->willThrowException(new TransientStorageFailure(1));
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/dashboard');
+
+        $controller = new QrLoginCompleteController(
+            new QrLoginGate(ProfileRegistryFactory::single(TestUser::class, $this->overrides())),
+            $manager,
+            $em,
+            $security,
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $this->overrides()),
+        );
+
+        // Audit QG-L4: a deadlock or lock wait is a 503 (StorageFailureSubscriber), not a redirect to the login page.
+        $this->expectException(TransientStorageFailure::class);
+        $controller->complete(new Request(), 'complete-id');
     }
 
     /** JW-A3: a host lookup looser than the contract (look-alike / other account) never signs that account in. */

@@ -205,11 +205,12 @@ final class InvitationPersonalDataPortTest extends TestCase
         for ($i = 0; $i < 1203; ++$i) {
             $this->invite('bulk' . $i . '@example.com', $i % 2 === 0 ? 'subject' : 'Subject', flush: false);
             if ($i % 200 === 0) {
-                $this->em->flush();
+                // Bulk fixture load in one test transaction (no worker, no concurrency).
+                $this->em->flush(); // @phpstan-ignore frankenphp.worker.noFlushInHandWrittenTransaction
                 $this->em->clear();
             }
         }
-        $this->em->flush();
+        $this->em->flush(); // @phpstan-ignore frankenphp.worker.noFlushInHandWrittenTransaction
         $this->em->clear();
         $connection->commit();
 

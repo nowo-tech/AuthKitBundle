@@ -30,7 +30,7 @@ final class AdminUserCreatorTest extends TestCase
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects(self::once())->method('persist')->with(self::isInstanceOf(TestUser::class));
-        $entityManager->expects(self::once())->method('flush');
+        $entityManager->expects(self::atLeastOnce())->method('flush');
 
         $events     = [];
         $dispatcher = new EventDispatcher();
@@ -121,9 +121,13 @@ final class AdminUserCreatorTest extends TestCase
     public function testUniqueViolationBecomesRuntimeException(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('flush')->willThrowException(
-            new UniqueConstraintViolationException(new class('Duplicate entry') extends AbstractException { }, null),
-        );
+        $flushes       = 0;
+        // The runner's first flush has nothing pending; the account's flush hits the unique key.
+        $entityManager->method('flush')->willReturnCallback(static function () use (&$flushes): void {
+            if (++$flushes > 1) {
+                throw new UniqueConstraintViolationException(new class('Duplicate entry') extends AbstractException { }, null);
+            }
+        });
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Admin creation failed');

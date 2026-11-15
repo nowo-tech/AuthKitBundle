@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\QrLogin\Event\QrLoginCompletedEvent;
 use Nowo\AuthKitBundle\QrLogin\Event\QrLoginDeniedEvent;
 use Nowo\AuthKitBundle\Repository\QrLoginChallengeRepository;
 use Psr\Clock\ClockInterface;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -41,12 +42,17 @@ class QrLoginChallengeManager
 {
     public const DESKTOP_COOKIE_NAME = 'ak_qr_desk';
 
+    /** 1.50.0: public codes drawn for one challenge before giving up. */
+    public const MAX_CODE_ATTEMPTS = 5;
+
+    // 1.50.0: the EntityManagerRecovery argument is kept for compatibility (closed managers are replaced at the boundary).
+    // @phpstan-ignore constructor.unusedParameter
     public function __construct(
         private readonly QrLoginChallengeRepository $repository,
         private readonly ProfileRegistry $profileRegistry,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly string $kernelSecret,
-        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
         private readonly ?ClockInterface $clock = null,
     ) {
     }
@@ -58,23 +64,29 @@ class QrLoginChallengeManager
     {
         $profile      = $this->resolveProfile($profileName);
         $ttl          = (int) ($profile->qrLogin['challenge_ttl'] ?? 90);
-        $id           = $this->generateUuid();
-        $publicCode   = $this->generatePublicCode();
         $cookieValue  = bin2hex(random_bytes(32));
         $approveToken = bin2hex(random_bytes(32));
 
-        $challenge = new QrLoginChallenge(
-            id: $id,
-            publicCode: $publicCode,
-            desktopCookieHash: $this->desktopCookieHash($cookieValue, $profile->name),
-            desktopIpHash: $this->hashHmac($request->getClientIp() ?? 'unknown'),
-            desktopUaHash: $this->hashHmac($request->headers->get('User-Agent') ?? ''),
-            desktopUaLabel: $this->buildUaLabel($request->headers->get('User-Agent') ?? ''),
-            approveTokenHash: $this->hashValue($approveToken),
-            expiresAt: $this->now()->add(new DateInterval("PT{$ttl}S")),
-        );
-
-        $this->save($challenge);
+        // 1.50.0 (Beacon spec 239): the public code is short (8 hex digits), so a taken one is drawn again (written in a
+        // savepoint: a taken code never closes the entity manager nor answers 500).
+        $attempt = 0;
+        do {
+            if (++$attempt > self::MAX_CODE_ATTEMPTS) {
+                throw new RuntimeException('No free QR login public code was found; try again.');
+            }
+            $challenge = new QrLoginChallenge(
+                id: $this->generateUuid(),
+                publicCode: $this->generatePublicCode(),
+                desktopCookieHash: $this->desktopCookieHash($cookieValue, $profile->name),
+                desktopIpHash: $this->hashHmac($request->getClientIp() ?? 'unknown'),
+                desktopUaHash: $this->hashHmac($request->headers->get('User-Agent') ?? ''),
+                desktopUaLabel: $this->buildUaLabel($request->headers->get('User-Agent') ?? ''),
+                approveTokenHash: $this->hashValue($approveToken),
+                expiresAt: $this->now()->add(new DateInterval("PT{$ttl}S")),
+            );
+        } while (!$this->repository->insertNew($challenge));
+        // The managed row: later writes of the request go through the unit of work.
+        $challenge = $this->repository->findFresh($challenge->getId()) ?? $challenge;
         $this->eventDispatcher->dispatch(new QrLoginChallengeCreatedEvent($challenge, $profile->name));
 
         return [
@@ -167,14 +179,17 @@ class QrLoginChallengeManager
     ): void {
         $profile = $this->resolveProfile($profileName);
 
-        $this->claim($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Approved);
-        $challenge->markApproved(
-            userClass: $user::class,
-            userId: $user->getUserIdentifier(),
-            phoneHint: $phoneHint,
-        );
-
-        $this->save($challenge);
+        // 1.50.0: the single-use transition and the approval are one unit of work (never approved without a user).
+        // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
+        $this->repository->transactional(function () use ($challenge, $user, $phoneHint): void {
+            $this->claim($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Approved);
+            $challenge->markApproved(
+                userClass: $user::class,
+                userId: $user->getUserIdentifier(),
+                phoneHint: $phoneHint,
+            );
+            $this->save($challenge);
+        });
         $this->eventDispatcher->dispatch(new QrLoginApprovedEvent($challenge, $user, $profile->name));
     }
 
@@ -184,9 +199,12 @@ class QrLoginChallengeManager
     public function deny(QrLoginChallenge $challenge, ?string $profileName = null): void
     {
         $profile = $this->resolveProfile($profileName);
-        $this->claim($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Denied);
-        $challenge->markDenied();
-        $this->save($challenge);
+        // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
+        $this->repository->transactional(function () use ($challenge): void {
+            $this->claim($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Denied);
+            $challenge->markDenied();
+            $this->save($challenge);
+        });
         $this->eventDispatcher->dispatch(new QrLoginDeniedEvent($challenge, $profile->name));
     }
 
@@ -196,19 +214,29 @@ class QrLoginChallengeManager
     public function consume(QrLoginChallenge $challenge, UserInterface $user, ?string $profileName = null): void
     {
         $profile = $this->resolveProfile($profileName);
-        $this->claim($challenge, QrLoginChallengeStatus::Approved, QrLoginChallengeStatus::Consumed);
-        $challenge->markConsumed();
-        $this->save($challenge);
+        // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
+        $this->repository->transactional(function () use ($challenge): void {
+            $this->claim($challenge, QrLoginChallengeStatus::Approved, QrLoginChallengeStatus::Consumed);
+            $challenge->markConsumed();
+            $this->save($challenge);
+        });
         $this->eventDispatcher->dispatch(new QrLoginCompletedEvent($challenge, $user, $profile->name));
     }
 
     public function isExpiredOrInvalid(QrLoginChallenge $challenge): bool
     {
         if ($challenge->isExpired($this->now()) && $challenge->getStatus() === QrLoginChallengeStatus::Pending) {
-            if ($this->transition($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Expired)) {
+            // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
+            $expired = $this->repository->transactional(function () use ($challenge): bool {
+                if (!$this->transition($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Expired)) {
+                    return false;
+                }
                 $challenge->markExpired();
                 $this->save($challenge);
 
+                return true;
+            });
+            if ($expired) {
                 return true;
             }
 
@@ -240,17 +268,13 @@ class QrLoginChallengeManager
 
     private function transition(QrLoginChallenge $challenge, QrLoginChallengeStatus $from, QrLoginChallengeStatus $to): bool
     {
-        return $this->entityManagerRecovery->run(
-            fn (): bool => $this->repository->transitionStatus($challenge, $from, $to),
-        );
+        return $this->repository->transitionStatus($challenge, $from, $to);
     }
 
     private function save(QrLoginChallenge $challenge): void
     {
         // @igor-ignore - Not shared worker service state.
-        $this->entityManagerRecovery->run(function () use ($challenge): void {
-            $this->repository->save($challenge);
-        });
+        $this->repository->save($challenge);
     }
 
     private function generateUuid(): string

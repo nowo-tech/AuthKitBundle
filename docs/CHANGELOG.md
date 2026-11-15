@@ -110,6 +110,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.50.0 (high load readiness, Beacon spec 239; new dependencies, no configuration change). See
+[UPGRADING](UPGRADING.md#unreleased) and [USAGE](USAGE.md#high-load).
+
+### Added
+
+- **AuthKit's own transaction runner** `Transaction\AuthKitTransactionRunner` (service `nowo_auth_kit.transaction_runner`,
+  nowo-tech/transaction-contract `TransactionRunnerInterface`, built on nowo-tech/transaction-doctrine 1.1). Every AuthKit
+  write is one unit of work on it: one transaction, the manager's pending work flushed first on its own, the unit's
+  changes flushed inside the transaction. AuthKit never runs its writes on a runner the application binds to the
+  interface (that one drives the application's manager).
+- **Account locks** (`Transaction\AccountLock`, `Transaction\AuthKitNamedLock`): every unit that creates an account
+  (registration, invitation acceptance, social sign-up, administrator creation) runs under a database named lock of its
+  identifier, folded like the identifier matcher (NFC, lower case) in the user class (`GET_LOCK()` on MySQL / MariaDB,
+  an advisory lock on PostgreSQL); with `first_user_only` the registration page, and a social sign-up about to create
+  the first account, lock the whole user class (audit QG-M1); a social sign-in also locks the provider identity first. The identifier checks (normaliser, the 1.49 case-variant guard, the invitation case-variant
+  guard) run under the lock, plus a new re-check that the identifier is not taken, so two concurrent creations of one
+  identifier never store two accounts and the second one is refused before its insert. A lock not obtained within 5 s
+  is a `TransientStorageFailure`. A lock release that fails closes the connection, so a worker never keeps the lock into
+  its next request (audit QG-M2). The locks are session locks: PgBouncer transaction pooling is not supported for
+  AuthKit's connection, and on Galera / Percona XtraDB Cluster AuthKit's writes must go to one writer node.
+- **503 / 409 on AuthKit's pages** (`EventSubscriber\StorageFailureSubscriber`, `kernel.exception` priority -64): a
+  transient storage failure (deadlock, lock wait timeout, serialization failure) on an AuthKit route or controller
+  answers `503 Service Unavailable` with `Retry-After`, a unique key taken meanwhile `409 Conflict`
+  (`{ok: false, error: "unavailable" | "conflict"}` for JSON clients); never a 500, never SQL in the answer. The
+  registration page, the invitation acceptance, the social login callback and the QR login completion let a transient
+  failure through instead of turning it into a refusal (audit QG-L4). Linking the provider of an accepted invitation
+  stays best effort: the invitation is already used, so the account signs in and may link the provider later.
+- `Doctrine\AuthKitRows`: a new MFA credential and a new QR login challenge are written through DBAL in a savepoint; a
+  unique key another request took first rolls back the savepoint only (the credential is then read again with a lock; a
+  taken QR public code is drawn again, up to 5 times).
+- `MfaStore::locked()`: every change of a second factor (enrolment, disabling, administrator reset, regenerated recovery
+  codes, the `required_since` mark, a remembered trusted device) runs in one unit of work with the credential row locked
+  first and read again (one lock order: credential, recovery codes, trusted devices).
+- The real-database CI job **Load readiness** (MySQL 8.4 and PostgreSQL 16, DBAL 4 and DBAL 3): two-session deadlock,
+  lock wait and named-lock tests and a two-process stress test (`tests/Database`, `AUTH_KIT_LOAD_DATABASE_URL`).
+
+### Changed
+
+- **Invitation acceptance** (`InvitationAcceptor`): the hand-written transaction (a nested flush, and a catch that
+  rolled back again after a failed savepoint rollback, leaving the connection nested for the worker's next requests) is
+  a unit of work of the runner. After a failure only the rows it touched (the invitation, the new account, what the
+  grants changed) are detached; the whole application manager is no longer cleared. A transient failure is rethrown
+  (503) instead of answering `not_accepted`; the invitation stays usable.
+- **Social sign-in** (`SocialAccountLinker::linkAndSignIn()` / `linkOrCreate()`): one unit of work under the identity's
+  and the account's locks; the hand-written transaction and the clearing of both managers are gone.
+- **Closed entity managers**: a manager closed by a failed AuthKit write is no longer reset in the middle of the
+  request (that detached every entity of the application, whose later changes were then silently lost). It stays closed
+  for the rest of the request (the application's next flush fails loudly) and is replaced at the next request, message
+  or command boundary. `UnitOfWorkBoundaries` and `PrivateEntityManagerSubscriber` are registered in every mode;
+  `EntityManagerRecovery` implements `ResetInterface`.
+- Registration, administrator creation, the Doctrine user writer, the password reset credential and its completion, the
+  reset table, invitations, QR login challenges (claim and update in one unit), MFA and the invitation personal-data
+  eraser write through the runner; no hand-written transaction and no raw flush is left.
+- `MfaStore::insertDevice()` returns whether the device was stored (false while the factor is not enabled); a browser
+  whose device was not stored gets no cookie and no `MfaTrustedDeviceAddedEvent` (audit QG-L3).
+- After a failed unit of work, the caller's own pending changes in a manager AuthKit does not flush first (the
+  application's with the private manager, every manager of a host user port unit) stay pending: only the rows the unit
+  added, flushed or changed are detached, found by comparing their field values with a copy taken before the unit
+  (audit QG-L1). The application's manager is still never flushed by the runner itself. Known limits (audit QGD-L1,
+  code fix planned for 1.50.x): a lazy reference of yours that the failed unit only loaded counts as touched and is
+  detached, and a row of yours that points (to-one) at a detached row is detached too, with its pending changes. Flush
+  before calling AuthKit, or keep no pending changes on rows related to the account.
+- Requires `nowo-tech/transaction-contract` ^1.0 and `nowo-tech/transaction-doctrine` ^1.1 (`doctrine/dbal` ^3.8.2 || ^4);
+  PhpStanFrankenPhp ^1.4 with the four worker load-readiness rules on.
+
+### Known issues
+
+- Private manager / host user ports (audit QGD-L1, fix planned for 1.50.x): after a failed AuthKit unit, a lazy
+  reference of yours that the unit only loaded is detached, and so is (cascade) any row of yours that points at a
+  detached row; their pending changes are lost. Flush before calling AuthKit, or keep no pending changes on those rows.
+- Inside a transaction the application opened (audit QGD-L2, fix planned for 1.50.x): if releasing the account lock
+  fails on a live session (statement timeout, killed query), the connection is closed, which ends your transaction
+  (the server rolls it back, the unit's rows included) while the AuthKit call still returns; your later statements run
+  in autocommit and your `commit()` fails with "no active transaction". Very rare.
+
+### Removed
+
+- The unused optional `EntityManagerRecovery` argument of `MfaStore`.
+
+### Fixed
+
+- DBAL 4.6 deprecations: the dates of the trusted devices, the account switcher vault and the GDPR exports are converted
+  through the connection instead of `Type::getType()`.
+
 ## [1.49.0] - 2026-11-14
 
 Target: 1.49.0 (adds public API). See [UPGRADING](UPGRADING.md#to-1490).

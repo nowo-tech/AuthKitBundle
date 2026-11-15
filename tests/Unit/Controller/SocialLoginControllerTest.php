@@ -20,6 +20,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
+use Nowo\TransactionContract\TransientStorageFailure;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -207,7 +208,7 @@ final class SocialLoginControllerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
         $em->expects(self::exactly(2))->method('persist');
-        $em->expects(self::exactly(2))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed');
@@ -258,6 +259,89 @@ final class SocialLoginControllerTest extends TestCase
 
         $response = $controller->check($request, 'google');
         self::assertSame('/home', $response->headers->get('Location'));
+    }
+
+    /** 1.50.0 (audit QG-L4). */
+    public function testCheckLetsATransientStorageFailureAnswer503(): void
+    {
+        $credential = (new SocialLoginCredential())
+            ->setProvider('google')
+            ->setEnabled(true)
+            ->setClientId('id')
+            ->setClientSecret('secret');
+
+        $credentials = $this->createMock(SocialLoginCredentialRepository::class);
+        $credentials->method('findEnabledOrdered')->willReturn([$credential]);
+        $credentials->method('findOneByProvider')->willReturn($credential);
+
+        $http = new MockHttpClient([
+            new MockResponse(json_encode([
+                'access_token' => 'tok',
+                'expires_in'   => 60,
+            ], JSON_THROW_ON_ERROR)),
+            new MockResponse(json_encode([
+                'sub'            => '1',
+                'email'          => 'a@b.c',
+                'email_verified' => true,
+                'name'           => 'A',
+            ], JSON_THROW_ON_ERROR)),
+        ]);
+
+        $userRepo = $this->createMock(EntityRepository::class);
+        $userRepo->method('findBy')->willReturn([]);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($userRepo);
+
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->method('hashPassword')->willReturn('hashed');
+
+        $accountRepo = $this->createMock(SocialLoginAccountRepository::class);
+        $accountRepo->method('findOneByProviderSubject')->willReturn(null);
+
+        $linker = new SocialAccountLinker(
+            $em,
+            $accountRepo,
+            PropertyAccess::createPropertyAccessor(),
+            $hasher,
+            new MockClock(),
+        );
+
+        $security = $this->createMock(Security::class);
+        $security->expects(self::once())->method('login')->willThrowException(new TransientStorageFailure(1));
+
+        $request = new Request(['code' => 'c', 'state' => 'will-be-replaced']);
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        $stateStore = $this->stateStore($request);
+        $state      = $stateStore->issue('google');
+        $request->query->set('state', $state);
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturnCallback(static fn (string $route): string => match ($route) {
+            'nowo_auth_kit_login' => '/login',
+            'homepage'            => '/home',
+            default               => 'https://app.test/callback',
+        });
+
+        $controller = new SocialLoginCheckController(
+            new SocialLoginGate(ProfileRegistryFactory::single(TestUser::class, [
+                'social_login'        => ['mode' => 'enabled'],
+                'login_success_route' => 'homepage',
+            ]), $credentials),
+            $credentials,
+            new OAuth2Client($http, new ProviderEndpointCatalog()),
+            $stateStore,
+            $linker,
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, [
+                'social_login'        => ['mode' => 'enabled'],
+                'login_success_route' => 'homepage',
+            ]),
+            $security,
+        );
+
+        // Audit QG-L4: a deadlock or lock wait is a 503 (StorageFailureSubscriber), not a "social.error.failed" refusal.
+        $this->expectException(TransientStorageFailure::class);
+        $controller->check($request, 'google');
     }
 
     public function testCheckInvalidState(): void

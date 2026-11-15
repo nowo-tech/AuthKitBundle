@@ -19,6 +19,7 @@ use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
 use Nowo\AuthKitBundle\Tests\Stub\InMemoryHostUsers;
+use Nowo\AuthKitBundle\Tests\Support\NestingLevels;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -67,8 +68,9 @@ final class InvitationCompensationTest extends TestCase
         $repository->method('claim')->willReturn(true);
 
         $connection = $this->createMock(Connection::class);
-        $connection->method('isTransactionActive')->willReturn(true);
-        $connection->expects(self::once())->method('rollBack');
+        $levels     = NestingLevels::on($connection);
+        // 1.50.0: AuthKit's runner rolls the failed acceptance back to its entry level (one level).
+        $connection->expects(self::once())->method('rollBack')->willReturnCallback($levels->rollBack());
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getConnection')->willReturn($connection);
         $em->method('isOpen')->willReturn(true);

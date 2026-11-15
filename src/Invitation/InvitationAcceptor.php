@@ -23,10 +23,13 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
+use Nowo\AuthKitBundle\Transaction\AccountLock;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
 use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
 use Nowo\AuthKitBundle\User\UserCreationSource;
 use Nowo\AuthKitBundle\User\UserWriterInterface;
+use Nowo\TransactionContract\TransientStorageFailure;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -72,6 +75,8 @@ final readonly class InvitationAcceptor
     /**
      * @param iterable<InvitationGrantInterface> $grants
      */
+    // 1.50.0: the EntityManagerRecovery argument is kept for compatibility (closed managers are replaced at the boundary).
+    // @phpstan-ignore constructor.unusedParameter
     public function __construct(
         private InvitationRepository $invitations,
         private ProfileRegistry $profiles,
@@ -82,10 +87,11 @@ final readonly class InvitationAcceptor
         private iterable $grants = [],
         private ?EventDispatcherInterface $eventDispatcher = null,
         private LoggerInterface $logger = new NullLogger(),
-        private EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
         private ?AuthKitAttemptLimiter $limiter = null,
         private ?UserWriterInterface $userWriter = null,
         private ?EntityManagerInterface $privateEntityManager = null,
+        private ?AuthKitTransactionRunner $transactions = null,
     ) {
     }
 
@@ -245,8 +251,8 @@ final readonly class InvitationAcceptor
      * The account must be of the invitation profile's `user_class` (`not_accepted` otherwise). AuthKit never changes
      * the roles of an existing account: an invitation that still carries a grantable role (`invitations.roles`) is
      * refused (`not_accepted`); invite existing accounts without roles, or grant them in an
-     * {@see InvitationGrantInterface}. On a failure the bundle entity manager is cleared, as in {@see self::attempt()}:
-     * call it outside your own transaction (its events follow its own commit) and reload your entities afterwards.
+     * {@see InvitationGrantInterface}. Call it outside your own transaction (its events follow its own commit). 1.50.0: on a failure only the rows the
+     * acceptance touched are detached (reload those), never the whole manager.
      *
      * @param UserInterface $user the signed-in account accepting it (the host checks who may act for it)
      * @param Invitation $invitation an invitation of the bundle entity manager (e.g. listed for the account's e-mail)
@@ -344,55 +350,56 @@ final readonly class InvitationAcceptor
     }
 
     /**
-     * The acceptance transaction: the single-use claim, the account (created, or the existing one), the grants, the
+     * The acceptance unit of work: the single-use claim, the account (created, or the existing one), the grants, the
      * commit; then the events. Nothing is kept when any step fails.
+     *
+     * 1.50.0 (Beacon spec 239): one unit of work of AuthKit's transaction runner (no hand-written transaction: a failure,
+     * including a deadlock inside a nested flush, leaves no transaction level open), under the account lock of the
+     * invited identifier when an account is created ({@see AccountLock}: lock order account, then the invitation row).
+     * After a failure only the rows the unit touched are detached (the invitation, the new account, what the grants
+     * changed); the other entities of the request stay managed. A transient storage failure is rethrown
+     * ({@see TransientStorageFailure}: 503 + Retry-After on AuthKit's pages), the invitation staying usable.
      *
      * @param array<string, mixed> $formData
      */
     private function claimAndGrant(Invitation $invitation, string $tokenHash, InvitationSnapshot $snapshot, DateTimeImmutable $now, ProfileSettings $profile, ?UserInterface $existing, array $formData): InvitationAcceptance
     {
-        $roles      = $this->grantableRoles($profile, $invitation);
-        $connection = $this->entityManager->getConnection();
-        $connection->beginTransaction();
-        $user    = $existing;
-        $created = null;
-        try {
+        $roles        = $this->grantableRoles($profile, $invitation);
+        $transactions = $this->transactions();
+        $created      = null;
+        $unit         = function () use ($invitation, $tokenHash, $snapshot, $now, $profile, $existing, $formData, $roles, &$created): array {
             $acceptedBy = $existing instanceof UserInterface ? $existing->getUserIdentifier() : $invitation->getEmail();
             if (!$this->invitations->claim($invitation, $tokenHash, $acceptedBy, $now)) {
-                $connection->rollBack();
-
-                return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
+                return [null, $snapshot];
             }
+            $user = $existing;
             if (!$user instanceof UserInterface) {
                 // @igor-ignore - Stateless registrar call (persists a new account); no service state changes.
                 $user    = $this->registrar->registerInvited($formData, $profile->name, $roles);
                 $created = $user;
             }
             $invitation->markAccepted($user->getUserIdentifier(), $now);
-            $snapshot = InvitationSnapshot::of($invitation, $now);
+            $accepted = InvitationSnapshot::of($invitation, $now);
             foreach ($this->grants as $grant) {
                 // 1.46.0: the deprecated interface as in 1.45, else the framework-free twin.
-                Ports::invitationGrant($grant)->grant($snapshot, $user);
+                Ports::invitationGrant($grant)->grant($accepted, $user);
             }
-            if ($this->privateEntityManager instanceof EntityManagerInterface) {
-                // 1.46.0 private entity manager: the invitation row (same connection, same transaction).
-                $this->entityManagerRecovery->flush($this->privateEntityManager);
-            }
-            // The application's manager (the account, the grants) inside the transaction this method opened.
-            $this->entityManagerRecovery->flush($this->entityManager);
-            $connection->commit();
+
+            // The application's manager (the account, the grants) inside the transaction, as before 1.50.0; the
+            // invitation row (private manager, 1.46.0) is flushed by the runner.
+            $this->entityManager->flush();
+
+            return [$user, $accepted];
+        };
+
+        try {
+            /** @var array{0: UserInterface|null, 1: InvitationSnapshot} $outcome */
+            $outcome = $existing instanceof UserInterface
+                ? $transactions->runWithAccounts($unit)
+                : AccountLock::forIdentifier($transactions, $profile, $this->registrar->identifierOf($formData, $profile->name), static fn (): array => $transactions->runWithAccounts($unit));
         } catch (Throwable $exception) {
-            if ($connection->isTransactionActive()) {
-                $connection->rollBack();
-            }
-            // Nothing of the failed acceptance may be flushed later in the request (the account, the claim).
-            if ($this->entityManager->isOpen()) {
-                $this->entityManager->clear();
-            }
-            // @igor-ignore - Unit of work of the bundle's private manager (1.46.0), dropped at every boundary anyway.
-            $this->privateEntityManager?->clear();
             $this->compensate($profile, $created);
-            if (!$exception instanceof RuntimeException) {
+            if ($exception instanceof TransientStorageFailure || !$exception instanceof RuntimeException) {
                 throw $exception;
             }
             $this->logger->notice('AuthKit invitation not accepted.', ['invitation' => $invitation->getPublicId(), 'reason' => $exception::class]);
@@ -400,6 +407,10 @@ final readonly class InvitationAcceptor
             return $exception instanceof InvitationRefusedException
                 ? InvitationAcceptance::failed(InvitationAcceptance::REFUSED, $snapshot, $exception->reason)
                 : InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
+        }
+        [$user, $snapshot] = $outcome;
+        if (!$user instanceof UserInterface) {
+            return InvitationAcceptance::failed(InvitationAcceptance::NOT_ACCEPTED, $snapshot);
         }
 
         if ($created instanceof UserInterface) {
@@ -409,6 +420,14 @@ final readonly class InvitationAcceptor
         $this->eventDispatcher?->dispatch(new InvitationAcceptedEvent($snapshot, $user, $now, !$created instanceof UserInterface));
 
         return InvitationAcceptance::accepted($user, $snapshot);
+    }
+
+    /**
+     * AuthKit's transaction runner (the injected one; a hand-built acceptor gets one on its own managers).
+     */
+    private function transactions(): AuthKitTransactionRunner
+    {
+        return $this->transactions ?? new AuthKitTransactionRunner($this->privateEntityManager ?? $this->entityManager, $this->entityManager);
     }
 
     /**

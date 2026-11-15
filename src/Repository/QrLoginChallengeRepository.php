@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Repository;
 
 use DateTimeImmutable;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query;
+use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -26,10 +29,38 @@ class QrLoginChallengeRepository extends EntityRepository
         parent::__construct($em, $em->getClassMetadata(QrLoginChallenge::class));
     }
 
+    /**
+     * 1.50.0 (Beacon spec 239): a unit of work of AuthKit's transaction runner on this repository's manager.
+     */
     public function save(QrLoginChallenge $challenge): void
     {
-        $this->getEntityManager()->persist($challenge);
-        $this->getEntityManager()->flush();
+        $manager = $this->getEntityManager();
+        $this->transactional(static fn () => $manager->persist($challenge));
+    }
+
+    /**
+     * 1.50.0: stores a new challenge; false when its public code is taken (another challenge has it), so the caller
+     * draws another one. Written beside the unit of work in a savepoint: a taken code never closes the entity manager.
+     */
+    public function insertNew(QrLoginChallenge $challenge): bool
+    {
+        $manager = $this->getEntityManager();
+
+        return $this->transactional(static fn (): bool => !AuthKitRows::insert($manager, $challenge) instanceof UniqueConstraintViolationException);
+    }
+
+    /**
+     * 1.50.0: runs a unit of work on AuthKit's transaction runner (this repository's manager is flushed inside it).
+     *
+     * @template T
+     *
+     * @param callable(): T $work
+     *
+     * @return T
+     */
+    public function transactional(callable $work): mixed
+    {
+        return (new AuthKitTransactionRunner($this->getEntityManager()))->run($work);
     }
 
     /**

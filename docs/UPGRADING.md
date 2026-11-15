@@ -137,6 +137,76 @@
 
 ## Unreleased
 
+Target: 1.50.0. From **1.49.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No configuration and no schema change. Two new dependencies come with it: `nowo-tech/transaction-contract` ^1.0 and
+`nowo-tech/transaction-doctrine` ^1.1 (they allow `doctrine/dbal` ^3.8.2 || ^4).
+
+What changes for you:
+
+- **A failed AuthKit write no longer resets your entity manager in the middle of the request.** Up to 1.49 a manager
+  closed by a failed AuthKit flush was reset at once, which detached every entity you had loaded (the signed-in user,
+  your aggregates): your later changes in that request were silently lost. Now the manager stays closed for the rest of
+  that request, so your next flush fails loudly, and AuthKit replaces it at the next request, message or command
+  boundary (FrankenPHP worker mode with the kernel reset off included). If you catch an AuthKit failure and keep writing
+  in the same request, check `isOpen()` first.
+- **A failed invitation acceptance or social sign-in no longer clears your manager.** Only the rows the failed unit
+  touched are detached (the invitation, the new account, what your grants changed); reload those if you still need them.
+  Your own pending changes stay pending, except in these cases, where the row is detached and its pending change lost:
+  - an account write of the unit flushed it with the unit (the Doctrine user writer flushes your whole manager, as in
+    1.49): it was rolled back;
+  - with the private manager or your own user ports: a lazy reference (proxy) of yours that the failed unit only
+    loaded (for example the account looked up by its identifier) counts as touched;
+  - with the private manager or your own user ports: a row of yours that points (to-one) at a detached row is detached
+    too (cascade), even with pending changes of its own.
+
+  **Recommended:** flush your manager before calling an AuthKit service that may create, link or change an account, or
+  keep no pending changes on entities related to the account (memberships, profiles). The code fix for the last two
+  cases is planned for 1.50.x (audit QGD-L1).
+- **Your pending changes are flushed on their own before an AuthKit unit of work** whenever AuthKit writes through your
+  manager (`doctrine.private_entity_manager` unset or false; with the private manager only for account writes of the
+  Doctrine user writer, as before): an AuthKit failure never rolls them back. To keep your changes and AuthKit's
+  together, open your own transaction around the call: AuthKit's unit then nests in it.
+- **Storage failures on AuthKit's pages are 503 / 409, not 500.** A deadlock, lock wait timeout or serialization
+  failure answers `503` with `Retry-After`; a unique key taken meanwhile `409`. Your error pages render them
+  (`ServiceUnavailableHttpException` / `ConflictHttpException`). Your own controllers that call AuthKit services receive
+  `Nowo\TransactionContract\TransientStorageFailure` and map it themselves (or use DoctrineDeadlockRetryBundle's
+  `http_mapping`). The registration page, the social login callback, the QR login completion and
+  `InvitationAcceptor::attempt()` now let a transient failure through instead of answering a refusal (`not_accepted`,
+  `social.error.failed`); the invitation stays usable.
+- **`InvitationAcceptor::attempt()` throws `Nowo\TransactionContract\TransientStorageFailure`** (a `RuntimeException`,
+  the DBAL exception as previous) where 1.49 let a raw `Doctrine\DBAL\Exception\DeadlockException` /
+  `LockWaitTimeoutException` through. If you call it from your own code, catch `TransientStorageFailure`, not
+  `Doctrine\DBAL\Exception\RetryableException`. It is also thrown when the account lock is not obtained within **5
+  seconds** (another creation of the same identifier holds it).
+- **Account creation takes a database named lock** of the identifier (`GET_LOCK()` on MySQL / MariaDB, an advisory lock
+  on PostgreSQL; nothing on SQLite) and refuses an identifier the user lookup port already finds, with the message of the
+  unique key (`Registration failed: a "…" with the same unique value already exists.`), before inserting. Keep a unique
+  key on your identifier column anyway: an account created by your own code does not take AuthKit's lock. Inside a
+  transaction you opened, the lock is released before your commit, so the unique key is the guard there. With
+  `registration_mode: first_user_only`, the registration page and a social sign-up of the first account lock the whole
+  user class, so only one first account is ever created.
+- **The locks are session locks.** Behind PgBouncer, AuthKit's connection must use session pooling or a direct
+  connection (transaction and statement pooling are not supported: the lock and its release could run on different
+  server connections). ProxySQL is fine (it keeps the backend connection after `GET_LOCK()`). On Galera / Percona XtraDB
+  Cluster the lock is local to a node: send AuthKit's writes to one writer node. A release that fails closes the
+  connection (it reconnects on the next statement). **Known limitation** (audit QGD-L2, fix planned for 1.50.x): when
+  AuthKit's call runs inside a transaction you opened, that `close()` ends your transaction (the server rolls it back,
+  AuthKit's rows included) although the call returns normally; your next statements run in autocommit and your
+  `commit()` throws "no active transaction". It needs a release statement that fails on a live session (statement
+  timeout, killed query), so it is very rare; check `$connection->isTransactionActive()` before committing if you nest
+  AuthKit calls in your own transactions.
+- **Doctrine DBAL 3**: enable `doctrine.dbal.use_savepoints: true`. DBAL 4 always nests with savepoints; without them,
+  DBAL 3 marks your whole transaction rollback-only when an AuthKit unit nested in it fails.
+- `MfaStore` no longer takes the unused optional `EntityManagerRecovery` argument; `MfaStore::insertDevice()` returns a
+  bool. `EntityManagerRecovery::run()` / `flush()` stay, without the immediate reset.
+- A DDD host keeps its own runner for its own application services: AuthKit's services are wired to
+  `nowo_auth_kit.transaction_runner` and never to your `TransactionRunnerInterface` alias.
+
 ## To 1.49.0
 
 From **1.48.0**:

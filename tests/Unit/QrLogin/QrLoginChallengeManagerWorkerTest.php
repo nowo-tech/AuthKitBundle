@@ -89,10 +89,11 @@ final class QrLoginChallengeManagerWorkerTest extends TestCase
         self::assertSame(QrLoginChallengeStatus::Approved, $staleCopy->getStatus());
     }
 
-    public function testFailedWriteResetsClosedEntityManager(): void
+    public function testAFailedWriteNeverResetsTheManagerInTheMiddleOfTheRequest(): void
     {
         $challenge  = $this->challenge();
         $repository = $this->createMock(QrLoginChallengeRepository::class);
+        $repository->method('transactional')->willReturnCallback(static fn (callable $work): mixed => $work());
         $repository->method('transitionStatus')->willReturn(true);
         $repository->method('save')->willThrowException(new RuntimeException('flush failed'));
 
@@ -101,7 +102,8 @@ final class QrLoginChallengeManagerWorkerTest extends TestCase
         $registry = $this->createMock(ManagerRegistry::class);
         $registry->method('getManagers')->willReturn(['default' => $entityManager]);
         $registry->method('getManagerForClass')->willReturn($entityManager);
-        $registry->expects(self::once())->method('resetManager')->with('default');
+        // 1.50.0: the closed manager is replaced at the next unit-of-work boundary (EntityManagerRecovery::reset()).
+        $registry->expects(self::never())->method('resetManager');
 
         $manager = new QrLoginChallengeManager(
             $repository,
@@ -118,6 +120,7 @@ final class QrLoginChallengeManagerWorkerTest extends TestCase
     private function manager(QrLoginChallenge $identityMapCopy): QrLoginChallengeManager
     {
         $repository = $this->createMock(QrLoginChallengeRepository::class);
+        $repository->method('transactional')->willReturnCallback(static fn (callable $work): mixed => $work());
         $repository->method('findFresh')->willReturnCallback(function () use ($identityMapCopy): QrLoginChallenge {
             $identityMapCopy->setStatus(QrLoginChallengeStatus::from($this->database['status']));
 

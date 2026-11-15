@@ -140,6 +140,67 @@ jobs:
           AUTH_KIT_TEST_DB_URL: mysql://root:ci-placeholder@127.0.0.1:3307/auth_kit?serverVersion=11.4.0-MariaDB&charset=utf8mb4
         run: vendor/bin/phpunit --no-coverage tests/Integration/LookAlike
 
+  # 1.50.0 (Beacon spec 239): two-session deadlock, lock wait and named-lock tests and a two-process stress test on real
+  # servers (tests/Database). None may be skipped.
+  load:
+    name: Load readiness (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'MySQL 8.4', url: 'mysql://root:ci-not-secret@127.0.0.1:3306/auth_kit_load?serverVersion=8.4.0&charset=utf8mb4', dbal: '' }
+          - { name: 'PostgreSQL 16', url: 'postgresql://postgres:ci-not-secret@127.0.0.1:5432/auth_kit_load?serverVersion=16&charset=utf8', dbal: '' }
+          # DBAL 3 (Symfony 7.4: Symfony 8 requires DBAL 4; savepoints on, as the test kernel sets them).
+          - { name: 'MySQL 8.4, DBAL 3', url: 'mysql://root:ci-not-secret@127.0.0.1:3306/auth_kit_load?serverVersion=8.4.0&charset=utf8mb4', dbal: '^3.8.2' }
+          - { name: 'PostgreSQL 16, DBAL 3', url: 'postgresql://postgres:ci-not-secret@127.0.0.1:5432/auth_kit_load?serverVersion=16&charset=utf8', dbal: '^3.8.2' }
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-not-secret
+          MYSQL_DATABASE: auth_kit_load
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mysqladmin ping -h127.0.0.1 -uroot -pci-not-secret --silent"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci-not-secret
+          POSTGRES_DB: auth_kit_load
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: json, pdo_mysql, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Use DBAL 3 (Symfony 7.4)
+        if: ${{ matrix.dbal != '' }}
+        run: |
+          PACKAGES=$(jq -r '(.require + ."require-dev") | keys[] | select(startswith("symfony/") and (startswith("symfony/polyfill-") | not)) | . + ":7.4.*"' composer.json)
+          composer require $PACKAGES "doctrine/dbal:${{ matrix.dbal }}" --no-interaction --no-update
+          composer update --with-all-dependencies --no-interaction --prefer-dist --no-progress
+          EXTRA=$(composer show --format=json | jq -r '.installed[] | select(.name | startswith("symfony/")) | select(.version | test("^v?(7|8)\\.")) | .name + ":7.4.*"')
+          composer require $EXTRA --no-interaction --no-update
+          composer update --with-all-dependencies --no-interaction --prefer-dist --no-progress
+
+      - name: Run the lock wait, deadlock and concurrency tests
+        timeout-minutes: 10
+        env:
+          AUTH_KIT_LOAD_DATABASE_URL: ${{ matrix.url }}
+        run: vendor/bin/phpunit --no-coverage --fail-on-skipped tests/Database
+
   coverage:
     runs-on: ubuntu-latest
     steps:

@@ -7,18 +7,20 @@ namespace Nowo\AuthKitBundle\Mfa;
 use Closure;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\ParameterType;
-use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
+use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
-use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
+use SortDirection;
 
 use function array_filter;
 use function array_map;
@@ -34,9 +36,12 @@ final readonly class MfaStore
 {
     private const COLLISION = 'The MFA credential cannot be created: another owner\'s row matches it on the folding unique key uniq_auth_kit_mfa_owner. Apply the binary collation of the AuthKit 1.47.0 UPGRADING notes.';
 
+    /**
+     * 1.50.0: the optional EntityManagerRecovery argument is gone (writes go through AuthKit's transaction runner; a
+     * manager closed by a failed write is replaced at the next unit-of-work boundary).
+     */
     public function __construct(
         private ManagerRegistry $doctrine,
-        private ?EntityManagerRecovery $recovery = null,
     ) {
     }
 
@@ -81,8 +86,8 @@ final readonly class MfaStore
      * The credential of the owner, created when there is none. When the unique key `uniq_auth_kit_mfa_owner` still folds
      * (a table created before 1.47.0 and not altered, see UPGRADING) and a look-alike owner's row exists, this fails
      * closed BEFORE any write (audit OG-1): no insert that would collide and close the entity manager, and never a
-     * fall back to that row. A concurrent insert that still collides is written through {@see EntityManagerRecovery},
-     * which reopens the bundle's entity managers (FrankenPHP worker mode, kernel reset off).
+     * fall back to that row. 1.50.0: a concurrent insert of the same owner is settled in a savepoint (the other request's
+     * row is returned); the entity manager is never closed by it.
      *
      * @throws MfaUnavailableException when a look-alike owner's credential blocks the insert
      */
@@ -95,14 +100,57 @@ final readonly class MfaStore
         if ($lookAlikes) {
             throw new MfaUnavailableException(self::COLLISION);
         }
-        $credential = new MfaCredential($profile, $owner->type, $owner->id, $now);
-        try {
-            $this->save($credential);
-        } catch (UniqueConstraintViolationException $e) {
-            throw new MfaUnavailableException(self::COLLISION, 0, $e);
-        }
 
-        return $credential;
+        // 1.50.0 (Beacon spec 239): the row is written in a savepoint (AuthKitRows): when a concurrent request of the
+        // same owner wrote it first, only the savepoint is rolled back and that row is read again with a lock (the
+        // latest committed version, whatever the transaction's snapshot). The entity manager is never closed by it.
+        return $this->transactional(function () use ($profile, $owner, $now): MfaCredential {
+            $lost         = AuthKitRows::insert($this->entityManager(), new MfaCredential($profile, $owner->type, $owner->id, $now));
+            [$credential] = $this->lookup($profile, $owner->type, $owner->id, true);
+
+            return $credential ?? throw new MfaUnavailableException(self::COLLISION, 0, $lost);
+        });
+    }
+
+    /**
+     * 1.50.0 (Beacon spec 239): runs `$change` on the credential in one unit of work of AuthKit's transaction runner,
+     * the credential row locked first and read again (the latest committed version): every change of a second factor
+     * (enrolment, disabling, administrator reset, recovery codes, trusted devices) takes this lock first, so two of
+     * them never interleave (lock order: credential, recovery codes, trusted devices). Null, without calling
+     * `$change`, when the row no longer exists.
+     *
+     * @template T
+     *
+     * @param callable(MfaCredential): T $change
+     *
+     * @return T|null
+     */
+    public function locked(MfaCredential $credential, callable $change): mixed
+    {
+        $id = $this->id($credential);
+
+        return $this->transactional(function () use ($id, $credential, $change): mixed {
+            $em = $this->entityManager();
+            // A locking read by id: the row as stored (the managed instance refreshed with it), or null when it is gone.
+            $managed = $em->createQueryBuilder()
+                ->select('c')
+                ->from(MfaCredential::class, 'c')
+                ->where('c.id = :id')
+                ->setParameter('id', $id)
+                ->getQuery()
+                ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+                ->setHint(Query::HINT_REFRESH, true)
+                ->getOneOrNullResult();
+            if (!$managed instanceof MfaCredential) {
+                if ($em->contains($credential)) {
+                    $em->detach($credential);
+                }
+
+                return null;
+            }
+
+            return $change($managed);
+        });
     }
 
     private function exactCredential(string $profile, string $type, string $id): ?MfaCredential
@@ -115,13 +163,27 @@ final readonly class MfaStore
      *
      * @return array{0: MfaCredential|null, 1: bool}
      */
-    private function lookup(string $profile, string $type, string $id): array
+    private function lookup(string $profile, string $type, string $id, bool $lock = false): array
     {
-        $candidates = $this->entityManager()->getRepository(MfaCredential::class)->findBy([
-            'profile'  => $profile,
-            'userType' => $type,
-            'userId'   => $id,
-        ], ['id' => 'ASC']);
+        $criteria = ['profile' => $profile, 'userType' => $type, 'userId' => $id];
+        if ($lock) {
+            // 1.50.0: a locking read, the latest committed rows whatever the transaction's snapshot.
+            $query = $this->entityManager()->createQueryBuilder()
+                ->select('c')
+                ->from(MfaCredential::class, 'c')
+                ->where('c.profile = :profile AND c.userType = :userType AND c.userId = :userId')
+                ->setParameter('profile', $profile)
+                ->setParameter('userType', $type)
+                ->setParameter('userId', $id)
+                ->orderBy('c.id', SortDirection::Ascending)
+                ->getQuery()
+                ->setLockMode(LockMode::PESSIMISTIC_READ)
+                ->setHint(Query::HINT_REFRESH, true);
+            /** @var list<MfaCredential> $candidates */
+            $candidates = $query->getResult();
+        } else {
+            $candidates = $this->entityManager()->getRepository(MfaCredential::class)->findBy($criteria, ['id' => 'ASC']);
+        }
         foreach ($candidates as $candidate) {
             if ($candidate->getProfile() === $profile && $candidate->getUserType() === $type && $candidate->getUserId() === $id) {
                 return [$candidate, true];
@@ -133,13 +195,9 @@ final readonly class MfaStore
 
     public function save(MfaCredential $credential): void
     {
-        $em    = $this->entityManager();
-        $write = static function () use ($em, $credential): void {
-            $em->persist($credential);
-            $em->flush();
-        };
-        // OG-1 (1.47.0): a failed flush closes the manager; the recovery reopens the bundle's managers for later requests.
-        $this->recovery instanceof EntityManagerRecovery ? $this->recovery->run($write, $em) : $write();
+        $em = $this->entityManager();
+        // 1.50.0: a unit of work of AuthKit's runner (a closed manager is replaced at the next boundary).
+        $this->transactional(static fn () => $em->persist($credential));
     }
 
     /**
@@ -163,11 +221,13 @@ final readonly class MfaStore
     {
         $id    = $this->id($credential);
         $table = $this->table(MfaRecoveryCode::class);
-        $this->connection()->transactional(static function (Connection $connection) use ($id, $table, $hashes, $now): void {
-            $connection->executeStatement('DELETE FROM ' . $table . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
-            foreach ($hashes as $hash) {
-                $connection->insert($table, ['mfa_id' => $id, 'code_hash' => $hash, 'created_at' => $now], ['mfa_id' => ParameterType::INTEGER, 'created_at' => Types::DATETIME_IMMUTABLE]);
-            }
+        $this->transactional(function () use ($id, $table, $hashes, $now): void {
+            $this->write(static function (Connection $connection) use ($id, $table, $hashes, $now): void {
+                $connection->executeStatement('DELETE FROM ' . $table . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+                foreach ($hashes as $hash) {
+                    $connection->insert($table, ['mfa_id' => $id, 'code_hash' => $hash, 'created_at' => $now], ['mfa_id' => ParameterType::INTEGER, 'created_at' => Types::DATETIME_IMMUTABLE]);
+                }
+            });
         });
     }
 
@@ -192,9 +252,19 @@ final readonly class MfaStore
         );
     }
 
-    public function insertDevice(MfaCredential $credential, string $publicId, string $tokenHash, string $label, ?string $deviceId, DateTimeImmutable $now, DateTimeImmutable $expiresAt): void
+    /**
+     * 1.50.0: stores a trusted device only while the credential is enabled, under its lock ({@see self::locked()}): a
+     * device remembered while the factor is being disabled or re-enrolled never survives that change. False when it
+     * was not stored.
+     */
+    public function insertDevice(MfaCredential $credential, string $publicId, string $tokenHash, string $label, ?string $deviceId, DateTimeImmutable $now, DateTimeImmutable $expiresAt): bool
     {
-        $this->write(fn (Connection $connection): int|string => $connection->insert($this->table(MfaTrustedDevice::class), [
+        return $this->locked($credential, fn (MfaCredential $locked): bool => $locked->isEnabled() && $this->storeDevice($locked, $publicId, $tokenHash, $label, $deviceId, $now, $expiresAt)) === true;
+    }
+
+    private function storeDevice(MfaCredential $credential, string $publicId, string $tokenHash, string $label, ?string $deviceId, DateTimeImmutable $now, DateTimeImmutable $expiresAt): bool
+    {
+        return (bool) $this->write(fn (Connection $connection): int|string => $connection->insert($this->table(MfaTrustedDevice::class), [
             'public_id'    => $publicId,
             'mfa_id'       => $this->id($credential),
             'token_hash'   => $tokenHash,
@@ -230,16 +300,15 @@ final readonly class MfaStore
             ['id' => $this->id($credential), 'now' => $now],
             ['id' => ParameterType::INTEGER, 'now' => Types::DATETIME_IMMUTABLE],
         );
-        $platform = $this->connection()->getDatabasePlatform();
-        $date     = Type::getType(Types::DATETIME_IMMUTABLE);
+        $connection = $this->connection();
 
-        return array_map(static function (array $row) use ($date, $platform): array {
+        return array_map(static function (array $row) use ($connection): array {
             /** @var DateTimeImmutable $created */
-            $created = $date->convertToPHPValue($row['created_at'], $platform);
+            $created = $connection->convertToPHPValue($row['created_at'], Types::DATETIME_IMMUTABLE);
             /** @var DateTimeImmutable $used */
-            $used = $date->convertToPHPValue($row['last_used_at'], $platform);
+            $used = $connection->convertToPHPValue($row['last_used_at'], Types::DATETIME_IMMUTABLE);
             /** @var DateTimeImmutable $expires */
-            $expires = $date->convertToPHPValue($row['expires_at'], $platform);
+            $expires = $connection->convertToPHPValue($row['expires_at'], Types::DATETIME_IMMUTABLE);
 
             return [
                 'public_id'    => (string) $row['public_id'],
@@ -295,14 +364,16 @@ final readonly class MfaStore
     public function delete(MfaCredential $credential): void
     {
         $id = $this->id($credential);
-        $this->write(function (Connection $connection) use ($id): void {
-            $connection->executeStatement('DELETE FROM ' . $this->table(MfaRecoveryCode::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
-            $connection->executeStatement('DELETE FROM ' . $this->table(MfaTrustedDevice::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
-        });
         $em = $this->entityManager();
-        // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
-        $em->remove($credential);
-        $em->flush();
+        // 1.50.0: one unit of work of AuthKit's runner (the credential row is flushed inside its transaction).
+        $this->transactional(function () use ($id, $em, $credential): void {
+            $this->write(function (Connection $connection) use ($id): void {
+                $connection->executeStatement('DELETE FROM ' . $this->table(MfaRecoveryCode::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+                $connection->executeStatement('DELETE FROM ' . $this->table(MfaTrustedDevice::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
+            });
+            // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
+            $em->remove($credential);
+        });
     }
 
     private function id(MfaCredential $credential): int
@@ -339,6 +410,20 @@ final readonly class MfaStore
         $connection = $em->getConnection();
 
         return AuthKitSavepoint::write($connection, static fn (): mixed => $statement($connection), $em);
+    }
+
+    /**
+     * 1.50.0: a unit of work of AuthKit's transaction runner on the manager of the MFA entities.
+     *
+     * @template T
+     *
+     * @param callable(): T $work
+     *
+     * @return T
+     */
+    private function transactional(callable $work): mixed
+    {
+        return (new AuthKitTransactionRunner($this->entityManager()))->run($work);
     }
 
     private function connection(): Connection

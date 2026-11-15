@@ -86,7 +86,7 @@ final class DefaultUserPortsTest extends TestCase
         $em   = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::exactly(2))->method('persist')->with($user);
         $em->expects(self::once())->method('remove')->with($user);
-        $em->expects(self::exactly(3))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $writer  = new DoctrineUserWriter($em, PropertyAccess::createPropertyAccessor());
         $profile = ProfileRegistryFactory::single(TestUser::class)->getDefault();

@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\SocialLogin;
 
+use Closure;
 use DateInterval;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
+use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Security\ExactIdentifier;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
+use Nowo\AuthKitBundle\Transaction\AccountLock;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
 use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
@@ -55,13 +59,15 @@ final class SocialAccountLinker
 
     private readonly UserWriterInterface $userWriter;
 
+    private readonly AuthKitTransactionRunner $transactions;
+
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly SocialLoginAccountRepository $accountRepository,
         private readonly PropertyAccessorInterface $propertyAccessor,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly ClockInterface $clock,
-        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
         private readonly ?RegistrationGate $registrationGate = null,
         private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
         ?UserLookupInterface $userLookup = null,
@@ -69,10 +75,12 @@ final class SocialAccountLinker
         ?UserWriterInterface $userWriter = null,
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ?EntityManagerInterface $privateEntityManager = null,
+        ?AuthKitTransactionRunner $transactions = null,
     ) {
-        $this->userLookup  = $userLookup ?? new DoctrineUserLookup($entityManager, $this->identifierMatcher);
-        $this->userFactory = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
-        $this->userWriter  = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery);
+        $this->transactions = $transactions ?? new AuthKitTransactionRunner($privateEntityManager ?? $entityManager, $entityManager);
+        $this->userLookup   = $userLookup ?? new DoctrineUserLookup($entityManager, $this->identifierMatcher);
+        $this->userFactory  = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
+        $this->userWriter   = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions);
     }
 
     /**
@@ -86,30 +94,23 @@ final class SocialAccountLinker
      */
     public function linkAndSignIn(ProfileSettings $profile, string $provider, SocialUserProfile $socialProfile, array $tokens, callable $signIn): void
     {
-        $connection = $this->entityManager->getConnection();
-        $connection->beginTransaction();
-
         $created = null;
 
         try {
-            [$user, $events] = $this->link($profile, $provider, $socialProfile, $tokens, $created);
-            $signIn($user);
-            // On PostgreSQL a listener that swallowed a database error leaves the transaction aborted, and COMMIT then
-            // rolls back without an error, with the sign-in kept (HP-L1). A statement fails there, so it counts as failed.
-            $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
-            $connection->commit();
+            $unit = function (bool $classLocked) use ($profile, $provider, $socialProfile, $tokens, $signIn, &$created): array {
+                $linked = $this->link($profile, $provider, $socialProfile, $tokens, $created, $classLocked);
+                $signIn($linked[0]);
+                // On PostgreSQL a listener that swallowed a database error leaves the transaction aborted, and COMMIT then
+                // rolls back without an error, with the sign-in kept (HP-L1). A statement fails there, so it counts as failed.
+                $connection = $this->transactions->connection();
+                $connection->executeQuery($connection->getDatabasePlatform()->getDummySelectSQL());
+
+                return $linked;
+            };
+            [, $events] = $this->locked($profile, $provider, $socialProfile, fn (bool $classLocked): array => $this->transactions->runWithAccounts(static fn (): array => $unit($classLocked)));
         } catch (Throwable $exception) {
-            if ($connection->isTransactionActive()) {
-                $connection->rollBack();
-            }
-            // The objects in memory still hold what was rolled back.
-            // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
-            $this->entityManager->clear();
-            if ($this->privateEntityManager instanceof EntityManagerInterface) {
-                // 1.46.0: the private manager holds the social account row of the rolled-back link.
-                // @igor-ignore - Unit of work of the bundle's private manager (dropped at every boundary), not worker state.
-                $this->privateEntityManager->clear();
-            }
+            // 1.50.0: AuthKit's runner rolled the unit back and detached the rows it touched (the link, a new account, a
+            // replaced password); the other entities of the request stay managed.
             $this->compensate($profile, $created);
 
             throw $exception;
@@ -132,7 +133,10 @@ final class SocialAccountLinker
         $created = null;
 
         try {
-            [$user, $events] = $this->link($profile, $provider, $socialProfile, $tokens, $created);
+            $unit = function (bool $classLocked) use ($profile, $provider, $socialProfile, $tokens, &$created): array {
+                return $this->link($profile, $provider, $socialProfile, $tokens, $created, $classLocked);
+            };
+            [$user, $events] = $this->locked($profile, $provider, $socialProfile, fn (bool $classLocked): array => $this->transactions->runWithAccounts(static fn (): array => $unit($classLocked)));
         } catch (Throwable $exception) {
             $this->compensate($profile, $created);
 
@@ -145,6 +149,7 @@ final class SocialAccountLinker
 
     /**
      * @param array{access_token: string, refresh_token: ?string, expires_in: ?int} $tokens
+     * @param bool $classLocked Whether the unit holds the user class lock ({@see AccountLock::forUserClass()})
      *
      * @param-out UserInterface|null $created the user created by this call (compensated on failure)
      *
@@ -156,6 +161,7 @@ final class SocialAccountLinker
         SocialUserProfile $socialProfile,
         array $tokens,
         ?UserInterface &$created,
+        bool $classLocked,
     ): array {
         // REQ-SEC-006 (1.47.0): the provider subject is a key matched byte for byte; one that cannot be told apart from
         // a look-alike (edge white space, control or format characters, invalid UTF-8, too long) is refused.
@@ -167,7 +173,8 @@ final class SocialAccountLinker
         if ($account instanceof SocialLoginAccount) {
             $user = $this->loadUser($profile, $profile->userClass, $account->getUserId());
             $this->refreshAccountTokens($account, $socialProfile, $tokens);
-            $this->entityManagerRecovery->flush($this->accountManager());
+            // Flushed by AuthKit's runner inside the unit of work (1.50.0).
+            $this->accountManager()->persist($account);
 
             return [$user, []];
         }
@@ -201,6 +208,11 @@ final class SocialAccountLinker
             if ($requireVerified && $socialProfile->emailVerified !== true) {
                 throw new RuntimeException('Cannot create a local account from social login: the provider did not assert a verified email.');
             }
+            // 1.50.0 (audit QG-M1): with first_user_only the gate's "no account yet" only holds under the user class lock
+            // the registration page takes too; this attempt is rolled back (it wrote nothing) and runs again under it.
+            if (!$classLocked && $this->registrationGate instanceof RegistrationGate && RegistrationMode::from($profile->registrationMode) === RegistrationMode::FirstUserOnly) {
+                throw new FirstUserLockRequired();
+            }
             $user     = $this->createUser($profile, $socialProfile);
             $created  = $user;
             $events[] = UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Social);
@@ -217,11 +229,48 @@ final class SocialAccountLinker
             ->setDisplayName($socialProfile->name)
             ->setRawProfile($socialProfile->raw);
         $this->refreshAccountTokens($account, $socialProfile, $tokens);
-        $accounts = $this->accountManager();
-        $accounts->persist($account);
-        $this->entityManagerRecovery->flush($accounts);
+        // Flushed by AuthKit's runner inside the unit of work (1.50.0), under the social identity's lock.
+        $this->accountManager()->persist($account);
 
         return [$user, $events];
+    }
+
+    /**
+     * 1.50.0 (Beacon spec 239): the unit of work under the named locks of {@see AccountLock}, in its order: the social
+     * identity (two callbacks of one identity never link it twice: the second one finds the first one's link), then,
+     * when an account may be created, the provider's e-mail address as the account identifier.
+     *
+     * Audit QG-M1: with `registration_mode: first_user_only`, a unit that is about to create the first account (the gate
+     * allowed it) is rolled back and run again under the user class lock too, between the two (the lock the
+     * registration page takes): a concurrent first account, by the form or another social sign-up, then commits first
+     * and this unit's gate sees it. Only the sign-up of the very first account waits for that lock; sign-ins do not.
+     *
+     * @template T
+     *
+     * @param Closure(bool): T $work receives whether the user class lock is held
+     *
+     * @return T
+     */
+    private function locked(ProfileSettings $profile, string $provider, SocialUserProfile $socialProfile, Closure $work): mixed
+    {
+        $createIfMissing = (bool) ($profile->socialLogin['create_user_if_missing'] ?? false);
+        $account         = fn (bool $classLocked): mixed => $createIfMissing
+            ? AccountLock::forIdentifier($this->transactions, $profile, $socialProfile->email, static fn (): mixed => $work($classLocked))
+            : $work($classLocked);
+
+        return AccountLock::forSocialIdentity(
+            $this->transactions,
+            $provider,
+            $socialProfile->id,
+            $profile->userClass,
+            function () use ($account, $profile): mixed {
+                try {
+                    return $account(false);
+                } catch (FirstUserLockRequired) {
+                    return AccountLock::forUserClass($this->transactions, $profile, static fn (): mixed => $account(true));
+                }
+            },
+        );
     }
 
     /**

@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\Tests\Stub\RoleWritableUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -30,7 +31,7 @@ final class UserRegistrarTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
         $entityManager->expects(self::once())->method('persist')->with(self::isInstanceOf(TestUser::class));
-        $entityManager->expects(self::once())->method('flush');
+        $entityManager->expects(self::atLeastOnce())->method('flush');
 
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed-secret');
@@ -76,7 +77,7 @@ final class UserRegistrarTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
         $entityManager->expects(self::once())->method('persist')->with(self::isInstanceOf(RoleWritableUser::class));
-        $entityManager->expects(self::once())->method('flush');
+        $entityManager->expects(self::atLeastOnce())->method('flush');
 
         $registrar = new UserRegistrar(
             ProfileRegistryFactory::single(RoleWritableUser::class, [
@@ -110,7 +111,7 @@ final class UserRegistrarTest extends TestCase
         $entityManager->method('getRepository')->willReturn($repository);
         $entityManager->expects(self::once())->method('persist');
         $entityManager->expects(self::once())->method('remove')->with(self::isInstanceOf(TestUser::class));
-        $entityManager->expects(self::exactly(2))->method('flush');
+        $entityManager->expects(self::atLeastOnce())->method('flush');
 
         $registrar = new UserRegistrar(
             ProfileRegistryFactory::single(TestUser::class, [
@@ -179,7 +180,7 @@ final class UserRegistrarTest extends TestCase
                 return $user->getUserIdentifier() === 'user@example.com';
             },
         ));
-        $entityManager->expects(self::once())->method('flush');
+        $entityManager->expects(self::atLeastOnce())->method('flush');
 
         $registrar = new UserRegistrar(
             ProfileRegistryFactory::single(TestUser::class, [
@@ -216,11 +217,16 @@ final class UserRegistrarTest extends TestCase
         self::assertSame('user@example.com', $user->getUserIdentifier());
     }
 
-    public function testDuplicateUserFlushFailureReopensEntityManagerAndThrowsRuntimeException(): void
+    public function testDuplicateUserFlushFailureKeepsTheManagerClosedUntilTheBoundaryAndThrowsRuntimeException(): void
     {
         $open          = true;
+        $flushes       = 0;
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('flush')->willReturnCallback(static function () use (&$open): never {
+        $entityManager->method('flush')->willReturnCallback(static function () use (&$open, &$flushes): void {
+            // The runner's first flush has nothing pending; the account's flush hits the unique key.
+            if (++$flushes === 1) {
+                return;
+            }
             $open = false;
 
             throw new UniqueConstraintViolationException(new class('Duplicate entry') extends AbstractException { }, null);
@@ -238,12 +244,14 @@ final class UserRegistrarTest extends TestCase
                 return $entityManager;
             });
 
+        $runner    = new AuthKitTransactionRunner($entityManager, null, $registry);
         $registrar = new UserRegistrar(
             ProfileRegistryFactory::single(TestUser::class),
             $entityManager,
             $this->createMock(UserPasswordHasherInterface::class),
             new PropertyAccessor(),
             new EntityManagerRecovery($registry),
+            transactions: $runner,
         );
 
         try {
@@ -252,8 +260,11 @@ final class UserRegistrarTest extends TestCase
         } catch (RuntimeException $exception) {
             self::assertInstanceOf(UniqueConstraintViolationException::class, $exception->getPrevious());
         }
+        // 1.50.0: closed for the rest of the request (the application's next flush fails loudly), never reset here.
+        self::assertFalse($entityManager->isOpen());
 
-        // The next request served by the same worker gets an open manager again.
+        // The next request served by the same worker gets an open manager again (the boundary resets it).
+        $runner->reset();
         self::assertTrue($entityManager->isOpen());
     }
 

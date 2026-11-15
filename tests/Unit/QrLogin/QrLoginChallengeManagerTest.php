@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -33,6 +34,8 @@ final class QrLoginChallengeManagerTest extends TestCase
     protected function setUp(): void
     {
         $this->repository = $this->createMock(QrLoginChallengeRepository::class);
+        // 1.50.0: the units of work run their callback (the transaction itself is the runner's, tested apart).
+        $this->repository->method('transactional')->willReturnCallback(static fn (callable $work): mixed => $work());
         $this->dispatcher = $this->createMock(EventDispatcherInterface::class);
 
         $this->manager = new QrLoginChallengeManager(
@@ -58,7 +61,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testCreateReturnsChallengeCookieAndToken(): void
     {
-        $this->repository->expects(self::once())->method('save');
+        $this->repository->expects(self::once())->method('insertNew')->willReturn(true);
         $this->dispatcher->expects(self::once())
             ->method('dispatch')
             ->with(self::isInstanceOf(QrLoginChallengeCreatedEvent::class));
@@ -81,6 +84,29 @@ final class QrLoginChallengeManagerTest extends TestCase
         self::assertSame(8, strlen($result['challenge']->getPublicCode()));
     }
 
+    public function testATakenPublicCodeIsDrawnAgainAndTheManagedRowIsReturned(): void
+    {
+        $managed = null;
+        $this->repository->expects(self::exactly(2))->method('insertNew')->willReturnOnConsecutiveCalls(false, true);
+        $this->repository->expects(self::once())->method('findFresh')->willReturnCallback(static function (string $id) use (&$managed): QrLoginChallenge {
+            return $managed = new QrLoginChallenge($id, 'ABCDEF12', 'c', 'i', 'u', 'l', 'a', new DateTimeImmutable('+90 seconds'));
+        });
+        $this->dispatcher->method('dispatch');
+
+        $result = $this->manager->create(Request::create('/login/qr'));
+
+        self::assertSame($managed, $result['challenge'], 'The managed row is returned (later writes go through the unit of work).');
+    }
+
+    public function testNoFreePublicCodeAfterTheLastAttemptFailsWithoutStoringAnything(): void
+    {
+        $this->repository->expects(self::exactly(QrLoginChallengeManager::MAX_CODE_ATTEMPTS))->method('insertNew')->willReturn(false);
+        $this->dispatcher->expects(self::never())->method('dispatch');
+
+        $this->expectException(RuntimeException::class);
+        $this->manager->create(Request::create('/login/qr'));
+    }
+
     public function testCreateDesktopCookie(): void
     {
         $cookie = $this->manager->createDesktopCookie('some_value', 150);
@@ -94,7 +120,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testVerifyDesktopCookieValid(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -115,7 +141,7 @@ final class QrLoginChallengeManagerTest extends TestCase
             'admin'   => ProfileRegistryFactory::defaultProfileConfig(TestUser::class),
         ]);
         $manager = new QrLoginChallengeManager($this->repository, $registry, $this->dispatcher, 'test_kernel_secret_for_hmac');
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $result       = $manager->create(Request::create('/login/qr'), 'default');
@@ -127,7 +153,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testVerifyDesktopCookieInvalid(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -142,7 +168,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testVerifyDesktopCookieMissing(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -154,7 +180,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testVerifyDesktopBindingStrict(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr', 'GET', [], [], [], [
@@ -184,7 +210,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testVerifyApproveTokenValid(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -195,7 +221,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testVerifyApproveTokenInvalid(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -206,7 +232,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testVerifyApproveTokenAlreadyUsed(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -219,7 +245,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testApproveMarksChallenge(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -247,7 +273,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testDenyMarksChallenge(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -265,7 +291,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testConsumeMarksChallenge(): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr');
@@ -324,7 +350,7 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testCreateWithNamedProfileUsesRegistryLookup(): void
     {
-        $this->repository->expects(self::once())->method('save');
+        $this->repository->expects(self::once())->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $result = $this->manager->create(Request::create('/login/qr'), 'default');
@@ -359,7 +385,7 @@ final class QrLoginChallengeManagerTest extends TestCase
             $this->dispatcher,
             'test_kernel_secret_for_hmac',
         );
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr', 'GET', [], [], [], [
@@ -385,7 +411,7 @@ final class QrLoginChallengeManagerTest extends TestCase
             $this->dispatcher,
             'test_kernel_secret_for_hmac',
         );
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr', 'GET', [], [], [], [
@@ -420,7 +446,8 @@ final class QrLoginChallengeManagerTest extends TestCase
 
     public function testInjectedClockDrivesExpiryCookieAndRemainingSeconds(): void
     {
-        $clock   = new MockClock('2026-10-20 12:00:00');
+        $clock = new MockClock('2026-10-20 12:00:00');
+        $this->repository->method('insertNew')->willReturn(true);
         $manager = new QrLoginChallengeManager(
             $this->repository,
             ProfileRegistryFactory::single(TestUser::class, ['qr_login' => ['mode' => 'enabled', 'challenge_ttl' => 90]]),
@@ -450,7 +477,7 @@ final class QrLoginChallengeManagerTest extends TestCase
     #[DataProvider('provideUserAgents')]
     public function testBuildUaLabelFromUserAgent(string $ua, string $expectedSubstring): void
     {
-        $this->repository->method('save');
+        $this->repository->method('insertNew')->willReturn(true);
         $this->dispatcher->method('dispatch');
 
         $request = Request::create('/login/qr', 'GET', [], [], [], [

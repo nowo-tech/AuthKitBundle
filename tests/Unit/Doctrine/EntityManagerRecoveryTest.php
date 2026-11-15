@@ -52,11 +52,34 @@ final class EntityManagerRecoveryTest extends TestCase
         ]);
         $registry->expects(self::once())->method('resetManager')->with('default');
 
+        $recovery = new EntityManagerRecovery($registry);
         try {
-            (new EntityManagerRecovery($registry))->flush($closed);
+            $recovery->flush($closed);
             self::fail('The flush exception must be rethrown.');
         } catch (RuntimeException $exception) {
             self::assertSame('boom', $exception->getMessage());
         }
+        // 1.50.0: replaced at the next unit-of-work boundary, never in the middle of the request.
+        $recovery->reset();
+    }
+
+    public function testTheBoundaryWithoutARegistryDoesNothing(): void
+    {
+        $this->expectNotToPerformAssertions();
+        (new EntityManagerRecovery())->reset();
+    }
+
+    public function testAFailureResetsNothingBeforeTheBoundary(): void
+    {
+        $closed = $this->createMock(EntityManagerInterface::class);
+        $closed->method('isOpen')->willReturn(false);
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->method('getManagers')->willReturn(['default' => $closed]);
+        $registry->expects(self::never())->method('resetManager');
+
+        $this->expectExceptionMessage('boom');
+        (new EntityManagerRecovery($registry))->run(static function (): never {
+            throw new RuntimeException('boom');
+        }, $closed);
     }
 }

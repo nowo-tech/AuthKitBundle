@@ -25,6 +25,7 @@ use Symfony\Component\Clock\MockClock;
 
 use function array_filter;
 use function array_values;
+use function is_string;
 
 /**
  * A real {@see MfaManager} over in-memory Doctrine doubles (1.36 personal-data unit tests): credentials are kept in a
@@ -84,6 +85,8 @@ abstract class MfaPersonalDataTestCase extends TestCase
         $connection->method('fetchOne')->willReturn($this->unusedCodes);
         $connection->method('fetchAllAssociative')->willReturn($this->deviceRows);
         $connection->method('getDatabasePlatform')->willReturn(new SQLitePlatform());
+        // 1.50.0: dates of DBAL rows are converted through the connection (DBAL 4.6 deprecates Type::getType()).
+        $connection->method('convertToPHPValue')->willReturnCallback(static fn (mixed $value): mixed => is_string($value) ? new DateTimeImmutable($value) : $value);
 
         $em = $this->getMockBuilder(EntityManagerInterface::class)->getMock();
         $em->method('getRepository')->willReturn($repository);
