@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Stub\ChildTestUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
+use Nowo\AuthKitBundle\User\UserLookupInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -157,6 +158,46 @@ final class SocialAccountLinkerHardeningTest extends TestCase
         );
     }
 
+    /**
+     * Audit QG-M1: with first_user_only, the sign-up of the first account runs again under the user class lock (the
+     * first attempt wrote nothing) and its gate is asked again there.
+     */
+    public function testTheFirstAccountOfAFirstUserOnlyProfileIsCreatedUnderTheClassLock(): void
+    {
+        $users = $this->createMock(EntityRepository::class);
+        $users->method('findBy')->willReturn([]);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($users);
+        $em->expects(self::exactly(2))->method('persist');
+
+        $user = $this->linker($em, $this->noAccount(), $this->firstUserOnlyGate($em, 0, 0))->linkOrCreate(
+            $this->profile(TestUser::class, ['create_user_if_missing' => true], 'first_user_only'),
+            'google',
+            new SocialUserProfile('sub-5', 'first@example.com', null, [], true),
+            ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
+        );
+
+        self::assertSame('first@example.com', $user->getUserIdentifier());
+    }
+
+    public function testAFirstAccountCreatedMeanwhileRefusesTheSocialSignUpUnderTheClassLock(): void
+    {
+        $users = $this->createMock(EntityRepository::class);
+        $users->method('findBy')->willReturn([]);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getRepository')->willReturn($users);
+        $em->expects(self::never())->method('persist');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('registration is not allowed');
+        $this->linker($em, $this->noAccount(), $this->firstUserOnlyGate($em, 0, 1))->linkOrCreate(
+            $this->profile(TestUser::class, ['create_user_if_missing' => true], 'first_user_only'),
+            'google',
+            new SocialUserProfile('sub-6', 'second@example.com', null, [], true),
+            ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
+        );
+    }
+
     /** M2: linking to a pre-registered account replaces its password and pending reset credential. */
     public function testLinkingAnExistingAccountResetsItsCredentialsByDefault(): void
     {
@@ -209,6 +250,14 @@ final class SocialAccountLinkerHardeningTest extends TestCase
         );
     }
 
+    private function firstUserOnlyGate(EntityManagerInterface $em, int $first, int $second): RegistrationGate
+    {
+        $lookup = $this->createMock(UserLookupInterface::class);
+        $lookup->expects(self::exactly(2))->method('countUsers')->willReturnOnConsecutiveCalls($first, $second);
+
+        return new RegistrationGate($em, ProfileRegistryFactory::single(TestUser::class, ['registration_mode' => 'first_user_only']), $lookup);
+    }
+
     private function noAccount(): SocialLoginAccountRepository
     {
         $accounts = $this->createMock(SocialLoginAccountRepository::class);
@@ -229,10 +278,11 @@ final class SocialAccountLinkerHardeningTest extends TestCase
      * @param class-string $userClass
      * @param array<string, mixed> $socialLogin
      */
-    private function profile(string $userClass, array $socialLogin = []): ProfileSettings
+    private function profile(string $userClass, array $socialLogin = [], string $registrationMode = 'first_user_only'): ProfileSettings
     {
         return ProfileRegistryFactory::single($userClass, [
-            'social_login' => ['mode' => 'enabled'] + $socialLogin,
+            'social_login'      => ['mode' => 'enabled'] + $socialLogin,
+            'registration_mode' => $registrationMode,
         ])->getDefault();
     }
 }

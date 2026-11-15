@@ -10,6 +10,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
+use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Security\ExactIdentifier;
@@ -96,8 +97,8 @@ final class SocialAccountLinker
         $created = null;
 
         try {
-            $unit = function () use ($profile, $provider, $socialProfile, $tokens, $signIn, &$created): array {
-                $linked = $this->link($profile, $provider, $socialProfile, $tokens, $created);
+            $unit = function (bool $classLocked) use ($profile, $provider, $socialProfile, $tokens, $signIn, &$created): array {
+                $linked = $this->link($profile, $provider, $socialProfile, $tokens, $created, $classLocked);
                 $signIn($linked[0]);
                 // On PostgreSQL a listener that swallowed a database error leaves the transaction aborted, and COMMIT then
                 // rolls back without an error, with the sign-in kept (HP-L1). A statement fails there, so it counts as failed.
@@ -106,7 +107,7 @@ final class SocialAccountLinker
 
                 return $linked;
             };
-            [, $events] = $this->locked($profile, $provider, $socialProfile, fn (): array => $this->transactions->runWithAccounts($unit));
+            [, $events] = $this->locked($profile, $provider, $socialProfile, fn (bool $classLocked): array => $this->transactions->runWithAccounts(static fn (): array => $unit($classLocked)));
         } catch (Throwable $exception) {
             // 1.50.0: AuthKit's runner rolled the unit back and detached the rows it touched (the link, a new account, a
             // replaced password); the other entities of the request stay managed.
@@ -132,10 +133,10 @@ final class SocialAccountLinker
         $created = null;
 
         try {
-            $unit = function () use ($profile, $provider, $socialProfile, $tokens, &$created): array {
-                return $this->link($profile, $provider, $socialProfile, $tokens, $created);
+            $unit = function (bool $classLocked) use ($profile, $provider, $socialProfile, $tokens, &$created): array {
+                return $this->link($profile, $provider, $socialProfile, $tokens, $created, $classLocked);
             };
-            [$user, $events] = $this->locked($profile, $provider, $socialProfile, fn (): array => $this->transactions->runWithAccounts($unit));
+            [$user, $events] = $this->locked($profile, $provider, $socialProfile, fn (bool $classLocked): array => $this->transactions->runWithAccounts(static fn (): array => $unit($classLocked)));
         } catch (Throwable $exception) {
             $this->compensate($profile, $created);
 
@@ -148,6 +149,7 @@ final class SocialAccountLinker
 
     /**
      * @param array{access_token: string, refresh_token: ?string, expires_in: ?int} $tokens
+     * @param bool $classLocked Whether the unit holds the user class lock ({@see AccountLock::forUserClass()})
      *
      * @param-out UserInterface|null $created the user created by this call (compensated on failure)
      *
@@ -159,6 +161,7 @@ final class SocialAccountLinker
         SocialUserProfile $socialProfile,
         array $tokens,
         ?UserInterface &$created,
+        bool $classLocked,
     ): array {
         // REQ-SEC-006 (1.47.0): the provider subject is a key matched byte for byte; one that cannot be told apart from
         // a look-alike (edge white space, control or format characters, invalid UTF-8, too long) is refused.
@@ -205,6 +208,11 @@ final class SocialAccountLinker
             if ($requireVerified && $socialProfile->emailVerified !== true) {
                 throw new RuntimeException('Cannot create a local account from social login: the provider did not assert a verified email.');
             }
+            // 1.50.0 (audit QG-M1): with first_user_only the gate's "no account yet" only holds under the user class lock
+            // the registration page takes too; this attempt is rolled back (it wrote nothing) and runs again under it.
+            if (!$classLocked && $this->registrationGate instanceof RegistrationGate && RegistrationMode::from($profile->registrationMode) === RegistrationMode::FirstUserOnly) {
+                throw new FirstUserLockRequired();
+            }
             $user     = $this->createUser($profile, $socialProfile);
             $created  = $user;
             $events[] = UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Social);
@@ -232,22 +240,36 @@ final class SocialAccountLinker
      * identity (two callbacks of one identity never link it twice: the second one finds the first one's link), then,
      * when an account may be created, the provider's e-mail address as the account identifier.
      *
+     * Audit QG-M1: with `registration_mode: first_user_only`, a unit that is about to create the first account (the gate
+     * allowed it) is rolled back and run again under the user class lock too, between the two (the lock the
+     * registration page takes): a concurrent first account, by the form or another social sign-up, then commits first
+     * and this unit's gate sees it. Only the sign-up of the very first account waits for that lock; sign-ins do not.
+     *
      * @template T
      *
-     * @param Closure(): T $work
+     * @param Closure(bool): T $work receives whether the user class lock is held
      *
      * @return T
      */
     private function locked(ProfileSettings $profile, string $provider, SocialUserProfile $socialProfile, Closure $work): mixed
     {
         $createIfMissing = (bool) ($profile->socialLogin['create_user_if_missing'] ?? false);
+        $account         = fn (bool $classLocked): mixed => $createIfMissing
+            ? AccountLock::forIdentifier($this->transactions, $profile, $socialProfile->email, static fn (): mixed => $work($classLocked))
+            : $work($classLocked);
 
         return AccountLock::forSocialIdentity(
             $this->transactions,
             $provider,
             $socialProfile->id,
             $profile->userClass,
-            fn (): mixed => $createIfMissing ? AccountLock::forIdentifier($this->transactions, $profile, $socialProfile->email, $work) : $work(),
+            function () use ($account, $profile): mixed {
+                try {
+                    return $account(false);
+                } catch (FirstUserLockRequired) {
+                    return AccountLock::forUserClass($this->transactions, $profile, static fn (): mixed => $account(true));
+                }
+            },
         );
     }
 

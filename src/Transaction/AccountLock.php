@@ -13,8 +13,11 @@ use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
  * taken in this order, before any row lock:
  *
  * 1. the social identity (`provider`, subject, user class) being linked;
- * 2. the account: the identifier folded like {@see UserIdentifierMatcher::normalize()} (NFC, lower case) in the user
- *    class, or the whole user class for `registration_mode: first_user_only`.
+ * 2. the whole user class, for the first account of a `registration_mode: first_user_only` profile: the registration
+ *    page always takes it there (instead of 3), a social sign-up when it is about to create that account (audit
+ *    QG-M1), so one of them commits first and the other one's "no account yet" check sees it;
+ * 3. the account: the identifier folded like {@see UserIdentifierMatcher::normalize()} (NFC, lower case) in the user
+ *    class.
  *
  * So two requests creating an account for one identifier (registration, invitation acceptance, social sign-up,
  * administrator creation, in any mix) run one after the other, and the second one's identifier checks see the first

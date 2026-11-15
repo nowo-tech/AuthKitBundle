@@ -96,6 +96,10 @@ final class UserRegistrar
 
             $user = $this->createUser($profile, $newUser);
 
+            // 1.50.0 (audit QG-M1): the user class lock, which a social sign-up of the first account takes too, is what
+            // keeps the first account single: it is taken before this unit's transaction begins, so the count above
+            // already sees a concurrent first account committed. This count, in the same transaction, can no longer see
+            // one (an InnoDB REPEATABLE READ snapshot); it stays as the guard of 1.49 for a host user port.
             if ($mode === RegistrationMode::FirstUserOnly) {
                 $count = $this->userLookup->countUsers($profile);
                 if ($count > 1) {

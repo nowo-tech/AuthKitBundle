@@ -8,8 +8,10 @@ use Composer\InstalledVersions;
 use Nowo\AuthKitBundle\Admin\AdminUserCreator;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
+use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
+use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\Tests\Integration\Invitation\InvitationsTestKernel;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Symfony\Component\Config\Loader\LoaderInterface;
@@ -27,7 +29,9 @@ use const PHP_VERSION_ID;
 /**
  * 1.50.0 (Beacon spec 239): the invitations kernel on the server of `AUTH_KIT_LOAD_DATABASE_URL` (MySQL 8.4 or
  * PostgreSQL 16 in CI, job "Load readiness"), with public ids for the services the load tests and the concurrent
- * writers drive. Environment `*_private` turns `doctrine.private_entity_manager` on.
+ * writers drive. Environment `*_private` turns `doctrine.private_entity_manager` on; environment `test_first` is
+ * `registration_mode: first_user_only` with social sign-up (`create_user_if_missing`), for the first-account races
+ * (audit QG-M1). {@see SlowUserPersist} makes a writer process hold its unit open.
  */
 final class DatabaseTestKernel extends InvitationsTestKernel
 {
@@ -39,6 +43,8 @@ final class DatabaseTestKernel extends InvitationsTestKernel
         'load.invitations' => InvitationRepository::class,
         'load.runner'      => AuthKitTransactionRunner::SERVICE_ID,
         'load.boundary'    => PrivateEntityManagerSubscriber::class,
+        'load.social'      => SocialAccountLinker::class,
+        'load.profiles'    => ProfileRegistry::class,
     ];
 
     public static function databaseUrl(): ?string
@@ -72,6 +78,13 @@ final class DatabaseTestKernel extends InvitationsTestKernel
             // DoctrineBundle 2 (the DBAL 3 legs): native lazy objects, as DoctrineBundle 3 always uses them.
             $container->loadFromExtension('doctrine', ['orm' => ['enable_native_lazy_objects' => true]]);
         }
+        if ($this->environment === 'test_first') {
+            $container->loadFromExtension('nowo_auth_kit', [
+                'registration_mode' => 'first_user_only',
+                'social_login'      => ['mode' => 'enabled', 'create_user_if_missing' => true],
+            ]);
+        }
+        $container->register(SlowUserPersist::class)->addTag('doctrine.event_listener', ['event' => 'prePersist']);
         if (str_ends_with($this->environment, '_private')) {
             $container->loadFromExtension('nowo_auth_kit', ['doctrine' => ['private_entity_manager' => true]]);
         }
