@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\DoctrineEncryptBundle\NowoDoctrineEncryptBundle;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\HotReloadBundle\NowoHotReloadBundle;
+use Nowo\OtpInputBundle\NowoOtpInputBundle;
 use Nowo\PasswordToggleBundle\NowoPasswordToggleBundle;
 use Nowo\TwigInspectorBundle\NowoTwigInspectorBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
@@ -39,5 +40,6 @@ return [
     WebProfilerBundle::class         => ['dev' => true, 'test' => true],
     DebugBundle::class               => ['dev' => true],
     NowoPasswordToggleBundle::class  => ['all' => true],
+    NowoOtpInputBundle::class        => ['all' => true],
     TwigExtraBundle::class           => ['all' => true],
 ];

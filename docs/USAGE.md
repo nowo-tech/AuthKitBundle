@@ -15,6 +15,7 @@
 - [Registration flow](#registration-flow)
 - [Invitation flow](#invitation-flow)
 - [Login flow](#login-flow)
+  - [Two-step verification code on OTP boxes (1.51)](#two-step-verification-code-on-otp-boxes-151)
   - [Identifiers and binary collations (1.49)](#identifiers-and-binary-collations-149)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
   - [Enable](#enable)
@@ -223,6 +224,22 @@ Full example: [INVITATIONS.md — Host with its own invitation UI](INVITATIONS.m
 2. Controller renders the form; POST is handled by Symfony `form_login` on the firewall.
 3. CSRF token id: `authenticate` (Symfony default).
 4. Optional device intelligence: layout `collect()` does not change the login form. After `LoginSuccess`, `new_device_notify` may set session `nowo_auth_kit.new_device` and call `NewDeviceLoginNotifierInterface`. Device ID is not a credential.
+
+### Two-step verification code on OTP boxes (1.51)
+
+After the first factor, a user with MFA enters the authenticator code at `/login/mfa`. With
+`nowo-tech/otp-input-bundle` installed and `otp_input.enabled: true`, that code (and the code of the forced setup and
+the account page) is typed into one box per digit; pasting the whole code works, and
+`otp_input.mfa_code_autosubmit: true` submits once the last box is filled. "Use a recovery code instead" opens a text
+field (no JavaScript needed). In your own templates, keep the theme on the code field:
+
+```twig
+{% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}
+{{ form_row(form.code) }}
+```
+
+In a kernel test or without JavaScript, post `mfa_code_form[code]` (a plain text input until the boxes are bound); a
+browser with JavaScript types into `[data-nowo-otp-digit="0"]`. See [MFA.md](MFA.md#code-on-otp-boxes-151).
 
 ### Identifiers and binary collations (1.49)
 

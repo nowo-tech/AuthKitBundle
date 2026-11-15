@@ -17,7 +17,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Demo / e2e helpers (dev only, local demo): seed accounts for the multi-account and MFA scenarios and disable one.
- * `bob@example.com` has MFA with the fixed key below so Playwright can compute codes.
+ * `bob@example.com` has MFA with the fixed key below so Playwright can compute codes; `frank@example.com` (1.51) is an
+ * administrator whose MFA was reset by an administrator, so his next sign-in goes to the forced setup page.
  */
 final class DemoSeedController
 {
@@ -52,6 +53,17 @@ final class DemoSeedController
             $totp = new Totp();
             $this->mfa->enable($bob, self::BOB_SECRET, $totp->code(self::BOB_SECRET, $totp->step(time()) - 1));
         }
+
+        // 1.51: an administrator (mfa.required_roles) reset by an administrator enrols at his next sign-in.
+        $frank = $this->em->getRepository(User::class)->findOneBy(['email' => 'frank@example.com']) ?? (new User())->setEmail('frank@example.com');
+        $frank->setPassword($this->hasher->hashPassword($frank, 'demo-password-123'))->setRoles(['ROLE_ADMIN']);
+        $this->em->persist($frank);
+        $this->em->flush();
+        $this->mfa->forgetUser($frank);
+        $totp = new Totp();
+        // Any key does: the reset below clears it before frank ever signs in.
+        $this->mfa->enable($frank, self::BOB_SECRET, $totp->code(self::BOB_SECRET, $totp->step(time()) - 1));
+        $this->mfa->reset($frank, $frank);
 
         return new JsonResponse(['seeded' => true]);
     }

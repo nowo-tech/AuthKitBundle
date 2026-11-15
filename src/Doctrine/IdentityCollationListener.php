@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Doctrine;
 
+use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
@@ -60,7 +61,7 @@ final readonly class IdentityCollationListener
         }
         $manager   = $this->doctrine->getManagerForClass($metadata->getName());
         $platform  = $manager instanceof EntityManagerInterface ? $manager->getConnection()->getDatabasePlatform() : null;
-        $collation = $platform !== null ? PasswordResetCollationListener::collationFor($platform) : null;
+        $collation = $platform instanceof AbstractPlatform ? PasswordResetCollationListener::collationFor($platform) : null;
         if ($collation === null) {
             return;
         }

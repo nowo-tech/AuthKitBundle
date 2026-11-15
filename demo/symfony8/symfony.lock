@@ -59,6 +59,9 @@
     "nowo-tech/hot-reload-bundle": {
         "version": "v1.3.2"
     },
+    "nowo-tech/otp-input-bundle": {
+        "version": "v1.8.3"
+    },
     "nowo-tech/password-toggle-bundle": {
         "version": "v1.2.3"
     },

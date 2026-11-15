@@ -52,6 +52,30 @@ final class OtpInputTypeResolverTest extends TestCase
         ]));
     }
 
+    public function testMfaCodeFollowsEnabledAndMfaCodeFlags(): void
+    {
+        $resolver = new OtpInputTypeResolver(static fn (string $class): bool => true);
+        $on       = ['enabled' => true, 'password_reset_code' => false, 'mfa_code' => true, 'mfa_code_autosubmit' => true];
+
+        self::assertTrue($resolver->wantsMfaCode($on));
+        self::assertTrue($resolver->wantsMfaCodeAutosubmit($on));
+        self::assertTrue($resolver->wantsMfaCode(['enabled' => true, 'password_reset_code' => true]), 'mfa_code defaults to true.');
+        self::assertFalse($resolver->wantsMfaCodeAutosubmit(['enabled' => true, 'password_reset_code' => true]), 'Autosubmit defaults to false.');
+        self::assertFalse($resolver->wantsMfaCode(['mfa_code' => true] + ['enabled' => false, 'password_reset_code' => true]));
+        self::assertFalse($resolver->wantsMfaCode(['enabled' => true, 'password_reset_code' => true, 'mfa_code' => false]));
+        self::assertFalse($resolver->wantsMfaCodeAutosubmit(['enabled' => true, 'password_reset_code' => true, 'mfa_code' => false, 'mfa_code_autosubmit' => true]), 'Autosubmit needs the OTP field.');
+    }
+
+    public function testResolveMfaCodeTypeFallsBackWithoutThePackage(): void
+    {
+        $available = new OtpInputTypeResolver(static fn (string $class): bool => true);
+        $missing   = new OtpInputTypeResolver(static fn (string $class): bool => false);
+
+        self::assertSame(OtpInputTypeResolver::OTP_TYPE, $available->resolveMfaCodeType(true));
+        self::assertNull($available->resolveMfaCodeType(false));
+        self::assertNull($missing->resolveMfaCodeType(true));
+    }
+
     public function testFieldOptionsMapCharset(): void
     {
         $resolver = new OtpInputTypeResolver();

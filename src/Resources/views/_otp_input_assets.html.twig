@@ -1,4 +1,7 @@
+{#- OtpInput widget script (otp_input.enabled with password_reset_code or mfa_code, package installed) and, 1.51, the
+    AuthKit MFA autosubmit helper (acts only on fields with otp_input.mfa_code_autosubmit). CSP nonce on every tag. -#}
 {% if nowo_auth_kit_otp_input_assets|default(false) %}
 {% set _csp_nonce = app is defined and app and app.request ? app.request.attributes.get('csp_nonce')|default('') : '' %}
 <script src="{{ asset('otp-input.js', 'nowo_otp_input') }}" defer{% if _csp_nonce %} nonce="{{ _csp_nonce }}"{% endif %}></script>
+<script src="{{ asset('js/nowo-auth-kit-otp.js', 'nowo_auth_kit') }}" defer{% if _csp_nonce %} nonce="{{ _csp_nonce }}"{% endif %}></script>
 {% endif %}

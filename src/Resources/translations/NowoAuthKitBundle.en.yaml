@@ -251,7 +251,8 @@ invitation:
 mfa:
     field:
         code: Authentication code
-        code_help: The 6-digit code from your authenticator app.
+        code_help: The %digits%-digit code from your authenticator app.
+        code_digit: 'Digit %position% of %length%'
         recovery_code: Recovery code
         recovery_code_help: 'One of your saved recovery codes, for example ABCDE-12345.'
         trust_device: Trust this device

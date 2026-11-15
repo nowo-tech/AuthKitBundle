@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [To 1.51.0 (MFA code on OTP boxes)](#to-1510-mfa-code-on-otp-boxes)
 - [To 1.50.0](#to-1500)
 - [To 1.49.0](#to-1490)
 - [To 1.49.0](#to-1490-1)
@@ -137,6 +138,60 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### To 1.51.0 (MFA code on OTP boxes)
+
+From **1.50.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No schema change and nothing to do unless you use `nowo-tech/otp-input-bundle`.
+
+- **`otp_input.enabled: true` now also covers the two-step verification code.** The new key `otp_input.mfa_code`
+  defaults to `true`, so a profile that already turned the OTP input on for the password-reset code gets OTP boxes on
+  the MFA challenge, setup and account forms too. To keep the MFA code a text field:
+
+  ```yaml
+  nowo_auth_kit:
+      otp_input:
+          enabled: true
+          password_reset_code: true
+          mfa_code: false
+  ```
+
+- **Turning it on** (needs the package and its public assets):
+
+  ```bash
+  composer require nowo-tech/otp-input-bundle
+  php bin/console assets:install
+  ```
+
+  ```yaml
+  nowo_auth_kit:
+      otp_input:
+          enabled: true
+          mfa_code: true              # default
+          mfa_code_autosubmit: false  # true: submit once every box is filled
+  ```
+
+- No JavaScript needed: until `otp-input.js` has bound the boxes, the field is one visible text input (it stays if the
+  script is blocked, missing or fails), so nobody is locked out. Make sure `nowo-auth-kit.css` loads (default layouts
+  do): it hides that text input once the boxes are live.
+- With the package installed but `NowoOtpInputBundle` not registered, AuthKit now skips the OtpInput script instead of
+  failing on the missing `nowo_otp_input` asset package.
+- The account page code forms no longer carry `autofocus`, and `mfa.field.code_help` now takes `%digits%` (override
+  it in your translations if you changed the text).
+- **Overridden templates.** If you override `mfa/challenge.html.twig`, `mfa/setup.html.twig` or
+  `mfa/_code_form.html.twig`, add `{% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}`
+  before the code row to get the single-name group and the autosubmit marker; without it the field renders with the
+  OtpInput bundle's own widget (still working). If you override `mfa/account.html.twig`, load
+  `{{ include('@NowoAuthKitBundle/_otp_input_assets.html.twig') }}` in `nowo_ui_scripts`.
+- Your own `MfaCodeFormType` forms: pass the profile's config as the `otp_input` option to get the boxes; without the
+  option the field stays text.
+- E2E tests that fill `input[name="mfa_code_form[code]"]` must type into the first box
+  (`[data-nowo-otp-digit="0"]`) instead when JavaScript runs: the named text input is then hidden by the CSS.
 
 ## To 1.50.0
 

@@ -12,6 +12,23 @@
 
 {% block nowo_ui_document_title %}{{ 'mfa.account.title'|trans({}, _b) }}{% endblock %}
 
+{#- 1.51: the AuthKit stylesheet (OTP boxes) and the OTP input script when otp_input.mfa_code renders the code
+    fields as boxes (CSP nonce on the scripts) -#}
+{#- byte-identical to 1.50 when the OTP assets are off -#}
+{% block nowo_ui_styles -%}
+    {{- parent() -}}
+    {%- if nowo_auth_kit_otp_input_assets|default(false) %}
+{{ include('@NowoAuthKitBundle/_auth_kit_styles.html.twig') }}
+    {%- endif -%}
+{%- endblock %}
+
+{% block nowo_ui_scripts -%}
+    {{- parent() -}}
+    {%- if nowo_auth_kit_otp_input_assets|default(false) %}
+{{ include('@NowoAuthKitBundle/_otp_input_assets.html.twig') }}
+    {%- endif -%}
+{%- endblock %}
+
 {% block nowo_ui_content %}
     <div class="nowo-auth-kit-mfa-account" data-testid="auth-kit-mfa-account">{% block nowo_auth_kit_mfa_account_before %}{% endblock %}
 

@@ -49,6 +49,8 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['profiles']['default']['device_intelligence']['qr_login']['approve_require_trusted']);
         self::assertFalse($config['profiles']['default']['otp_input']['enabled']);
         self::assertTrue($config['profiles']['default']['otp_input']['password_reset_code']);
+        self::assertTrue($config['profiles']['default']['otp_input']['mfa_code']);
+        self::assertFalse($config['profiles']['default']['otp_input']['mfa_code_autosubmit']);
         self::assertTrue($config['profiles']['default']['embed']['show_login']);
         self::assertTrue($config['profiles']['default']['embed']['show_register']);
         // web_ui (REQ-UI-003): null form themes = defaults resolved by the extension; legacy templates.* mirror
@@ -360,6 +362,8 @@ final class ConfigurationTest extends TestCase
                     'otp_input'  => [
                         'enabled'             => true,
                         'password_reset_code' => false,
+                        'mfa_code'            => false,
+                        'mfa_code_autosubmit' => true,
                     ],
                 ],
             ],
@@ -368,6 +372,8 @@ final class ConfigurationTest extends TestCase
         $otp = $config['profiles']['default']['otp_input'];
         self::assertTrue($otp['enabled']);
         self::assertFalse($otp['password_reset_code']);
+        self::assertFalse($otp['mfa_code']);
+        self::assertTrue($otp['mfa_code_autosubmit']);
     }
 
     public function testDeviceIntelligenceRejectsEmptyCollectEndpoint(): void

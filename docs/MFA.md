@@ -16,6 +16,7 @@ WebAuthn and e-mail codes are on the [roadmap](ROADMAP.md).
 - [Trusted devices](#trusted-devices)
 - [Recovery codes](#recovery-codes)
 - [Pages and the account card](#pages-and-the-account-card)
+  - [Code on OTP boxes (1.51)](#code-on-otp-boxes-151)
 - [Administrator reset](#administrator-reset)
 - [PHP API](#php-api)
 - [Audit events](#audit-events)
@@ -168,6 +169,18 @@ current code.
 | Recovery codes after enrolment | `web_ui.templates.mfa_recovery_codes` | Codes, download, Continue |
 | Account page (`web_ui.templates.mfa_account`, 1.37) | `@NowoAuthKitBundle/mfa/account.html.twig` | UiKit admin layout; enrol, disable, new codes, trusted devices |
 | Admin reset | `@NowoAuthKitBundle/mfa/admin_reset.html.twig` | Status (never the secret), reset form |
+
+### Code on OTP boxes (1.51)
+
+With `nowo-tech/otp-input-bundle` installed and `otp_input.enabled: true` (profile key; `otp_input.mfa_code` defaults
+to `true`), the authenticator code of the challenge, forced setup and account page forms renders as one box per digit
+(`mfa.totp.digits`): numeric keyboard, `autocomplete="one-time-code"`, paste fills every box, and
+`otp_input.mfa_code_autosubmit: true` submits once the last box is filled. The recovery code stays a text field in the
+`<details>` switch (no JavaScript needed). The boxes are one group named by the label and described by the help and
+error texts. The server receives the same string as from the text field, so validation, the attempt limiter, CSRF and
+the constant-time check do not change. Without JavaScript (or when `otp-input.js` fails to load) the field is a single
+text input, so the challenge, the forced setup and the account page keep working; without the package or with the
+option off the field stays text. Autosubmit only applies to the challenge and the setup. See [CONFIGURATION.md](CONFIGURATION.md#otp-input-optional).
 
 Account card for the host's own account page:
 

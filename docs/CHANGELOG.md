@@ -111,6 +111,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.51.0.
+
+### Added
+
+- **The two-step verification code can use nowo-tech/otp-input-bundle** (Beacon request 2026-11-15). New profile keys
+  `otp_input.mfa_code` (default `true`, used only when `otp_input.enabled` is `true`) and
+  `otp_input.mfa_code_autosubmit` (default `false`). With both the package installed and `otp_input.enabled: true`,
+  the authenticator-app code of the sign-in challenge (`mfa/challenge.html.twig`), the forced setup
+  (`mfa/setup.html.twig`) and the account page forms (`mfa/_code_form.html.twig`) renders with `OtpType`: one box per
+  digit (`mfa.totp.digits`), numeric keyboard, `autocomplete="one-time-code"` on the first box, and pasting the whole
+  code fills every box.
+  - The recovery code stays a text field (different format). The challenge's "Use a recovery code instead" switch is
+    still a native `<details>`, so it works with and without JavaScript.
+  - Accessibility: the boxes are one group named by the field's visible label (`aria-labelledby`) and described by its
+    help and error texts (`aria-describedby`); the generic OtpInput label is dropped so the field has a single name,
+    and each box is named by its position (`mfa.field.code_digit`, "Digit 1 of 6", 7 locales; axe-clean in the demo).
+    Errors still show on the field row.
+  - **Works without JavaScript** (audit QV-M1): the field's own named input renders as a visible text input (numeric,
+    `one-time-code`, `maxlength`) and the boxes stay `hidden` until `otp-input.js` has bound them
+    (`data-nowo-otp-init="1"`); then the CSS shows the boxes and hides the text input. JavaScript off, assets not
+    installed, a CSP block or a script error leave the single text field, so nobody is locked out of the challenge, the
+    forced setup or the account page.
+  - `otp_input.mfa_code_autosubmit: true` submits the form once every box is filled (`js/nowo-auth-kit-otp.js`,
+    loaded with `otp-input.js`; CSP nonce on both tags) — only on the sign-in challenge and the forced setup, never on
+    the account page's disable / regenerate forms; not while the recovery code field holds text; a second submit of
+    the same form (Enter, the button) is blocked (audit QV-L2). New `MfaCodeFormType` options `otp_autosubmit`
+    (default `false`) and `code_autofocus` (default `true`; the account page forms pass `false`, so the page no longer
+    has several `autofocus`, audit QV-L3).
+  - `mfa.field.code_help` takes `%digits%` (`mfa.totp.digits`) instead of a fixed 6 in the 7 locales.
+  - `MfaCodeFormType` option `otp_input` (the profile's `otp_input` array, default `null` = text field), Twig form theme
+    `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` (block `nowo_auth_kit_mfa_otp_widget`, applied to the code
+    field only), `OtpInputTypeResolver::wantsMfaCode()` / `wantsMfaCodeAutosubmit()` / `resolveMfaCodeType()`.
+  - The MFA account page now loads `otp-input.js` and the AuthKit stylesheet when the OTP assets are on.
+  - Demo: `otp_input` is enabled in demo/symfony8 (Playwright: typing and pasting into the boxes).
+
+### Unchanged
+
+- Server-side checks: the OTP field submits the same raw string as the text field (OtpType's normaliser is not
+  applied), so the length validation, the attempt limiter, CSRF and the constant-time comparison are exactly as before.
+- Without the package, or with `otp_input.enabled: false` (the default), the code stays today's text field.
+- Worker mode (FrankenPHP, kernel reset off): `MfaCodeFormType` keeps no state; the choice comes from each form's
+  options.
+
+### Changed
+
+- The `otp-input.js` asset flag also requires `NowoOtpInputBundle` in `kernel.bundles` (audit QV-L1): with the package
+  installed but the bundle not registered, the auth pages no longer fail with a missing `nowo_otp_input` asset package
+  (also affected the password-reset code since 1.4.x).
+- Rector 2.8: `NewUser::identifierFormField()` is an instance method and `IdentityCollationListener` checks the
+  platform with `instanceof` (no behaviour change).
+
 ## [1.50.0] - 2026-11-15
 
 Target: 1.50.0 (high load readiness, Beacon spec 239; new dependencies, no configuration change). See

@@ -114,6 +114,8 @@ final class ProfileRegistryTest extends TestCase
 
         self::assertFalse($profile->otpInput['enabled']);
         self::assertTrue($profile->otpInput['password_reset_code']);
+        self::assertTrue($profile->otpInput['mfa_code']);
+        self::assertFalse($profile->otpInput['mfa_code_autosubmit']);
         self::assertFalse($profile->deviceIntelligence['enabled']);
         self::assertFalse($profile->slideToConfirm['enabled']);
     }
