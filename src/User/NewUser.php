@@ -83,7 +83,7 @@ final readonly class NewUser
         if ($this->source === UserCreationSource::Admin || $this->source === UserCreationSource::Social) {
             return $this->identifier;
         }
-        $field = self::identifierFormField($profile);
+        $field = $this->identifierFormField($profile);
         $value = $field !== null ? ($this->formData[$field] ?? null) : null;
 
         return is_string($value) ? $value : null;
@@ -103,14 +103,14 @@ final readonly class NewUser
         if ($this->source === UserCreationSource::Admin || $this->source === UserCreationSource::Social) {
             return new self($this->source, $this->roles, $this->formData, $normalized, $this->plainPassword, $this->displayName);
         }
-        $formData                                               = $this->formData;
-        $formData[(string) self::identifierFormField($profile)] = $normalized;
+        $formData                                                = $this->formData;
+        $formData[(string) $this->identifierFormField($profile)] = $normalized;
 
         return new self($this->source, $this->roles, $formData, $this->identifier, $this->plainPassword, $this->displayName);
     }
 
     /** The mapped, non-password registration field whose property is the profile's `user_identifier_field`. */
-    private static function identifierFormField(ProfileSettings $profile): ?string
+    private function identifierFormField(ProfileSettings $profile): ?string
     {
         foreach ($profile->registrationFields as $field) {
             $name = (string) ($field['name'] ?? '');
