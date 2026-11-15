@@ -10,3 +10,10 @@ parameters:
         - tests
     excludePaths:
         - src/Resources/*
+    # 1.50.0 (Beacon spec 239): PhpStanFrankenPhp 1.4 worker load-readiness rules (ruleset-worker.neon is included,
+    # so they are enabled through their parameters). Every write unit goes through AuthKit's transaction runner.
+    frankenphp:
+        flagRollbackAfterNestedBegin: true
+        flagFlushInHandWrittenTransaction: true
+        flagUnboundedRecursion: true
+        flagFlushWithoutClosedManagerRecovery: true
