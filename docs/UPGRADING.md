@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.50.0](#to-1500)
 - [To 1.49.0](#to-1490)
 - [To 1.49.0](#to-1490-1)
   - [Identifier normaliser (default unchanged)](#identifier-normaliser-default-unchanged)
@@ -136,6 +137,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.50.0
+
+From **1.49.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 Target: 1.50.0. From **1.49.0**:
 
