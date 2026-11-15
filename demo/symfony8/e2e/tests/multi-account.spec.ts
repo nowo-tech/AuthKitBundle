@@ -82,8 +82,8 @@ test.describe('MFA and several accounts', () => {
     await expect(page).toHaveURL(/\/login\/mfa$/);
     await expect(page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit]')).toHaveCount(6);
     await expect(page.locator('form[name="mfa_code_form"] [data-testid="auth-kit-mfa-otp"]')).toHaveAttribute('aria-labelledby', 'mfa_code_form_code_label');
-    // Pasting the whole code into any box fills every box.
-    await page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit="2"]').evaluate((box) => {
+    // Pasting the whole code into the first box fills every box.
+    await page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit="0"]').evaluate((box) => {
       const data = new DataTransfer();
       data.setData('text', '000000');
       box.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
@@ -91,7 +91,10 @@ test.describe('MFA and several accounts', () => {
     await expect(page.locator('input[name="mfa_code_form[code]"]')).toHaveValue('000000');
     await page.locator('[data-testid="auth-kit-mfa_challenge"] button[type="submit"]').click();
     await expect(page.locator('[data-testid="auth-kit-mfa_challenge"] [role="alert"]')).toBeVisible();
-    await passChallenge(page);
+    // otp_input.mfa_code_autosubmit (off in the demo, marked here): the last digit submits the form, no click.
+    await page.locator('form[name="mfa_code_form"] [data-testid="auth-kit-mfa-otp"]').evaluate((group) => group.setAttribute('data-nowo-auth-kit-otp-autosubmit', '1'));
+    await page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit="0"]').fill(await nextCode(BOB_SECRET));
+    await expect(page).toHaveURL(/\/en\/home$/);
   });
 
   test('enrol on the account page with a server-rendered QR code', async ({ page }) => {

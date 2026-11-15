@@ -50,6 +50,8 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         self::assertSame('one-time-code', $digits->first()->attr('autocomplete'));
         self::assertSame('numeric', $digits->first()->attr('inputmode'));
         self::assertNull($digits->first()->attr('name'), 'Only the hidden input is submitted.');
+        self::assertSame('Digit 1 of 6', $digits->first()->attr('aria-label'));
+        self::assertSame('Digit 6 of 6', $digits->last()->attr('aria-label'));
         self::assertNull($group->filter('[role="group"][aria-label]')->getNode(0), 'One name for the field: no generic OTP label.');
         self::assertCount(1, $group->filter('input[type="hidden"][name="mfa_code_form[code]"]'));
         self::assertSame('text', $crawler->filter('details[data-testid="auth-kit-mfa-recovery"] input[name="mfa_code_form[recovery_code]"]')->attr('type'), 'The recovery code stays a text field.');

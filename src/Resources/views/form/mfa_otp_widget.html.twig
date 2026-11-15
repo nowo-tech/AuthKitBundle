@@ -5,7 +5,7 @@
   the form's own theme (UiKit by default).
   The digit boxes are one group named by the visible label (aria-labelledby: the label id set by
   MfaCodeFormType::finishView()) and described by the help and error texts; the inner OTP group drops its generic
-  aria-label so the field has a single name. data-nowo-auth-kit-otp-autosubmit (otp_input.mfa_code_autosubmit):
+  aria-label so the field has a single name, and each box is named by its position (mfa.field.code_digit). data-nowo-auth-kit-otp-autosubmit (otp_input.mfa_code_autosubmit):
   js/nowo-auth-kit-otp.js submits the form once every box is filled.
   Without the OtpInput form theme (bundle not registered) the plain text widget is rendered instead.
 -#}
@@ -18,8 +18,16 @@
             {%- if _described is not empty %} aria-describedby="{{ _described|join(' ') }}"{% endif %}
             data-testid="auth-kit-mfa-otp" data-nowo-auth-kit-otp-length="{{ otp_length }}"
             {%- if mfa_otp_autosubmit|default(false) %} data-nowo-auth-kit-otp-autosubmit="1"{% endif %}>
+            {#- each box gets its position as accessible name ("Digit 1 of 6"; the group carries the label) -#}
+            {%- set _boxes = {} -%}
+            {%- for _i in 0..(otp_length - 1) -%}
+                {%- set _name = 'mfa.field.code_digit'|trans({'%position%': _i + 1, '%length%': otp_length}, 'NowoAuthKitBundle') -%}
+                {%- set _boxes = _boxes|merge({('data-nowo-otp-digit="' ~ _i ~ '"'): 'aria-label="' ~ _name|e('html_attr') ~ '" data-nowo-otp-digit="' ~ _i ~ '"'}) -%}
+            {%- endfor -%}
             {%- set translation_domain = false -%}
-            {{- block('nowo_otp_input_widget') -}}
+            {%- set _widget -%}{{- block('nowo_otp_input_widget') -}}{%- endset -%}
+            {#- the OtpInput markup was escaped when rendered; only the aria-label attributes (escaped above) are added -#}
+            {{- _widget|replace(_boxes)|raw -}}
         </div>
     {%- else -%}
         {{- block('form_widget_simple') -}}

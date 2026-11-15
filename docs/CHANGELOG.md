@@ -125,7 +125,8 @@ Target: 1.51.0.
   - The recovery code stays a text field (different format). The challenge's "Use a recovery code instead" switch is
     still a native `<details>`, so it works with and without JavaScript.
   - Accessibility: the boxes are one group named by the field's visible label (`aria-labelledby`) and described by its
-    help and error texts (`aria-describedby`); the generic OtpInput label is dropped so the field has a single name.
+    help and error texts (`aria-describedby`); the generic OtpInput label is dropped so the field has a single name,
+    and each box is named by its position (`mfa.field.code_digit`, "Digit 1 of 6", 7 locales; axe-clean in the demo).
     Errors still show on the field row.
   - `otp_input.mfa_code_autosubmit: true` submits the form once every box is filled (`js/nowo-auth-kit-otp.js`,
     loaded with `otp-input.js`; CSP nonce on both tags).
