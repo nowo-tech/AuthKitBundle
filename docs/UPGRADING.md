@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.51.0](#to-1510)
   - [To 1.51.0 (MFA code on OTP boxes)](#to-1510-mfa-code-on-otp-boxes)
 - [To 1.50.0](#to-1500)
 - [To 1.49.0](#to-1490)
@@ -138,6 +139,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.51.0
+
+From **1.50.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ### To 1.51.0 (MFA code on OTP boxes)
 
