@@ -137,6 +137,47 @@
 
 ## Unreleased
 
+Target: 1.50.0. From **1.49.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+No configuration and no schema change. Two new dependencies come with it: `nowo-tech/transaction-contract` ^1.0 and
+`nowo-tech/transaction-doctrine` ^1.1 (they allow `doctrine/dbal` ^3.8.2 || ^4).
+
+What changes for you:
+
+- **A failed AuthKit write no longer resets your entity manager in the middle of the request.** Up to 1.49 a manager
+  closed by a failed AuthKit flush was reset at once, which detached every entity you had loaded (the signed-in user,
+  your aggregates): your later changes in that request were silently lost. Now the manager stays closed for the rest of
+  that request, so your next flush fails loudly, and AuthKit replaces it at the next request, message or command
+  boundary (FrankenPHP worker mode with the kernel reset off included). If you catch an AuthKit failure and keep writing
+  in the same request, check `isOpen()` first.
+- **A failed invitation acceptance or social sign-in no longer clears your manager.** Only the rows the failed unit
+  touched are detached (the invitation, the new account, what your grants changed); reload those if you still need them.
+- **Your pending changes are flushed on their own before an AuthKit unit of work** whenever AuthKit writes through your
+  manager (`doctrine.private_entity_manager` unset or false; with the private manager only for account writes of the
+  Doctrine user writer, as before): an AuthKit failure never rolls them back. To keep your changes and AuthKit's
+  together, open your own transaction around the call: AuthKit's unit then nests in it.
+- **Storage failures on AuthKit's pages are 503 / 409, not 500.** A deadlock, lock wait timeout or serialization
+  failure answers `503` with `Retry-After`; a unique key taken meanwhile `409`. Your error pages render them
+  (`ServiceUnavailableHttpException` / `ConflictHttpException`). Your own controllers that call AuthKit services receive
+  `Nowo\TransactionContract\TransientStorageFailure` and map it themselves (or use DoctrineDeadlockRetryBundle's
+  `http_mapping`). The registration page and `InvitationAcceptor::attempt()` now let a transient failure through instead
+  of answering a refusal (`not_accepted`); the invitation stays usable.
+- **Account creation takes a database named lock** of the identifier (`GET_LOCK()` on MySQL / MariaDB, an advisory lock
+  on PostgreSQL; nothing on SQLite) and refuses an identifier the user lookup port already finds, with the message of the
+  unique key (`Registration failed: a "…" with the same unique value already exists.`), before inserting. Keep a unique
+  key on your identifier column anyway: an account created by your own code does not take AuthKit's lock. Inside a
+  transaction you opened, the lock is released before your commit, so the unique key is the guard there.
+- **Doctrine DBAL 3**: enable `doctrine.dbal.use_savepoints: true`. DBAL 4 always nests with savepoints; without them,
+  DBAL 3 marks your whole transaction rollback-only when an AuthKit unit nested in it fails.
+- `MfaStore` no longer takes the unused optional `EntityManagerRecovery` argument; `MfaStore::insertDevice()` returns a
+  bool. `EntityManagerRecovery::run()` / `flush()` stay, without the immediate reset.
+- A DDD host keeps its own runner for its own application services: AuthKit's services are wired to
+  `nowo_auth_kit.transaction_runner` and never to your `TransactionRunnerInterface` alias.
+
 ## To 1.49.0
 
 From **1.48.0**:
