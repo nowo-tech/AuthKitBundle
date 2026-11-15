@@ -207,7 +207,7 @@ final class SocialLoginControllerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($userRepo);
         $em->expects(self::exactly(2))->method('persist');
-        $em->expects(self::exactly(2))->method('flush');
+        $em->expects(self::atLeastOnce())->method('flush');
 
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed');

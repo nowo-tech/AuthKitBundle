@@ -10,6 +10,8 @@ use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
+use Nowo\AuthKitBundle\Transaction\AccountLock;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
 use Nowo\AuthKitBundle\User\DuplicateUserException;
@@ -47,6 +49,8 @@ final class AdminUserCreator
 
     private readonly UserLookupInterface $userLookup;
 
+    private readonly AuthKitTransactionRunner $transactions;
+
     public function __construct(
         private readonly ProfileRegistry $profileRegistry,
         EntityManagerInterface $entityManager,
@@ -58,10 +62,12 @@ final class AdminUserCreator
         ?UserWriterInterface $userWriter = null,
         ?UserLookupInterface $userLookup = null,
         private readonly UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
+        ?AuthKitTransactionRunner $transactions = null,
     ) {
-        $this->userFactory = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
-        $this->userWriter  = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery);
-        $this->userLookup  = $userLookup ?? new DoctrineUserLookup($entityManager);
+        $this->transactions = $transactions ?? new AuthKitTransactionRunner($entityManager);
+        $this->userFactory  = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
+        $this->userWriter   = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions);
+        $this->userLookup   = $userLookup ?? new DoctrineUserLookup($entityManager);
     }
 
     public function profile(?string $profileName = null): ProfileSettings
@@ -79,30 +85,58 @@ final class AdminUserCreator
     }
 
     /**
+     * 1.50.0 (Beacon spec 239): one unit of work on AuthKit's transaction runner under the account lock of the identifier
+     * ({@see AccountLock}): a concurrent creation of the same identifier (another administrator, a registration, an
+     * invitation) is refused once the first one committed, never stored twice.
+     *
      * @param list<string> $roles
      */
     public function create(string $identifier, #[SensitiveParameter] string $plainPassword, array $roles, ?string $profileName = null): UserInterface&PasswordAuthenticatedUserInterface
     {
         $profile = $this->profile($profileName);
 
-        // 1.49.0 (audit OV): refused / case-variant identifiers never reach the factory, which receives the normalised one.
-        $newUser = $this->identifierMatcher->prepareNewUser($profile, NewUser::forAdmin($identifier, $plainPassword, $roles), $this->userLookup, 'Admin creation failed');
-        $user    = $this->userFactory->create($profile, $newUser);
-        // 1.49.0: stored in the form lookups use (identifier_normalizer); unchanged with the default normaliser.
-        $this->identifierMatcher->normalizeStored($user, $profile->userIdentifierField);
+        $user = AccountLock::forIdentifier($this->transactions, $profile, $identifier, fn (): UserInterface&PasswordAuthenticatedUserInterface => $this->unit(function () use ($profile, $identifier, $plainPassword, $roles): UserInterface&PasswordAuthenticatedUserInterface {
+            // 1.49.0 (audit OV): refused / case-variant identifiers never reach the factory, which receives the normalised one.
+            $newUser = $this->identifierMatcher->prepareNewUser($profile, NewUser::forAdmin($identifier, $plainPassword, $roles), $this->userLookup, 'Admin creation failed');
+            // 1.50.0: re-checked under the account lock (the message of the unique key).
+            $normalized = $newUser->identifierValue($profile);
+            if ($normalized !== null && $normalized !== '' && $this->userLookup->findByIdentifier($profile, $normalized) instanceof UserInterface) {
+                throw new RuntimeException(sprintf('Admin creation failed: a "%s" with the same unique value already exists.', $profile->userClass));
+            }
+            $user = $this->userFactory->create($profile, $newUser);
+            // 1.49.0: stored in the form lookups use (identifier_normalizer); unchanged with the default normaliser.
+            $this->identifierMatcher->normalizeStored($user, $profile->userIdentifierField);
 
-        $this->eventDispatcher?->dispatch(new AdminUserCreatingEvent($user, $profile->name));
+            $this->eventDispatcher?->dispatch(new AdminUserCreatingEvent($user, $profile->name));
 
-        try {
-            // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
-            $this->userWriter->add($profile, $user);
-        } catch (DuplicateUserException|UniqueConstraintViolationException $exception) {
-            throw new RuntimeException(sprintf('Admin creation failed: a "%s" with the same unique value already exists.', $profile->userClass), 0, $exception);
-        }
+            try {
+                // @igor-ignore - Stateless user port call (stores the host user); no service state changes.
+                $this->userWriter->add($profile, $user);
+            } catch (DuplicateUserException|UniqueConstraintViolationException $exception) {
+                throw new RuntimeException(sprintf('Admin creation failed: a "%s" with the same unique value already exists.', $profile->userClass), 0, $exception);
+            }
+
+            return $user;
+        }));
 
         $this->eventDispatcher?->dispatch(new AdminUserCreatedEvent($user, $profile->name, $roles));
         $this->eventDispatcher?->dispatch(UserRegisteredEvent::of($profile->name, $user, UserCreationSource::Admin));
 
         return $user;
+    }
+
+    /**
+     * 1.50.0: with the Doctrine user writer the account goes through the application's manager; a host user port writes
+     * it itself, so no manager is flushed.
+     *
+     * @template T
+     *
+     * @param callable(): T $work
+     *
+     * @return T
+     */
+    private function unit(callable $work): mixed
+    {
+        return $this->userWriter instanceof DoctrineUserWriter ? $this->transactions->runWithAccounts($work) : $this->transactions->runOnConnection($work);
     }
 }

@@ -26,6 +26,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
 use Nowo\AuthKitBundle\Tests\Stub\InMemoryHostUsers;
+use Nowo\AuthKitBundle\Tests\Support\NestingLevels;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
@@ -254,7 +255,8 @@ final class HostUserPortsTest extends TestCase
         // The bundle's own social account row still goes through Doctrine; the host user never does.
         $em = $this->createMock(EntityManagerInterface::class);
         $em->expects(self::once())->method('persist')->with(self::isInstanceOf(SocialLoginAccount::class));
-        $em->expects(self::once())->method('flush');
+        // 1.50.0: AuthKit's runner flushes its manager first (pending work on its own), then inside the unit.
+        $em->expects(self::exactly(2))->method('flush');
         $em->expects(self::never())->method('getRepository');
 
         $linker = $this->linker($em, $accounts, $registry);
@@ -387,8 +389,8 @@ final class HostUserPortsTest extends TestCase
         $platform   = $this->createMock(AbstractPlatform::class);
         $connection = $this->createMock(Connection::class);
         $connection->method('getDatabasePlatform')->willReturn($platform);
-        $connection->method('isTransactionActive')->willReturn(true);
-        $connection->expects(self::once())->method('rollBack');
+        $levels = NestingLevels::on($connection);
+        $connection->expects(self::once())->method('rollBack')->willReturnCallback($levels->rollBack());
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getConnection')->willReturn($connection);
 
@@ -419,7 +421,13 @@ final class HostUserPortsTest extends TestCase
         $accounts = $this->createMock(SocialLoginAccountRepository::class);
         $accounts->method('findOneByProviderSubject')->willReturn(null);
         $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('flush')->willThrowException(new RuntimeException('account flush failed'));
+        // The first flush is the runner's own (nothing pending); the unit's flush of the account row fails.
+        $flushes = 0;
+        $em->method('flush')->willReturnCallback(static function () use (&$flushes): void {
+            if (++$flushes > 1) {
+                throw new RuntimeException('account flush failed');
+            }
+        });
 
         $failingRemove             = new InMemoryHostUsers();
         $failingRemove->failRemove = true;

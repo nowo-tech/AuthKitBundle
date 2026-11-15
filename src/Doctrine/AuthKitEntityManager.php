@@ -227,7 +227,9 @@ final class AuthKitEntityManager extends EntityManagerDecorator implements Reset
 
     public function flush(): void
     {
-        $this->live()->flush();
+        // The private manager itself: live() replaces a closed one at its next use, and AuthKit's writes flush it through
+        // AuthKitTransactionRunner (1.50.0).
+        $this->live()->flush(); // @phpstan-ignore frankenphp.worker.noFlushWithoutClosedManagerRecovery
         $this->wrote();
     }
 

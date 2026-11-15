@@ -13,7 +13,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestRow;
-use Throwable;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 
 use function in_array;
 use function is_string;
@@ -40,8 +40,9 @@ final readonly class PasswordResetRequestRepository
     {
         $connection = $this->connection();
         $table      = $this->table();
-        $connection->beginTransaction();
-        try {
+        // 1.50.0 (Beacon spec 239): one unit of work of AuthKit's runner (a savepoint inside a transaction the
+        // application opened); a failure leaves no transaction level open, even after a deadlock in a nested level.
+        AuthKitTransactionRunner::forConnection($connection)->run(function () use ($connection, $table, $row): void {
             $connection->executeStatement('DELETE FROM ' . $table . ' WHERE expires_at < :now', ['now' => $row->createdAt], ['now' => Types::DATETIME_IMMUTABLE]);
             $this->deleteOn($connection, $table, $row->userClass, $row->userId, [$row->userIdentifier]);
             $connection->insert($table, [
@@ -54,12 +55,7 @@ final readonly class PasswordResetRequestRepository
                 'expires_at'      => $row->expiresAt,
                 'created_at'      => $row->createdAt,
             ], ['expires_at' => Types::DATETIME_IMMUTABLE, 'created_at' => Types::DATETIME_IMMUTABLE]);
-            $connection->commit();
-        } catch (Throwable $exception) {
-            $connection->rollBack();
-
-            throw $exception;
-        }
+        });
     }
 
     /**

@@ -81,6 +81,7 @@ use Nowo\AuthKitBundle\Security\SessionExpired\SessionExpiredResponder;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
@@ -344,6 +345,30 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         if ($private === false) {
             trigger_deprecation('nowo-tech/auth-kit-bundle', '1.46', '"nowo_auth_kit.doctrine.private_entity_manager: false" is deprecated: the AuthKit writes then flush the application\'s entity manager, including its pending changes; the private entity manager becomes the only mode in 2.0. Set it to true (see UPGRADING.md "To 1.46.0").');
         }
+        // 1.50.0 (Beacon spec 239): every AuthKit service gets AuthKit's own runner for its AuthKitTransactionRunner
+        // argument (a binding, untracked: services of disabled features may not exist), never a runner the application
+        // binds to TransactionRunnerInterface (that one drives the application's entity manager).
+        $runner = [AuthKitTransactionRunner::class => new BoundArgument(new Reference(AuthKitTransactionRunner::SERVICE_ID), false)];
+        foreach ($container->getDefinitions() as $id => $definition) {
+            if (str_starts_with($definition->getClass() ?? $id, 'Nowo\\AuthKitBundle\\') && $id !== AuthKitTransactionRunner::SERVICE_ID) {
+                $definition->setBindings($definition->getBindings() + $runner);
+            }
+        }
+        // 1.50.0 (Beacon spec 239): the unit-of-work boundaries are tracked in every mode. At each outermost boundary a
+        // manager closed by a failed AuthKit write is replaced (never in the middle of the request that closed it), and
+        // with the private manager that manager is dropped too.
+        $resettables = [
+            new Reference(AuthKitTransactionRunner::SERVICE_ID, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE),
+            new Reference(EntityManagerRecovery::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE),
+        ];
+        if ($private === true) {
+            $resettables[] = new Reference(AuthKitEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE);
+        }
+        $container->register(UnitOfWorkBoundaries::class, UnitOfWorkBoundaries::class)
+            ->addTag('kernel.event_subscriber');
+        $container->register(PrivateEntityManagerSubscriber::class, PrivateEntityManagerSubscriber::class)
+            ->setArguments([new Reference(UnitOfWorkBoundaries::class), new IteratorArgument($resettables)])
+            ->addTag('kernel.event_subscriber');
         if ($private !== true) {
             return;
         }
@@ -358,14 +383,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             ->addTag('doctrine.event_listener', ['event' => 'postLoad', 'method' => 'postLoad', 'lazy' => true]);
         $container->register(AuthKitManagerRegistry::class, AuthKitManagerRegistry::class)
             ->setArguments([new Reference('doctrine'), new Reference(AuthKitEntityManager::class), 'default']);
-        $container->register(UnitOfWorkBoundaries::class, UnitOfWorkBoundaries::class)
-            ->addTag('kernel.event_subscriber');
-        $container->register(PrivateEntityManagerSubscriber::class, PrivateEntityManagerSubscriber::class)
-            ->setArguments([
-                new Reference(UnitOfWorkBoundaries::class),
-                new IteratorArgument([new Reference(AuthKitEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE)]),
-            ])
-            ->addTag('kernel.event_subscriber');
+        // 1.50.0: AuthKit's runner writes the AuthKit rows through the private manager (accounts stay on the application's).
+        if ($container->hasDefinition(AuthKitTransactionRunner::SERVICE_ID)) {
+            $container->getDefinition(AuthKitTransactionRunner::SERVICE_ID)->replaceArgument(0, new Reference(AuthKitEntityManager::class));
+        }
         if (PrivateEntityManagerPass::supportsRollbackMiddleware()) {
             $container->register(PrivateEntityManagerMiddleware::class, PrivateEntityManagerMiddleware::class)
                 ->setArguments([new Reference(AuthKitEntityManager::class)])

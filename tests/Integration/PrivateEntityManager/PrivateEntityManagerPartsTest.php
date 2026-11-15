@@ -117,7 +117,8 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         $private->connectionRolledBack(1);
 
         self::assertSame($live, $private->live(), 'pending inserts survive a rollback signal');
-        $private->flush();
+        // The test simulates an application transaction around a private-manager write.
+        $private->flush(); // @phpstan-ignore frankenphp.worker.noFlushInHandWrittenTransaction
         $private->connectionRolledBack(1);
         self::assertNotSame($live, $private->live(), 'no pending work: replaced');
         $private->connectionRolledBack(null);

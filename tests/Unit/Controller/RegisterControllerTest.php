@@ -123,7 +123,7 @@ final class RegisterControllerTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->method('getRepository')->willReturn($repository);
         $entityManager->expects(self::once())->method('persist');
-        $entityManager->expects(self::once())->method('flush');
+        $entityManager->expects(self::atLeastOnce())->method('flush');
 
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed');

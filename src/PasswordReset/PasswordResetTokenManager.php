@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -27,6 +28,8 @@ use function sprintf;
  */
 final class PasswordResetTokenManager implements PasswordResetTokenManagerInterface
 {
+    // 1.50.0: the EntityManagerRecovery argument is kept for compatibility (closed managers are replaced at the boundary).
+    // @phpstan-ignore constructor.unusedParameter
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly PropertyAccessorInterface $propertyAccessor,
@@ -34,7 +37,8 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         private readonly ProfileRegistry $profileRegistry,
         private readonly ClockInterface $clock,
         private readonly AuthKitAttemptLimiter $attemptLimiter,
-        private readonly EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        EntityManagerRecovery $entityManagerRecovery = new EntityManagerRecovery(),
+        private readonly ?AuthKitTransactionRunner $transactions = null,
     ) {
     }
 
@@ -47,11 +51,11 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $plain    = PasswordResetCredentials::generate($profile, $delivery);
         $stored   = PasswordResetCredentials::storageValue($plain, $delivery);
 
-        $this->propertyAccessor->setValue($user, $settings['token_field'], $stored);
-        $this->propertyAccessor->setValue($user, $settings['token_expires_field'], $expires);
-
-        $this->entityManager->persist($user);
-        $this->entityManagerRecovery->flush($this->entityManager);
+        $this->write(function () use ($user, $settings, $stored, $expires): void {
+            $this->propertyAccessor->setValue($user, $settings['token_field'], $stored);
+            $this->propertyAccessor->setValue($user, $settings['token_expires_field'], $expires);
+            $this->entityManager->persist($user);
+        });
 
         return new PasswordResetTokenResult($user, $plain, $expires, $delivery);
     }
@@ -127,17 +131,36 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         $tokenField   = $profile->passwordReset['token_field'];
         $expiresField = $profile->passwordReset['token_expires_field'];
 
-        $this->propertyAccessor->setValue($user, $tokenField, null);
-        $this->propertyAccessor->setValue($user, $expiresField, null);
+        $this->write(function () use ($user, $tokenField, $expiresField): void {
+            $this->propertyAccessor->setValue($user, $tokenField, null);
+            $this->propertyAccessor->setValue($user, $expiresField, null);
+            $this->entityManager->persist($user);
+        });
+    }
 
-        $this->entityManager->persist($user);
-        $this->entityManagerRecovery->flush($this->entityManager);
+    /**
+     * 1.50.0 (Beacon spec 239): the reset credential of the account is written in a unit of work of AuthKit's runner
+     * (nested in the caller's when there is one), flushed inside its transaction.
+     *
+     * @param callable(): void $change
+     */
+    private function write(callable $change): void
+    {
+        $this->transactions()->runWithAccounts(function () use ($change): void {
+            $change();
+            $this->entityManager->flush();
+        });
     }
 
     /**
      * Reloads the reset credential columns from the database: an entity kept in the identity map
      * by a long-running worker may hold a hash or expiry that another process already changed.
      */
+    private function transactions(): AuthKitTransactionRunner
+    {
+        return $this->transactions ?? new AuthKitTransactionRunner($this->entityManager);
+    }
+
     private function refreshIfManaged(object $user): void
     {
         if ($this->entityManager->contains($user)) {

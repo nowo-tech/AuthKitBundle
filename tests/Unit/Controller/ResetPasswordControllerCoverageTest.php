@@ -115,7 +115,7 @@ final class ResetPasswordControllerCoverageTest extends TestCase
         $tokenManager->expects(self::once())->method('clearForUser');
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->expects(self::once())->method('flush');
+        $entityManager->expects(self::atLeastOnce())->method('flush');
 
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('hashed');

@@ -7,12 +7,11 @@ namespace Nowo\AuthKitBundle\PersonalData;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Platforms\AbstractPlatform;
-use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\Invitation;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Psr\Clock\ClockInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
@@ -55,7 +54,8 @@ final readonly class DoctrineInvitationPersonalData implements InvitationPersona
             return $this->eraseIn($connection, $table, $subject);
         }
         /** @var InvitationErasureResult $result */
-        $result = $connection->transactional(fn (Connection $connection): InvitationErasureResult => $this->eraseIn($connection, $table, $subject));
+        // 1.50.0 (Beacon spec 239): a unit of work of AuthKit's runner (no transaction level left open after a failure).
+        $result = AuthKitTransactionRunner::forConnection($connection)->run(fn (): InvitationErasureResult => $this->eraseIn($connection, $table, $subject));
         if ($result->total() > 0) {
             $this->eventDispatcher?->dispatch(new InvitationPersonalDataErasedEvent($subject, $result));
         }
@@ -71,12 +71,11 @@ final readonly class DoctrineInvitationPersonalData implements InvitationPersona
             return $export;
         }
         [$connection, $table] = $target;
-        $platform             = $connection->getDatabasePlatform();
         $now                  = $this->now();
         $columns              = ['profile', 'roles', 'message', 'locale', 'created_at', 'sent_at', 'expires_at', 'send_count', 'accepted_at', 'revoked_at'];
         if ($subject->isEmail()) {
             foreach (ExactRows::find($connection, $table, ['email' => $subject->value], $columns) as $row) {
-                $export['received'][] = $this->entry($row, $platform, $now);
+                $export['received'][] = $this->entry($row, $connection, $now);
             }
 
             return $export;
@@ -89,7 +88,7 @@ final readonly class DoctrineInvitationPersonalData implements InvitationPersona
         }
         ksort($rows);
         foreach ($rows as $row) {
-            $export['sent'][] = $this->entry($row, $platform, $now);
+            $export['sent'][] = $this->entry($row, $connection, $now);
         }
 
         return $export;
@@ -127,15 +126,15 @@ final readonly class DoctrineInvitationPersonalData implements InvitationPersona
      *
      * @return array<string, mixed>
      */
-    private function entry(array $row, AbstractPlatform $platform, DateTimeImmutable $now): array
+    private function entry(array $row, Connection $connection, DateTimeImmutable $now): array
     {
-        $date = static function (mixed $value) use ($platform): ?string {
-            $date = Type::getType(Types::DATETIME_IMMUTABLE)->convertToPHPValue($value, $platform);
+        $date = static function (mixed $value) use ($connection): ?string {
+            $date = $connection->convertToPHPValue($value, Types::DATETIME_IMMUTABLE);
 
             return $date instanceof DateTimeInterface ? $date->format(DateTimeInterface::ATOM) : null;
         };
-        $roles      = Type::getType(Types::JSON)->convertToPHPValue($row['roles'] ?? null, $platform);
-        $expiresAt  = Type::getType(Types::DATETIME_IMMUTABLE)->convertToPHPValue($row['expires_at'] ?? null, $platform);
+        $roles      = $connection->convertToPHPValue($row['roles'] ?? null, Types::JSON);
+        $expiresAt  = $connection->convertToPHPValue($row['expires_at'] ?? null, Types::DATETIME_IMMUTABLE);
         $acceptedAt = $date($row['accepted_at'] ?? null);
         $revokedAt  = $date($row['revoked_at'] ?? null);
 

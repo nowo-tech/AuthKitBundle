@@ -11,6 +11,7 @@ use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Entity\Invitation;
+use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use OverflowException;
 use SortDirection;
 
@@ -57,10 +58,13 @@ class InvitationRepository extends EntityRepository
         parent::__construct($em, $em->getClassMetadata(Invitation::class));
     }
 
+    /**
+     * 1.50.0 (Beacon spec 239): a unit of work of AuthKit's transaction runner on this repository's manager.
+     */
     public function save(Invitation $invitation): void
     {
-        $this->getEntityManager()->persist($invitation);
-        $this->getEntityManager()->flush();
+        $manager = $this->getEntityManager();
+        (new AuthKitTransactionRunner($manager))->run(static fn () => $manager->persist($invitation));
     }
 
     /** The invitation still open (pending or expired) for the e-mail in the profile, if any (the newest). */

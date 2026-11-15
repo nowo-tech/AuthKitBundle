@@ -14,6 +14,9 @@ services:
             - '../../Doctrine/AuthKitSavepoint.php'
             - '../../Doctrine/PrivateEntityManager*.php'
             - '../../Doctrine/UnitOfWorkBoundaries.php'
+            # 1.50.0: registered below under the bundle's own id; the lock and the row writer are static helpers.
+            - '../../Doctrine/AuthKitRows.php'
+            - '../../Transaction/'
             - '../../Entity/'
             - '../../PasswordReset/Entity/'
             - '../../Enum/'
@@ -367,3 +370,16 @@ services:
     Nowo\AuthKitBundle\Command\PurgeInvitationsCommand:
         arguments:
             $eventDispatcher: '@?event_dispatcher'
+
+    # 1.50.0 (Beacon spec 239): AuthKit's transaction runner (the extension points it at the private entity manager
+    # with doctrine.private_entity_manager: true). Arguments: AuthKit rows' manager, the accounts' manager, registry.
+    nowo_auth_kit.transaction_runner:
+        class: Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner
+        arguments:
+            - '@doctrine.orm.entity_manager'
+            - '@doctrine.orm.entity_manager'
+            - '@doctrine'
+            - 1
+            - '@?logger'
+        tags:
+            - { name: kernel.reset, method: reset }

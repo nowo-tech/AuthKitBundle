@@ -83,11 +83,16 @@ final class EntityManagerRecoveryHostManagerTest extends TestCase
         $other->close();
         $users->close();
 
+        $recovery = new EntityManagerRecovery($registry);
         try {
-            (new EntityManagerRecovery($registry))->flush($users);
+            $recovery->flush($users);
             self::fail('A flush on a closed manager must fail.');
         } catch (Throwable) {
         }
+        // 1.50.0: closed for the rest of the request (loud), replaced at the next unit-of-work boundary.
+        self::assertSame($users, $registry->getManager('default'));
+        self::assertFalse($users->isOpen());
+        $recovery->reset();
 
         self::assertTrue($this->manager($registry, 'default')->isOpen());
         self::assertSame($other, $registry->getManager('other'));
@@ -106,6 +111,10 @@ final class EntityManagerRecoveryHostManagerTest extends TestCase
         } catch (RuntimeException $exception) {
             self::assertSame('flush failed', $exception->getMessage());
         }
+        // 1.50.0: the closed manager is never reset in the middle of the request that closed it.
+        self::assertFalse($bundle->isOpen());
+        // The next unit-of-work boundary replaces it.
+        $recovery->reset();
     }
 
     private function manager(SqliteManagerRegistry $registry, string $name): EntityManagerInterface

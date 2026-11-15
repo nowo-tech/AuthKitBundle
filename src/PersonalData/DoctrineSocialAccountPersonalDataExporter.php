@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\PersonalData;
 
 use DateTimeInterface;
-use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -43,10 +42,9 @@ final readonly class DoctrineSocialAccountPersonalDataExporter implements Social
         }
         $rows = ExactRows::find($connection, $table, $equals, ['provider', 'email', 'display_name', 'created_at']);
         usort($rows, static fn (array $a, array $b): int => strcmp((string) $a['provider'], (string) $b['provider']) ?: (int) $a['id'] <=> (int) $b['id']);
-        $platform = $connection->getDatabasePlatform();
-        $links    = [];
+        $links = [];
         foreach ($rows as $row) {
-            $linkedAt = Type::getType(Types::DATETIME_IMMUTABLE)->convertToPHPValue($row['created_at'] ?? null, $platform);
+            $linkedAt = $connection->convertToPHPValue($row['created_at'] ?? null, Types::DATETIME_IMMUTABLE);
             $links[]  = [
                 'provider'       => (string) $row['provider'],
                 'linked_at'      => $linkedAt instanceof DateTimeInterface ? $linkedAt->format(DateTimeInterface::ATOM) : null,

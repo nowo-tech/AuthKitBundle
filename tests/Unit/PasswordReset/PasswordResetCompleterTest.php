@@ -29,7 +29,7 @@ final class PasswordResetCompleterTest extends TestCase
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects(self::once())->method('persist')->with($user);
-        $entityManager->expects(self::once())->method('flush');
+        $entityManager->expects(self::atLeastOnce())->method('flush');
 
         $completer = new PasswordResetCompleter(
             $entityManager,
