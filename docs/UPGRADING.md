@@ -156,8 +156,17 @@ What changes for you:
   in the same request, check `isOpen()` first.
 - **A failed invitation acceptance or social sign-in no longer clears your manager.** Only the rows the failed unit
   touched are detached (the invitation, the new account, what your grants changed); reload those if you still need them.
-  Your own pending changes stay pending, except one that an account write of the unit flushed with the unit (the
-  Doctrine user writer flushes your whole manager, as in 1.49): it was rolled back, and its row is detached.
+  Your own pending changes stay pending, except in these cases, where the row is detached and its pending change lost:
+  - an account write of the unit flushed it with the unit (the Doctrine user writer flushes your whole manager, as in
+    1.49): it was rolled back;
+  - with the private manager or your own user ports: a lazy reference (proxy) of yours that the failed unit only
+    loaded (for example the account looked up by its identifier) counts as touched;
+  - with the private manager or your own user ports: a row of yours that points (to-one) at a detached row is detached
+    too (cascade), even with pending changes of its own.
+
+  **Recommended:** flush your manager before calling an AuthKit service that may create, link or change an account, or
+  keep no pending changes on entities related to the account (memberships, profiles). The code fix for the last two
+  cases is planned for 1.50.x (audit QGD-L1).
 - **Your pending changes are flushed on their own before an AuthKit unit of work** whenever AuthKit writes through your
   manager (`doctrine.private_entity_manager` unset or false; with the private manager only for account writes of the
   Doctrine user writer, as before): an AuthKit failure never rolls them back. To keep your changes and AuthKit's
@@ -185,7 +194,12 @@ What changes for you:
   connection (transaction and statement pooling are not supported: the lock and its release could run on different
   server connections). ProxySQL is fine (it keeps the backend connection after `GET_LOCK()`). On Galera / Percona XtraDB
   Cluster the lock is local to a node: send AuthKit's writes to one writer node. A release that fails closes the
-  connection (it reconnects on the next statement).
+  connection (it reconnects on the next statement). **Known limitation** (audit QGD-L2, fix planned for 1.50.x): when
+  AuthKit's call runs inside a transaction you opened, that `close()` ends your transaction (the server rolls it back,
+  AuthKit's rows included) although the call returns normally; your next statements run in autocommit and your
+  `commit()` throws "no active transaction". It needs a release statement that fails on a live session (statement
+  timeout, killed query), so it is very rare; check `$connection->isTransactionActive()` before committing if you nest
+  AuthKit calls in your own transactions.
 - **Doctrine DBAL 3**: enable `doctrine.dbal.use_savepoints: true`. DBAL 4 always nests with savepoints; without them,
   DBAL 3 marks your whole transaction rollback-only when an AuthKit unit nested in it fails.
 - `MfaStore` no longer takes the unused optional `EntityManagerRecovery` argument; `MfaStore::insertDevice()` returns a

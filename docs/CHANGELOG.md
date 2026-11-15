@@ -168,9 +168,22 @@ Target: 1.50.0 (high load readiness, Beacon spec 239; new dependencies, no confi
 - After a failed unit of work, the caller's own pending changes in a manager AuthKit does not flush first (the
   application's with the private manager, every manager of a host user port unit) stay pending: only the rows the unit
   added, flushed or changed are detached, found by comparing their field values with a copy taken before the unit
-  (audit QG-L1). The application's manager is still never flushed by the runner itself.
+  (audit QG-L1). The application's manager is still never flushed by the runner itself. Known limits (audit QGD-L1,
+  code fix planned for 1.50.x): a lazy reference of yours that the failed unit only loaded counts as touched and is
+  detached, and a row of yours that points (to-one) at a detached row is detached too, with its pending changes. Flush
+  before calling AuthKit, or keep no pending changes on rows related to the account.
 - Requires `nowo-tech/transaction-contract` ^1.0 and `nowo-tech/transaction-doctrine` ^1.1 (`doctrine/dbal` ^3.8.2 || ^4);
   PhpStanFrankenPhp ^1.4 with the four worker load-readiness rules on.
+
+### Known issues
+
+- Private manager / host user ports (audit QGD-L1, fix planned for 1.50.x): after a failed AuthKit unit, a lazy
+  reference of yours that the unit only loaded is detached, and so is (cascade) any row of yours that points at a
+  detached row; their pending changes are lost. Flush before calling AuthKit, or keep no pending changes on those rows.
+- Inside a transaction the application opened (audit QGD-L2, fix planned for 1.50.x): if releasing the account lock
+  fails on a live session (statement timeout, killed query), the connection is closed, which ends your transaction
+  (the server rolls it back, the unit's rows included) while the AuthKit call still returns; your later statements run
+  in autocommit and your `commit()` fails with "no active transaction". Very rare.
 
 ### Removed
 

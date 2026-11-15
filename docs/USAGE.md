@@ -662,8 +662,12 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   the commit. After a failure no transaction is left open (the connection is closed only when the rollback fails, as
   after a MySQL deadlock inside a nested flush, where the savepoint is gone), only the rows the failed unit touched are
   detached, and a transient failure surfaces as `Nowo\TransactionContract\TransientStorageFailure`. Your own pending
-  changes in a manager AuthKit does not flush (yours, with the private manager) stay pending after a failed unit,
-  unless an account write of the unit flushed them (the Doctrine user writer flushes your manager, as in 1.49).
+  changes in a manager AuthKit does not flush (yours, with the private manager or your own user ports) stay pending
+  after a failed unit, except: a change an account write of the unit flushed (the Doctrine user writer flushes your
+  manager, as in 1.49) is rolled back and its row detached; a lazy reference (proxy) of yours that the failed unit only
+  loaded is detached; and a row of yours that points (to-one) at a detached row is detached too (cascade), losing its
+  pending changes. Flush before calling AuthKit, or keep no pending changes on entities related to the account. The
+  last two cases are known limits, fixed in 1.50.x (audit QGD-L1).
 - **Your entity manager is yours.** AuthKit never runs its writes on a runner you bind to `TransactionRunnerInterface`
   (DoctrineDeadlockRetryBundle's adapter, your own). It never resets or clears your manager: a manager a failed AuthKit
   flush closed stays closed for the rest of the request (your next flush fails loudly) and is replaced at the next
@@ -684,7 +688,10 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   so only one first account is created.
 - **Database topology.** The account locks are session locks (`GET_LOCK()`, `pg_try_advisory_lock()`), taken before the
   unit's transaction and released after it. A release that fails closes the connection, which drops the lock (a worker
-  never carries it into its next request). Behind PgBouncer, AuthKit's connection must use session pooling or a direct
+  never carries it into its next request). Known limitation (fix in 1.50.x, audit QGD-L2): inside a transaction you
+  opened, that close also ends your transaction (rolled back by the server) while the AuthKit call returns normally;
+  your `commit()` then fails with "no active transaction". It needs a release statement that fails on a live session,
+  so it is very rare. Behind PgBouncer, AuthKit's connection must use session pooling or a direct
   connection: transaction and statement pooling are not supported. ProxySQL disables multiplexing for a session after
   `GET_LOCK()`, which keeps the lock and its release on one backend connection. On Galera / Percona XtraDB Cluster
   `GET_LOCK()` is local to a node (and may be refused under `pxc_strict_mode=ENFORCING`): send AuthKit's writes to a single
