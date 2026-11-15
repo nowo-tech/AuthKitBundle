@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\TransactionContract\TransientStorageFailure;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -118,6 +119,10 @@ final class RegisterController
                 $data = $form->getData();
                 // @igor-ignore - HTTP handler delegates to services; no controller worker state.
                 $user = $this->userRegistrar->register($data, $profile->name);
+            } catch (TransientStorageFailure $failure) {
+                // 1.50.0 (Beacon spec 239): a deadlock or lock wait answers 503 + Retry-After (StorageFailureSubscriber),
+                // never a refusal: the form can be sent again.
+                throw $failure;
             } catch (RuntimeException) {
                 return new Response('', Response::HTTP_FOUND, [
                     'Location' => $this->urlGenerator->generate($profile->routes['login']['name']),

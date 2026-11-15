@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 
+use Doctrine\DBAL\Driver\AbstractException;
+use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Controller\RegisterController;
@@ -17,6 +19,7 @@ use Nowo\AuthKitBundle\Tests\Support\FormKitTestSupport;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
 use Nowo\AuthKitBundle\Tests\Unit\Support\PasswordFieldResolvers;
+use Nowo\TransactionContract\TransientStorageFailure;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -281,6 +284,49 @@ final class RegisterControllerTest extends TestCase
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/login', $response->headers->get('Location'));
+    }
+
+    /**
+     * 1.50.0 (Beacon spec 239): a transient storage failure is not a refusal: it reaches the 503 listener.
+     */
+    public function testATransientFailureIsNotTurnedIntoARefusal(): void
+    {
+        $form = $this->createMock(FormInterface::class);
+        $form->method('handleRequest');
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('getData')->willReturn(['email' => 'a@b.c', 'password' => 'secret12']);
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturn($this->createMock(EntityRepository::class));
+        $flushes = 0;
+        // The runner's first flush has nothing pending; the account's flush meets a deadlock.
+        $entityManager->method('flush')->willReturnCallback(static function () use (&$flushes): void {
+            if (++$flushes > 1) {
+                throw new DeadlockException(new class('Deadlock found') extends AbstractException { }, null);
+            }
+        });
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->method('hashPassword')->willReturn('hashed');
+
+        $controller = new RegisterController(
+            $this->createMock(Environment::class),
+            $formFactory,
+            $this->registrationGateAllowed(),
+            new UserRegistrar(ProfileRegistryFactory::single(TestUser::class), $entityManager, $hasher, new PropertyAccessor()),
+            new TokenStorage(),
+            AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
+            $this->createMock(EventDispatcherInterface::class),
+            ProfileRegistryFactory::requestResolver(TestUser::class),
+            new AuthKitAttemptLimiter(new ArrayAdapter()),
+        );
+        $request = Request::create('/register', 'POST');
+        $request->setSession(new Session(new MockArraySessionStorage()));
+
+        $this->expectException(TransientStorageFailure::class);
+        $controller->register($request);
     }
 
     /**
