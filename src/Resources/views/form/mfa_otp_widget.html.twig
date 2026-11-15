@@ -1,0 +1,27 @@
+{#-
+  1.51: the authenticator-app code of the MFA forms (MfaCodeFormType with otp_input.mfa_code) on the
+  nowo-tech/otp-input-bundle widget. Applied to the `code` field only ({% form_theme form.code %} in
+  mfa/challenge.html.twig, mfa/setup.html.twig and mfa/_code_form.html.twig), so the row, label, help and errors keep
+  the form's own theme (UiKit by default).
+  The digit boxes are one group named by the visible label (aria-labelledby: the label id set by
+  MfaCodeFormType::finishView()) and described by the help and error texts; the inner OTP group drops its generic
+  aria-label so the field has a single name. data-nowo-auth-kit-otp-autosubmit (otp_input.mfa_code_autosubmit):
+  js/nowo-auth-kit-otp.js submits the form once every box is filled.
+  Without the OtpInput form theme (bundle not registered) the plain text widget is rendered instead.
+-#}
+{%- block nowo_auth_kit_mfa_otp_widget -%}
+    {%- if block('nowo_otp_input_widget') is defined -%}
+        {%- set _described = [] -%}
+        {%- if help is not empty -%}{%- set _described = _described|merge([id ~ '_help']) -%}{%- endif -%}
+        {%- for error in errors -%}{%- set _described = _described|merge([id ~ '_error' ~ loop.index]) -%}{%- endfor -%}
+        <div class="nowo-auth-kit-mfa-otp{{ errors|length > 0 ? ' nowo-auth-kit-mfa-otp--invalid' : '' }}" role="group" aria-labelledby="{{ id }}_label"
+            {%- if _described is not empty %} aria-describedby="{{ _described|join(' ') }}"{% endif %}
+            data-testid="auth-kit-mfa-otp" data-nowo-auth-kit-otp-length="{{ otp_length }}"
+            {%- if mfa_otp_autosubmit|default(false) %} data-nowo-auth-kit-otp-autosubmit="1"{% endif %}>
+            {%- set translation_domain = false -%}
+            {{- block('nowo_otp_input_widget') -}}
+        </div>
+    {%- else -%}
+        {{- block('form_widget_simple') -}}
+    {%- endif -%}
+{%- endblock nowo_auth_kit_mfa_otp_widget -%}

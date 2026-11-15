@@ -205,6 +205,7 @@ final class MfaAccountController
             'digits'        => (int) ($profile->mfa['totp']['digits'] ?? 6),
             'recovery'      => $action !== 'enable',
             'csrf_token_id' => 'nowo_auth_kit_mfa.' . $action . '.' . $profile->name,
+            'otp_input'     => $profile->otpInput,
         ]);
     }
 

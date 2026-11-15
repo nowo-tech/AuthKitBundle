@@ -1269,7 +1269,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     {
         foreach ($profiles as $profile) {
             $config = $profile['otp_input'] ?? [];
-            if (($config['enabled'] ?? false) === true && ($config['password_reset_code'] ?? true) === true) {
+            if (($config['enabled'] ?? false) === true
+                && (($config['password_reset_code'] ?? true) === true || ($config['mfa_code'] ?? true) === true)) {
                 return true;
             }
         }

@@ -23,7 +23,7 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $passwordStrength
      * @param array{enabled: bool, registration_consent: false|string, qr_login_approve: false|string} $slideToConfirm
      * @param array{enabled: bool, collect_on_auth_pages: bool, collect_endpoint: string, new_device_notify: bool, device_rate_limit: bool, qr_login: array{approve_require_trusted: bool}} $deviceIntelligence
-     * @param array{enabled: bool, password_reset_code: bool} $otpInput
+     * @param array{enabled: bool, password_reset_code: bool, mfa_code: bool, mfa_code_autosubmit: bool} $otpInput
      * @param list<array<string, mixed>> $registrationFields
      * @param array<string, mixed> $templates
      * @param array{button_class: string, secondary_button_class: string} $css
@@ -202,6 +202,8 @@ final readonly class ProfileSettings
             otpInput: $config['otp_input'] ?? [
                 'enabled'             => false,
                 'password_reset_code' => true,
+                'mfa_code'            => true,
+                'mfa_code_autosubmit' => false,
             ],
             registrationFields: $config['registration_fields'],
             templates: $config['templates'],

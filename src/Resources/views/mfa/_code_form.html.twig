@@ -1,5 +1,7 @@
 {#- One step-up / confirm form of the account page (1.34). Variables: form, submit (translation key), danger (bool). -#}
 {% set _b = 'NowoAuthKitBundle' %}
+{#- 1.51: OTP boxes on the code field with otp_input.mfa_code (form/mfa_otp_widget.html.twig) -#}
+{% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}
 {{ form_start(form, {attr: {class: nowo_ui_class('form', _b)}}) }}
     {{ form_errors(form) }}
     {{ form_row(form.code) }}

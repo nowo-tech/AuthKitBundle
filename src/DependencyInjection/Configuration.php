@@ -865,15 +865,23 @@ final class Configuration implements ConfigurationInterface
         $node = (new TreeBuilder('otp_input'))->getRootNode();
         $node
             ->addDefaultsIfNotSet()
-            ->info('Optional integration with nowo-tech/otp-input-bundle for the password-reset code field. UX only; server checks stay mandatory.')
+            ->info('Optional integration with nowo-tech/otp-input-bundle for the password-reset code and the two-step verification (MFA) code. UX only; server checks stay mandatory.')
             ->children()
                 ->booleanNode('enabled')
-                    ->info('When true, uses OtpType when that bundle is installed and password_reset_code is true.')
+                    ->info('When true, uses OtpType when that bundle is installed (per field: password_reset_code, mfa_code).')
                     ->defaultFalse()
                 ->end()
                 ->booleanNode('password_reset_code')
                     ->info('Replace the reset OTP TextType with OtpType (length/charset from password_reset).')
                     ->defaultTrue()
+                ->end()
+                ->booleanNode('mfa_code')
+                    ->info('1.51: render the authenticator-app code of the MFA challenge, setup and account forms with OtpType (numeric, mfa.totp.digits boxes). The recovery code stays a text field.')
+                    ->defaultTrue()
+                ->end()
+                ->booleanNode('mfa_code_autosubmit')
+                    ->info('1.51: submit the MFA code form once every box is filled (needs mfa_code; JavaScript only).')
+                    ->defaultFalse()
                 ->end()
             ->end();
 

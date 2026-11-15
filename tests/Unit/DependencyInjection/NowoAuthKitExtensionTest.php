@@ -160,7 +160,21 @@ final class NowoAuthKitExtensionTest extends TestCase
         self::assertTrue($config['password_reset_code']);
     }
 
-    public function testLoadSkipsOtpInputAssetsWhenPasswordResetCodeDisabled(): void
+    public function testLoadSkipsOtpInputAssetsWhenNoFieldUsesIt(): void
+    {
+        $this->extension->load([[
+            'user_class' => 'App\\Entity\\User',
+            'otp_input'  => [
+                'enabled'             => true,
+                'password_reset_code' => false,
+                'mfa_code'            => false,
+            ],
+        ]], $this->container);
+
+        self::assertFalse($this->container->getParameter('nowo_auth_kit.otp_input_assets'));
+    }
+
+    public function testLoadSetsOtpInputAssetsForTheMfaCodeAlone(): void
     {
         $this->extension->load([[
             'user_class' => 'App\\Entity\\User',
@@ -170,7 +184,11 @@ final class NowoAuthKitExtensionTest extends TestCase
             ],
         ]], $this->container);
 
-        self::assertFalse($this->container->getParameter('nowo_auth_kit.otp_input_assets'));
+        self::assertTrue($this->container->getParameter('nowo_auth_kit.otp_input_assets'), '1.51: mfa_code defaults to true.');
+        $config = $this->container->getParameter('nowo_auth_kit.otp_input');
+        self::assertIsArray($config);
+        self::assertTrue($config['mfa_code']);
+        self::assertFalse($config['mfa_code_autosubmit']);
     }
 
     public function testLoadRejectsUnknownDefaultProfile(): void

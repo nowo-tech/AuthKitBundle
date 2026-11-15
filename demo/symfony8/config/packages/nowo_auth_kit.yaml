@@ -70,10 +70,13 @@ nowo_auth_kit:
     #     device_rate_limit: true
     #     qr_login:
     #         approve_require_trusted: true
-    # Optional: composer require nowo-tech/otp-input-bundle (PHP 8.2+)
-    # otp_input:
-    #     enabled: true
-    #     password_reset_code: true
+    # nowo-tech/otp-input-bundle (PHP 8.2+): one box per digit for the password-reset code and, 1.51, the two-step
+    # verification code (challenge, forced setup, account page). The recovery code stays a text field.
+    otp_input:
+        enabled: true
+        password_reset_code: true
+        mfa_code: true
+        mfa_code_autosubmit: false
     # Legacy-host opt-ins (1.30+), all off by default:
     # locale: { unlocalized_route_suffix: .default }      # bare twins named <route>.default
     # routes: { logout: { methods: [POST] } }              # with security.yaml logout.enable_csrf: true

@@ -111,6 +111,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.51.0.
+
+### Added
+
+- **The two-step verification code can use nowo-tech/otp-input-bundle** (Beacon request 2026-11-15). New profile keys
+  `otp_input.mfa_code` (default `true`, used only when `otp_input.enabled` is `true`) and
+  `otp_input.mfa_code_autosubmit` (default `false`). With both the package installed and `otp_input.enabled: true`,
+  the authenticator-app code of the sign-in challenge (`mfa/challenge.html.twig`), the forced setup
+  (`mfa/setup.html.twig`) and the account page forms (`mfa/_code_form.html.twig`) renders with `OtpType`: one box per
+  digit (`mfa.totp.digits`), numeric keyboard, `autocomplete="one-time-code"` on the first box, and pasting the whole
+  code fills every box.
+  - The recovery code stays a text field (different format). The challenge's "Use a recovery code instead" switch is
+    still a native `<details>`, so it works with and without JavaScript.
+  - Accessibility: the boxes are one group named by the field's visible label (`aria-labelledby`) and described by its
+    help and error texts (`aria-describedby`); the generic OtpInput label is dropped so the field has a single name.
+    Errors still show on the field row.
+  - `otp_input.mfa_code_autosubmit: true` submits the form once every box is filled (`js/nowo-auth-kit-otp.js`,
+    loaded with `otp-input.js`; CSP nonce on both tags).
+  - `MfaCodeFormType` option `otp_input` (the profile's `otp_input` array, default `null` = text field), Twig form theme
+    `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` (block `nowo_auth_kit_mfa_otp_widget`, applied to the code
+    field only), `OtpInputTypeResolver::wantsMfaCode()` / `wantsMfaCodeAutosubmit()` / `resolveMfaCodeType()`.
+  - The MFA account page now loads `otp-input.js` and the AuthKit stylesheet when the OTP assets are on.
+  - Demo: `otp_input` is enabled in demo/symfony8 (Playwright: typing and pasting into the boxes).
+
+### Unchanged
+
+- Server-side checks: the OTP field submits the same raw string as the text field (OtpType's normaliser is not
+  applied), so the length validation, the attempt limiter, CSRF and the constant-time comparison are exactly as before.
+- Without the package, or with `otp_input.enabled: false` (the default), the code stays today's text field.
+- Worker mode (FrankenPHP, kernel reset off): `MfaCodeFormType` keeps no state; the choice comes from each form's
+  options.
+
+### Changed
+
+- Rector 2.8: `NewUser::identifierFormField()` is an instance method and `IdentityCollationListener` checks the
+  platform with `instanceof` (no behaviour change).
+
 ## [1.50.0] - 2026-11-15
 
 Target: 1.50.0 (high load readiness, Beacon spec 239; new dependencies, no configuration change). See

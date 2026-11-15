@@ -71,6 +71,7 @@ final class MfaChallengeController
             'recovery'          => true,
             'trust_device'      => $lifetime > 0,
             'trust_device_days' => intdiv($lifetime, 86400),
+            'otp_input'         => $profile->otpInput,
         ]);
         $error = null;
         if ($request->isMethod('POST')) {
@@ -129,8 +130,9 @@ final class MfaChallengeController
         }
         $secret = $this->enrolment->secret($request, $user);
         $form   = $this->formFactory->create(MfaCodeFormType::class, null, [
-            'action' => $action,
-            'digits' => (int) ($profile->mfa['totp']['digits'] ?? 6),
+            'action'    => $action,
+            'digits'    => (int) ($profile->mfa['totp']['digits'] ?? 6),
+            'otp_input' => $profile->otpInput,
         ]);
         $error = null;
         if ($request->isMethod('POST')) {

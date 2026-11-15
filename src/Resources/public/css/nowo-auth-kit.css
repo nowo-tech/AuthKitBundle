@@ -278,3 +278,28 @@ button.nowo-auth-kit-embed__item {
   gap: 0.75rem;
   margin-top: 1rem;
 }
+
+/* 1.51: MFA code on the OTP input boxes (form/mfa_otp_widget.html.twig, otp_input.mfa_code). */
+.nowo-auth-kit-mfa-otp .nowo-otp-input__gap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nowo-auth-kit-mfa-otp .nowo-otp-input__digit {
+  box-sizing: border-box;
+  width: 2.75rem;
+  height: 3rem;
+  padding: 0;
+  border: var(--nowo-ui-border-width, 1px) solid var(--nowo-ui-border, #d1d5db);
+  border-radius: var(--nowo-ui-radius, 0.375rem);
+  background: var(--nowo-ui-surface, transparent);
+  color: var(--nowo-ui-text, inherit);
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.nowo-auth-kit-mfa-otp--invalid .nowo-otp-input__digit {
+  border-color: var(--nowo-ui-danger-text, #b91c1c);
+}

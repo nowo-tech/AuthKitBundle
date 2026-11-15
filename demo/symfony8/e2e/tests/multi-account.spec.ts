@@ -42,9 +42,18 @@ async function signIn(page: Page, email: string): Promise<void> {
   await page.locator('form:has(input[name="login_form[_username]"]) button[type="submit"]').click();
 }
 
+/**
+ * 1.51: the MFA code is on OTP boxes (otp_input.mfa_code); a whole code typed or autofilled into the first box spreads
+ * over the boxes and lands in the submitted hidden input.
+ */
+async function fillCode(page: Page, form: string, code: string): Promise<void> {
+  await page.locator(`form[name="${form}"] [data-nowo-otp-digit="0"]`).fill(code);
+  await expect(page.locator(`form[name="${form}"] input[name="${form}[code]"]`)).toHaveValue(code);
+}
+
 async function passChallenge(page: Page): Promise<void> {
   await expect(page.locator('[data-testid="auth-kit-mfa_challenge"]')).toBeVisible();
-  await page.locator('input[name="mfa_code_form[code]"]').fill(await nextCode(BOB_SECRET));
+  await fillCode(page, 'mfa_code_form', await nextCode(BOB_SECRET));
   await page.locator('[data-testid="auth-kit-mfa_challenge"] button[type="submit"]').click();
   await expect(page).toHaveURL(/\/en\/home$/);
 }
@@ -71,7 +80,15 @@ test.describe('MFA and several accounts', () => {
     await expectAccessible(page, 'challenge');
     await page.goto('/en/home');
     await expect(page).toHaveURL(/\/login\/mfa$/);
-    await page.locator('input[name="mfa_code_form[code]"]').fill('000000');
+    await expect(page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit]')).toHaveCount(6);
+    await expect(page.locator('form[name="mfa_code_form"] [data-testid="auth-kit-mfa-otp"]')).toHaveAttribute('aria-labelledby', 'mfa_code_form_code_label');
+    // Pasting the whole code into any box fills every box.
+    await page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit="2"]').evaluate((box) => {
+      const data = new DataTransfer();
+      data.setData('text', '000000');
+      box.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    });
+    await expect(page.locator('input[name="mfa_code_form[code]"]')).toHaveValue('000000');
     await page.locator('[data-testid="auth-kit-mfa_challenge"] button[type="submit"]').click();
     await expect(page.locator('[data-testid="auth-kit-mfa_challenge"] [role="alert"]')).toBeVisible();
     await passChallenge(page);
@@ -84,7 +101,7 @@ test.describe('MFA and several accounts', () => {
     await expect(page.locator('[data-testid="auth-kit-mfa-qr"]')).toHaveAttribute('src', /^data:image\//);
     await expectAccessible(page, 'account page');
     const secret = ((await page.locator('[data-testid="auth-kit-mfa-secret"]').textContent()) ?? '').replace(/\s/g, '');
-    await page.locator('input[name="mfa_enable[code]"]').fill(totp(secret));
+    await fillCode(page, 'mfa_enable', totp(secret));
     await page.locator('form[name="mfa_enable"] button[type="submit"]').click();
     await expect(page.locator('[data-testid="auth-kit-mfa-codes"] li')).toHaveCount(10);
   });

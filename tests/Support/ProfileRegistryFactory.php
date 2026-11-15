@@ -61,6 +61,8 @@ final class ProfileRegistryFactory
             'otp_input' => [
                 'enabled'             => false,
                 'password_reset_code' => true,
+                'mfa_code'            => true,
+                'mfa_code_autosubmit' => false,
             ],
             'registration_fields' => FieldConfigNormalizer::normalizeRegistrationFields(['email', 'password']),
             'templates'           => [

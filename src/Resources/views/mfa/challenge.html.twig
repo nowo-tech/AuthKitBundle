@@ -1,12 +1,15 @@
 {#
   Second step of a sign-in (1.34, nowo_auth_kit_mfa_challenge): authenticator code, "use a recovery code" (native
   <details>, no JS) and "trust this device". Variables: page (AuthPage with the MfaCodeFormType form), mfa_logout_route.
+  1.51: the code field takes form/mfa_otp_widget.html.twig (OTP boxes with otp_input.mfa_code; the recovery code stays
+  a text field).
   @NowoUiKit/page/auth through _auth_page.html.twig.
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
 
 {% block nowo_ui_auth_fields %}
     {{ form_errors(form) }}
+    {% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}
     {{ form_row(form.code) }}
     {% if form.recovery_code is defined %}
         <details class="nowo-auth-kit-mfa__recovery" data-testid="auth-kit-mfa-recovery"{% if form.recovery_code.vars.errors|length > 0 %} open{% endif %}>

@@ -160,10 +160,12 @@ nowo_auth_kit:
         qr_login:
             approve_require_trusted: false
 
-    # Optional: nowo-tech/otp-input-bundle (password-reset code field; UX only)
+    # Optional: nowo-tech/otp-input-bundle (password-reset and MFA code fields; UX only)
     otp_input:
         enabled: false
         password_reset_code: true
+        mfa_code: true                # 1.51
+        mfa_code_autosubmit: false    # 1.51
 
     # Registration form fields (string shorthand or expanded config)
     registration_fields:
@@ -535,6 +537,8 @@ nowo_auth_kit:
     otp_input:
         enabled: true
         password_reset_code: true
+        mfa_code: true
+        mfa_code_autosubmit: false
 ```
 
 ```bash
@@ -542,13 +546,17 @@ composer require nowo-tech/otp-input-bundle
 php bin/console assets:install
 ```
 
-The bundle is **optional**. If it is not installed, or `enabled` is false, AuthKit keeps a single `TextType` on the password-reset code field. The default layout loads `otp-input.js` only when `otp_input.enabled` is true, `password_reset_code` is true, **and** the package is present.
+The bundle is **optional**. If it is not installed, or `enabled` is false, AuthKit keeps a single `TextType` on the password-reset and MFA code fields. The default layouts load `otp-input.js` (and, 1.51, `js/nowo-auth-kit-otp.js`) only when `otp_input.enabled` is true, `password_reset_code` or `mfa_code` is true, **and** the package is present.
 
 | Key | Default | Effect when `enabled` is true **and** OTP Input is installed |
 | --- | --- | --- |
 | `password_reset_code` | `true` | Replaces the reset OTP `TextType` with `OtpType`. `length` comes from `password_reset.code_length`; `numeric_only` / `uppercase` follow `password_reset.code_charset` |
+| `mfa_code` | `true` | 1.51: the authenticator-app code of the MFA challenge, forced setup and account page forms uses `OtpType`: `mfa.totp.digits` numeric boxes, `autocomplete="one-time-code"`, paste fills every box. The recovery code stays a text field |
+| `mfa_code_autosubmit` | `false` | 1.51: submits the MFA code form once every box is filled (JavaScript; needs `mfa_code`) |
 
-The widget is **UX only**. Server verification (`hash_equals`, `max_code_attempts`) stays mandatory. Login, register, magic-login confirm, and QR `phone_otp` are unchanged.
+The widget is **UX only**. Server verification (`hash_equals`, `max_code_attempts`; for MFA the same length validation, attempt limiter, CSRF and constant-time check as the text field — the submitted value is not normalised) stays mandatory. The MFA boxes need JavaScript; without it a user can still use a recovery code. Login, register, magic-login confirm, and QR `phone_otp` are unchanged.
+
+The MFA boxes form one group named by the field label and described by its help and errors (`@NowoAuthKitBundle/form/mfa_otp_widget.html.twig`, applied to the code field by the MFA templates).
 
 See [OTPInputBundle](https://github.com/nowo-tech/OTPInputBundle) and [PASSWORD-RESET.md](PASSWORD-RESET.md#otp-input-optional).
 
