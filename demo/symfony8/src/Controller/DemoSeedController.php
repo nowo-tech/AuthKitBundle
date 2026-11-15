@@ -24,8 +24,6 @@ final class DemoSeedController
 {
     public const BOB_SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 
-    public const FRANK_SECRET = 'KRUGS4ZANFZSAYJAORSXG5BAONSWG4TF';
-
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly UserPasswordHasherInterface $hasher,
@@ -63,7 +61,8 @@ final class DemoSeedController
         $this->em->flush();
         $this->mfa->forgetUser($frank);
         $totp = new Totp();
-        $this->mfa->enable($frank, self::FRANK_SECRET, $totp->code(self::FRANK_SECRET, $totp->step(time()) - 1));
+        // Any key does: the reset below clears it before frank ever signs in.
+        $this->mfa->enable($frank, self::BOB_SECRET, $totp->code(self::BOB_SECRET, $totp->step(time()) - 1));
         $this->mfa->reset($frank, $frank);
 
         return new JsonResponse(['seeded' => true]);
