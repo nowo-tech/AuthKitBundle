@@ -123,16 +123,20 @@ Target: 1.50.0 (high load readiness, Beacon spec 239; new dependencies, no confi
 - **Account locks** (`Transaction\AccountLock`, `Transaction\AuthKitNamedLock`): every unit that creates an account
   (registration, invitation acceptance, social sign-up, administrator creation) runs under a database named lock of its
   identifier, folded like the identifier matcher (NFC, lower case) in the user class (`GET_LOCK()` on MySQL / MariaDB,
-  an advisory lock on PostgreSQL); `first_user_only` locks the whole user class; a social sign-in also locks the
-  provider identity first. The identifier checks (normaliser, the 1.49 case-variant guard, the invitation case-variant
+  an advisory lock on PostgreSQL); with `first_user_only` the registration page, and a social sign-up about to create
+  the first account, lock the whole user class (audit QG-M1); a social sign-in also locks the provider identity first. The identifier checks (normaliser, the 1.49 case-variant guard, the invitation case-variant
   guard) run under the lock, plus a new re-check that the identifier is not taken, so two concurrent creations of one
   identifier never store two accounts and the second one is refused before its insert. A lock not obtained within 5 s
-  is a `TransientStorageFailure`.
+  is a `TransientStorageFailure`. A lock release that fails closes the connection, so a worker never keeps the lock into
+  its next request (audit QG-M2). The locks are session locks: PgBouncer transaction pooling is not supported for
+  AuthKit's connection, and on Galera / Percona XtraDB Cluster AuthKit's writes must go to one writer node.
 - **503 / 409 on AuthKit's pages** (`EventSubscriber\StorageFailureSubscriber`, `kernel.exception` priority -64): a
   transient storage failure (deadlock, lock wait timeout, serialization failure) on an AuthKit route or controller
   answers `503 Service Unavailable` with `Retry-After`, a unique key taken meanwhile `409 Conflict`
   (`{ok: false, error: "unavailable" | "conflict"}` for JSON clients); never a 500, never SQL in the answer. The
-  registration page and the invitation acceptance let a transient failure through instead of turning it into a refusal.
+  registration page, the invitation acceptance, the social login callback and the QR login completion let a transient
+  failure through instead of turning it into a refusal (audit QG-L4). Linking the provider of an accepted invitation
+  stays best effort: the invitation is already used, so the account signs in and may link the provider later.
 - `Doctrine\AuthKitRows`: a new MFA credential and a new QR login challenge are written through DBAL in a savepoint; a
   unique key another request took first rolls back the savepoint only (the credential is then read again with a lock; a
   taken QR public code is drawn again, up to 5 times).
@@ -159,7 +163,12 @@ Target: 1.50.0 (high load readiness, Beacon spec 239; new dependencies, no confi
 - Registration, administrator creation, the Doctrine user writer, the password reset credential and its completion, the
   reset table, invitations, QR login challenges (claim and update in one unit), MFA and the invitation personal-data
   eraser write through the runner; no hand-written transaction and no raw flush is left.
-- `MfaStore::insertDevice()` returns whether the device was stored (false while the factor is not enabled).
+- `MfaStore::insertDevice()` returns whether the device was stored (false while the factor is not enabled); a browser
+  whose device was not stored gets no cookie and no `MfaTrustedDeviceAddedEvent` (audit QG-L3).
+- After a failed unit of work, the caller's own pending changes in a manager AuthKit does not flush first (the
+  application's with the private manager, every manager of a host user port unit) stay pending: only the rows the unit
+  added, flushed or changed are detached, found by comparing their field values with a copy taken before the unit
+  (audit QG-L1). The application's manager is still never flushed by the runner itself.
 - Requires `nowo-tech/transaction-contract` ^1.0 and `nowo-tech/transaction-doctrine` ^1.1 (`doctrine/dbal` ^3.8.2 || ^4);
   PhpStanFrankenPhp ^1.4 with the four worker load-readiness rules on.
 

@@ -156,6 +156,8 @@ What changes for you:
   in the same request, check `isOpen()` first.
 - **A failed invitation acceptance or social sign-in no longer clears your manager.** Only the rows the failed unit
   touched are detached (the invitation, the new account, what your grants changed); reload those if you still need them.
+  Your own pending changes stay pending, except one that an account write of the unit flushed with the unit (the
+  Doctrine user writer flushes your whole manager, as in 1.49): it was rolled back, and its row is detached.
 - **Your pending changes are flushed on their own before an AuthKit unit of work** whenever AuthKit writes through your
   manager (`doctrine.private_entity_manager` unset or false; with the private manager only for account writes of the
   Doctrine user writer, as before): an AuthKit failure never rolls them back. To keep your changes and AuthKit's
@@ -164,13 +166,26 @@ What changes for you:
   failure answers `503` with `Retry-After`; a unique key taken meanwhile `409`. Your error pages render them
   (`ServiceUnavailableHttpException` / `ConflictHttpException`). Your own controllers that call AuthKit services receive
   `Nowo\TransactionContract\TransientStorageFailure` and map it themselves (or use DoctrineDeadlockRetryBundle's
-  `http_mapping`). The registration page and `InvitationAcceptor::attempt()` now let a transient failure through instead
-  of answering a refusal (`not_accepted`); the invitation stays usable.
+  `http_mapping`). The registration page, the social login callback, the QR login completion and
+  `InvitationAcceptor::attempt()` now let a transient failure through instead of answering a refusal (`not_accepted`,
+  `social.error.failed`); the invitation stays usable.
+- **`InvitationAcceptor::attempt()` throws `Nowo\TransactionContract\TransientStorageFailure`** (a `RuntimeException`,
+  the DBAL exception as previous) where 1.49 let a raw `Doctrine\DBAL\Exception\DeadlockException` /
+  `LockWaitTimeoutException` through. If you call it from your own code, catch `TransientStorageFailure`, not
+  `Doctrine\DBAL\Exception\RetryableException`. It is also thrown when the account lock is not obtained within **5
+  seconds** (another creation of the same identifier holds it).
 - **Account creation takes a database named lock** of the identifier (`GET_LOCK()` on MySQL / MariaDB, an advisory lock
   on PostgreSQL; nothing on SQLite) and refuses an identifier the user lookup port already finds, with the message of the
   unique key (`Registration failed: a "…" with the same unique value already exists.`), before inserting. Keep a unique
   key on your identifier column anyway: an account created by your own code does not take AuthKit's lock. Inside a
-  transaction you opened, the lock is released before your commit, so the unique key is the guard there.
+  transaction you opened, the lock is released before your commit, so the unique key is the guard there. With
+  `registration_mode: first_user_only`, the registration page and a social sign-up of the first account lock the whole
+  user class, so only one first account is ever created.
+- **The locks are session locks.** Behind PgBouncer, AuthKit's connection must use session pooling or a direct
+  connection (transaction and statement pooling are not supported: the lock and its release could run on different
+  server connections). ProxySQL is fine (it keeps the backend connection after `GET_LOCK()`). On Galera / Percona XtraDB
+  Cluster the lock is local to a node: send AuthKit's writes to one writer node. A release that fails closes the
+  connection (it reconnects on the next statement).
 - **Doctrine DBAL 3**: enable `doctrine.dbal.use_savepoints: true`. DBAL 4 always nests with savepoints; without them,
   DBAL 3 marks your whole transaction rollback-only when an AuthKit unit nested in it fails.
 - `MfaStore` no longer takes the unused optional `EntityManagerRecovery` argument; `MfaStore::insertDevice()` returns a

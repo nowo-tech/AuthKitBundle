@@ -661,7 +661,9 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   social sign-in, administrator creation, password reset, QR login, MFA, invitations, the reset table. Events follow
   the commit. After a failure no transaction is left open (the connection is closed only when the rollback fails, as
   after a MySQL deadlock inside a nested flush, where the savepoint is gone), only the rows the failed unit touched are
-  detached, and a transient failure surfaces as `Nowo\TransactionContract\TransientStorageFailure`.
+  detached, and a transient failure surfaces as `Nowo\TransactionContract\TransientStorageFailure`. Your own pending
+  changes in a manager AuthKit does not flush (yours, with the private manager) stay pending after a failed unit,
+  unless an account write of the unit flushed them (the Doctrine user writer flushes your manager, as in 1.49).
 - **Your entity manager is yours.** AuthKit never runs its writes on a runner you bind to `TransactionRunnerInterface`
   (DoctrineDeadlockRetryBundle's adapter, your own). It never resets or clears your manager: a manager a failed AuthKit
   flush closed stays closed for the rest of the request (your next flush fails loudly) and is replaced at the next
@@ -669,18 +671,29 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   manager (REQ-ARCH-001 rule 6); the Doctrine user writer still stores accounts through it, as before.
 - **No retries inside AuthKit.** Transient failures answer `503 Service Unavailable` with `Retry-After` (1 s) on
   AuthKit's pages, a unique key taken meanwhile `409 Conflict` (`{ok: false, error: "unavailable" | "conflict"}` for
-  JSON clients). Your own controllers that call AuthKit services map failures themselves (or enable
-  DoctrineDeadlockRetryBundle's `http_mapping`).
+  JSON clients): the registration page, the invitation acceptance, the social login callback, the QR login completion
+  and every other AuthKit route. Linking the provider of an accepted invitation stays best effort (the invitation is
+  already used: the account signs in and may link the provider later). Your own controllers that call AuthKit services
+  map failures themselves (or enable DoctrineDeadlockRetryBundle's `http_mapping`).
 - **One account per identifier.** Every account creation runs under a named lock of its identifier (folded: NFC, lower
   case), taken before any row lock; the identifier checks (normaliser, case-variant guards) and a final "already taken"
   check run under it. Two concurrent registrations, invitation acceptances, social sign-ups or administrator creations of
   one identifier run one after the other, and the second is refused before its insert. An invitation is accepted once:
-  its claim is one conditional `UPDATE` inside the acceptance's unit of work.
+  its claim is one conditional `UPDATE` inside the acceptance's unit of work. With `registration_mode: first_user_only`
+  the registration page and a social sign-up about to create the first account take the lock of the whole user class,
+  so only one first account is created.
+- **Database topology.** The account locks are session locks (`GET_LOCK()`, `pg_try_advisory_lock()`), taken before the
+  unit's transaction and released after it. A release that fails closes the connection, which drops the lock (a worker
+  never carries it into its next request). Behind PgBouncer, AuthKit's connection must use session pooling or a direct
+  connection: transaction and statement pooling are not supported. ProxySQL disables multiplexing for a session after
+  `GET_LOCK()`, which keeps the lock and its release on one backend connection. On Galera / Percona XtraDB Cluster
+  `GET_LOCK()` is local to a node (and may be refused under `pxc_strict_mode=ENFORCING`): send AuthKit's writes to a single
+  writer node.
 - **Races without failures.** A first MFA enrolment that meets the row another request wrote at the same moment inserts
   in a savepoint and reads that row with a lock; a QR login code taken meanwhile is drawn again. The entity manager is
   never closed by a unique key.
-- **One lock order.** Account creation: the social identity's lock, then the account's lock, then the invitation row,
-  then the account row. Second factor: the credential row first (`FOR UPDATE`), then its recovery codes, then its trusted
+- **One lock order.** Account creation: the social identity's lock, then the user class lock (`first_user_only`), then
+  the account's lock, then the invitation row, then the account row. Second factor: the credential row first (`FOR UPDATE`), then its recovery codes, then its trusted
   devices; an enrolment and a disabling of one factor never interleave.
 - **Bounded reads.** Invitation lists and purges are paged (100 / 500 rows per statement), look-alike candidate scans
   are capped, the open invitations scanned for `merge_key` are capped (500), MFA reads one owner's rows.
