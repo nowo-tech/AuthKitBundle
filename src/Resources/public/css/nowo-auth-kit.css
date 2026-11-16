@@ -279,14 +279,9 @@ button.nowo-auth-kit-embed__item {
   margin-top: 1rem;
 }
 
-/* 1.51: MFA code on the OTP input boxes (form/mfa_otp_widget.html.twig, otp_input.mfa_code). Visibility never depends
-   on this stylesheet (1.51.1): the boxes carry `hidden` and the text input is shown until js/nowo-auth-kit-otp.js sees
-   otp-input.js bind the boxes, then it removes `hidden` from the boxes and turns the text input into a hidden input.
-   This rule only keeps a host rule that forces `display` on the OtpInput classes from showing the unbound boxes. */
-.nowo-auth-kit-mfa-otp [data-nowo-otp-render-target][hidden] {
-  display: none !important;
-}
-
+/* 1.51: MFA code on the OTP input boxes (otp_input.mfa_code). 1.52: `.nowo-auth-kit-mfa-otp` is the class of the
+   OtpInputBundle host element (`<nowo-otp-input>`, container_class). Look only: showing the boxes or the text input
+   is done by OtpInputBundle (^1.9) through the `hidden` attribute and the input type, never by this stylesheet. */
 .nowo-auth-kit-mfa-otp .nowo-otp-input__gap {
   display: flex;
   flex-wrap: wrap;
@@ -307,6 +302,6 @@ button.nowo-auth-kit-embed__item {
   text-align: center;
 }
 
-.nowo-auth-kit-mfa-otp--invalid .nowo-otp-input__digit {
+.nowo-auth-kit-mfa-otp .nowo-otp-input__digit[aria-invalid="true"] {
   border-color: var(--nowo-ui-danger-text, #b91c1c);
 }

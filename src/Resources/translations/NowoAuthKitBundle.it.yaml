@@ -254,7 +254,6 @@ mfa:
     field:
         code: Codice di verifica
         code_help: Il codice a %digits% cifre della tua app di autenticazione.
-        code_digit: 'Cifra %position% di %length%'
         recovery_code: Codice di recupero
         recovery_code_help: 'Uno dei codici di recupero che hai salvato, per esempio ABCDE-12345.'
         trust_device: Considera attendibile questo dispositivo

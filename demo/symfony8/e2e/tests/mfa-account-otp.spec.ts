@@ -4,7 +4,7 @@ import { ensureDemoUser } from './helpers';
 import { totp } from './totp';
 
 /**
- * AuthKit 1.51.1 — the MFA account page through a host template (extends @!NowoAuthKit/mfa/account.html.twig) on the
+ * AuthKit 1.51.1 (1.52: OtpInputBundle ^1.9 widget, no AuthKit theme) — the MFA account page through a host template (extends @!NowoAuthKit/mfa/account.html.twig) on the
  * admin layout: the code field is always visible, as OTP boxes once otp-input.js has bound them or as one text input
  * otherwise, whatever CSS the host loads (Beacon v1.158: Tailwind 4's layered `[hidden] { display: none !important }`
  * hid both in 1.51.0).
@@ -75,10 +75,11 @@ test.describe('MFA account page code field (host template, admin layout)', () =>
     await expect(text(page)).toBeHidden();
   });
 
-  test('only otp-input.js loads (AuthKit script blocked): the text input', async ({ page }) => {
+  test('AuthKit script blocked (only otp-input.js): the boxes (1.52: OtpInputBundle 1.9 reveals them itself)', async ({ page }) => {
     await openAccount(page, (p) => p.route('**/nowo-auth-kit-otp.js', (route) => route.abort()));
-    await expect(text(page)).toBeVisible();
-    await expect(firstBox(page)).toBeHidden();
+    await expect(firstBox(page)).toBeVisible();
+    await expect(text(page)).toHaveAttribute('type', 'hidden');
+    await expect(page.locator('[data-nowo-otp-digit="0"]')).toHaveCount(1);
   });
 
   test('no OTP scripts (blocked, or a host without _otp_input_assets) and no stylesheet: the text input enrols', async ({ page }) => {

@@ -231,12 +231,8 @@ After the first factor, a user with MFA enters the authenticator code at `/login
 `nowo-tech/otp-input-bundle` installed and `otp_input.enabled: true`, that code (and the code of the forced setup and
 the account page) is typed into one box per digit; pasting the whole code works, and
 `otp_input.mfa_code_autosubmit: true` submits once the last box is filled. "Use a recovery code instead" opens a text
-field (no JavaScript needed). In your own templates, keep the theme on the code field:
-
-```twig
-{% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}
-{{ form_row(form.code) }}
-```
+field (no JavaScript needed). In your own templates, `{{ form_row(form.code) }}` is enough (1.52: the field uses
+OtpInputBundle's own widget, `nowo-tech/otp-input-bundle` ^1.9; no AuthKit form theme).
 
 In a kernel test or without JavaScript, post `mfa_code_form[code]` (a plain text input until the boxes are bound); a
 browser with JavaScript types into `[data-nowo-otp-digit="0"]`. See [MFA.md](MFA.md#code-on-otp-boxes-151).

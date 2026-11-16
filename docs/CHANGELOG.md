@@ -113,6 +113,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.52.0 (minor: `nowo-tech/otp-input-bundle` floor raised to ^1.9). Hosts on the bundle templates change
+nothing; host templates that still apply the 1.51 OTP theme keep working (the theme is deprecated and inert), but
+custom overrides of its block, tests and CSS that use the removed hooks, and code that reads
+`MfaCodeFormType::OTP_BLOCK_PREFIX` need the steps in [UPGRADING](UPGRADING.md#to-1520).
+
+### Changed
+
+- **The MFA code uses OtpInputBundle's own widget** (`nowo-tech/otp-input-bundle` ^1.9, which now ships the no-JavaScript
+  text input and reveals the boxes itself). AuthKit's OTP wrapper (the `[data-testid="auth-kit-mfa-otp"]` group) is
+  gone, and so are the `{% form_theme form.code ... %}` lines of `mfa/challenge.html.twig`, `mfa/setup.html.twig` and
+  `mfa/_code_form.html.twig`. `MfaCodeFormType` now only adds the class `nowo-auth-kit-mfa-otp` to the OtpInput host
+  element (`container_class`), the class `nowo-auth-kit-mfa-otp__text` to the named input, the AuthKit
+  `translation_domain` (label and help) and, on the challenge and setup with `otp_input.mfa_code_autosubmit`, the
+  attribute `data-nowo-auth-kit-otp-autosubmit="1"` on the named input; it no longer passes `autocomplete` (OtpInput
+  sets it); the named input's `maxlength` is the code length (OtpInput's default 2 × length leaves room for
+  separators, which AuthKit does not strip: `123 456` would fail the format check without JavaScript).
+  `MfaCodeFormType::OTP_BLOCK_PREFIX` is now `nowo_otp_input`; new constants `OTP_CONTAINER_CLASS` and
+  `OTP_TEXT_CLASS`.
+- `js/nowo-auth-kit-otp.js` only handles autosubmit and the double-submit guard (audit QV-L2); showing the boxes and
+  hiding the text input is otp-input.js's job. Nothing in `nowo-auth-kit.css` affects visibility; the invalid box
+  style keys on `aria-invalid="true"`.
+- `composer.json`: `conflict` with `nowo-tech/otp-input-bundle <1.9`; `require-dev` and `suggest` at ^1.9; demo ^1.9.
+
+### Deprecated
+
+- `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` (block `nowo_auth_kit_mfa_otp_widget`) is deprecated and inert:
+  the field no longer has the `nowo_auth_kit_mfa_otp` block prefix, so the block never renders and a host template that
+  still applies the theme (as the 1.51 docs said) renders the OtpInput widget once. It will be removed in 2.0; delete
+  the `form_theme` line.
+
+### Removed
+
+- The translation key `mfa.field.code_digit` (the boxes are named by OtpInputBundle's `otp.digit_label`, "Character 1
+  of 6").
+
+### Fixed
+
+- **MFA code boxes rendered twice with OtpInputBundle 1.9** (Beacon e2e `account/mfa-code-field`). AuthKit's theme
+  wrapped OtpInput's widget, whose 1.9 markup renders the field again through the parent widget: with JavaScript off
+  `/login/mfa` had two sets of boxes (two `[data-nowo-otp-digit="0"]`, duplicate id `mfa_code_form_code_digit_0`).
+  Now the page has one set of boxes, one named input and unique ids, with JavaScript on, off, or `otp-input.js`
+  blocked (kernel tests and Playwright on the demo).
+
 ## [1.51.1] - 2026-11-16
 
 Target: 1.51.1.
