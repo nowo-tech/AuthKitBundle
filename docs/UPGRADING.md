@@ -4,6 +4,7 @@
 
 - [Unreleased](#unreleased)
 - [To 1.52.0](#to-1520)
+- [To 1.52.0](#to-1520-1)
 - [To 1.51.1](#to-1511)
   - [To 1.51.1](#to-1511-1)
 - [To 1.51.0](#to-1510)
@@ -142,6 +143,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.52.0
+
+From **1.51.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.52.0
 

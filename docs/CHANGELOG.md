@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.52.0] - 2026-11-16](#1520---2026-11-16)
 - [[1.51.1] - 2026-11-16](#1511---2026-11-16)
 - [[1.51.0] - 2026-11-15](#1510---2026-11-15)
 - [[1.50.0] - 2026-11-15](#1500---2026-11-15)
@@ -112,6 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [1.52.0] - 2026-11-16
 
 Target: 1.52.0 (minor: `nowo-tech/otp-input-bundle` floor raised to ^1.9). Hosts on the bundle templates change
 nothing; host templates that still apply the 1.51 OTP theme keep working (the theme is deprecated and inert), but
