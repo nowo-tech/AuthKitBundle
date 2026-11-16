@@ -14,7 +14,7 @@ This bundle is **FrankenPHP worker mode friendly** (including when the kernel is
 <table>
   <tr>
     <td align="center" width="33%">
-      <img src="docs/images/demo/login.webp" alt="AuthKit sign-in page in the demo: UiKit auth panel on the host guest layout (demo navbar with locale switcher), email and password with visibility toggle, Sign in button, footer links to magic link, QR phone sign-in and password reset, Symfony profiler toolbar" />
+      <img src="docs/images/demo/login.webp" alt="AuthKit sign-in page in the demo: UiKit auth panel on the host guest layout (demo masthead with locale switcher), email and password with visibility toggle, Sign in button, footer links to magic link, QR phone sign-in and password reset, Symfony profiler toolbar" />
       <br /><sub>Sign in — UiKit auth scaffold on the host's guest layout</sub>
     </td>
     <td align="center" width="33%">
@@ -90,7 +90,7 @@ php bin/console nowo:auth-kit:configure-security
 make -C demo up-symfony8   # Symfony 8.1 — http://localhost:8010
 ```
 
-Register the first user, then try password login, **password reset**, **magic login**, **QR phone sign-in** and **dual locale URLs** (`/en/login` and bare `/login` → redirect). The demo host renders the auth pages through its UiKit guest layout (`templates/layouts/guest.html.twig`, Bootstrap 5 theme), with the navbar `auth_kit_dropdown()`, a session **delivery inbox** (no mailer) and FrankenPHP (Docker); it has no AuthKit template overrides. Screenshots: see the top of this README (`make -C demo/symfony8 demo-screenshots`).
+Register the first user, then try password login, **password reset**, **magic login**, **QR phone sign-in** and **dual locale URLs** (`/en/login` and bare `/login` → redirect). The demo host renders the auth pages through its UiKit guest layout (`templates/layouts/guest.html.twig`, UiKit default theme), with the masthead `auth_kit_dropdown()`, a session **delivery inbox** (no mailer) and FrankenPHP (Docker); it has no AuthKit template overrides. Screenshots: see the top of this README (`make -C demo/symfony8 demo-screenshots`).
 
 See [demo/README.md](demo/README.md) for template override paths and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup (including **worker mode** for production).
 

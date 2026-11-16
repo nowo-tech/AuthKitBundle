@@ -6,7 +6,7 @@
 {% extends '@!NowoAuthKit/mfa/account.html.twig' %}
 
 {% block nowo_auth_kit_mfa_account_before %}
-    <nav class="mb-3" data-testid="demo-account-nav" aria-label="Account">
-        <a class="link-body-emphasis" href="{{ path('demo_home', auth_kit_route_params()) }}">{{ 'demo.home.title'|trans({}, 'demo') }}</a>
+    <nav data-testid="demo-account-nav" aria-label="Account">
+        <a class="nowo-ui-link" href="{{ path('demo_home', auth_kit_route_params()) }}">{{ 'demo.home.title'|trans({}, 'demo') }}</a>
     </nav>
 {% endblock %}

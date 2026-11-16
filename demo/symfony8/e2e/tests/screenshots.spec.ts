@@ -14,7 +14,7 @@ const outDir = process.env.SCREENSHOT_DIR
 
 const WIDTH = 1280;
 const PAD = 16;
-const CHROME = 'nav.navbar, main';
+const CHROME = 'header.nowo-ui-header, main';
 
 /** Grows the viewport so the page fits above the WebProfiler toolbar (which must have finished loading). */
 async function fitViewport(page: Page): Promise<void> {

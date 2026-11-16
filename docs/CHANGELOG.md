@@ -114,6 +114,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Demo
+
+- The demo shell is UiKit's admin layout with UiKit's default theme (REQ-DEMO-014): the Bootstrap CDN stylesheet, the
+  hand-written navbar/card shell and the `nowo_ui_kit.theme.tokens` override are gone; the demo pages use UiKit's
+  `nowo-ui-*` components and the guest/admin layout bridges extend the new base. No bundle runtime change.
+
+### Documentation
+
+- `demo/README.md` describes the UiKit-only demo shell.
+
 ## [1.52.0] - 2026-11-16
 
 Target: 1.52.0 (minor: `nowo-tech/otp-input-bundle` floor raised to ^1.9). Hosts on the bundle templates change

@@ -1,6 +1,6 @@
 # Auth Kit Bundle — Demo
 
-FrankenPHP demo for **Symfony 8.1** with login, logout, first-user registration, password reset, magic link, **QR phone sign-in**, **invitations**, the UiKit page contract (Bootstrap 5 host theme) and **en/es** locale switching.
+FrankenPHP demo for **Symfony 8.1** with login, logout, first-user registration, password reset, magic link, **QR phone sign-in**, **invitations**, the UiKit page contract (UiKit default theme, no CSS framework) and **en/es** locale switching.
 
 See [docs/DEMO-FRANKENPHP.md](../docs/DEMO-FRANKENPHP.md) for **`FRANKENPHP_MODE`** (`worker` default / `classic`) and troubleshooting.
 
@@ -40,13 +40,13 @@ ships **no** `templates/bundles/NowoAuthKitBundle/` overrides:
 
 | Piece | Location |
 |-------|----------|
-| Guest layout bridge (`nowo_ui_kit.layouts.guest`) | `symfony8/templates/layouts/guest.html.twig` — extends `base.html.twig` (navbar, locale switcher), renders the UiKit canonical blocks and the demo **delivery inbox** |
-| Theme | `symfony8/config/packages/nowo_ui_kit.yaml` (`css_framework: bootstrap5`, tokens) |
-| Host CSS | Bootstrap 5 (demo host's choice, CDN in `base.html.twig`), `nowo-ui.css`, `nowo-auth-kit.css`, `public/css/demo-auth.css` |
+| Guest layout bridge (`nowo_ui_kit.layouts.guest`) | `symfony8/templates/layouts/guest.html.twig` — extends `base.html.twig` (the UiKit admin layout with the demo masthead and locale switcher) and adds the demo **delivery inbox** |
+| Theme | `symfony8/config/packages/nowo_ui_kit.yaml` (`css_framework: custom`; UiKit's default theme, no tokens overridden) |
+| Host CSS | `nowo-ui.css` (UiKit's own asset package; no CSS framework, no CDN), `nowo-auth-kit.css`, `public/css/demo-auth.css` |
 | Forms | AuthKit default form themes: UiKit form theme + PasswordToggle widget on the UiKit `input` slot |
-| Navbar widget | `auth_kit_dropdown()` in `base.html.twig` (`embed.mode: dropdown`; hidden on the auth pages themselves) |
+| Masthead widget | `auth_kit_dropdown()` in `base.html.twig` (`embed.mode: dropdown`; hidden on the auth pages themselves) |
 
-The public welcome page (`/en`, `/es`) and the logged-in home (`/en/home`) use `templates/base.html.twig` with navbar, locale switcher, and embedded auth dropdown. `/` redirects to the session locale (default `/en`).
+The public welcome page (`/en`, `/es`) and the logged-in home (`/en/home`) use `templates/base.html.twig` with the UiKit masthead, locale switcher, and embedded auth dropdown. `/` redirects to the session locale (default `/en`).
 
 ## Locale switching
 

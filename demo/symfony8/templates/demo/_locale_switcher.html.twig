@@ -1,5 +1,5 @@
 {# Demo locale switcher — keeps the same page and swaps {_locale} in the URL #}
-<nav class="locale-switcher d-flex gap-2"
+<nav class="locale-switcher nowo-ui-row-actions"
      role="navigation"
      aria-label="{{ 'demo.locale.nav'|trans({}, 'demo') }}">
     {% set route = app.request.attributes.get('_route') %}
@@ -8,7 +8,7 @@
         {% set params = route ? route_params|merge({'_locale': locale}) : {'_locale': locale} %}
         {% set target_route = route ?: 'app_welcome' %}
         <a href="{{ path(target_route, params) }}"
-           class="btn btn-sm {{ app.request.locale == locale ? 'btn-primary' : 'btn-outline-secondary' }}"
+           class="nowo-ui-btn nowo-ui-btn--sm {{ app.request.locale == locale ? 'nowo-ui-btn--primary' : 'nowo-ui-btn--outline' }}"
            hreflang="{{ locale }}"
            lang="{{ locale }}">
             {{ ('demo.locale.' ~ locale)|trans({}, 'demo') }}
