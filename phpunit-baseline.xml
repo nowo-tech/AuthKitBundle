@@ -4,7 +4,8 @@
   src/Test/PageContractTestCase.php (Twig\Environment::mergeGlobals() and TemplateWrapper::unwrap() without
   arguments), which the REQ-UI-003 page contract test extends. Remove these entries once UiKit ships the fix.
   The doctrine/dbal 4.6 entry comes from nowo-tech/user-kit-bundle src/Sessions/UserSessionStore.php (Type::getType()),
-  reached by the HostExtensions session tests; remove it once UserKit resolves the type through the connection.
+  reached by the HostExtensions session tests (line 204, and 214 since a later UserKit release); remove it once UserKit
+  resolves the type through the connection.
   Never add deprecations triggered by AuthKit code here.
 -->
 <files version="1">
@@ -17,6 +18,7 @@
  <file path="vendor/doctrine/deprecations/src/Deprecation.php">
   <line number="208" hash="815824609bbd80ce3a5cc8a6a19c2e6dd0c6985c">
    <issue><![CDATA[Doctrine\DBAL\Types\Type::getType is deprecated. Resolve the type through the type provider of the connection instead. (Type.php:96 called by UserSessionStore.php:204, https://github.com/doctrine/dbal/pull/7342, package doctrine/dbal)]]></issue>
+   <issue><![CDATA[Doctrine\DBAL\Types\Type::getType is deprecated. Resolve the type through the type provider of the connection instead. (Type.php:96 called by UserSessionStore.php:214, https://github.com/doctrine/dbal/pull/7342, package doctrine/dbal)]]></issue>
   </line>
  </file>
 </files>

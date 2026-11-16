@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [To 1.51.1](#to-1511)
 - [To 1.51.0](#to-1510)
   - [To 1.51.0 (MFA code on OTP boxes)](#to-1510-mfa-code-on-otp-boxes)
 - [To 1.50.0](#to-1500)
@@ -140,6 +141,13 @@
 
 ## Unreleased
 
+### To 1.51.1
+
+From **1.51.0**: `composer update nowo-tech/auth-kit-bundle` and `php bin/console assets:install` (the fix is in
+`js/nowo-auth-kit-otp.js` and `css/nowo-auth-kit.css`). Nothing to change in your configuration or templates. If your
+own stylesheet forces `display` on the OtpInput classes (`.nowo-otp-input__gap`, `[data-nowo-otp-render-target]`), it no
+longer matters: AuthKit shows the boxes by removing their `hidden` attribute once `otp-input.js` has bound them.
+
 ## To 1.51.0
 
 From **1.50.0**:
@@ -186,8 +194,8 @@ No schema change and nothing to do unless you use `nowo-tech/otp-input-bundle`.
   ```
 
 - No JavaScript needed: until `otp-input.js` has bound the boxes, the field is one visible text input (it stays if the
-  script is blocked, missing or fails), so nobody is locked out. Make sure `nowo-auth-kit.css` loads (default layouts
-  do): it hides that text input once the boxes are live.
+  script is blocked, missing or fails), so nobody is locked out. (1.51.1: `js/nowo-auth-kit-otp.js` swaps the text
+  input for the boxes; no stylesheet is involved.)
 - With the package installed but `NowoOtpInputBundle` not registered, AuthKit now skips the OtpInput script instead of
   failing on the missing `nowo_otp_input` asset package.
 - The account page code forms no longer carry `autofocus`, and `mfa.field.code_help` now takes `%digits%` (override

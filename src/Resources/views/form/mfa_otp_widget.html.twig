@@ -8,8 +8,10 @@
   aria-label so the field has a single name, and each box is named by its position (mfa.field.code_digit).
   Works without JavaScript (audit QV-M1): the field's own named input is rendered as a visible text input (numeric,
   one-time-code, maxlength) and the boxes carry `hidden` until otp-input.js has bound them (data-nowo-otp-init="1" on
-  the container); nowo-auth-kit.css then shows the boxes and hides the text input, which keeps the submitted value. If
-  the script never runs (JavaScript off, assets missing, CSP, error) the text input stays. The text input is not
+  the container); then js/nowo-auth-kit-otp.js removes `hidden` from the boxes and turns the text input into a hidden
+  input that keeps the submitted value (1.51.1: never a stylesheet rule — a host may not load nowo-auth-kit.css, and
+  Tailwind 4's layered `[hidden] { display: none !important }` beats any unlayered rule). If either script never runs
+  (JavaScript off, assets missing, CSP, error) the text input stays. The text input is not
   `required` (a hidden required input would block the submit); the server checks an empty code as before.
   data-nowo-auth-kit-otp-autosubmit (otp_input.mfa_code_autosubmit, challenge and setup only): js/nowo-auth-kit-otp.js
   submits the form once every box is filled.

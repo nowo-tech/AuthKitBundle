@@ -112,6 +112,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.51.1.
+
+### Fixed
+
+- **MFA code field invisible on hosts with Tailwind 4** (Beacon v1.158, account page). With `otp_input.mfa_code`,
+  1.51.0 relied on `nowo-auth-kit.css` to show the bound OTP boxes over their `hidden` attribute and to hide the text
+  input. Tailwind 4's preflight hides `[hidden]` with a *layered* `!important`, which beats any unlayered rule, so once
+  `otp-input.js` had run the text input was hidden and the boxes stayed hidden: no code field at all (account page,
+  challenge and setup alike). Now `js/nowo-auth-kit-otp.js` does it: when the container gets
+  `data-nowo-otp-init="1"` it removes `hidden` from the boxes and turns the text input into a hidden input (it keeps
+  the value the boxes write). Visibility no longer depends on any stylesheet: without the scripts (JavaScript off,
+  blocked, a host template without `_otp_input_assets`) the text input shows; without `nowo-auth-kit.css` the boxes
+  still show once bound.
+- Demo: the MFA account page goes through a host template (`web_ui.templates.mfa_account` extending
+  `@!NowoAuthKit/mfa/account.html.twig`); Playwright covers it with the scripts loaded, a layered `[hidden]` rule, no
+  AuthKit stylesheet, only `otp-input.js`, no scripts at all, and JavaScript disabled.
+
 ## [1.51.0] - 2026-11-15
 
 Target: 1.51.0.
