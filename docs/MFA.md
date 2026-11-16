@@ -181,6 +181,8 @@ error texts. The server receives the same string as from the text field, so vali
 the constant-time check do not change. Without JavaScript (or when `otp-input.js` fails to load) the field is a single
 text input, so the challenge, the forced setup and the account page keep working; without the package or with the
 option off the field stays text. Autosubmit only applies to the challenge and the setup. See [CONFIGURATION.md](CONFIGURATION.md#otp-input-optional).
+1.52: the field is rendered by OtpInputBundle's own widget (`nowo-tech/otp-input-bundle` ^1.9, which provides the
+no-JavaScript text input and reveals the boxes itself); AuthKit no longer ships an OTP form theme.
 
 Account card for the host's own account page:
 

@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.52.0](#to-1520)
 - [To 1.51.1](#to-1511)
   - [To 1.51.1](#to-1511-1)
 - [To 1.51.0](#to-1510)
@@ -141,6 +142,34 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.52.0
+
+From **1.51.x**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle nowo-tech/otp-input-bundle
+php bin/console assets:install
+```
+
+- **Hosts that use `nowo-tech/otp-input-bundle` must use ^1.9** (`composer.json` declares a conflict with `<1.9`).
+  OtpInputBundle 1.9 renders the no-JavaScript text input and reveals the boxes itself, so AuthKit 1.52 drops its own
+  OTP form theme. Hosts without the package are not affected.
+- **Remove custom overrides of AuthKit's former OTP theme.** `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` and its
+  block `nowo_auth_kit_mfa_otp_widget` no longer exist: delete any
+  `{% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}` line from your overrides of
+  `mfa/challenge.html.twig`, `mfa/setup.html.twig` or `mfa/_code_form.html.twig` (Twig would fail on the missing
+  template), and any template of yours that overrides or wraps `nowo_auth_kit_mfa_otp_widget`. With OtpInputBundle 1.9
+  such a wrapper renders the boxes twice (duplicate ids). To restyle the field, override OtpInputBundle's
+  `nowo_otp_input_widget` or style `.nowo-auth-kit-mfa-otp` (the class of the `<nowo-otp-input>` host element).
+- **Selectors in your tests or CSS:** `[data-testid="auth-kit-mfa-otp"]`, `.nowo-auth-kit-mfa-otp--invalid` and
+  `data-nowo-auth-kit-otp-ready` are gone. Use `nowo-otp-input.nowo-auth-kit-mfa-otp` (or `[data-nowo-otp-init="1"]`
+  once bound, OtpInputBundle's stable hook), `input[name$="[code]"]` / `.nowo-auth-kit-mfa-otp__text` for the named
+  input (a visible text input without JavaScript, `type="hidden"` once the boxes are bound) and
+  `[data-nowo-otp-digit="0"]` for the first box. The autosubmit marker `data-nowo-auth-kit-otp-autosubmit="1"` is now
+  on the named input. The boxes are named by OtpInputBundle (`otp.digit_label`, domain `NowoOtpInputBundle`); the
+  AuthKit key `mfa.field.code_digit` is removed.
+- Nothing changes on the server: same submitted value, same validation, attempt limiter, CSRF and constant-time check.
 
 ## To 1.51.1
 

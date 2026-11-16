@@ -32,6 +32,10 @@ use function trim;
  * submitted value is the same raw string as the text field's: OtpType's normaliser is removed, so validation,
  * rate limiting and the constant-time check see exactly what they saw before. The recovery code stays a text field.
  *
+ * 1.52: the field renders with OtpInputBundle's own widget (^1.9: a visible text input without JavaScript, the boxes
+ * once otp-input.js has bound them); AuthKit no longer overrides it. AuthKit only adds its styling hook
+ * (`container_class`), the text input's class and, on the challenge and setup, the autosubmit marker.
+ *
  * @phpstan-import-type OtpInputConfig from OtpInputTypeResolver
  */
 #[FormKitConfig('auth_kit')]
@@ -39,8 +43,17 @@ final class MfaCodeFormType extends AbstractType
 {
     use FormOptionsTrait;
 
-    /** Block prefix of the OTP code field: `nowo_auth_kit_mfa_otp_widget` (form/mfa_otp_widget.html.twig). */
-    public const OTP_BLOCK_PREFIX = 'nowo_auth_kit_mfa_otp';
+    /**
+     * Block prefix of the OTP code field. 1.52: OtpInputBundle's own (`nowo_otp_input`); it was AuthKit's
+     * `nowo_auth_kit_mfa_otp` (form/mfa_otp_widget.html.twig, removed) in 1.51.
+     */
+    public const OTP_BLOCK_PREFIX = 'nowo_otp_input';
+
+    /** 1.52: class of the OtpInput host element (`<nowo-otp-input>`) of the MFA code, the styling hook of nowo-auth-kit.css. */
+    public const OTP_CONTAINER_CLASS = 'nowo-auth-kit-mfa-otp';
+
+    /** 1.52: class of the code's named text input (shown without JavaScript, type="hidden" once the boxes are bound). */
+    public const OTP_TEXT_CLASS = 'nowo-auth-kit-mfa-otp__text';
 
     /** Stateless (shared in worker mode): the OTP choice comes from the `otp_input` option of each form. */
     public function __construct(
@@ -70,14 +83,16 @@ final class MfaCodeFormType extends AbstractType
             'constraints' => [new Length(max: $digits, maxMessage: 'mfa.error.code_format')],
         ];
         if ($otpType !== null) {
+            // OtpInput (^1.9) sets autocomplete, inputmode and maxlength on its text input itself: no duplicates here.
             $this->addWithDefaults($builder, 'code', $otpType, [
                 ...$code,
-                'attr'         => ['autocomplete' => 'one-time-code'],
-                'block_prefix' => self::OTP_BLOCK_PREFIX,
-                'length'       => $digits,
-                'numeric_only' => true,
-                'uppercase'    => false,
-                'autofocus'    => $options['code_autofocus'],
+                'attr'               => ['class' => self::OTP_TEXT_CLASS],
+                'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
+                'container_class'    => 'nowo-otp-input__container ' . self::OTP_CONTAINER_CLASS,
+                'length'             => $digits,
+                'numeric_only'       => true,
+                'uppercase'          => false,
+                'autofocus'          => $options['code_autofocus'],
             ]);
             // Same submitted value as the text field (no digit filter, no truncation): the server checks stay as they were.
             $builder->get('code')->resetModelTransformers();
@@ -105,9 +120,11 @@ final class MfaCodeFormType extends AbstractType
     }
 
     /**
-     * 1.51: the OTP code field is named by its visible label (the digit group points at it) and says whether the form
-     * submits itself once every box is filled: `otp_input.mfa_code_autosubmit` and the `otp_autosubmit` option, which
-     * only the sign-in challenge and setup set (never the account page's disable / regenerate forms, audit QV-L2).
+     * 1.51: whether the OTP code form submits itself once every box is filled: `otp_input.mfa_code_autosubmit` and the
+     * `otp_autosubmit` option, which only the sign-in challenge and setup set (never the account page's disable /
+     * regenerate forms, audit QV-L2). 1.52: the marker is an attribute of the named input itself
+     * (`data-nowo-auth-kit-otp-autosubmit="1"`, read by js/nowo-auth-kit-otp.js); the visible label names the boxes
+     * through otp-input.js (^1.9).
      */
     public function finishView(FormView $view, FormInterface $form, array $options): void
     {
@@ -116,10 +133,13 @@ final class MfaCodeFormType extends AbstractType
             return;
         }
         /** @var OtpInputConfig|null $otpInput */
-        $otpInput                         = $options['otp_input'];
-        $code->vars['label_attr']['id']   = $code->vars['id'] . '_label';
-        $code->vars['mfa_otp_autosubmit'] = $options['otp_autosubmit']
+        $otpInput   = $options['otp_input'];
+        $autosubmit = $options['otp_autosubmit']
             && is_array($otpInput) && $this->otpInputTypeResolver->wantsMfaCodeAutosubmit($otpInput);
+        $code->vars['mfa_otp_autosubmit'] = $autosubmit;
+        if ($autosubmit) {
+            $code->vars['attr']['data-nowo-auth-kit-otp-autosubmit'] = '1';
+        }
     }
 
     /**

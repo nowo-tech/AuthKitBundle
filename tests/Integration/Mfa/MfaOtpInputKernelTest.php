@@ -14,6 +14,8 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 
+use function array_unique;
+use function array_values;
 use function str_replace;
 
 /**
@@ -37,46 +39,46 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
 
         $crawler = $this->client->request('GET', '/login/mfa');
         self::assertResponseIsSuccessful();
-        $group = $crawler->filter('form[name="mfa_code_form"] [data-testid="auth-kit-mfa-otp"]');
-        self::assertCount(1, $group);
-        self::assertSame('group', $group->attr('role'));
-        self::assertSame('mfa_code_form_code_label', $group->attr('aria-labelledby'), 'The boxes are named by the visible label.');
-        self::assertSame('mfa_code_form_code_help', $group->attr('aria-describedby'));
-        self::assertCount(1, $crawler->filter('label#mfa_code_form_code_label'));
-        self::assertSame('1', $group->attr('data-nowo-auth-kit-otp-autosubmit'));
-        self::assertSame('6', $group->attr('data-nowo-auth-kit-otp-length'));
-        $digits = $group->filter('[data-nowo-otp-digit]');
-        self::assertCount(6, $digits);
+        // 1.52 (Beacon e2e, OtpInputBundle 1.9): one set of boxes, unique ids, one named input.
+        $this->assertOneOtpField($crawler, 'mfa_code_form', 6);
+        $host = $crawler->filter('form[name="mfa_code_form"] nowo-otp-input.nowo-auth-kit-mfa-otp');
+        self::assertCount(1, $host, 'AuthKit only adds its class to the OtpInput host element.');
+        self::assertCount(0, $crawler->filter('[data-testid="auth-kit-mfa-otp"]'), 'No AuthKit wrapper around the OtpInput widget any more.');
+        self::assertCount(1, $crawler->filter('label[for="mfa_code_form_code"]'));
+        $digits = $host->filter('[data-nowo-otp-digit]');
         self::assertSame('one-time-code', $digits->first()->attr('autocomplete'));
         self::assertSame('numeric', $digits->first()->attr('inputmode'));
-        self::assertNull($digits->first()->attr('name'), 'Only the hidden input is submitted.');
-        self::assertSame('Digit 1 of 6', $digits->first()->attr('aria-label'));
-        self::assertSame('Digit 6 of 6', $digits->last()->attr('aria-label'));
-        self::assertNull($group->filter('[role="group"][aria-label]')->getNode(0), 'One name for the field: no generic OTP label.');
+        self::assertNull($digits->first()->attr('name'), 'Only the named text input is submitted.');
+        self::assertNotNull($digits->first()->attr('aria-label'), 'Each box is named by its position (OtpInputBundle).');
         // Audit QV-M1: the submitted input is a visible text input until otp-input.js binds the boxes (hidden until then).
-        $text = $group->filter('input[name="mfa_code_form[code]"]');
-        self::assertCount(1, $text);
+        $text = $host->filter('input[name="mfa_code_form[code]"]');
         self::assertSame('text', $text->attr('type'));
         self::assertSame('numeric', $text->attr('inputmode'));
         self::assertSame('one-time-code', $text->attr('autocomplete'));
-        self::assertSame('6', $text->attr('maxlength'));
         self::assertSame('mfa_code_form_code', $text->attr('id'), 'The visible label points at it.');
         self::assertStringContainsString('nowo-auth-kit-mfa-otp__text', (string) $text->attr('class'));
-        self::assertNull($text->attr('required'));
-        self::assertNotNull($group->filter('[data-nowo-otp-render-target]')->attr('hidden'), 'The boxes wait for the script.');
+        self::assertNull($text->attr('required'), 'Not required on the challenge: the recovery code may be used instead.');
+        self::assertSame('1', $text->attr('data-nowo-auth-kit-otp-autosubmit'));
+        self::assertSame('6', $text->attr('data-nowo-otp-input-length-value'));
+        self::assertNull($host->filter('[data-nowo-otp-boxes]')->attr('class'), 'The hidden wrapper has no class (no host CSS can show it).');
+        self::assertNotNull($host->filter('[data-nowo-otp-boxes]')->attr('hidden'), 'The boxes wait for the script.');
         self::assertStringContainsString('The 6-digit code from your authenticator app.', $crawler->filter('#mfa_code_form_code_help')->text());
+        self::assertStringContainsString('Authentication code', $crawler->filter('label[for="mfa_code_form_code"]')->text(), 'The label keeps the AuthKit translation domain.');
         self::assertSame('text', $crawler->filter('details[data-testid="auth-kit-mfa-recovery"] input[name="mfa_code_form[recovery_code]"]')->attr('type'), 'The recovery code stays a text field.');
         $scripts = $crawler->filter('script[src]')->each(static fn (Crawler $s): string => (string) $s->attr('src'));
         self::assertContains('/bundles/nowootpinput/otp-input.js', $scripts);
         self::assertContains('/bundles/nowoauthkit/js/nowo-auth-kit-otp.js', $scripts);
+        $otpScript = $crawler->filter('script[src="/bundles/nowootpinput/otp-input.js"]');
+        self::assertCount(1, $otpScript);
+        self::assertNotNull($otpScript->attr('defer'));
 
         // A malformed code shows its error on the field, described on the boxes.
         $page = $this->challenge(['code' => '1234567']);
         self::assertResponseIsSuccessful();
-        $group = $page->filter('[data-testid="auth-kit-mfa-otp"]');
-        self::assertSame('mfa_code_form_code_help mfa_code_form_code_error1', $group->attr('aria-describedby'));
-        self::assertStringContainsString('nowo-auth-kit-mfa-otp--invalid', (string) $group->attr('class'));
+        $this->assertOneOtpField($page, 'mfa_code_form', 6);
+        $group = $page->filter('nowo-otp-input.nowo-auth-kit-mfa-otp');
         self::assertSame('true', $group->filter('input[name="mfa_code_form[code]"]')->attr('aria-invalid'));
+        self::assertSame('true', $group->filter('[data-nowo-otp-digit="0"]')->attr('aria-invalid'));
         self::assertSame('1234567', $group->filter('input[name="mfa_code_form[code]"]')->attr('value'), 'The typed value is kept.');
         self::assertCount(1, $page->filter('#mfa_code_form_code_error1'));
         self::assertCount(0, $this->eventsOf(MfaChallengeFailedEvent::class), 'The 7-digit value is not cut to 6 digits.');
@@ -139,11 +141,10 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
 
         $crawler = $this->client->request('GET', '/login/mfa/setup');
         self::assertResponseIsSuccessful();
-        self::assertCount(6, $crawler->filter('form[name="mfa_code_form"] [data-testid="auth-kit-mfa-otp"] [data-nowo-otp-digit]'));
+        $this->assertOneOtpField($crawler, 'mfa_code_form', 6);
         self::assertCount(0, $crawler->filter('input[name="mfa_code_form[recovery_code]"]'));
-        self::assertSame('1', $crawler->filter('[data-testid="auth-kit-mfa-otp"]')->attr('data-nowo-auth-kit-otp-autosubmit'));
+        self::assertSame('1', $crawler->filter('input[name="mfa_code_form[code]"]')->attr('data-nowo-auth-kit-otp-autosubmit'));
         self::assertSame('text', $crawler->filter('input[name="mfa_code_form[code]"]')->attr('type'));
-        self::assertNull($crawler->filter('input[name="mfa_code_form[code]"]')->attr('required'), 'A hidden required input would block the submit.');
         $secret = str_replace(' ', '', $crawler->filter('[data-testid="auth-kit-mfa-secret"]')->text());
 
         $this->client->submit($crawler->filter('form[name="mfa_code_form"]')->form(['mfa_code_form[code]' => '123456']));
@@ -160,18 +161,18 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         $this->signIn('member@example.com', 'member-password-123');
         $crawler = $this->client->request('GET', '/account/security/mfa');
         self::assertResponseIsSuccessful();
-        self::assertCount(6, $crawler->filter('form[name="mfa_enable"] [data-nowo-otp-digit]'));
-        self::assertSame('mfa_enable_code_label', $crawler->filter('form[name="mfa_enable"] [data-testid="auth-kit-mfa-otp"]')->attr('aria-labelledby'));
+        $this->assertOneOtpField($crawler, 'mfa_enable', 6);
         $scripts = $crawler->filter('script[src]')->each(static fn (Crawler $s): string => (string) $s->attr('src'));
         self::assertContains('/bundles/nowootpinput/otp-input.js', $scripts);
         self::assertCount(1, $crawler->filter('link[href="/bundles/nowoauthkit/css/nowo-auth-kit.css"]'));
 
-        self::assertNull($crawler->filter('form[name="mfa_enable"] [data-testid="auth-kit-mfa-otp"]')->attr('data-nowo-auth-kit-otp-autosubmit'));
+        self::assertCount(0, $crawler->filter('[data-nowo-auth-kit-otp-autosubmit]'));
         self::assertCount(0, $crawler->filter('[autofocus]'), 'Audit QV-L3: no autofocus on the account page.');
 
         $this->enrol();
         $crawler = $this->client->request('GET', '/account/security/mfa');
-        self::assertCount(1, $crawler->filter('form[name="mfa_disable"] [data-testid="auth-kit-mfa-otp"]'));
+        $this->assertOneOtpField($crawler, 'mfa_disable', 6);
+        $this->assertOneOtpField($crawler, 'mfa_recovery_codes', 6);
         self::assertCount(0, $crawler->filter('[data-nowo-auth-kit-otp-autosubmit]'), 'Audit QV-L2: disable / regenerate never submit themselves.');
         self::assertCount(0, $crawler->filter('[autofocus]'));
         self::assertSame('text', $crawler->filter('form[name="mfa_disable"] input[name="mfa_disable[recovery_code]"]')->attr('type'));
@@ -196,12 +197,32 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
                 self::assertFalse($form->createView()['code']->vars['mfa_otp_autosubmit']);
             } else {
                 self::assertInstanceOf(TextType::class, $inner);
-                self::assertArrayNotHasKey('id', $form->createView()['code']->vars['label_attr']);
+                self::assertArrayNotHasKey('data-nowo-auth-kit-otp-autosubmit', $form->createView()['code']->vars['attr']);
             }
         }
 
         // The same kernel then serves a sign-in.
         $this->signIn('member@example.com', 'member-password-123');
         self::assertResponseRedirects('/home');
+    }
+
+    /**
+     * 1.52 (Beacon e2e mfa-code-field, OtpInputBundle 1.9): the code field of one form renders exactly one set of
+     * boxes (no AuthKit wrapper rendering OtpInput's widget twice), one named input and no duplicate id on the page.
+     */
+    private function assertOneOtpField(Crawler $crawler, string $formName, int $length): void
+    {
+        $form = $crawler->filter('form[name="' . $formName . '"]');
+        self::assertCount(1, $form);
+        self::assertCount(1, $form->filter('nowo-otp-input'), 'One OtpInput widget.');
+        self::assertCount(1, $form->filter('[data-nowo-otp-boxes]'), 'One set of boxes.');
+        self::assertCount(1, $form->filter('[data-nowo-otp-digit="0"]'));
+        self::assertCount($length, $form->filter('[data-nowo-otp-digit]'));
+        self::assertCount(1, $form->filter('input[name="' . $formName . '[code]"]'), 'One named code input.');
+        $ids = $crawler->filter('[id]')->each(static fn (Crawler $node): string => (string) $node->attr('id'));
+        self::assertSame(array_values(array_unique($ids)), $ids, 'No duplicate id on the page.');
+        for ($i = 0; $i < $length; ++$i) {
+            self::assertCount(1, $crawler->filter('#' . $formName . '_code_digit_' . $i));
+        }
     }
 }

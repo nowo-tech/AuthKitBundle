@@ -6,8 +6,7 @@
 
 {% block nowo_ui_auth_fields %}
     {{ include('@NowoAuthKitBundle/mfa/_enrolment.html.twig', {enrolment: mfa_enrolment}) }}
-    {#- 1.51: OTP boxes on the code field with otp_input.mfa_code (form/mfa_otp_widget.html.twig) -#}
-    {% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}
+    {#- 1.51: OTP boxes on the code field with otp_input.mfa_code (1.52: OtpInputBundle's own widget, ^1.9) -#}
     {{ parent() }}
 {% endblock %}
 

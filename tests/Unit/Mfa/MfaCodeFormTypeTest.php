@@ -76,15 +76,18 @@ final class MfaCodeFormTypeTest extends TestCase
         self::assertSame(8, $config->getOption('length'));
         self::assertTrue($config->getOption('numeric_only'));
         self::assertFalse($config->getOption('uppercase'));
-        self::assertSame(MfaCodeFormType::OTP_BLOCK_PREFIX, $config->getOption('block_prefix'));
-        self::assertSame(['autocomplete' => 'one-time-code'], $config->getOption('attr'));
+        self::assertNull($config->getOption('block_prefix'), '1.52: OtpInputBundle renders its own widget, no AuthKit theme.');
+        self::assertContains(MfaCodeFormType::OTP_BLOCK_PREFIX, $form->createView()['code']->vars['block_prefixes']);
+        self::assertSame(['class' => MfaCodeFormType::OTP_TEXT_CLASS], $config->getOption('attr'), 'No duplicate of the attributes OtpInput sets itself.');
+        self::assertSame('nowo-otp-input__container ' . MfaCodeFormType::OTP_CONTAINER_CLASS, $config->getOption('container_class'));
+        self::assertSame('NowoAuthKitBundle', $config->getOption('translation_domain'), 'The label and help keep the AuthKit domain.');
         self::assertSame([], $config->getModelTransformers(), 'OtpType normaliser removed: same submitted value as the text field.');
         self::assertFalse($config->getRequired(), 'The recovery code may be used instead.');
         self::assertInstanceOf(TextType::class, $form->get('recovery_code')->getConfig()->getType()->getInnerType());
 
         $view = $form->createView();
-        self::assertSame($view['code']->vars['id'] . '_label', $view['code']->vars['label_attr']['id']);
         self::assertTrue($view['code']->vars['mfa_otp_autosubmit']);
+        self::assertSame('1', $view['code']->vars['attr']['data-nowo-auth-kit-otp-autosubmit']);
         self::assertSame(8, $view['code']->vars['otp_length']);
         self::assertSame(['%digits%' => 8], $config->getOption('help_translation_parameters'));
         self::assertTrue($config->getOption('autofocus'));
@@ -101,6 +104,7 @@ final class MfaCodeFormTypeTest extends TestCase
             'code_autofocus' => false,
         ]);
         self::assertFalse($otp->createView()['code']->vars['mfa_otp_autosubmit']);
+        self::assertArrayNotHasKey('data-nowo-auth-kit-otp-autosubmit', $otp->createView()['code']->vars['attr']);
         self::assertFalse($otp->get('code')->getConfig()->getOption('autofocus'));
 
         $text = $this->factory()->create(MfaCodeFormType::class, null, ['code_autofocus' => false]);

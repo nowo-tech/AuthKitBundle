@@ -556,7 +556,7 @@ The bundle is **optional**. If it is not installed, or `enabled` is false, AuthK
 
 The widget is **UX only**. Server verification (`hash_equals`, `max_code_attempts`; for MFA the same length validation, attempt limiter, CSRF and constant-time check as the text field — the submitted value is not normalised) stays mandatory. The MFA field works without JavaScript: until `otp-input.js` has bound the boxes, a single text input is shown (and stays if the script never runs). Login, register, magic-login confirm, and QR `phone_otp` are unchanged.
 
-The MFA boxes form one group named by the field label and described by its help and errors (`@NowoAuthKitBundle/form/mfa_otp_widget.html.twig`, applied to the code field by the MFA templates).
+1.52: the MFA code uses OtpInputBundle's own widget (`nowo-tech/otp-input-bundle` ^1.9): a visible text input without JavaScript, the boxes once `otp-input.js` has bound them (named by the field label). AuthKit adds the class `nowo-auth-kit-mfa-otp` on the OtpInput host element (styling hook) and no form theme of its own.
 
 See [OTPInputBundle](https://github.com/nowo-tech/OTPInputBundle) and [PASSWORD-RESET.md](PASSWORD-RESET.md#otp-input-optional).
 

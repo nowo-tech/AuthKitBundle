@@ -61,13 +61,14 @@
         "twig/string-extra": "^3.12"
     },
     "conflict": {
+        "nowo-tech/otp-input-bundle": "<1.9",
         "nowo-tech/password-toggle-bundle": "<2.0.3",
         "nowo-tech/user-kit-bundle": "<1.13"
     },
     "suggest": {
         "nowo-tech/device-intelligence-bundle": "Device observation on auth pages, new-device notify, QR trusted-device step-up (^1.1; PHP 8.3+)",
         "nowo-tech/login-throttle-bundle": "Required for production login forms \u2014 credential stuffing protection (^3.1; installed by Flex recipe)",
-        "nowo-tech/otp-input-bundle": "Multi-box OTP field on the password-reset and MFA codes (^1.4; UX only, server checks stay mandatory)",
+        "nowo-tech/otp-input-bundle": "Multi-box OTP field on the password-reset and MFA codes (^1.9; UX only, server checks stay mandatory)",
         "nowo-tech/password-strength-bundle": "Strength policies, live feedback, and validator for registration and password reset fields (^2.0)",
         "nowo-tech/password-toggle-bundle": "Password fields with visibility toggle (^2.0.3; registers the nowo_password_toggle asset package)",
         "nowo-tech/slide-to-confirm-bundle": "Slide-to-confirm on registration consent and QR login approve (^1.0)",
@@ -82,7 +83,7 @@
         "endroid/qr-code": "^6.0",
         "friendsofphp/php-cs-fixer": "^3.0",
         "igor-php/igor-php": "^0.10.0",
-        "nowo-tech/otp-input-bundle": "^1.4",
+        "nowo-tech/otp-input-bundle": "^1.9",
         "nowo-tech/password-strength-bundle": "^2.0",
         "nowo-tech/password-toggle-bundle": "^2.0.0",
         "nowo-tech/phpstan-frankenphp": "^1.4",

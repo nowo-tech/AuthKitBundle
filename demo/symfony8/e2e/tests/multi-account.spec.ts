@@ -81,7 +81,10 @@ test.describe('MFA and several accounts', () => {
     await page.goto('/en/home');
     await expect(page).toHaveURL(/\/login\/mfa$/);
     await expect(page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit]')).toHaveCount(6);
-    await expect(page.locator('form[name="mfa_code_form"] [data-testid="auth-kit-mfa-otp"]')).toHaveAttribute('aria-labelledby', 'mfa_code_form_code_label');
+    // otp-input.js (OtpInputBundle 1.9) names the boxes by the visible label.
+    const labelId = await page.locator('form[name="mfa_code_form"] label[for="mfa_code_form_code_digit_0"]').getAttribute('id');
+    expect(labelId).toBeTruthy();
+    await expect(page.locator('form[name="mfa_code_form"] [data-nowo-otp-render-target]')).toHaveAttribute('aria-labelledby', labelId!);
     // Pasting the whole code into the first box fills every box.
     await page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit="0"]').evaluate((box) => {
       const data = new DataTransfer();
@@ -92,7 +95,7 @@ test.describe('MFA and several accounts', () => {
     await page.locator('[data-testid="auth-kit-mfa_challenge"] button[type="submit"]').click();
     await expect(page.locator('[data-testid="auth-kit-mfa_challenge"] [role="alert"]')).toBeVisible();
     // otp_input.mfa_code_autosubmit (off in the demo, marked here): the last digit submits the form, no click.
-    await page.locator('form[name="mfa_code_form"] [data-testid="auth-kit-mfa-otp"]').evaluate((group) => group.setAttribute('data-nowo-auth-kit-otp-autosubmit', '1'));
+    await page.locator('input[name="mfa_code_form[code]"]').evaluate((input) => input.setAttribute('data-nowo-auth-kit-otp-autosubmit', '1'));
     await page.locator('form[name="mfa_code_form"] [data-nowo-otp-digit="0"]').fill(await nextCode(BOB_SECRET));
     await expect(page).toHaveURL(/\/en\/home$/);
   });
