@@ -13,6 +13,7 @@ use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Twig\Environment;
 
 use function array_unique;
 use function array_values;
@@ -55,6 +56,7 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         self::assertSame('text', $text->attr('type'));
         self::assertSame('numeric', $text->attr('inputmode'));
         self::assertSame('one-time-code', $text->attr('autocomplete'));
+        self::assertSame('6', $text->attr('maxlength'), 'Audit RB-L2: the code length (no separator normaliser), not 2 x length.');
         self::assertSame('mfa_code_form_code', $text->attr('id'), 'The visible label points at it.');
         self::assertStringContainsString('nowo-auth-kit-mfa-otp__text', (string) $text->attr('class'));
         self::assertNull($text->attr('required'), 'Not required on the challenge: the recovery code may be used instead.');
@@ -176,6 +178,33 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
         self::assertCount(0, $crawler->filter('[data-nowo-auth-kit-otp-autosubmit]'), 'Audit QV-L2: disable / regenerate never submit themselves.');
         self::assertCount(0, $crawler->filter('[autofocus]'));
         self::assertSame('text', $crawler->filter('form[name="mfa_disable"] input[name="mfa_disable[recovery_code]"]')->attr('type'));
+    }
+
+    /**
+     * Audit RB-M1: a host template that still applies the 1.51 theme (as the 1.51 USAGE told hosts to) keeps
+     * rendering — the deprecated theme is inert — with exactly one set of boxes and unique ids.
+     */
+    public function testAHostTemplateWithTheDeprecatedThemeRendersOneSetOfBoxes(): void
+    {
+        $factory = self::getContainer()->get('form.factory');
+        self::assertInstanceOf(FormFactoryInterface::class, $factory);
+        $twig = self::getContainer()->get('twig');
+        self::assertInstanceOf(Environment::class, $twig);
+        $on   = ['enabled' => true, 'password_reset_code' => true, 'mfa_code' => true, 'mfa_code_autosubmit' => true];
+        $form = $factory->create(MfaCodeFormType::class, null, ['otp_input' => $on, 'otp_autosubmit' => true, 'recovery' => true, 'csrf_protection' => false]);
+
+        $html = $twig->createTemplate(<<<'TWIG'
+            <!DOCTYPE html><html><body>
+            {% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}
+            {{ form_start(form) }}{{ form_row(form.code) }}{{ form_rest(form) }}{{ form_end(form) }}
+            </body></html>
+            TWIG)->render(['form' => $form->createView()]);
+
+        $crawler = new Crawler($html);
+        $this->assertOneOtpField($crawler, 'mfa_code_form', 6);
+        self::assertSame('text', $crawler->filter('input[name="mfa_code_form[code]"]')->attr('type'));
+        self::assertSame('1', $crawler->filter('input[name="mfa_code_form[code]"]')->attr('data-nowo-auth-kit-otp-autosubmit'));
+        self::assertNotNull($crawler->filter('[data-nowo-otp-boxes]')->attr('hidden'));
     }
 
     /**

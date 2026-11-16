@@ -45,7 +45,7 @@ final class MfaCodeFormType extends AbstractType
 
     /**
      * Block prefix of the OTP code field. 1.52: OtpInputBundle's own (`nowo_otp_input`); it was AuthKit's
-     * `nowo_auth_kit_mfa_otp` (form/mfa_otp_widget.html.twig, removed) in 1.51.
+     * `nowo_auth_kit_mfa_otp` in 1.51 (form/mfa_otp_widget.html.twig: deprecated, inert, removed in 2.0).
      */
     public const OTP_BLOCK_PREFIX = 'nowo_otp_input';
 
@@ -83,10 +83,12 @@ final class MfaCodeFormType extends AbstractType
             'constraints' => [new Length(max: $digits, maxMessage: 'mfa.error.code_format')],
         ];
         if ($otpType !== null) {
-            // OtpInput (^1.9) sets autocomplete, inputmode and maxlength on its text input itself: no duplicates here.
+            // OtpInput (^1.9) sets autocomplete and inputmode on its text input itself: no duplicates here. maxlength is
+            // the code length, not OtpInput's 2 x length (room for separators such as `123 456`): AuthKit removes OtpType's
+            // normaliser below, so a separator would fail Length(max) without JavaScript (audit RB-L2).
             $this->addWithDefaults($builder, 'code', $otpType, [
                 ...$code,
-                'attr'               => ['class' => self::OTP_TEXT_CLASS],
+                'attr'               => ['class' => self::OTP_TEXT_CLASS, 'maxlength' => $digits],
                 'translation_domain' => NowoAuthKitBundle::TRANSLATION_DOMAIN,
                 'container_class'    => 'nowo-otp-input__container ' . self::OTP_CONTAINER_CLASS,
                 'length'             => $digits,

@@ -155,11 +155,13 @@ php bin/console assets:install
 - **Hosts that use `nowo-tech/otp-input-bundle` must use ^1.9** (`composer.json` declares a conflict with `<1.9`).
   OtpInputBundle 1.9 renders the no-JavaScript text input and reveals the boxes itself, so AuthKit 1.52 drops its own
   OTP form theme. Hosts without the package are not affected.
-- **Remove custom overrides of AuthKit's former OTP theme.** `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` and its
-  block `nowo_auth_kit_mfa_otp_widget` no longer exist: delete any
-  `{% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}` line from your overrides of
-  `mfa/challenge.html.twig`, `mfa/setup.html.twig` or `mfa/_code_form.html.twig` (Twig would fail on the missing
-  template), and any template of yours that overrides or wraps `nowo_auth_kit_mfa_otp_widget`. With OtpInputBundle 1.9
+- **Remove custom overrides of AuthKit's former OTP theme.** `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` (block
+  `nowo_auth_kit_mfa_otp_widget`) is **deprecated and inert** since 1.52 and will be removed in 2.0. A
+  `{% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}` line in your overrides of
+  `mfa/challenge.html.twig`, `mfa/setup.html.twig` or `mfa/_code_form.html.twig` (as the 1.51 docs said) still renders
+  correctly — the block is no longer a block prefix of the field, so it never applies — but delete it now: in 2.0 the
+  missing template would be a Twig error. Also delete any template of yours that overrides or wraps
+  `nowo_auth_kit_mfa_otp_widget` or `nowo_otp_input_widget` to add AuthKit's former wrapper: with OtpInputBundle 1.9
   such a wrapper renders the boxes twice (duplicate ids). To restyle the field, override OtpInputBundle's
   `nowo_otp_input_widget` or style `.nowo-auth-kit-mfa-otp` (the class of the `<nowo-otp-input>` host element).
 - **Selectors in your tests or CSS:** `[data-testid="auth-kit-mfa-otp"]`, `.nowo-auth-kit-mfa-otp--invalid` and
@@ -169,6 +171,12 @@ php bin/console assets:install
   `[data-nowo-otp-digit="0"]` for the first box. The autosubmit marker `data-nowo-auth-kit-otp-autosubmit="1"` is now
   on the named input. The boxes are named by OtpInputBundle (`otp.digit_label`, domain `NowoOtpInputBundle`); the
   AuthKit key `mfa.field.code_digit` is removed.
+- **`MfaCodeFormType::OTP_BLOCK_PREFIX` changed value**, from `nowo_auth_kit_mfa_otp` to `nowo_otp_input`
+  (OtpInputBundle's own prefix). Code that builds a block name from it (`OTP_BLOCK_PREFIX ~ '_widget'`) now targets
+  OtpInputBundle's global `nowo_otp_input_widget`: overriding that block changes every OtpType field of the app, not
+  only the MFA code. Use the class `nowo-auth-kit-mfa-otp` to style the MFA code instead.
+- The named code input has `maxlength` equal to the code length (OtpInputBundle's default is twice the length, for
+  separators that AuthKit does not strip).
 - Nothing changes on the server: same submitted value, same validation, attempt limiter, CSRF and constant-time check.
 
 ## To 1.51.1

@@ -78,7 +78,7 @@ final class MfaCodeFormTypeTest extends TestCase
         self::assertFalse($config->getOption('uppercase'));
         self::assertNull($config->getOption('block_prefix'), '1.52: OtpInputBundle renders its own widget, no AuthKit theme.');
         self::assertContains(MfaCodeFormType::OTP_BLOCK_PREFIX, $form->createView()['code']->vars['block_prefixes']);
-        self::assertSame(['class' => MfaCodeFormType::OTP_TEXT_CLASS], $config->getOption('attr'), 'No duplicate of the attributes OtpInput sets itself.');
+        self::assertSame(['class' => MfaCodeFormType::OTP_TEXT_CLASS, 'maxlength' => 8], $config->getOption('attr'), 'No duplicate of the attributes OtpInput sets itself; maxlength is the code length (RB-L2).');
         self::assertSame('nowo-otp-input__container ' . MfaCodeFormType::OTP_CONTAINER_CLASS, $config->getOption('container_class'));
         self::assertSame('NowoAuthKitBundle', $config->getOption('translation_domain'), 'The label and help keep the AuthKit domain.');
         self::assertSame([], $config->getModelTransformers(), 'OtpType normaliser removed: same submitted value as the text field.');
