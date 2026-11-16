@@ -1,16 +1,8 @@
 /**
  * Auth Kit demo host — frame of the guest pages (the auth panel itself is the UiKit auth scaffold, themed through
- * nowo_ui_kit.theme; no bundle template overrides).
+ * UiKit's default theme; no bundle template overrides, no global token overrides).
  */
 .demo-guest__column {
   width: min(28rem, 100%);
   margin-inline: auto;
-}
-
-.demo-guest [data-nowo-ui-page="auth"] {
-  box-shadow: 0 0.125rem 0.75rem rgb(15 23 42 / 0.06);
-}
-
-.locale-switcher .btn {
-  min-width: 5.5rem;
 }
