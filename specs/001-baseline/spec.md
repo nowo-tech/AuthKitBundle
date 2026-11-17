@@ -4,7 +4,7 @@
 **Status**: Active  
 **Package**: `nowo-tech/auth-kit-bundle` (tag **v1.30.0+**)  
 **Configuration root**: `nowo_auth_kit`  
-**Code inventory**: [`code-inventory.md`](code-inventory.md) — **233** units (192 PHP + 41 Resources), audited **2026-11-01**
+**Code inventory**: [`code-inventory.md`](code-inventory.md) — **463** units (392 PHP + 71 Resources), audited **2026-11-17**
 
 ---
 
@@ -200,11 +200,89 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-FLASH-001**: `AuthKitFlashMessenger` used by every AuthKit controller flash; `flash.translate` (default true) stores translated text.
 - **FR-FLASH-002**: `AuthKitFlashExtension` — `flash_trans` filter, `flash.twig_filter` (default true), `flash.twig_filter_domains` (default `[messages, NowoAuthKitBundle]`), catalogue lookup without request state.
 
+### Multi-factor authentication (v1.34, opt-in `mfa.enabled`)
+
+- **FR-MFA-001**: `MfaManager` is the public API of the second factor (status, enrolment, code checks with rate limits, lockout and replay protection, disable, recovery codes, trusted devices). Value objects: `MfaStatus` (never carries the secret), `MfaCheck`, `MfaEnrolment` (the new secret lives only in the session), `MfaOwner` / `MfaOwnerResolver` (stable owner reference by Doctrine root class and id), `MfaFirstFactor`, `MfaRequirement`, `MfaLoginCompleter`, `MfaStore`, `MfaTrustedDevices`, `RecoveryCodes`, `MfaUnavailableException`. Policy SPIs: `MfaPolicyInterface` and the framework-free `MfaRequirementPolicyInterface`. `MfaConfiguration` and `Resources/config/mfa.yaml` register nothing while `enabled: false`.
+- **FR-MFA-002**: Entities `MfaCredential` (TOTP secret encrypted at rest), `MfaRecoveryCode` (only an HMAC stored) and `MfaTrustedDevice` (HMAC of the device token); mapped only with `register_mapping: auto` and MFA enabled.
+- **FR-MFA-003**: Controllers `MfaAccountController` (status, enrolment, disable, new recovery codes, trusted devices), `MfaChallengeController` (second step of a pending sign-in) and the optional `MfaAdminController` (administrator reset, `mfa.admin.routes: true`).
+- **FR-MFA-004**: Audit events, none of them carrying a secret or a code: challenge failed / passed, enabled, disabled, locked out, login completed, recovery code used, recovery codes regenerated, reset by admin, trusted device added, trusted devices forgotten (base class `MfaEvent`).
+- **FR-MFA-005**: Subscribers: `MfaAuthenticationSubscriber` (two-step sign-in per firewall), `MfaContainmentSubscriber` (keeps a half-authenticated browser inside the second step), `MfaPasswordChangeListener` (a changed password forgets trusted devices), `MfaSessionsSubscriber` (UserKit sessions integration). `MfaPendingToken` wraps the first factor's token and `MfaVoter` gates access.
+- **FR-MFA-006**: `MfaLockRequiredPass` fails container compilation when MFA is enabled without a lock factory (fail closed).
+- **FR-MFA-007**: `Totp` (RFC 6238) and `Base32` (RFC 4648) implement the authenticator-app format.
+- **FR-MFA-008**: Twig `MfaExtension`, `MfaCodeFormType`, the `mfa/*` templates, `form/mfa_otp_widget.html.twig` and the progressive-enhancement script `nowo-auth-kit-otp.js`.
+
+### Multi-account switcher (v1.34, opt-in `multi_account.enabled`)
+
+- **FR-MULTI-001**: `AccountVault` keeps several accounts signed in at once in one browser, each with its own session; `AccountState`, `SwitchOutcome`, `VaultEntry`, `VaultCookie` (opaque token per account, no identity inside), `VaultCrypto` (opaque tokens, HMAC lookups, sealed blob), `SessionHopper`, `AccountPresentation` and the presenter SPIs (`AccountPresenterInterface`, framework-free `AccountPresentationProviderInterface`, default `IdentifierAccountPresenter`), `AccountRemovalReason`, enrolment SPIs (`EnrolmentGateInterface`, `EnrolmentPolicyInterface`, `DefaultEnrolmentGate`). `MultiAccountConfiguration` and `Resources/config/multi_account.yaml` register nothing while disabled.
+- **FR-MULTI-002**: Entity `AccountVaultEntry` and `AccountVaultStore` (one parameterised DBAL statement per operation, conditional token rotation).
+- **FR-MULTI-003**: `AccountsController` (chooser, add, switch, sign one account out) and `MultiAccountSubscriber` (glue to the firewall events).
+- **FR-MULTI-004**: Events: account added, removed, switched and the deny-only switching event (base `AccountEvent`).
+- **FR-MULTI-005**: `PurgeAccountVaultCommand` deletes entries past `max_lifetime`.
+- **FR-MULTI-006**: `MultiAccountPass` fails closed when UserKit sessions or the firewall data are missing.
+- **FR-MULTI-007**: Twig `MultiAccountExtension`, `AccountRow`, `AccountSwitcherView` and the switcher / chooser templates.
+
+### Private entity manager (v1.46, opt-in `doctrine.private_entity_manager`)
+
+- **FR-PEM-001**: `AuthKitEntityManager` and `AuthKitManagerRegistry` give AuthKit stores a private entity manager, so the bundle never flushes the host's (REQ-ARCH-001 rule 6).
+- **FR-PEM-002**: `PrivateEntityManagerMiddleware`, `Driver`, `Connection` and `Subscriber` report commits, rollbacks and savepoints of the shared connection to the private manager.
+- **FR-PEM-003**: `PrivateEntityManagerPass` wires the mode and `EntityManagerOptionPass` validates `doctrine.entity_manager`.
+
+### Transactions, locks and savepoints (v1.43-1.48)
+
+- **FR-TX-001**: `AuthKitTransactionRunner`, `AuthKitNamedLock` and `AccountLock` run check-then-insert races under named locks taken in a fixed order before any row lock.
+- **FR-TX-002**: `AuthKitSavepoint` and `AuthKitRows` run DBAL / bulk DQL writes inside a savepoint when a transaction is already open.
+- **FR-TX-003**: `UnitOfWorkBoundaries` makes the bundle act only at the outermost unit-of-work boundary of a process.
+- **FR-TX-004**: `StorageFailureSubscriber` answers a storage failure with 503 + `Retry-After` and a conflict with the matching client error.
+
+### Exact identifiers and identifier normalisation (v1.47-1.49)
+
+- **FR-EXACT-001**: `ExactIdentifier` compares identities used as database keys exactly (REQ-SEC-006).
+- **FR-EXACT-002**: `IdentityCollationListener` and `PasswordResetCollationListener` set a binary NO PAD collation on identity columns (MySQL / MariaDB).
+- **FR-IDNORM-001**: `UserIdentifierNormalizerInterface` with `ExactIdentifierNormalizer` (default) and `LowercaseAsciiEmailIdentifierNormalizer` (opt-in `identifier_normalizer`); `NormalizingUserLookup` decorates the user lookup port and `LoginIdentifierNormalizationListener` normalises the posted login identifier.
+
+### Framework-free ports (v1.46, REQ-ARCH-001 rule 3)
+
+- **FR-PORT-001**: Gates (`UserCreatorGate`, `UserDirectoryGate`, `UserStoreGate`, `EnrolmentPolicyGate`, `AccountPresentationGate`, `MfaRequirementPolicyGate`, `InvitationActionPolicyGate`, `InvitationGrantHandlerGate`, `InvitationsAccessPolicyGate`, `QrLoginStepUpGate`, `SocialCallbackStepGate`) serve the deprecated Symfony-typed interfaces with the host's framework-free twin; `Ports` picks the interface per object at call time; `AuthUserRefs` and `AuthRequestContexts` convert from Symfony types.
+- **FR-PORT-002**: Value objects `AuthUserRef`, `AuthRequestContext`, `EnrolmentCandidate`, `QrLoginChallengeRef`, `SocialCallbackResult`; `Internal\HiddenValues` keeps their sensitive values out of dumps.
+- **FR-PORT-003**: `AuthKitPortsPass` wires the twins and refuses a port service implementing neither interface.
+
+### User ports (v1.41, v1.46)
+
+- **FR-USER-001**: `UserFactoryInterface` / `UserCreatorInterface`, `UserLookupInterface` / `UserDirectoryInterface`, `UserWriterInterface` / `UserStoreInterface` with Doctrine defaults (`DoctrineUserLookup`, `DoctrineUserWriter`, `PropertyAccessUserFactory`); `NewUser`, `UserCreationSource`, `UserIds`, `DuplicateUserException`; `UserRegisteredEvent`, `CredentialsChangedEvent` and `CredentialsChangedListener`.
+
+### Password reset table storage (v1.46, `password_reset.storage: table`)
+
+- **FR-RESET-005**: `PasswordResetRequest` entity, `PasswordResetRequestRow`, `PasswordResetRequestRepository` (DBAL), `TablePasswordResetTokenManager`, `ProfilePasswordResetTokenManager` (per-profile storage), `PasswordResetCredentials` (credential rules shared by both storages) and `PasswordResetCompletedEvent`.
+- **FR-RESET-006**: `PasswordResetTableInvalidationListener` kills the pending reset row when the user's credentials change (SEC-004 L6).
+
+### GDPR ports and UserKit sections (v1.36-1.45)
+
+- **FR-GDPR-001**: Erasers and export providers registered with UserKit installed: MFA (`MfaPersonalDataEraser` / `ExportProvider`, dormant variant when tables are missing), account switcher (`AccountSwitcherPersonalDataEraser`), social accounts (`SocialAccountPersonalDataEraser`, exporter port and Doctrine default, `SocialAccountUserKitExportProvider`), invitations (eraser and exporter ports, Doctrine default, subject resolver SPI, `InvitationUserKitEraser`, `InvitationUserKitExportProvider`, `InvitationErasureResult`, `InvitationPersonalDataErasedEvent`); `ExactRows` does exact-key lookups.
+
+### Social callback steps (v1.37, v1.46)
+
+- **FR-SOCSTEP-001**: `SocialCallbackHandlerInterface` / framework-free `SocialCallbackStepInterface` take over the OAuth callback for a host step; `SocialCallbackContext`, `SocialCallbackFailure`, `SocialHandlerSignInRollback`, `FirstUserLockRequired` (retry under the user-class lock) and `ProviderMarkResolver`.
+
+### Login target, session expiry and programmatic login (v1.44)
+
+- **FR-LOGINT-001**: `LoginTargetGuard`, `LoginTargetPolicy`, `LoginTarget`, `NavigationKind`, `LoginTargetCacheWarmer`, voter and fallback-provider ports and `BackgroundTargetPathPreserver` keep the post-login target to a same-origin HTML page.
+- **FR-LOGINT-002**: `SessionExpiredResponder` answers background calls of an expired session (opt-in `session_expired.enabled`).
+- **FR-LOGINT-003**: `ProgrammaticLoginAuthenticator` and its compiler pass name an authenticator for `Security::login()` calls that have none (social, QR).
+
+### Other extras
+
+- **FR-AVAIL-001**: `FeatureAvailability` and `FeatureAvailabilityCheckerInterface` (`availability_checker` of magic login / password reset, v1.37).
+- **FR-MAGIC-003**: `MagicLoginDisabledListener` refuses magic-login requests on the firewall dispatcher when the feature is off.
+- **FR-QR-004**: `QrLoginStepUpPolicyInterface` (framework-free step-up before a phone approves a QR login).
+- **FR-INV-011**: Framework-free invitation SPIs (`InvitationGrantHandlerInterface`, `InvitationActionPolicyInterface`, `InvitationsAccessPolicyInterface`).
+- **FR-ORM-002**: `Resources/config/doctrine-xml*` XML mappings for hosts that map entities by XML (DDD opt-in).
+- **FR-UI-002**: `View\ProviderLink` / `ProviderMark` and the shipped provider marks under `Resources/public/img/social`.
+
 ---
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**233/233** units under `src/` as of 2026-11-01: 192 PHP + 41 Resources).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**463/463** units under `src/` as of 2026-11-17: 392 PHP + 71 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, INVITATIONS, SECURITY.
