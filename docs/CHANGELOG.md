@@ -114,6 +114,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Spec Kit baseline refreshed (REQ-SPECKIT-001/003): `specs/001-baseline/code-inventory.md` lists all 463 production units under `src/` with semantic FR ids, and `spec.md` documents the 1.34-1.49 surfaces (MFA, multi-account, private entity manager, transactions, ports, exact identifiers, login target, GDPR ports).
+
+### CI
+
+- Dependabot `npm` entry for `demo/symfony8/e2e` (REQ-GH-002).
+
 ### Demo
 
 - The demo shell is UiKit's admin layout with UiKit's default theme (REQ-DEMO-014): the Bootstrap CDN stylesheet, the
