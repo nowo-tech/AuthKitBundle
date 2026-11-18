@@ -28,7 +28,8 @@ async function expectOneCodeField(page: Page): Promise<void> {
   await expect(page.locator('#mfa_code_form_code_digit_0')).toHaveCount(1);
   await expect(page.locator('[data-nowo-otp-digit]')).toHaveCount(6);
   await expect(page.locator('input[name="mfa_code_form[code]"]')).toHaveCount(1);
-  const ids = await page.locator('[id]').evaluateAll((nodes) => nodes.map((node) => node.id));
+  // The Symfony web profiler toolbar (dev only) injects its own ids, sometimes twice; only the page's ids matter here.
+  const ids = await page.locator('[id]:not([id^="sf-toolbar"])').evaluateAll((nodes) => nodes.map((node) => node.id));
   expect(ids.filter((id, index) => ids.indexOf(id) !== index), 'duplicate ids').toEqual([]);
 }
 
