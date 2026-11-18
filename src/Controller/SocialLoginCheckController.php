@@ -115,7 +115,7 @@ final class SocialLoginCheckController
                 $this->guarded($request, fn () => $this->accountLinker->linkAndSignIn($profile, $provider, $social, $tokens, fn (UserInterface $user): ?Response => $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall)));
             }
         } catch (TransientStorageFailure $failure) {
-            // 1.50.0 (audit QG-L4): a deadlock or lock wait answers 503 + Retry-After (StorageFailureSubscriber), never a
+            // 1.50.0 (audit QG-L4): a deadlock or lock wait answers 409 (1.53.0, 503 per conflict_response) with its conflict code (StorageFailureSubscriber), never a
             // refusal; nothing was linked or signed in (the unit was rolled back).
             throw $failure;
         } catch (RuntimeException $exception) {

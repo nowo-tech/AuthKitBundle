@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Config\RememberMeConfigResolver;
 use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\ConflictResponsePass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
@@ -26,6 +27,7 @@ use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Doctrine\UnitOfWorkBoundaries;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\EventSubscriber\StorageFailureSubscriber;
 use Nowo\AuthKitBundle\Form\OtpInputTypeResolver;
 use Nowo\AuthKitBundle\Identity\ExactIdentifierNormalizer;
 use Nowo\AuthKitBundle\Identity\LowercaseAsciiEmailIdentifierNormalizer;
@@ -85,6 +87,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExportProviderInterface;
 use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
@@ -145,6 +148,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
     /** 1.46.0: whether doctrine.private_entity_manager is true. */
     public const PRIVATE_ENTITY_MANAGER_PARAMETER = 'nowo_auth_kit.doctrine.private_entity_manager';
+
+    /** 1.53.0: NowoTransactionDoctrineBundle's conflict policy (its `conflict_response`), when the host has it. */
+    public const HOST_CONFLICT_POLICY = 'nowo_transaction_doctrine.conflict_response_policy';
 
     /** 1.46.0: service id prefix of the repositories bound to the private entity manager (followed by the class). */
     public const PRIVATE_REPOSITORY_PREFIX = 'nowo_auth_kit.private_entity_manager.repository.';
@@ -309,6 +315,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         $this->registerPrivateEntityManager($container, $config['doctrine']['private_entity_manager'], $registerMapping);
+        $this->registerConflictResponse($container, $config['conflict_response']);
 
         $resolverServiceId = $config['recipient_locale']['resolver'];
         if (is_string($resolverServiceId) && $resolverServiceId !== '') {
@@ -330,6 +337,28 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         $container->setAlias(OutboundMailReadyCheckerInterface::class, AlwaysOutboundMailReadyChecker::class);
+    }
+
+    /**
+     * 1.53.0 (REQ-RUNTIME-003 rule 6): the status and Retry-After of the conflict answer. Both options unset follow
+     * NowoTransactionDoctrineBundle's `conflict_response` when the host has it (409 + 1 s otherwise); either one set
+     * gives AuthKit its own policy. The commit ledger is resolved by {@see ConflictResponsePass}.
+     *
+     * @param array{status: int|null, retry_after: int|null, commit_detection: bool} $conflict
+     */
+    private function registerConflictResponse(ContainerBuilder $container, array $conflict): void
+    {
+        $container->setParameter(ConflictResponsePass::COMMIT_DETECTION_PARAMETER, $conflict['commit_detection']);
+        $policy = $conflict['status'] === null && $conflict['retry_after'] === null
+            ? new Reference(self::HOST_CONFLICT_POLICY, ContainerInterface::NULL_ON_INVALID_REFERENCE)
+            : new Definition(ConflictResponsePolicy::class, [
+                $conflict['status'] ?? ConflictResponsePolicy::STATUS_CONFLICT,
+                $conflict['retry_after'] ?? ConflictResponsePolicy::DEFAULT_RETRY_AFTER,
+            ]);
+        $container->getDefinition(StorageFailureSubscriber::class)->setArguments([
+            $policy,
+            new Reference(ConflictResponsePass::LEDGER, ContainerInterface::NULL_ON_INVALID_REFERENCE),
+        ]);
     }
 
     /**

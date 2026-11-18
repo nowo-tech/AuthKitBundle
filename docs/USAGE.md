@@ -667,7 +667,8 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
 ## High load
 
 1.50.0 (Beacon spec 239): AuthKit is built for 1,000 concurrent users / 300 requests per second on long-running workers
-(FrankenPHP worker mode with the kernel reset off, RoadRunner, Messenger consumers).
+(FrankenPHP worker mode with the kernel reset off, RoadRunner, Messenger consumers). The write paths, their
+concurrency controls, the conflict codes and the residual risks are in [CONCURRENCY](CONCURRENCY.md) (REQ-RUNTIME-003).
 
 - **One unit of work per write.** Every AuthKit write runs in one transaction on AuthKit's own runner
   (`nowo_auth_kit.transaction_runner`, `Transaction\AuthKitTransactionRunner`): registration, invitation acceptance,
@@ -686,10 +687,13 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   flush closed stays closed for the rest of the request (your next flush fails loudly) and is replaced at the next
   request, message or command boundary. With `doctrine.private_entity_manager: true` AuthKit's rows never touch your
   manager (REQ-ARCH-001 rule 6); the Doctrine user writer still stores accounts through it, as before.
-- **No retries inside AuthKit.** Transient failures answer `503 Service Unavailable` with `Retry-After` (1 s) on
-  AuthKit's pages, a unique key taken meanwhile `409 Conflict` (`{ok: false, error: "unavailable" | "conflict"}` for
-  JSON clients): the registration page, the invitation acceptance, the social login callback, the QR login completion
-  and every other AuthKit route. Linking the provider of an accepted invitation stays best effort (the invitation is
+- **No retries inside AuthKit.** Since 1.53.0 lock conflicts (deadlock, lock wait, serialization failure, an account
+  lock not obtained) answer `409 Conflict` on AuthKit's pages (`conflict_response.status: 503` keeps the 1.50–1.52
+  answer), with `CONFLICT_001` and `Retry-After` when nothing was committed, `CONFLICT_002` without it when part of the
+  request was (`{ok: false, error: "unavailable", code: "CONFLICT_00x"}` for JSON clients; see
+  [CONCURRENCY](CONCURRENCY.md)). This covers the registration page, the invitation acceptance, the social login
+  callback, the QR login completion and every other AuthKit route. Unique-key violations are not mapped (AuthKit
+  catches its "only one" races where they happen). Linking the provider of an accepted invitation stays best effort (the invitation is
   already used: the account signs in and may link the provider later). Your own controllers that call AuthKit services
   map failures themselves (or enable DoctrineDeadlockRetryBundle's `http_mapping`).
 - **One account per identifier.** Every account creation runs under a named lock of its identifier (folded: NFC, lower

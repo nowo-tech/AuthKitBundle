@@ -164,6 +164,7 @@ Entities (`QrLoginChallenge`, `SocialLoginAccount`, `SocialLoginCredential`), en
 | `Doctrine\UnitOfWorkBoundaries` (opt-in) | yes | stack of running console commands, main-request count, message-in-flight flag, per-event verdicts (`WeakMap`) | process-lifetime by design (describes the running units); self-heals failed frames at the next unit | `UnitOfWorkBoundariesTest` |
 | `Doctrine\AuthKitManagerRegistry` (opt-in) | yes | none (readonly) | — | `PrivateEntityManagerPartsTest` |
 | `Internal\HiddenValues` | static | `WeakMap` VO => hidden user / request readers | collected with each per-call VO (no request data outlives it) | `AuthUserRefTest`, `AuthRequestContextTest` |
+| `EventSubscriber\StorageFailureSubscriber` (1.53.0) | yes | none: the commit count at the start of a request is a request attribute; the commit ledger (transaction-doctrine `CommitLedger`, AuthKit's own or NowoTransactionDoctrineBundle's) is a monotonic process counter of which only differences are read | — | `StorageFailureSubscriberTest`, `ConflictAnswerTest` (see [CONCURRENCY](CONCURRENCY.md)) |
 | `Port\*Gate`, `Port\Ports`, `TablePasswordResetTokenManager`, `PasswordResetRequestRepository`, `ProfilePasswordResetTokenManager`, `PasswordResetTableInvalidationListener` | yes / static helpers | none (readonly) | — | unit tests |
 
 ## Worker tests

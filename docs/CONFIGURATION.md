@@ -29,6 +29,7 @@
 - [Locale in paths](#locale-in-paths)
 - [Recipient locale (notifications)](#recipient-locale-notifications)
 - [Absolute URL base (mailed / QR links)](#absolute-url-base-mailed--qr-links)
+- [Conflict answer (conflict_response)](#conflict-answer-conflict_response)
 - [Flash messages](#flash-messages)
 - [Rate-limit counters (attempt_limiter)](#rate-limit-counters-attempt_limiter)
 - [Personal data (personal_data)](#personal-data-personal_data)
@@ -767,6 +768,28 @@ nowo_auth_kit:
       #[Autowire(service: PublicUrlGenerator::class)] private UrlGeneratorInterface $urlGenerator,
   ) {}
   ```
+
+## Conflict answer (conflict_response)
+
+Since 1.53.0 (REQ-RUNTIME-003). The answer of AuthKit's pages to a lock conflict: a deadlock, a lock wait timeout, a
+serialization failure, or an account lock not obtained.
+
+```yaml
+nowo_auth_kit:
+    conflict_response:
+        status: ~             # 409 or 503; ~ = NowoTransactionDoctrineBundle's conflict_response.status, else 409
+        retry_after: ~        # seconds (>= 0); ~ = NowoTransactionDoctrineBundle's value, else 1
+        commit_detection: true
+```
+
+- The answer carries `CONFLICT_001` plus `Retry-After` when nothing was committed, and `CONFLICT_002` without it when
+  part of the request was. JSON: `{"ok": false, "error": "unavailable", "code": "CONFLICT_001"}`.
+- `status: 503` keeps the answer of 1.50–1.52. Setting `status` or `retry_after` gives AuthKit its own policy; leaving
+  both unset follows NowoTransactionDoctrineBundle when the host registers it.
+- `commit_detection` counts the commits of the request (transaction-doctrine's commit tracking DBAL middleware, or
+  NowoTransactionDoctrineBundle's ledger when present), so a conflict after a commit answers `CONFLICT_002`.
+
+See [CONCURRENCY](CONCURRENCY.md) for the write paths and the residual risks.
 
 ## Flash messages
 

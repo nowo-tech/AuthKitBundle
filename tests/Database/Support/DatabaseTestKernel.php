@@ -16,6 +16,8 @@ use Nowo\AuthKitBundle\Tests\Integration\Invitation\InvitationsTestKernel;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
 use function getenv;
 use function is_string;
@@ -91,5 +93,15 @@ final class DatabaseTestKernel extends InvitationsTestKernel
         foreach (self::SERVICES as $id => $service) {
             $container->setAlias($id, $service)->setPublic(true);
         }
+        $container->register(CommitThenConflictController::class)
+            ->setArguments([new Reference(AuthKitTransactionRunner::SERVICE_ID), new Reference(InvitationRepository::class)])
+            ->addTag('controller.service_arguments')
+            ->setPublic(true);
+    }
+
+    protected function configureRoutes(RoutingConfigurator $routes): void
+    {
+        parent::configureRoutes($routes);
+        $routes->add('load_commit_then_conflict', CommitThenConflictController::PATH)->controller(CommitThenConflictController::class);
     }
 }

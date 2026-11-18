@@ -120,7 +120,7 @@ final class RegisterController
                 // @igor-ignore - HTTP handler delegates to services; no controller worker state.
                 $user = $this->userRegistrar->register($data, $profile->name);
             } catch (TransientStorageFailure $failure) {
-                // 1.50.0 (Beacon spec 239): a deadlock or lock wait answers 503 + Retry-After (StorageFailureSubscriber),
+                // 1.50.0 (Beacon spec 239): a deadlock or lock wait answers 409 (1.53.0, 503 per conflict_response) with its conflict code (StorageFailureSubscriber),
                 // never a refusal: the form can be sent again.
                 throw $failure;
             } catch (RuntimeException) {

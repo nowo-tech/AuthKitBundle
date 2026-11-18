@@ -34,7 +34,7 @@ use function usleep;
  * - PostgreSQL: `pg_try_advisory_lock()` polled until the timeout / `pg_advisory_unlock()` (session locks, re-entrant);
  * - others (SQLite: a writing transaction locks the whole database): no lock.
  *
- * A lock not obtained within the timeout is a {@see TransientStorageFailure} (503 + Retry-After). Releasing never hides
+ * A lock not obtained within the timeout is a {@see TransientStorageFailure} (409 + Retry-After, CONFLICT_001). Releasing never hides
  * the unit's own outcome; a release that fails closes the connection, so the lock goes with the session (audit QG-M2).
  *
  * Session locks need one database session from the lock to the unlock (docs/USAGE.md "High load"): PgBouncer in
