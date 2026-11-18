@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.53.0](#to-1530)
 - [To 1.52.0](#to-1520)
 - [To 1.52.0](#to-1520-1)
 - [To 1.51.1](#to-1511)
@@ -143,6 +144,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.53.0
+
+From **1.52.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 From **1.52.x** (target 1.53.0):
 

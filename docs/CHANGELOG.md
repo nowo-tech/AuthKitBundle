@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.53.0] - 2026-11-18](#1530---2026-11-18)
 - [[1.52.0] - 2026-11-16](#1520---2026-11-16)
 - [[1.51.1] - 2026-11-16](#1511---2026-11-16)
 - [[1.51.0] - 2026-11-15](#1510---2026-11-15)
@@ -114,8 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.53.0] - 2026-11-18
+
 Target: 1.53.0 (minor: `nowo-tech/transaction-doctrine` floor raised to ^1.5; the conflict answer changes from 503 to
-409, configurable back to 503, see [UPGRADING](UPGRADING.md#unreleased)).
+409, configurable back to 503, see [UPGRADING](UPGRADING.md#to-1530)).
 
 ### Added
 
