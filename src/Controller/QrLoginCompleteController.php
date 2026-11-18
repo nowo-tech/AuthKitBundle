@@ -116,7 +116,7 @@ final class QrLoginCompleteController
             $signIn = fn (): ?Response => $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall);
             $this->signInRollback instanceof SocialHandlerSignInRollback ? $this->signInRollback->guard($request, $signIn) : $signIn();
         } catch (TransientStorageFailure $failure) {
-            // 1.50.0 (audit QG-L4): a deadlock or lock wait answers 503 + Retry-After (StorageFailureSubscriber).
+            // 1.50.0 (audit QG-L4): a deadlock or lock wait answers 409 (1.53.0, 503 per conflict_response) with its conflict code (StorageFailureSubscriber).
             throw $failure;
         } catch (RuntimeException) {
             // GY-L10: undone by the guard. The challenge is consumed: the user starts again.

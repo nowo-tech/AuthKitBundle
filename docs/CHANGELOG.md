@@ -114,6 +114,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.53.0 (minor: `nowo-tech/transaction-doctrine` floor raised to ^1.5; the conflict answer changes from 503 to
+409, configurable back to 503, see [UPGRADING](UPGRADING.md#unreleased)).
+
+### Added
+
+- **Conflict codes (REQ-RUNTIME-003 rule 6).** A lock conflict on an AuthKit page now carries transaction-doctrine's
+  conflict code. The conflicts are a deadlock, a lock wait timeout, a serialization failure, or an AuthKit named lock
+  not obtained.
+  - `CONFLICT_001` (nothing committed) comes with `Retry-After`.
+  - `CONFLICT_002` (part of the request already committed) comes without it: the client reloads instead of repeating.
+  - JSON answers gain a `code` key next to the unchanged `ok` and `error` keys.
+- `nowo_auth_kit.conflict_response` options: `status` (409 or 503), `retry_after` and `commit_detection`. Unset, the
+  status and Retry-After follow NowoTransactionDoctrineBundle's `conflict_response` when the host registers it.
+- Commit detection for `CONFLICT_002`. AuthKit reuses NowoTransactionDoctrineBundle's commit ledger when the host has
+  it. Otherwise it registers transaction-doctrine's commit tracking DBAL middleware itself
+  (`conflict_response.commit_detection`, default true).
+- `docs/CONCURRENCY.md`: the write paths with their transaction, concurrency control and conflict answer, the codes,
+  the host options, the lock order, the tests and the residual risks.
+- Real-database tests through the HTTP kernel (`tests/Database/ConflictAnswerTest.php`). A peer session holds the row:
+  - the invitation acceptance answers 409 + `CONFLICT_001` + `Retry-After` as a page and as JSON, writes nothing, and
+    the retry accepts once;
+  - a request that committed a unit before the lock wait answers `CONFLICT_002` without `Retry-After`.
+
+### Changed
+
+- **Lock conflicts answer 409 instead of 503** on AuthKit's pages (owner decision 2026-11-17). The 503 stays available
+  per host with `conflict_response.status: 503`.
+- **Unique-key violations and optimistic locks are no longer mapped to 409** `{"error": "conflict"}`. They are not lock
+  conflicts. AuthKit catches its expected "only one" races where they happen (account creation, first MFA enrolment,
+  QR challenge ids, invitation claims, social links: see docs/CONCURRENCY.md). Any other unique violation is a real
+  error.
+- `nowo-tech/transaction-doctrine` ^1.5 (was ^1.1).
+
+### CI
+
+- The `Load readiness` job runs on MariaDB 11.4 too (DBAL 4 and DBAL 3), next to MySQL 8.4 and PostgreSQL 16.
+
 ### Documentation
 
 - Spec Kit baseline refreshed (REQ-SPECKIT-001/003): `specs/001-baseline/code-inventory.md` lists all 463 production units under `src/` with semantic FR ids, and `spec.md` documents the 1.34-1.49 surfaces (MFA, multi-account, private entity manager, transactions, ports, exact identifiers, login target, GDPR ports).

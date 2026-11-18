@@ -5,94 +5,177 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\EventSubscriber;
 
 use Doctrine\DBAL\Driver\AbstractException;
+use Doctrine\DBAL\Exception\ConnectionLost;
 use Doctrine\DBAL\Exception\DeadlockException;
+use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\OptimisticLockException;
 use Nowo\AuthKitBundle\EventSubscriber\StorageFailureSubscriber;
 use Nowo\TransactionContract\TransientStorageFailure;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
+use Nowo\TransactionDoctrine\TransientFailureKind;
+use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
+use Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
-use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
-use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Throwable;
 
 /**
- * 1.50.0 (Beacon spec 239): AuthKit's pages answer a storage failure with 503 + Retry-After (transient) or 409
- * (conflict), never a 500, and never show SQL; the application's routes are left alone.
+ * 1.53.0 (REQ-RUNTIME-003 rule 6): AuthKit's pages answer a lock conflict with 409 (503 per host) and a conflict code:
+ * CONFLICT_001 + Retry-After when nothing was committed, CONFLICT_002 without Retry-After when part of the request was;
+ * never a 500, never SQL. Unique violations, optimistic locks and lost connections are not lock conflicts, and the
+ * application's routes are left alone.
  */
 final class StorageFailureSubscriberTest extends TestCase
 {
-    public function testItRunsAfterSymfonyLoggedTheFailure(): void
+    public function testItSnapshotsTheCommitsBeforeTheFirewallAndAnswersAfterSymfonyLoggedTheFailure(): void
     {
-        self::assertSame([KernelEvents::EXCEPTION => ['onException', -64]], StorageFailureSubscriber::getSubscribedEvents());
+        self::assertSame([
+            KernelEvents::REQUEST   => ['onRequest', 2048],
+            KernelEvents::EXCEPTION => ['onException', -64],
+        ], StorageFailureSubscriber::getSubscribedEvents());
     }
 
-    public function testATransientFailureOnAnAuthKitPageIsA503WithRetryAfter(): void
+    public function testATransientFailureOnAnAuthKitPageIsA409WithRetryAfterAndConflict001(): void
     {
         $failure = new TransientStorageFailure(3, TransientStorageFailure::DEFAULT_MESSAGE, $this->driver(DeadlockException::class));
         $event   = $this->dispatch(new RuntimeException('wrapped', 0, $failure), ['_route' => 'nowo_auth_kit_register']);
 
         $error = $event->getThrowable();
-        self::assertInstanceOf(ServiceUnavailableHttpException::class, $error);
-        self::assertSame(3, $error->getHeaders()['Retry-After']);
+        self::assertInstanceOf(HttpException::class, $error);
+        self::assertSame(409, $error->getStatusCode());
+        self::assertSame(['Retry-After' => '3'], $error->getHeaders());
         self::assertSame(TransientStorageFailure::DEFAULT_MESSAGE, $error->getMessage(), 'no SQL');
     }
 
-    public function testADeadlockTheRunnerDidNotSeeIsTransientToo(): void
+    public function testADeadlockALockWaitAndASerializationFailureTheRunnerDidNotSeeAreConflictsToo(): void
     {
-        $event = $this->dispatch($this->driver(DeadlockException::class), ['_controller' => 'Nowo\\AuthKitBundle\\Controller\\RegisterController::register']);
-
-        $error = $event->getThrowable();
-        self::assertInstanceOf(ServiceUnavailableHttpException::class, $error);
-        self::assertSame(1, $error->getHeaders()['Retry-After']);
+        foreach ([$this->driver(DeadlockException::class), $this->driver(LockWaitTimeoutException::class), $this->serializationFailure()] as $failure) {
+            $error = $this->dispatch($failure, ['_controller' => 'Nowo\\AuthKitBundle\\Controller\\RegisterController::register'])->getThrowable();
+            self::assertInstanceOf(HttpException::class, $error);
+            self::assertSame(409, $error->getStatusCode());
+            self::assertSame(['Retry-After' => '1'], $error->getHeaders());
+        }
     }
 
-    public function testATransientFailureWithoutHintRetriesAfterOneSecond(): void
+    public function testATransientFailureWithoutHintUsesThePolicysRetryAfter(): void
     {
-        $event = $this->dispatch(new TransientStorageFailure(), ['_route' => 'nowo_auth_kit_login']);
+        $error = $this->dispatch(new TransientStorageFailure(), ['_route' => 'nowo_auth_kit_login'])->getThrowable();
+        self::assertInstanceOf(HttpException::class, $error);
+        self::assertSame(['Retry-After' => (string) StorageFailureSubscriber::RETRY_AFTER], $error->getHeaders());
 
-        $error = $event->getThrowable();
-        self::assertInstanceOf(ServiceUnavailableHttpException::class, $error);
-        self::assertSame(StorageFailureSubscriber::RETRY_AFTER, $error->getHeaders()['Retry-After']);
+        $error = $this->dispatch(new TransientStorageFailure(), ['_route' => 'nowo_auth_kit_login'], null, new ConflictResponsePolicy(409, 7))->getThrowable();
+        self::assertInstanceOf(HttpException::class, $error);
+        self::assertSame(['Retry-After' => '7'], $error->getHeaders());
     }
 
-    public function testAUniqueKeyTakenMeanwhileIsA409(): void
+    public function testAHostCanKeepThe503(): void
     {
-        $event = $this->dispatch($this->driver(UniqueConstraintViolationException::class), ['_route' => 'nowo_auth_kit_invitations_new']);
+        $policy = new ConflictResponsePolicy(ConflictResponsePolicy::STATUS_SERVICE_UNAVAILABLE);
+        $error  = $this->dispatch(new TransientStorageFailure(2), ['_route' => 'nowo_auth_kit_login'], null, $policy)->getThrowable();
+        self::assertInstanceOf(HttpException::class, $error);
+        self::assertSame(503, $error->getStatusCode());
+        self::assertSame(['Retry-After' => '2'], $error->getHeaders());
 
-        self::assertInstanceOf(ConflictHttpException::class, $event->getThrowable());
-    }
-
-    public function testAnOptimisticLockThatLostIsA409ButNotOneWrappingAFailedCommit(): void
-    {
-        self::assertInstanceOf(ConflictHttpException::class, $this->dispatch(new OptimisticLockException('stale', null), ['_route' => 'nowo_auth_kit_mfa_enable'])->getThrowable());
-
-        $unknownOutcome = new OptimisticLockException('commit failed', null, new RuntimeException('connection lost'));
-        self::assertSame($unknownOutcome, $this->dispatch($unknownOutcome, ['_route' => 'nowo_auth_kit_mfa_enable'])->getThrowable());
-    }
-
-    public function testJsonClientsGetTheErrorCodeAndTheHeaders(): void
-    {
-        $event = $this->dispatch(new TransientStorageFailure(2), ['_route' => 'nowo_auth_kit_qr_login_status'], 'json');
-
-        $response = $event->getResponse();
+        $response = $this->dispatch(new TransientStorageFailure(2), ['_route' => 'nowo_auth_kit_login'], 'json', $policy)->getResponse();
         self::assertInstanceOf(JsonResponse::class, $response);
         self::assertSame(503, $response->getStatusCode());
-        self::assertSame('{"ok":false,"error":"unavailable"}', $response->getContent());
+        self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_001"}', $response->getContent());
+    }
+
+    public function testJsonClientsGetTheExistingKeysTheCodeAndTheHeaders(): void
+    {
+        $response = $this->dispatch(new TransientStorageFailure(2), ['_route' => 'nowo_auth_kit_qr_login_status'], 'json')->getResponse();
+
+        self::assertInstanceOf(JsonResponse::class, $response);
+        self::assertSame(409, $response->getStatusCode());
+        self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_001"}', $response->getContent());
         self::assertSame('2', $response->headers->get('Retry-After'));
         self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
 
-        $conflict = $this->dispatch($this->driver(UniqueConstraintViolationException::class), ['_route' => 'nowo_auth_kit_qr_login_status'], 'json')->getResponse();
-        self::assertInstanceOf(JsonResponse::class, $conflict);
-        self::assertSame(409, $conflict->getStatusCode());
-        self::assertSame('{"ok":false,"error":"conflict"}', $conflict->getContent());
-        self::assertFalse($conflict->headers->has('Retry-After'));
+    public function testAHostWriteUnitThatGaveUpAfterACommitIsConflict002WithoutRetryAfter(): void
+    {
+        $conflict = new ConcurrencyConflict(1, TransientFailureKind::Deadlock, 1, $this->driver(DeadlockException::class), true);
+
+        $error = $this->dispatch($conflict, ['_route' => 'nowo_auth_kit_register'])->getThrowable();
+        self::assertInstanceOf(HttpException::class, $error);
+        self::assertSame(409, $error->getStatusCode());
+        self::assertSame([], $error->getHeaders());
+        self::assertSame(StorageFailureSubscriber::COMMITTED_MESSAGE, $error->getMessage());
+
+        $response = $this->dispatch($conflict, ['_route' => 'nowo_auth_kit_register'], 'json')->getResponse();
+        self::assertInstanceOf(JsonResponse::class, $response);
+        self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_002"}', $response->getContent());
+        self::assertFalse($response->headers->has('Retry-After'));
+
+        $retrySafe = new ConcurrencyConflict(3, TransientFailureKind::Deadlock, 1, $this->driver(DeadlockException::class));
+        $response  = $this->dispatch($retrySafe, ['_route' => 'nowo_auth_kit_register'], 'json')->getResponse();
+        self::assertInstanceOf(JsonResponse::class, $response);
+        self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_001"}', $response->getContent());
+    }
+
+    public function testACommitCountedSinceTheRequestStartedIsConflict002(): void
+    {
+        $ledger     = new CommitLedger();
+        $subscriber = new StorageFailureSubscriber(null, $ledger);
+        $request    = Request::create('/');
+        $request->attributes->set('_route', 'nowo_auth_kit_qr_login_complete');
+        $request->headers->set('Accept', 'application/json');
+        $ledger->record();
+        $subscriber->onRequest(new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST));
+        self::assertSame(1, $request->attributes->get(StorageFailureSubscriber::COMMITS_ATTRIBUTE));
+
+        // Nothing committed since the start: retry-safe.
+        $event = new ExceptionEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, new TransientStorageFailure(1));
+        $subscriber->onException($event);
+        self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_001"}', $event->getResponse()?->getContent());
+
+        // The snapshot is taken once per request; then a commit (the QR challenge consumed) before the conflict.
+        $ledger->record();
+        $subscriber->onRequest(new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::SUB_REQUEST));
+        self::assertSame(1, $request->attributes->get(StorageFailureSubscriber::COMMITS_ATTRIBUTE));
+        $event = new ExceptionEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, new TransientStorageFailure(1));
+        $subscriber->onException($event);
+        $response = $event->getResponse();
+        self::assertInstanceOf(JsonResponse::class, $response);
+        self::assertSame(409, $response->getStatusCode());
+        self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_002"}', $response->getContent());
+        self::assertFalse($response->headers->has('Retry-After'));
+    }
+
+    public function testWithoutALedgerOrASnapshotTheRequestIsRetrySafe(): void
+    {
+        $request = Request::create('/');
+        (new StorageFailureSubscriber())->onRequest(new RequestEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST));
+        self::assertFalse($request->attributes->has(StorageFailureSubscriber::COMMITS_ATTRIBUTE));
+
+        $ledger = new CommitLedger();
+        $ledger->record();
+        $error = $this->dispatch(new TransientStorageFailure(1), ['_route' => 'nowo_auth_kit_login'], null, null, $ledger)->getThrowable();
+        self::assertInstanceOf(HttpException::class, $error);
+        self::assertSame(['Retry-After' => '1'], $error->getHeaders(), 'no snapshot: nothing known to be committed');
+    }
+
+    public function testUniqueViolationsOptimisticLocksAndLostConnectionsAreNotConflicts(): void
+    {
+        $unique = $this->driver(UniqueConstraintViolationException::class);
+        self::assertSame($unique, $this->dispatch($unique, ['_route' => 'nowo_auth_kit_invitations_new'])->getThrowable());
+        self::assertNull($this->dispatch($unique, ['_route' => 'nowo_auth_kit_invitations_new'], 'json')->getResponse());
+
+        $optimistic = new OptimisticLockException('stale', null);
+        self::assertSame($optimistic, $this->dispatch($optimistic, ['_route' => 'nowo_auth_kit_mfa_enable'])->getThrowable());
+
+        $lost = $this->driver(ConnectionLost::class);
+        self::assertSame($lost, $this->dispatch($lost, ['_route' => 'nowo_auth_kit_login'])->getThrowable());
     }
 
     public function testTheApplicationsRoutesHttpErrorsAndOtherFailuresAreLeftAlone(): void
@@ -113,25 +196,32 @@ final class StorageFailureSubscriberTest extends TestCase
     /**
      * @param array<string, string> $attributes
      */
-    private function dispatch(Throwable $error, array $attributes, ?string $format = null): ExceptionEvent
+    private function dispatch(Throwable $error, array $attributes, ?string $format = null, ?ConflictResponsePolicy $policy = null, ?CommitLedger $ledger = null): ExceptionEvent
     {
         $request = Request::create('/');
         $request->attributes->add($attributes);
         if ($format === 'json') {
             $request->headers->set('Accept', 'application/json');
         }
-        $event = new ExceptionEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, $error);
-        (new StorageFailureSubscriber())->onException($event);
+        $event = new ExceptionEvent($this->createStub(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST, $error);
+        (new StorageFailureSubscriber($policy, $ledger))->onException($event);
 
         return $event;
     }
 
     /**
-     * @param class-string<DeadlockException|UniqueConstraintViolationException> $class
+     * @param class-string<ConnectionLost|DeadlockException|LockWaitTimeoutException|UniqueConstraintViolationException> $class
      */
-    private function driver(string $class): DeadlockException|UniqueConstraintViolationException
+    private function driver(string $class): ConnectionLost|DeadlockException|LockWaitTimeoutException|UniqueConstraintViolationException
     {
         return new $class(new class('driver message') extends AbstractException {
         }, null);
+    }
+
+    /** PostgreSQL 40001 (serialization_failure), as the driver reports it. */
+    private function serializationFailure(): Throwable
+    {
+        return new class('could not serialize access', '40001') extends AbstractException {
+        };
     }
 }

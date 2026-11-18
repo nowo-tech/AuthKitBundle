@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
@@ -358,6 +359,26 @@ final class Configuration implements ConfigurationInterface
                         ->booleanNode('skip_disabled_features')
                             ->info('Do not register the routes of disabled features (registration_mode, password_reset.mode, magic_login.mode, social_login.mode, qr_login.mode = disabled). false keeps registering them; their controllers redirect to the login page.')
                             ->defaultFalse()
+                        ->end()
+                    ->end()
+                ->end()
+                ->arrayNode('conflict_response')
+                    ->info('Since 1.53.0 (REQ-RUNTIME-003 rule 6): the answer of AuthKit\'s pages to a lock conflict (deadlock, lock wait timeout, serialization failure, an AuthKit named lock not obtained). CONFLICT_001 (nothing committed) carries Retry-After; CONFLICT_002 (part of the request already committed) does not. See docs/CONCURRENCY.md.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->enumNode('status')
+                            ->info('409 (Conflict) or 503 (Service Unavailable, the answer up to 1.52). null (default): the status of nowo_transaction_doctrine.conflict_response when NowoTransactionDoctrineBundle is registered, else 409.')
+                            ->values([null, ConflictResponsePolicy::STATUS_CONFLICT, ConflictResponsePolicy::STATUS_SERVICE_UNAVAILABLE])
+                            ->defaultNull()
+                        ->end()
+                        ->integerNode('retry_after')
+                            ->info('Retry-After seconds of a CONFLICT_001 answer when the failure carries no hint of its own. null (default): the value of nowo_transaction_doctrine.conflict_response when NowoTransactionDoctrineBundle is registered, else 1.')
+                            ->min(0)
+                            ->defaultNull()
+                        ->end()
+                        ->booleanNode('commit_detection')
+                            ->info('Count the commits of the request (transaction-doctrine\'s commit tracking DBAL middleware), so a conflict after a commit answers CONFLICT_002 instead of inviting a retry that would repeat it. AuthKit reuses the ledger of NowoTransactionDoctrineBundle (commit_detection) when the host has it; otherwise true registers the middleware on the application\'s connections. false: only a host write unit that gave up after a commit (ConcurrencyConflict::$committed) answers CONFLICT_002.')
+                            ->defaultTrue()
                         ->end()
                     ->end()
                 ->end()

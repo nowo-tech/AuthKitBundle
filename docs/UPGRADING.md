@@ -144,6 +144,43 @@
 
 ## Unreleased
 
+From **1.52.x** (target 1.53.0):
+
+```bash
+composer update nowo-tech/auth-kit-bundle nowo-tech/transaction-doctrine
+```
+
+**Lock conflicts answer 409 instead of 503.** A deadlock, a lock wait timeout, a serialization failure or an AuthKit
+named lock not obtained on an AuthKit page now answers `409 Conflict` (it was `503 Service Unavailable`).
+
+- **Pages:** still the application's error page, with the new status. A template for 503 only (`error503.html.twig`)
+  no longer applies; add `error409.html.twig` if you want a dedicated page.
+- **JSON clients:** keep `{"ok": false, "error": "unavailable"}` and gain `"code": "CONFLICT_001"` (retry after
+  `Retry-After`) or `"code": "CONFLICT_002"` (part of the request was saved: reload, do not repeat; no `Retry-After`).
+- **To keep the 503:**
+
+  ```yaml
+  nowo_auth_kit:
+      conflict_response:
+          status: 503
+  ```
+
+  With NowoTransactionDoctrineBundle registered and AuthKit's `status` and `retry_after` unset, AuthKit follows
+  `nowo_transaction_doctrine.conflict_response` (409 by default there too).
+
+**Unique-key violations are no longer a 409.** Up to 1.52 a unique-key violation (and an optimistic lock) reaching an
+AuthKit page answered 409 `{"ok": false, "error": "conflict"}`. AuthKit's own "only one" races never reach the page
+(they are caught where they happen), so this mapping only hid unexpected errors. They now reach the application's
+error handling as real errors. A client that matched `"error": "conflict"` should treat any non-2xx answer as a failure.
+
+**Commit detection.** To tell `CONFLICT_002` apart, AuthKit counts the commits of the request with
+transaction-doctrine's commit tracking DBAL middleware. It reuses NowoTransactionDoctrineBundle's ledger when the host
+has it. Otherwise it registers the middleware on the application's connections (a few regular-expression checks per
+statement). Set `conflict_response.commit_detection: false` to opt out: a conflict after
+a commit then answers `CONFLICT_001`, unless a host write unit says otherwise.
+
+See [CONCURRENCY](CONCURRENCY.md).
+
 ## To 1.52.0
 
 From **1.51.1**:

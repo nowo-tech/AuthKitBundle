@@ -3,7 +3,7 @@
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
 **Last audited**: 2026-11-17  
-**Units**: **463** (`392` PHP under `src/` + `71` Resources)
+**Units**: **464** (`393` PHP under `src/` + `71` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -524,6 +524,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Doctrine/AuthKitRows.php` | production | FR-TX-002 | Mapped |
 | `Doctrine/AuthKitSavepoint.php` | production | FR-TX-002 | Mapped |
 | `Doctrine/UnitOfWorkBoundaries.php` | production | FR-TX-003 | Mapped |
+| `DependencyInjection/Compiler/ConflictResponsePass.php` | production | FR-TX-005 | Mapped |
 | `EventSubscriber/StorageFailureSubscriber.php` | production | FR-TX-004 | Mapped |
 | `Transaction/AccountLock.php` | production | FR-TX-001 | Mapped |
 | `Transaction/AuthKitNamedLock.php` | production | FR-TX-001 | Mapped |
@@ -696,8 +697,8 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | --- | ---: |
 | PHP under `src/` | 392 |
 | Resources (config/translations/views/public) | 71 |
-| **Total production sources** | **463** |
-| Audit command | `git ls-files src \| wc -l` → 463 |
+| **Total production sources** | **464** |
+| Audit command | `git ls-files src \| wc -l` → 464 |
 
 ## Coverage gate
 

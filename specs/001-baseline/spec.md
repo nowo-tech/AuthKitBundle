@@ -232,7 +232,8 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-TX-001**: `AuthKitTransactionRunner`, `AuthKitNamedLock` and `AccountLock` run check-then-insert races under named locks taken in a fixed order before any row lock.
 - **FR-TX-002**: `AuthKitSavepoint` and `AuthKitRows` run DBAL / bulk DQL writes inside a savepoint when a transaction is already open.
 - **FR-TX-003**: `UnitOfWorkBoundaries` makes the bundle act only at the outermost unit-of-work boundary of a process.
-- **FR-TX-004**: `StorageFailureSubscriber` answers a storage failure with 503 + `Retry-After` and a conflict with the matching client error.
+- **FR-TX-004**: `StorageFailureSubscriber` answers a lock conflict (deadlock, lock wait, serialization failure, named lock not obtained) on AuthKit's pages with 409 (503 per `conflict_response.status`) and a conflict code: `CONFLICT_001` + `Retry-After` when nothing was committed, `CONFLICT_002` without it when the request already committed (1.53.0, REQ-RUNTIME-003). Unique violations are not mapped.
+- **FR-TX-005**: `ConflictResponsePass` gives the conflict answer a commit ledger: NowoTransactionDoctrineBundle's when registered, else AuthKit's own with transaction-doctrine's commit tracking middleware (`conflict_response.commit_detection`).
 
 ### Exact identifiers and identifier normalisation (v1.47-1.49)
 

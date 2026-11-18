@@ -29,7 +29,7 @@ use function spl_object_id;
  *
  * One attempt, one transaction ({@see DoctrineTransactionRunner::forConnection()} of nowo-tech/transaction-doctrine): a
  * transient failure (deadlock, lock wait timeout, serialization failure) surfaces as
- * {@see TransientStorageFailure} (503 + Retry-After on AuthKit's routes). After any failure no
+ * {@see TransientStorageFailure} (409 + CONFLICT_001 + Retry-After on AuthKit's routes). After any failure no
  * transaction level of its own stays open: the levels are rolled back to the entry level, and the connection is closed
  * only when that rollback fails (a MySQL deadlock inside a nested flush, where the server already dropped the
  * savepoints). The connection's nesting level is therefore never left raised for the next request of a worker.

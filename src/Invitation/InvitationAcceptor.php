@@ -358,7 +358,7 @@ final readonly class InvitationAcceptor
      * invited identifier when an account is created ({@see AccountLock}: lock order account, then the invitation row).
      * After a failure only the rows the unit touched are detached (the invitation, the new account, what the grants
      * changed); the other entities of the request stay managed. A transient storage failure is rethrown
-     * ({@see TransientStorageFailure}: 503 + Retry-After on AuthKit's pages), the invitation staying usable.
+     * ({@see TransientStorageFailure}: 409 + CONFLICT_001 on AuthKit's pages), the invitation staying usable.
      *
      * @param array<string, mixed> $formData
      */

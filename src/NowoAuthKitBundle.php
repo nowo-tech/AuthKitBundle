@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle;
 use Doctrine\Bundle\DoctrineBundle\DependencyInjection\Compiler\DoctrineOrmMappingsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AvailabilityCheckersPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\ConflictResponsePass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\CsrfProtectionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\InvitationsPass;
@@ -45,6 +46,8 @@ class NowoAuthKitBundle extends Bundle
         $container->addCompilerPass(new AvailabilityCheckersPass());
         // 1.46.0: after the autoconfiguration tags, before decorators (framework-free port twins).
         $container->addCompilerPass(new AuthKitPortsPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 0);
+        // 1.53.0 (REQ-RUNTIME-003): the commit ledger of the conflict answer, before DoctrineBundle reads doctrine.middleware.
+        $container->addCompilerPass(new ConflictResponsePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, ConflictResponsePass::PRIORITY);
 
         $entityDir = __DIR__ . '/Entity';
         if (is_dir($entityDir)) {
