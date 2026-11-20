@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.54.1](#to-1541)
 - [To 1.54.0](#to-1540)
 - [To 1.54.0](#to-1540-1)
   - [The private entity manager notice](#the-private-entity-manager-notice)
@@ -150,6 +151,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.54.1
+
+From **1.54.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.54.0
 
