@@ -1,5 +1,5 @@
 {# Demo locale switcher — keeps the same page and swaps {_locale} in the URL #}
-<nav class="locale-switcher nowo-ui-row-actions"
+<nav class="nowo-ui-row-actions" data-testid="demo-locale-switcher"
      role="navigation"
      aria-label="{{ 'demo.locale.nav'|trans({}, 'demo') }}">
     {% set route = app.request.attributes.get('_route') %}

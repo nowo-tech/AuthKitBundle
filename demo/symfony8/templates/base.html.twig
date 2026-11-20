@@ -2,14 +2,13 @@
     asset package, no CSS framework, no CDN). Bundle pages render through the same shell (nowo_ui_kit.layouts). -#}
 {% extends '@NowoUiKit/layout/admin.html.twig' %}
 
-{% block nowo_ui_document_title %}{% block title %}{{ 'demo.home.title'|trans({}, 'demo') }}{% endblock %}{% endblock %}
+{% block nowo_ui_document_title %}{% block title %}{{ 'demo.home.title'|trans({}, 'demo') }}{% endblock %} — Symfony 8{% endblock %}
 
 {% block nowo_ui_styles %}
     {{ parent() }}
     {#- Embedded Account widget (masthead) on every demo page. -#}
     <link rel="stylesheet" href="{{ asset('css/nowo-auth-kit.css', 'nowo_auth_kit') }}">
     <link rel="stylesheet" href="{{ asset('bundles/nowopasswordtoggle/css/toggle_password.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/demo-auth.css') }}">
 {% endblock %}
 
 {% block nowo_ui_navigation %}
