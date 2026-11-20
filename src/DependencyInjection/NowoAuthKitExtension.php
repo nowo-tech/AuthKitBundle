@@ -301,7 +301,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         // REQ-SEC-006 (1.47.0): binary NO PAD collation of the MFA, social, vault and invitation identity columns.
         if ($registerMapping) {
             $container->getDefinition(IdentityCollationListener::class)
-                ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchemaTable']);
+                ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchema']);
         }
 
         $this->registerPasswordResetStorage($container, $profiles);
@@ -925,7 +925,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             ->addTag('doctrine.event_listener', ['event' => 'onFlush']);
         // Audit NV-M1 / house rule LQ: binary collation of the identity and hash columns on MySQL / MariaDB.
         $container->getDefinition(PasswordResetCollationListener::class)
-            ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchemaTable']);
+            ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchema']);
     }
 
     /**

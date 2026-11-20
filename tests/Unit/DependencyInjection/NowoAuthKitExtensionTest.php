@@ -549,7 +549,7 @@ final class NowoAuthKitExtensionTest extends TestCase
     public function testTheIdentityCollationListenerFollowsTheMapping(): void
     {
         $this->extension->load([['user_class' => 'App\\Entity\\User', 'doctrine' => ['register_mapping' => true]]], $this->container);
-        self::assertSame([['event' => 'postGenerateSchemaTable']], $this->container->getDefinition(IdentityCollationListener::class)->getTag('doctrine.event_listener'));
+        self::assertSame([['event' => 'postGenerateSchema']], $this->container->getDefinition(IdentityCollationListener::class)->getTag('doctrine.event_listener'));
 
         $container = new ContainerBuilder();
         $this->extension->load([['user_class' => 'App\\Entity\\User', 'doctrine' => ['register_mapping' => false]]], $container);

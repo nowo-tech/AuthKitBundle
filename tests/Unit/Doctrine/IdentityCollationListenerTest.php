@@ -4,89 +4,118 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Doctrine;
 
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Platforms\AbstractPlatform;
-use Doctrine\DBAL\Platforms\MariaDBPlatform;
-use Doctrine\DBAL\Platforms\MySQL84Platform;
-use Doctrine\DBAL\Platforms\MySQLPlatform;
-use Doctrine\DBAL\Platforms\SQLitePlatform;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
-use Doctrine\ORM\Tools\SchemaTool;
-use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\Mapping\Driver\MappingDriverChain;
 use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
-use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
-use Nowo\AuthKitBundle\Tests\Integration\LookAlike\LookAlikeDatabase;
+use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
+use Nowo\AuthKitBundle\Tests\Support\SchemaShape;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
-use function method_exists;
+use function array_keys;
+use function dirname;
 
 /**
- * REQ-SEC-006 (1.47.0): the identity columns of the MFA, social, vault and invitation tables get the binary NO PAD
- * collation on MySQL / MariaDB, and the PAD SPACE fallback (MySQL 5.7, or a server_version without the patch number)
- * is logged.
+ * REQ-SEC-006 (1.47.0): the identity columns of the MFA, social, vault and invitation tables (and, NV-M1, of the reset
+ * table) get the binary NO PAD collation on MySQL / MariaDB, and the PAD SPACE fallback (MySQL 5.7, or a server_version
+ * without the patch number) is logged. Audit XI (1.54.1): applied on postGenerateSchema, keeping every foreign key and
+ * index of every table.
  */
 final class IdentityCollationListenerTest extends TestCase
 {
-    /** @return iterable<string, array{AbstractPlatform, string, bool}> */
+    /** @return iterable<string, array{array<string, mixed>, string|null, int}> */
     public static function platforms(): iterable
     {
-        yield 'MariaDB' => [new MariaDBPlatform(), 'utf8mb4_nopad_bin', false];
-        yield 'MySQL 8.4' => [new MySQL84Platform(), 'utf8mb4_0900_bin', false];
-        yield 'MySQL 5.7 / server_version "8.0"' => [new MySQLPlatform(), 'utf8mb4_bin', true];
+        yield 'MariaDB 11.4' => [['driver' => 'pdo_mysql', 'serverVersion' => '11.4.0-MariaDB'], 'utf8mb4_nopad_bin', 0];
+        yield 'MySQL 8.4' => [['driver' => 'pdo_mysql', 'serverVersion' => '8.4.0'], 'utf8mb4_0900_bin', 0];
+        yield 'SQLite' => [['driver' => 'pdo_sqlite', 'memory' => true], null, 0];
     }
 
+    /**
+     * @param array<string, mixed> $params
+     */
     #[DataProvider('platforms')]
-    public function testEveryIdentityColumnIsCollated(AbstractPlatform $platform, string $collation, bool $warns): void
+    public function testEveryColumnIsCollatedAndEveryForeignKeyAndIndexIsKept(array $params, ?string $collation, int $warnings): void
     {
-        $em     = LookAlikeDatabase::entityManager(false);
         $logger = $this->createMock(LoggerInterface::class);
-        $logger->expects($warns ? self::exactly(4) : self::never())->method('warning')
+        $logger->expects(self::exactly($warnings))->method('warning')
             ->with(self::stringContains('PAD SPACE'), self::arrayHasKey('table'));
-        $listener = new IdentityCollationListener($this->registry($this->managerOn($platform)), $logger);
+        $with    = SchemaShape::entityManager($params, [new IdentityCollationListener(null, $logger), new PasswordResetCollationListener(null, $logger)]);
+        $without = SchemaShape::entityManager($params);
+        $schema  = SchemaShape::generate($with);
 
-        foreach (IdentityCollationListener::FIELDS as $class => $fields) {
-            $metadata = $em->getClassMetadata($class);
-            $schema   = (new SchemaTool($em))->getSchemaFromMetadata([$metadata]);
+        self::assertSame(SchemaShape::of(SchemaShape::generate($without)), SchemaShape::of($schema));
+        foreach (IdentityCollationListener::FIELDS + [PasswordResetRequest::class => PasswordResetCollationListener::FIELDS] as $class => $fields) {
+            $metadata = $with->getClassMetadata($class);
             $table    = $schema->getTable($metadata->getTableName());
-            $args     = new GenerateSchemaTableEventArgs($metadata, $schema, $table);
-            $listener->postGenerateSchemaTable($args);
-            // @phpstan-ignore function.alreadyNarrowedType (Table::edit() exists only from DBAL 4.5)
-            $result = method_exists(Table::class, 'edit') ? $args->getClassTable() : $table;
             foreach ($fields as $field) {
-                $column = $metadata->getColumnName($field);
-                self::assertSame($collation, $result->getColumn($column)->getPlatformOption('collation'), $class . '::' . $field);
-                self::assertSame('utf8mb4', $result->getColumn($column)->getPlatformOption('charset'));
+                $column = $table->getColumn($metadata->getColumnName($field));
+                self::assertSame($collation, $column->getPlatformOptions()['collation'] ?? null, $class . '::' . $field);
+                self::assertSame($collation === null ? null : 'utf8mb4', $column->getPlatformOptions()['charset'] ?? null);
             }
-            self::assertFalse($result->getColumn('id')->hasPlatformOption('collation'));
+            self::assertArrayNotHasKey('collation', $table->getColumn('id')->getPlatformOptions());
         }
     }
 
-    public function testOtherEntitiesAndExactPlatformsAreUntouched(): void
+    public function testAManagerWithoutTheBundleEntitiesIsLeftAlone(): void
     {
-        $em     = LookAlikeDatabase::entityManager(false);
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects(self::never())->method('warning');
-        $metadata = $em->getClassMetadata(MfaCredential::class);
-        $schema   = (new SchemaTool($em))->getSchemaFromMetadata([$metadata]);
-        $table    = $schema->getTable($metadata->getTableName());
+        $em = SchemaShape::entityManager(
+            ['driver' => 'pdo_mysql', 'serverVersion' => '8.4.0'],
+            [new IdentityCollationListener(null, $logger), new PasswordResetCollationListener(null, $logger)],
+            [dirname(__DIR__, 2) . '/Integration/PasswordReset/Entity'],
+        );
+        $schema = SchemaShape::generate($em);
 
-        $other = new GenerateSchemaTableEventArgs($em->getClassMetadata(QrLoginChallenge::class), new Schema(), new Table('qr'));
-        (new IdentityCollationListener($this->registry($this->managerOn(new MySQLPlatform())), $logger))->postGenerateSchemaTable($other);
-        self::assertFalse($other->classTableWasMutated());
+        self::assertSame(['reset_users'], array_keys(SchemaShape::of($schema)));
+        self::assertArrayNotHasKey('collation', $schema->getTable('reset_users')->getColumn('email')->getPlatformOptions());
 
-        $sqlite = new GenerateSchemaTableEventArgs($metadata, $schema, $table);
-        (new IdentityCollationListener($this->registry($this->managerOn(new SQLitePlatform())), $logger))->postGenerateSchemaTable($sqlite);
-        self::assertFalse($sqlite->classTableWasMutated());
-        (new IdentityCollationListener($this->registry(null), $logger))->postGenerateSchemaTable($sqlite);
-        self::assertFalse($sqlite->classTableWasMutated());
-        self::assertFalse($table->getColumn('user_id')->hasPlatformOption('collation'));
+        // A manager whose mapping does not cover the bundle namespace at all: every entity is transient there.
+        $chain = SchemaShape::entityManager(['driver' => 'pdo_sqlite', 'memory' => true]);
+        $chain->getConfiguration()->setMetadataDriverImpl(new MappingDriverChain());
+        self::assertSame([], PasswordResetCollationListener::mappedColumns($chain, $schema, IdentityCollationListener::FIELDS));
+    }
+
+    /**
+     * The helper keeps a foreign key and an index starting on the collated table (none of the bundle tables has one;
+     * a table replaced on postGenerateSchemaTable lost them on ORM 3.7–3.8 with DBAL 4.5+), and skips unknown columns.
+     */
+    public function testCollatingKeepsTheForeignKeysAndIndexesOfTheTable(): void
+    {
+        $em     = SchemaShape::entityManager(['driver' => 'pdo_mysql', 'serverVersion' => '8.4.0'], [], [dirname(__DIR__, 2) . '/Fixtures/SchemaFk']);
+        $schema = SchemaShape::generate($em);
+        $before = SchemaShape::of($schema);
+
+        $args = new GenerateSchemaEventArgs($em, $schema);
+        PasswordResetCollationListener::collateSchema($args, ['xi_child' => ['missing']], 'utf8mb4_bin');
+        self::assertSame($schema, $args->getSchema(), 'Nothing to collate: the schema is kept.');
+
+        PasswordResetCollationListener::collateSchema($args, ['xi_child' => ['owner', 'missing']], 'utf8mb4_bin');
+        self::assertSame($before, SchemaShape::of($args->getSchema()));
+        self::assertContains('parent_id->xi_parent(id) CASCADE', SchemaShape::of($args->getSchema())['xi_child']['fks']);
+        self::assertContains('owner', SchemaShape::of($args->getSchema())['xi_child']['indexes']);
+        self::assertSame('utf8mb4_bin', $args->getSchema()->getTable('xi_child')->getColumn('owner')->getPlatformOptions()['collation'] ?? null);
+    }
+
+    public function testTheFormerTableEventDoesNothing(): void
+    {
+        $em    = SchemaShape::entityManager(['driver' => 'pdo_mysql', 'serverVersion' => '8.4.0']);
+        $table = new Table('auth_kit_mfa');
+        $args  = new GenerateSchemaTableEventArgs(new ClassMetadata(MfaCredential::class), new Schema(), $table);
+
+        (new IdentityCollationListener())->postGenerateSchemaTable($args);
+        (new PasswordResetCollationListener())->postGenerateSchemaTable($args);
+
+        self::assertSame($table, $args->getClassTable());
+        self::assertFalse($em->getConnection()->isConnected());
     }
 
     public function testThePasswordResetListenerWarnsOnTheFallbackToo(): void
@@ -96,23 +125,5 @@ final class IdentityCollationListenerTest extends TestCase
         PasswordResetCollationListener::warnOnPadSpace('utf8mb4_bin', 't', $logger);
         PasswordResetCollationListener::warnOnPadSpace('utf8mb4_0900_bin', 't', $logger);
         PasswordResetCollationListener::warnOnPadSpace('utf8mb4_bin', 't', null);
-    }
-
-    private function managerOn(AbstractPlatform $platform): EntityManagerInterface
-    {
-        $connection = $this->createStub(Connection::class);
-        $connection->method('getDatabasePlatform')->willReturn($platform);
-        $manager = $this->createStub(EntityManagerInterface::class);
-        $manager->method('getConnection')->willReturn($connection);
-
-        return $manager;
-    }
-
-    private function registry(?EntityManagerInterface $manager): ManagerRegistry
-    {
-        $registry = $this->createStub(ManagerRegistry::class);
-        $registry->method('getManagerForClass')->willReturn($manager);
-
-        return $registry;
     }
 }

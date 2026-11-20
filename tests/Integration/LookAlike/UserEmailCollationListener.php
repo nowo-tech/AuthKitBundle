@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\LookAlike;
 
-use Doctrine\DBAL\Schema\Table;
-use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
+use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-
-use function method_exists;
 
 /**
  * Gives the host's identifier column (`kernel_users.email`) the collation of the test: a folding one (an application
@@ -24,15 +21,9 @@ final readonly class UserEmailCollationListener
     {
     }
 
-    public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $args): void
+    public function postGenerateSchema(GenerateSchemaEventArgs $args): void
     {
-        if ($args->getClassMetadata()->getName() !== KernelUser::class) {
-            return;
-        }
-        // @phpstan-ignore function.alreadyNarrowedType (Table::edit() exists only from DBAL 4.5)
-        $edited = PasswordResetCollationListener::collate($args->getClassTable(), 'email', $this->collation, method_exists(Table::class, 'edit'));
-        if ($edited instanceof Table) {
-            $args->setClassTable($edited);
-        }
+        $columns = PasswordResetCollationListener::mappedColumns($args->getEntityManager(), $args->getSchema(), [KernelUser::class => ['email']]);
+        PasswordResetCollationListener::collateSchema($args, $columns, $this->collation);
     }
 }

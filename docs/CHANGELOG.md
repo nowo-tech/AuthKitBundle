@@ -116,6 +116,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Foreign keys kept when collating the identity columns (audit XI, latent).** `IdentityCollationListener` (1.47.0)
+  and `PasswordResetCollationListener` (1.46.0) replaced their table on `postGenerateSchemaTable`
+  (`setClassTable()`, DBAL 4.5+); ORM 3.7–3.8 then added the table's foreign keys to the object it had replaced, so any
+  foreign key starting on a collated table, and its index, would have been missing from the generated schema on MySQL /
+  MariaDB. None of these tables has one today, so no schema was affected. Both listeners now run on
+  `postGenerateSchema`, once every foreign key exists: on DBAL 4.5+ the table is rebuilt with its editor (foreign keys
+  and indexes included) and swapped in with `GenerateSchemaEventArgs::setSchema()`; on older DBAL the column options
+  are set in place. The platform is the one of the schema tool's entity manager, and a manager that does not map the
+  bundle entities is left alone. Same collations as before (`utf8mb4_nopad_bin`, `utf8mb4_0900_bin`, `utf8mb4_bin`).
+  `postGenerateSchemaTable()` stays as a deprecated no-op, and the `ManagerRegistry` constructor argument is unused
+  (optional). Tests: foreign keys and indexes of every table with and without the listeners on MariaDB 11.4, MySQL 8.4
+  and SQLite platforms, a foreign key and an index kept on a collated table, and the created tables on MySQL 8.4 /
+  MariaDB 11.4 / PostgreSQL in the `real-databases` job.
+
 ## [1.54.0] - 2026-11-20
 
 Target: 1.54.0 (minor, the last 1.x minor before 2.0: runtime notices for everything 2.0 removes or flips, and the

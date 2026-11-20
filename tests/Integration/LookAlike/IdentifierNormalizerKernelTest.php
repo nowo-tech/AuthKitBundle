@@ -396,7 +396,7 @@ final class IdentifierNormalizerKernelTest extends KernelTestCase
         $all    = $em->getMetadataFactory()->getAllMetadata();
         $schema->dropSchema($all);
         if ($collation !== null) {
-            $em->getEventManager()->addEventListener(ToolEvents::postGenerateSchemaTable, new UserEmailCollationListener($collation));
+            $em->getEventManager()->addEventListener(ToolEvents::postGenerateSchema, new UserEmailCollationListener($collation));
         }
         $schema->createSchema($all);
         foreach ($users as $email => $password) {

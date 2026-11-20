@@ -5,28 +5,18 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\PasswordReset;
 
 use DateTimeImmutable;
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\MySQL80Platform;
-use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Platforms\SQLitePlatform;
-use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
-use Doctrine\ORM\Tools\SchemaTool;
-use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
-use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestRow;
 use Nowo\AuthKitBundle\Tests\Integration\PasswordReset\Entity\ResetUser;
 use Nowo\AuthKitBundle\User\UserIds;
 use PHPUnit\Framework\TestCase;
 
 use function hash;
-use function method_exists;
 
 /**
  * Audit NV-M1 / NV-L1 / NV-L2 (1.46.0): the reset table is matched byte for byte whatever the database collation.
@@ -116,32 +106,7 @@ final class ResetTableExactMatchTest extends TestCase
         self::assertNull(PasswordResetCollationListener::collationFor(new PostgreSQLPlatform()));
         self::assertNull(PasswordResetCollationListener::collationFor(new SQLitePlatform()));
 
-        $h        = new ResetStorageHarness('table');
-        $metadata = $h->em->getClassMetadata(PasswordResetRequest::class);
-        $schema   = (new SchemaTool($h->em))->getSchemaFromMetadata([$metadata]);
-        $table    = $schema->getTable($metadata->getTableName());
-
-        $mysql = $this->createStub(EntityManagerInterface::class);
-        $mysql->method('getConnection')->willReturn($this->connectionOn(new MySQLPlatform()));
-        $listener = new PasswordResetCollationListener($this->registry($mysql));
-        $args     = new GenerateSchemaTableEventArgs($metadata, $schema, $table);
-        $listener->postGenerateSchemaTable($args);
-        // @phpstan-ignore function.alreadyNarrowedType (Table::edit() exists only from DBAL 4.5)
-        $result = method_exists(Table::class, 'edit') ? $args->getClassTable() : $table;
-        foreach (['user_id', 'user_identifier', 'token_hash', 'code_hash'] as $column) {
-            self::assertSame('utf8mb4_bin', $result->getColumn($column)->getPlatformOption('collation'), $column);
-        }
-        self::assertFalse($result->getColumn('profile')->hasPlatformOption('collation'));
-
-        // Another entity, or a platform that is already exact: untouched.
-        $other = new GenerateSchemaTableEventArgs($h->em->getClassMetadata(ResetUser::class), new Schema(), new Table('reset_user'));
-        $listener->postGenerateSchemaTable($other);
-        self::assertFalse($other->classTableWasMutated());
-        $sqlite = new GenerateSchemaTableEventArgs($metadata, $schema, $table);
-        (new PasswordResetCollationListener($this->registry($h->em)))->postGenerateSchemaTable($sqlite);
-        self::assertFalse($sqlite->classTableWasMutated());
-        (new PasswordResetCollationListener($this->registry(null)))->postGenerateSchemaTable($sqlite);
-        self::assertFalse($sqlite->classTableWasMutated());
+        // The listener itself (audit XI, 1.54.1: postGenerateSchema): IdentityCollationListenerTest.
         $plain = new Table('t');
         $plain->addColumn('x', 'string');
         self::assertNull(PasswordResetCollationListener::collate($plain, 'x', 'utf8mb4_bin', false));
@@ -162,21 +127,5 @@ final class ResetTableExactMatchTest extends TestCase
     private function row(?string $id, string $identifier, string $tokenHash): PasswordResetRequestRow
     {
         return new PasswordResetRequestRow('default', ResetUser::class, $id, $identifier, $tokenHash, null, new DateTimeImmutable('2026-11-12 11:00:00'), new DateTimeImmutable('2026-11-12 10:00:00'));
-    }
-
-    private function registry(?EntityManagerInterface $manager): ManagerRegistry
-    {
-        $registry = $this->createStub(ManagerRegistry::class);
-        $registry->method('getManagerForClass')->willReturn($manager);
-
-        return $registry;
-    }
-
-    private function connectionOn(AbstractPlatform $platform): Connection
-    {
-        $connection = $this->createStub(Connection::class);
-        $connection->method('getDatabasePlatform')->willReturn($platform);
-
-        return $connection;
     }
 }
