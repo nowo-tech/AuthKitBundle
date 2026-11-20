@@ -115,10 +115,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Target: 1.54.0 (minor, the last 1.x minor before 2.0: runtime notices for everything 2.0 removes or flips, and the
+host-flush probe; no behaviour change, see [UPGRADING](UPGRADING.md#to-1540)).
+
+### Added
+
+- **Host-flush probe (REQ-ARCH-001 rule 6 deprecation layer).** Without `doctrine.private_entity_manager: true`, the
+  outermost AuthKit write reports, right before it flushes the application's entity manager, every entity class
+  outside `Nowo\AuthKitBundle\Entity` with pending changes there: one `E_USER_DEPRECATED` per class per request,
+  message or command, "Your pending changes to App\X were flushed by NowoAuthKitBundle; 2.0 no longer does." It uses
+  the probe of nowo-tech/transaction-doctrine 1.9 (the shared `nowo_transaction_doctrine.host_flush_probe` when
+  NowoTransactionDoctrineBundle is registered, an own one otherwise) and is read-only: nothing is flushed, cleared,
+  closed or reset that was not before. Wired into AuthKit's transaction runner, `QrLoginChallengeRepository`,
+  `InvitationRepository` and `MfaStore`; reset at every request, message and command boundary and at `kernel.reset`
+  (FrankenPHP worker mode with kernel reset off included).
+- Requires `nowo-tech/transaction-doctrine` ^1.9 (the host-flush probe).
+
+### Deprecated
+
+- **`doctrine.private_entity_manager` unset** (with the AuthKit entities mapped): a runtime notice when the container
+  is built. In 2.0 the private entity manager is the only mode (as with `true`). `false` keeps its 1.46 notice.
+- **Host port services on the deprecated 1.45 interfaces** (`UserLookupInterface`, `UserFactoryInterface`,
+  `UserWriterInterface`, `QrLoginStepUpInterface`, `MfaPolicyInterface`, `EnrolmentGateInterface`,
+  `AccountPresenterInterface`, `InvitationsAccessCheckerInterface`, `InvitationGrantInterface`,
+  `InvitationActionAuthorizerInterface`, `SocialCallbackHandlerInterface`): one notice per service when the container
+  is built, in every environment (before 1.54, only Symfony's DebugClassLoader reported them, in debug mode). The
+  service is still asked exactly as before.
+- **`AdminUserCreatingEvent::getUser()` and `AdminUserCreatedEvent::getUser()`** trigger a notice when called (use
+  `userRef()`, and `userRef()->user()` for the object).
+- **`default_locale`, `enabled_locales` and `locale_in_path`** used without `locale` trigger a notice (they still map
+  onto `locale.default`, `locale.enabled` and `locale.in_path`); combined with `locale` they keep their 1.7 notice.
+
 ### Changed
 
 - CI: new `deps-floor` job (as in BreadcrumbKit). It checks that the demo lock installs every nowo-tech requirement of the bundle (`.scripts/check-demo-lock.py`), then downgrades nowo-tech/transaction-* to the lowest versions composer.json allows (`composer update 'nowo-tech/transaction-*' --prefer-lowest`) and runs PHPStan and the tests there, so a call to a newer API than the constraint allows fails the pull request.
-- Requires `nowo-tech/transaction-doctrine` ^1.8.1 (fixes GHSA-9wh3-m3m5-jffx and GHSA-65w2-9r4h-848g).
+- Requires `nowo-tech/transaction-doctrine` ^1.8.1 (fixes GHSA-9wh3-m3m5-jffx and GHSA-65w2-9r4h-848g); 1.54.0 raises it to ^1.9 (see Added).
 
 ## [1.53.0] - 2026-11-18
 

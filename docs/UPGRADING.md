@@ -3,6 +3,11 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.54.0](#to-1540)
+  - [The private entity manager notice](#the-private-entity-manager-notice)
+  - [Reading the host-flush probe](#reading-the-host-flush-probe)
+  - [Other notices](#other-notices)
+  - [Preparing for 2.0](#preparing-for-20)
 - [To 1.53.0](#to-1530)
 - [To 1.52.0](#to-1520)
 - [To 1.52.0](#to-1520-1)
@@ -144,6 +149,107 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.54.0
+
+From **1.53.x**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle nowo-tech/transaction-doctrine
+```
+
+1.54.0 is the last 1.x minor before 2.0. It changes no behaviour. It only adds runtime deprecation notices for
+everything 2.0 removes or flips, so your deprecation log lists what to change before you upgrade. It requires
+`nowo-tech/transaction-doctrine` ^1.9.
+
+### The private entity manager notice
+
+With the AuthKit entities mapped (`doctrine.register_mapping` true, or `auto` with social or QR login) and
+`doctrine.private_entity_manager` not set, building the container now logs:
+
+> "nowo_auth_kit.doctrine.private_entity_manager" is not set: the AuthKit writes flush the application's entity
+> manager, including its pending changes. In 2.0 the private entity manager is the only mode (as with true; the option
+> goes). Opt in now with "nowo_auth_kit: { doctrine: { private_entity_manager: true } }", after checking the "Your
+> pending changes to ... were flushed by NowoAuthKitBundle" deprecations (see UPGRADING.md "To 1.54.0").
+
+What it means: today an AuthKit write (a QR login challenge, an MFA credential, an invitation, a social account, the
+runner of registration, password reset and invitation acceptance) flushes your default entity manager first and again
+inside its transaction, so anything your code had left pending there is written too. In 2.0 AuthKit writes its own
+rows through its private manager and never flushes your pending changes. `false` keeps its 1.46 notice.
+
+To opt in now (the tables do not move; see [To 1.46.0](#to-1460)):
+
+```yaml
+nowo_auth_kit:
+    doctrine:
+        private_entity_manager: true
+```
+
+### Reading the host-flush probe
+
+While the option is unset or false, the outermost AuthKit unit of work calls the host-flush probe of
+nowo-tech/transaction-doctrine right before each flush of your manager. Every entity class outside
+`Nowo\AuthKitBundle\Entity` with pending changes there (a scheduled insert or delete, a changed field, association or
+collection) triggers one deprecation per request, message or command:
+
+> Your pending changes to App\Entity\Order were flushed by NowoAuthKitBundle; 2.0 no longer does.
+
+Read the collected messages as your migration list:
+
+1. Run your usual traffic and test suite on 1.54 with deprecations logged (the Symfony profiler, the `deprecation`
+   log channel, or PHPUnit's deprecation report).
+2. For each class listed, find the code that changes it and relies on AuthKit's write to store it (an event listener
+   of an AuthKit event, a user port, a grant handler, code that calls an AuthKit service in the middle of its own
+   changes). Make that code flush its own changes, or run it in your own transaction.
+3. When no message is left, set `private_entity_manager: true`. The probe stays silent in that mode.
+
+How to read it:
+
+- It is read-only. It flushes, clears, closes or resets nothing, and it computes no change set.
+- Only the outermost AuthKit unit reports. Inside it, the changes to your user entity are AuthKit's own (the account
+  it creates, the password it changes). The account writes still flush your manager in 2.0: your user entities stay
+  on your manager, and AuthKit's Doctrine user writer flushes it to store them. A class reported by registration,
+  password reset, invitation acceptance or social sign-up may therefore still be written by 2.0 when that unit also
+  writes an account. Do not rely on it: fix the code anyway.
+- The probe is NowoTransactionDoctrineBundle's shared `nowo_transaction_doctrine.host_flush_probe` when you register
+  that bundle, otherwise AuthKit's own. Both are reset at every request, message and command boundary (FrankenPHP
+  worker mode with kernel reset off included).
+- Without the AuthKit entities mapped (`register_mapping: false`, or `auto` without social or QR login),
+  `private_entity_manager: true` is refused. Neither the notice nor the probe runs then.
+
+### Other notices
+
+Also new in 1.54.0, each removed in 2.0 (see [To 1.46.0](#to-1460) for the replacements):
+
+- A host service on a deprecated 1.45 port interface (`UserLookupInterface`, `UserFactoryInterface`,
+  `UserWriterInterface`, `QrLoginStepUpInterface`, `MfaPolicyInterface`, `EnrolmentGateInterface`,
+  `AccountPresenterInterface`, `InvitationsAccessCheckerInterface`, `InvitationGrantInterface`,
+  `InvitationActionAuthorizerInterface`, `SocialCallbackHandlerInterface`) logs, once per container build and in
+  every environment: `The service "app.lookup" (App\Security\Lookup) implements "Nowo\AuthKitBundle\User\UserLookupInterface",
+  deprecated since 1.46.0 and removed in 2.0: implement "Nowo\AuthKitBundle\User\UserDirectoryInterface" instead`.
+  A class that implements both interfaces is reported too: 2.0 deletes the old one. The service is still asked
+  exactly as before.
+- `AdminUserCreatingEvent::getUser()` and `AdminUserCreatedEvent::getUser()` log a notice when called. Use
+  `userRef()`, and `userRef()->user()` for the object.
+- `default_locale`, `enabled_locales` and `locale_in_path` used on their own log a notice. Use `locale.default`,
+  `locale.enabled` and `locale.in_path`.
+
+Not reported at runtime (PHP cannot report reading a public property without changing it): the deprecated public
+properties of the events and results listed in [To 1.46.0](#to-1460) (for example `AccountAddedEvent::$user`,
+`MfaLoginCompletedEvent::$token`, `InvitationAcceptance::$user`). Use their `*Ref()` methods; static analysis with
+deprecation rules reports the old properties. The inert `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` theme
+(1.52) cannot report either, because Symfony never renders a form theme as a template. Delete any
+`{% form_theme ... 'mfa_otp_widget.html.twig' %}` line: 2.0 removes the file.
+
+### Preparing for 2.0
+
+2.0 contains only the deprecations announced in 1.x: the private entity manager as the only mode, the 1.45 port
+interfaces and the deprecated event members (1.46), the deprecated configuration keys and the inert MFA OTP widget
+theme. Nothing is removed without a notice in 1.54. Clear your deprecation log on 1.54 and the upgrade is a
+`composer update`.
+
+1.x keeps security support for 6 months after 2.0.0 is released: fixes for Moderate and higher advisories are
+backported to the last 1.x minor.
 
 ## To 1.53.0
 
