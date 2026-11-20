@@ -20,7 +20,6 @@ use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
-use Nowo\AuthKitBundle\Tests\Support\SingleManagerRegistry;
 
 use function array_map;
 use function dirname;
@@ -60,11 +59,11 @@ final class LookAlikeDatabase
         $tool     = new SchemaTool($em);
         $tool->dropSchema($classes);
         if (!$folding) {
-            $em->getEventManager()->addEventListener(ToolEvents::postGenerateSchemaTable, new IdentityCollationListener(new SingleManagerRegistry($em)));
+            $em->getEventManager()->addEventListener(ToolEvents::postGenerateSchema, new IdentityCollationListener());
         } elseif ($platform instanceof AbstractMySQLPlatform) {
-            $em->getEventManager()->addEventListener(ToolEvents::postGenerateSchemaTable, new FoldingCollationListener('utf8mb4_unicode_ci')); // @codeCoverageIgnore
+            $em->getEventManager()->addEventListener(ToolEvents::postGenerateSchema, new FoldingCollationListener('utf8mb4_unicode_ci')); // @codeCoverageIgnore
         } elseif ($platform instanceof SQLitePlatform) {
-            $em->getEventManager()->addEventListener(ToolEvents::postGenerateSchemaTable, new FoldingCollationListener('NOCASE'));
+            $em->getEventManager()->addEventListener(ToolEvents::postGenerateSchema, new FoldingCollationListener('NOCASE'));
         }
         $tool->createSchema($classes);
 

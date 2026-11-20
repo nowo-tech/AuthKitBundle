@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Doctrine;
 
-use Doctrine\DBAL\Platforms\AbstractPlatform;
-use Doctrine\DBAL\Schema\Table;
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
@@ -15,7 +13,7 @@ use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Psr\Log\LoggerInterface;
 
-use function method_exists;
+use function array_keys;
 
 /**
  * Binary NO PAD collation of the identity columns used as keys on MySQL / MariaDB (REQ-SEC-006, 1.47.0):
@@ -32,7 +30,11 @@ use function method_exists;
  * {@see PasswordResetCollationListener} (MariaDB `utf8mb4_nopad_bin`, MySQL 8.0+ `utf8mb4_0900_bin`, MySQL 5.7
  * `utf8mb4_bin`, PostgreSQL / SQLite untouched), plus a warning when the PAD SPACE fallback is used (item 8). Applied
  * to the generated schema (schema tool, `doctrine:migrations:diff`); existing tables need the ALTERs of UPGRADING.
- * Stateless (worker safe).
+ *
+ * Since 1.54.1 (audit XI): applied on `postGenerateSchema` once every foreign key exists, the same way as
+ * {@see PasswordResetCollationListener} (1.47.0–1.54.0 replaced the tables on `postGenerateSchemaTable`, so ORM 3.7–3.8
+ * dropped any foreign key starting on them on MySQL / MariaDB; none exist today: latent). The platform is the one of the
+ * schema tool's entity manager; a manager that does not map these entities is left alone. Stateless (worker safe).
  *
  * @internal
  */
@@ -46,39 +48,41 @@ final readonly class IdentityCollationListener
         Invitation::class         => ['email', 'invitedBy'],
     ];
 
+    /**
+     * @param ManagerRegistry|null $doctrine unused since 1.54.1 (the platform comes from the schema tool's entity
+     *                                       manager); kept for BC
+     */
     public function __construct(
-        private ManagerRegistry $doctrine,
+        ?ManagerRegistry $doctrine = null,
         private ?LoggerInterface $logger = null,
     ) {
+        unset($doctrine);
     }
 
-    public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $args): void
+    public function postGenerateSchema(GenerateSchemaEventArgs $args): void
     {
-        $metadata = $args->getClassMetadata();
-        $fields   = self::FIELDS[$metadata->getName()] ?? null;
-        if ($fields === null) {
+        $manager = $args->getEntityManager();
+        $columns = PasswordResetCollationListener::mappedColumns($manager, $args->getSchema(), self::FIELDS);
+        if ($columns === []) {
             return;
         }
-        $manager   = $this->doctrine->getManagerForClass($metadata->getName());
-        $platform  = $manager instanceof EntityManagerInterface ? $manager->getConnection()->getDatabasePlatform() : null;
-        $collation = $platform instanceof AbstractPlatform ? PasswordResetCollationListener::collationFor($platform) : null;
+        $collation = PasswordResetCollationListener::collationFor($manager->getConnection()->getDatabasePlatform());
         if ($collation === null) {
             return;
         }
-        PasswordResetCollationListener::warnOnPadSpace($collation, $metadata->getTableName(), $this->logger);
+        foreach (array_keys($columns) as $table) {
+            PasswordResetCollationListener::warnOnPadSpace($collation, $table, $this->logger);
+        }
+        PasswordResetCollationListener::collateSchema($args, $columns, $collation);
+    }
 
-        $table = $args->getClassTable();
-        foreach ($fields as $field) {
-            /** @var non-empty-string $column mapped column names are never empty */
-            $column = $metadata->getColumnName($field);
-            // @phpstan-ignore function.alreadyNarrowedType (Table::edit() exists only from DBAL 4.5)
-            $edited = PasswordResetCollationListener::collate($table, $column, $collation, method_exists(Table::class, 'edit'));
-            if ($edited instanceof Table) {
-                $table = $edited;
-            }
-        }
-        if ($table !== $args->getClassTable()) {
-            $args->setClassTable($table);
-        }
+    /**
+     * No longer subscribed (1.54.1, audit XI): replacing the table there lost its foreign keys. Kept for BC; does nothing.
+     *
+     * @deprecated since 1.54.1, the collation is applied on postGenerateSchema ({@see self::postGenerateSchema()})
+     */
+    public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $args): void
+    {
+        unset($args);
     }
 }
