@@ -36,7 +36,7 @@
         "nowo-tech/doctrine-encrypt-bundle": "^2.3",
         "nowo-tech/form-kit-bundle": "^2.14",
         "nowo-tech/transaction-contract": "^1.0",
-        "nowo-tech/transaction-doctrine": "^1.8",
+        "nowo-tech/transaction-doctrine": "^1.8.1",
         "nowo-tech/ui-kit-bundle": "^2.26",
         "psr/clock": "^1.0",
         "symfony/asset": "^7.4 || ^8.0",
