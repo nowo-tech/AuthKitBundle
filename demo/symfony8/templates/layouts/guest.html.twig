@@ -5,7 +5,7 @@
 #}
 {% extends 'base.html.twig' %}
 
-{% block nowo_ui_navigation %}
+{% block nowo_ui_flashes %}
     {{ parent() }}
-    <div class="demo-guest__column">{% include 'demo/_delivery_inbox.html.twig' %}</div>
+    {% include 'demo/_delivery_inbox.html.twig' %}
 {% endblock %}

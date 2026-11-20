@@ -1,8 +1,0 @@
-/**
- * Auth Kit demo host — frame of the guest pages (the auth panel itself is the UiKit auth scaffold, themed through
- * UiKit's default theme; no bundle template overrides, no global token overrides).
- */
-.demo-guest__column {
-  width: min(28rem, 100%);
-  margin-inline: auto;
-}
