@@ -4,6 +4,7 @@
 
 - [Unreleased](#unreleased)
 - [To 1.54.0](#to-1540)
+- [To 1.54.0](#to-1540-1)
   - [The private entity manager notice](#the-private-entity-manager-notice)
   - [Reading the host-flush probe](#reading-the-host-flush-probe)
   - [Other notices](#other-notices)
@@ -149,6 +150,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.54.0
+
+From **1.53.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 1.54.0
 
