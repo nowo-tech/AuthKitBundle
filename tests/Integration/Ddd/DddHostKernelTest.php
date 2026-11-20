@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\QrLogin\DeviceIntelligenceQrLoginStepUp;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
 use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\Tests\Support\Ports\InMemoryTwinUsers;
 use ReflectionProperty;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -27,6 +28,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class DddHostKernelTest extends WebTestCase
 {
+    use HostModeNotices;
+
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string

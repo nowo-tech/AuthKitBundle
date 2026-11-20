@@ -297,7 +297,7 @@ nowo_auth_kit:
     doctrine:
         register_mapping: true  # true | false | auto
         entity_manager: null    # 1.43.0+: extra manager that also maps the AuthKit entities, reset too (getManagerForClass() is always included)
-        private_entity_manager: null  # 1.46.0+: true = AuthKit rows through a private manager on the default one (never flushes yours); false deprecated
+        private_entity_manager: null  # 1.46.0+: true = AuthKit rows through a private manager on the default one (never flushes yours); false deprecated; unset deprecated since 1.54 (true is the only mode in 2.0)
         mapping_type: attribute # 1.46.0+: attribute | xml (src/Resources/config/doctrine-xml)
     routing:
         skip_disabled_features: false

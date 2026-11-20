@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\ProgrammaticLogin;
 
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 
 use function parse_url;
@@ -18,6 +19,8 @@ use const PHP_URL_PATH;
  */
 abstract class SignInKernelTestCase extends ProgrammaticLoginKernelTestCase
 {
+    use HostModeNotices;
+
     /**
      * @return class-string<TokenInterface>
      */

@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
+use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\TransactionContract\TransactionRunnerInterface;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\DoctrineTransactionRunner;
@@ -59,7 +60,12 @@ use function spl_object_id;
  * loudly instead of silently losing its changes, and {@see self::reset()} replaces it at the next request, message or
  * command boundary: a FrankenPHP worker with kernel reset off never serves a later request with it.
  *
- * Stateless (worker safe).
+ * Host mode (1.54.0, REQ-ARCH-001 rule 6 deprecation layer): when the manager of the AuthKit rows is the application's
+ * (`doctrine.private_entity_manager` unset or false), the outermost unit reports, right before each flush of that
+ * manager, the application's pending changes it writes on the application's behalf ({@see HostFlushReporter}); 2.0 no
+ * longer flushes them. Read-only: nothing else changes.
+ *
+ * Stateless (worker safe); the nesting depth lives in the shared {@see HostFlushReporter}, reset at every boundary.
  */
 final readonly class AuthKitTransactionRunner implements TransactionRunnerInterface, ResetInterface
 {
@@ -72,6 +78,7 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
      * @param ManagerRegistry|null $registry Replaces a closed application manager at a boundary
      * @param int|null $retryAfterSeconds Retry-After hint of the TransientStorageFailure; null for none
      * @param LoggerInterface|null $logger Warns when a closed manager is replaced at a boundary
+     * @param HostFlushReporter|null $hostFlush 1.54.0: reports the application's pending changes a host-mode flush writes
      */
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -79,6 +86,7 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
         private ?ManagerRegistry $registry = null,
         private ?int $retryAfterSeconds = 1,
         private ?LoggerInterface $logger = null,
+        private ?HostFlushReporter $hostFlush = null,
     ) {
     }
 
@@ -175,37 +183,47 @@ final readonly class AuthKitTransactionRunner implements TransactionRunnerInterf
      */
     private function runOn(array $managers, callable $operation, array $watched = []): mixed
     {
-        // Pending work first, on its own: a failed AuthKit unit never rolls it back.
-        foreach ($managers as $manager) {
-            $manager->flush();
-        }
-        $watched = $watched === [] ? $managers : $watched;
-        $before  = [];
-        $states  = [];
-        foreach ($watched as $index => $manager) {
-            $before[$index] = $this->rows($manager);
-            // Audit QG-L1: a manager not flushed above may hold the caller's pending changes; remember the field values.
-            $states[$index] = in_array($manager, $managers, true) ? null : $this->states($manager);
-        }
+        $hostFlush = $this->hostFlush;
+        // 1.54.0: only the outermost AuthKit unit reports host-mode flushes (see HostFlushReporter).
+        $reporter = $hostFlush instanceof HostFlushReporter && $hostFlush->enter() ? $hostFlush : null;
 
         try {
-            return DoctrineTransactionRunner::forConnection($this->entityManager->getConnection(), $this->retryAfterSeconds)->run(static function () use ($operation, $managers): mixed {
-                $result = $operation();
-                foreach ($managers as $manager) {
-                    $manager->flush();
-                }
-
-                return $result;
-            });
-        } catch (Throwable $failure) {
+            // Pending work first, on its own: a failed AuthKit unit never rolls it back.
+            foreach ($managers as $manager) {
+                $reporter?->beforeFlush($manager);
+                $manager->flush();
+            }
+            $watched = $watched === [] ? $managers : $watched;
+            $before  = [];
+            $states  = [];
             foreach ($watched as $index => $manager) {
-                // A manager the ORM closed in a failed flush stays closed: loud, and replaced at the next boundary.
-                if ($manager->isOpen()) {
-                    $this->forget($manager, $before[$index], $states[$index]);
-                }
+                $before[$index] = $this->rows($manager);
+                // Audit QG-L1: a manager not flushed above may hold the caller's pending changes; remember the field values.
+                $states[$index] = in_array($manager, $managers, true) ? null : $this->states($manager);
             }
 
-            throw $failure;
+            try {
+                return DoctrineTransactionRunner::forConnection($this->entityManager->getConnection(), $this->retryAfterSeconds)->run(static function () use ($operation, $managers, $reporter): mixed {
+                    $result = $operation();
+                    foreach ($managers as $manager) {
+                        $reporter?->beforeFlush($manager);
+                        $manager->flush();
+                    }
+
+                    return $result;
+                });
+            } catch (Throwable $failure) {
+                foreach ($watched as $index => $manager) {
+                    // A manager the ORM closed in a failed flush stays closed: loud, and replaced at the next boundary.
+                    if ($manager->isOpen()) {
+                        $this->forget($manager, $before[$index], $states[$index]);
+                    }
+                }
+
+                throw $failure;
+            }
+        } finally {
+            $hostFlush?->leave();
         }
     }
 

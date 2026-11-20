@@ -12,6 +12,7 @@ use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query;
 use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
+use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
@@ -22,11 +23,25 @@ use Psr\Clock\ClockInterface;
  */
 class QrLoginChallengeRepository extends EntityRepository
 {
+    private ?HostFlushReporter $hostFlush = null;
+
     public function __construct(
         EntityManagerInterface $em,
         private readonly ?ClockInterface $clock = null,
     ) {
         parent::__construct($em, $em->getClassMetadata(QrLoginChallenge::class));
+    }
+
+    /**
+     * 1.54.0 (REQ-ARCH-001 rule 6 deprecation layer): set by the container only without
+     * `doctrine.private_entity_manager: true`, to report the application's pending changes a host-mode flush writes. A
+     * repository Doctrine builds itself ({@see EntityManagerInterface::getRepository()}) has none.
+     *
+     * @internal
+     */
+    public function setHostFlushReporter(?HostFlushReporter $hostFlush): void
+    {
+        $this->hostFlush = $hostFlush; // @igor-ignore - set once by the container when the service is built
     }
 
     /**
@@ -60,7 +75,7 @@ class QrLoginChallengeRepository extends EntityRepository
      */
     public function transactional(callable $work): mixed
     {
-        return (new AuthKitTransactionRunner($this->getEntityManager()))->run($work);
+        return (new AuthKitTransactionRunner($this->getEntityManager(), hostFlush: $this->hostFlush))->run($work);
     }
 
     /**

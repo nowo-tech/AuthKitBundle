@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\PersonalData\InvitationUserKitExportProvider;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataEraser;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataExporterInterface;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountUserKitExportProvider;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
@@ -24,6 +25,8 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  */
 final class PersonalDataPortsExtensionTest extends TestCase
 {
+    use HostModeNotices;
+
     public function testDefaultsRegisterPortsAndAdapters(): void
     {
         $container = $this->load(['doctrine' => ['register_mapping' => true]]);

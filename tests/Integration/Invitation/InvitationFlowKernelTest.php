@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Invitation\InvitationManager;
 use Nowo\AuthKitBundle\Invitation\InvitationRequest;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -40,6 +41,8 @@ use const PHP_URL_PATH;
  */
 class InvitationFlowKernelTest extends WebTestCase
 {
+    use HostModeNotices;
+
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string

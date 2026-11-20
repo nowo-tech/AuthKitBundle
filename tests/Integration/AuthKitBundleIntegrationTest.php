@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration;
 
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -16,6 +17,8 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 #[CoversClass(NowoAuthKitExtension::class)]
 final class AuthKitBundleIntegrationTest extends TestCase
 {
+    use HostModeNotices;
+
     public function testExtensionLoadsDefaultConfiguration(): void
     {
         $container = new ContainerBuilder();

@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\ArrayNode;
@@ -26,6 +27,8 @@ use function implode;
  */
 final class WebUiConfigurationTest extends TestCase
 {
+    use HostModeNotices;
+
     public function testWebUiDefaults(): void
     {
         $config = $this->process([['user_class' => TestUser::class]]);

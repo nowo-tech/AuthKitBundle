@@ -653,7 +653,9 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   `auth_kit_password_reset` table instead (no column on your user, no write to it, non-Doctrine users found again
   through the user directory port); see [PASSWORD-RESET](PASSWORD-RESET.md).
 - Without `doctrine.private_entity_manager: true`, AuthKit writes its own rows through your default entity manager and
-  its flush also commits changes you left pending there (1.45 behaviour, until 2.0).
+  its flush also commits changes you left pending there (1.45 behaviour, until 2.0). Since 1.54 the unset option logs
+  a deprecation, and each such flush reports the classes of your pending changes ("Your pending changes to App\X were
+  flushed by NowoAuthKitBundle; 2.0 no longer does."): see [UPGRADING](UPGRADING.md#reading-the-host-flush-probe).
 - The invitation acceptance and `SocialAccountLinker::linkAndSignIn()` open their transaction on the bundle's entity
   manager connection. A host writer on another connection is not rolled back with them. AuthKit compensates with
   `remove()`, but between `add()` and that removal the account exists (and stays if `remove()` fails, which is logged).

@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\Kernel;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -18,6 +19,8 @@ use function strlen;
  */
 final class LocalizedLogoutKernelTest extends WebTestCase
 {
+    use HostModeNotices;
+
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string

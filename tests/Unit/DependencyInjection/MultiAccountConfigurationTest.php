@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\MagicLogin\AdminMagicLinkIssuer;
 use Nowo\AuthKitBundle\MultiAccount\AccountVault;
 use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -27,6 +28,8 @@ use function str_contains;
  */
 final class MultiAccountConfigurationTest extends TestCase
 {
+    use HostModeNotices;
+
     public function testDefaultsRegisterNothing(): void
     {
         $container = $this->load([]);

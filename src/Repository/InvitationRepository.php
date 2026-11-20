@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
+use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use OverflowException;
@@ -53,9 +54,23 @@ class InvitationRepository extends EntityRepository
     /** Status filters of the administration list (`open` = pending and expired, the default). */
     public const FILTERS = ['open', 'pending', 'expired', 'accepted', 'revoked', 'all'];
 
+    private ?HostFlushReporter $hostFlush = null;
+
     public function __construct(EntityManagerInterface $em)
     {
         parent::__construct($em, $em->getClassMetadata(Invitation::class));
+    }
+
+    /**
+     * 1.54.0 (REQ-ARCH-001 rule 6 deprecation layer): set by the container only without
+     * `doctrine.private_entity_manager: true`, to report the application's pending changes a host-mode flush writes. A
+     * repository Doctrine builds itself ({@see EntityManagerInterface::getRepository()}) has none.
+     *
+     * @internal
+     */
+    public function setHostFlushReporter(?HostFlushReporter $hostFlush): void
+    {
+        $this->hostFlush = $hostFlush; // @igor-ignore - set once by the container when the service is built
     }
 
     /**
@@ -64,7 +79,7 @@ class InvitationRepository extends EntityRepository
     public function save(Invitation $invitation): void
     {
         $manager = $this->getEntityManager();
-        (new AuthKitTransactionRunner($manager))->run(static fn () => $manager->persist($invitation));
+        (new AuthKitTransactionRunner($manager, hostFlush: $this->hostFlush))->run(static fn () => $manager->persist($invitation));
     }
 
     /** The invitation still open (pending or expired) for the e-mail in the profile, if any (the newest). */

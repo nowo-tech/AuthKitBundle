@@ -11,6 +11,7 @@ use LogicException;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -31,6 +32,8 @@ use const PHP_URL_QUERY;
  */
 class HostExtensionsKernelTest extends WebTestCase
 {
+    use HostModeNotices;
+
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string

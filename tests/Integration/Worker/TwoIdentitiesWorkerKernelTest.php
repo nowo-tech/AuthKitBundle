@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,6 +32,8 @@ use function sprintf;
  */
 final class TwoIdentitiesWorkerKernelTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     private const ITERATIONS = 500;
 
     private const MEMORY_MARGIN = 4 * 1024 * 1024;

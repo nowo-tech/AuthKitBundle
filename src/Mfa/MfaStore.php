@@ -16,6 +16,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
+use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
@@ -39,9 +40,13 @@ final readonly class MfaStore
     /**
      * 1.50.0: the optional EntityManagerRecovery argument is gone (writes go through AuthKit's transaction runner; a
      * manager closed by a failed write is replaced at the next unit-of-work boundary).
+     *
+     * @param HostFlushReporter|null $hostFlush 1.54.0: reports the application's pending changes a host-mode flush writes
+     *                                          (wired only without `doctrine.private_entity_manager: true`)
      */
     public function __construct(
         private ManagerRegistry $doctrine,
+        private ?HostFlushReporter $hostFlush = null,
     ) {
     }
 
@@ -423,7 +428,7 @@ final readonly class MfaStore
      */
     private function transactional(callable $work): mixed
     {
-        return (new AuthKitTransactionRunner($this->entityManager()))->run($work);
+        return (new AuthKitTransactionRunner($this->entityManager(), hostFlush: $this->hostFlush))->run($work);
     }
 
     private function connection(): Connection
