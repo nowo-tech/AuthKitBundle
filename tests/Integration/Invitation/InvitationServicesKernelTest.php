@@ -31,6 +31,7 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Psr\Cache\CacheItemPoolInterface;
@@ -57,6 +58,8 @@ use Twig\Environment;
  */
 class InvitationServicesKernelTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     protected static function getKernelClass(): string
     {
         return InvitationsTestKernel::class;

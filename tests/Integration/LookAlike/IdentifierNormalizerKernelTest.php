@@ -24,6 +24,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
@@ -60,6 +61,8 @@ use function str_ends_with;
  */
 final class IdentifierNormalizerKernelTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     private const STORED = 'ada@example.com';
 
     private const TYPED = 'Ada@Example.COM';

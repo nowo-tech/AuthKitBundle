@@ -6,7 +6,10 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
 use LogicException;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Mfa\MfaPolicyInterface;
+use Nowo\AuthKitBundle\Mfa\MfaRequirementPolicyInterface;
 use Nowo\AuthKitBundle\Port\QrLoginStepUpGate;
 use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -21,10 +24,13 @@ use Nowo\AuthKitBundle\Tests\Support\Ports\UserDirectoryHost;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
 use Nowo\AuthKitBundle\User\UserDirectoryInterface;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
+
+use function sprintf;
 
 final class AuthKitPortsPassTest extends TestCase
 {
@@ -69,8 +75,11 @@ final class AuthKitPortsPassTest extends TestCase
         self::assertSame(AuthKitPortsPass::GATE_PREFIX . 'user_lookup', (string) $container->getAlias(UserLookupInterface::class));
     }
 
+    /** 1.54.0: a host service on the deprecated interface triggers the port notice (once per build). */
+    #[IgnoreDeprecations]
     public function testOneServiceImplementingBothKeepsTheDeprecatedWiring(): void
     {
+        $this->expectPortNotice('app.users', BothUsersHost::class, UserLookupInterface::class, UserDirectoryInterface::class);
         $container = $this->container();
         $container->register('app.users', BothUsersHost::class);
         $container->setAlias(UserDirectoryInterface::class, 'app.users');
@@ -81,8 +90,11 @@ final class AuthKitPortsPassTest extends TestCase
         self::assertFalse($container->hasDefinition(AuthKitPortsPass::GATE_PREFIX . 'user_lookup'));
     }
 
+    /** 1.54.0: a host service on the deprecated interface triggers the port notice (once per build). */
+    #[IgnoreDeprecations]
     public function testBothInterfacesOnDifferentApplicationServicesFailTheBuild(): void
     {
+        $this->expectPortNotice('app.lookup', BothUsersHost::class, UserLookupInterface::class, UserDirectoryInterface::class);
         $container = $this->container();
         $container->register('app.directory', UserDirectoryHost::class);
         $container->setAlias(UserDirectoryInterface::class, 'app.directory');
@@ -105,8 +117,11 @@ final class AuthKitPortsPassTest extends TestCase
         (new AuthKitPortsPass())->process($container);
     }
 
+    /** 1.54.0: a host service on the deprecated interface triggers the port notice (once per build). */
+    #[IgnoreDeprecations]
     public function testPerProfileServicesMustImplementOneOfTheInterfaces(): void
     {
+        $this->expectPortNotice('app.legacy', LegacyRulePorts::class, MfaPolicyInterface::class, MfaRequirementPolicyInterface::class);
         $container = $this->container();
         $container->register('app.legacy', LegacyRulePorts::class);
         $container->register('app.twin', TwinRulePorts::class);
@@ -142,8 +157,11 @@ final class AuthKitPortsPassTest extends TestCase
         (new AuthKitPortsPass())->process($container);
     }
 
+    /** 1.54.0: a host service on the deprecated interface triggers the port notice (once per build). */
+    #[IgnoreDeprecations]
     public function testTaggedServicesMustImplementOneOfTheInterfaces(): void
     {
+        $this->expectPortNotice('app.grant', LegacyRulePorts::class, InvitationGrantInterface::class, InvitationGrantHandlerInterface::class);
         $container = $this->container();
         $container->register('app.grant', LegacyRulePorts::class)->addTag(InvitationGrantInterface::TAG);
         $container->register('app.twin_grant', TwinRulePorts::class)->addTag(InvitationGrantInterface::TAG);
@@ -153,6 +171,22 @@ final class AuthKitPortsPassTest extends TestCase
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('of the tag "nowo_auth_kit.social_callback_handler" must implement');
         (new AuthKitPortsPass())->process($container);
+    }
+
+    /** 1.54.0: AuthKit's own built-ins and a twin-only host service trigger no notice (this test fails on any). */
+    public function testBuiltInsAndTwinsTriggerNoPortNotice(): void
+    {
+        $container = $this->container();
+        $container->register('app.twin', TwinRulePorts::class)->addTag(InvitationGrantInterface::TAG);
+        $container->setParameter(AuthKitPortsPass::SERVICES_PARAMETER, [['enrolment_gate', 'app.twin', 'nowo_auth_kit.profiles.default.multi_account.enrolment_gate']]);
+        (new AuthKitPortsPass())->process($container);
+
+        self::assertSame(DoctrineUserLookup::class, (string) $container->getAlias(UserLookupInterface::class));
+    }
+
+    private function expectPortNotice(string $service, string $class, string $legacy, string $twin): void
+    {
+        $this->expectUserDeprecationMessage('Since nowo-tech/auth-kit-bundle 1.54: ' . sprintf(AuthKitPortsPass::DEPRECATED_PORT, $service, $class, $legacy, $twin));
     }
 
     private function container(): ContainerBuilder

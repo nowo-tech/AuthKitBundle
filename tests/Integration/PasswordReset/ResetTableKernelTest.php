@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\PasswordReset\ProfilePasswordResetTokenManager;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -30,6 +31,8 @@ use function memory_get_usage;
  */
 final class ResetTableKernelTest extends WebTestCase
 {
+    use HostModeNotices;
+
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string

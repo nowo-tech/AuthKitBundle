@@ -44,6 +44,8 @@ use function is_a;
 use function is_array;
 use function is_string;
 use function sprintf;
+use function str_starts_with;
+use function trigger_deprecation;
 
 /**
  * Wires the framework-free 1.46 twins of the host ports (REQ-ARCH-001 rule 3) and refuses a port service that
@@ -63,7 +65,9 @@ use function sprintf;
  * is decided per object at call time ({@see Ports}).
  *
  * Deprecations of the old interfaces reach the application through their `@deprecated` tag (Symfony's
- * DebugClassLoader, in debug mode), not from this pass.
+ * DebugClassLoader, in debug mode) and, since 1.54.0, from this pass in every environment: one notice per port service
+ * whose class (known before compilation, outside AuthKit) implements the deprecated interface, which 2.0 removes
+ * ({@see self::DEPRECATED_PORT}). Nothing else changes: the service is still asked as before.
  *
  * Runs before optimization, after the autoconfiguration tags are applied and before decorators.
  *
@@ -73,6 +77,9 @@ final class AuthKitPortsPass implements CompilerPassInterface
 {
     /** `[port, service id, configuration path]` of each per-profile port service (set by the extension). */
     public const SERVICES_PARAMETER = 'nowo_auth_kit.port_services';
+
+    /** 1.54.0: the notice of a host port service on a deprecated interface (id, class, interface, twin). */
+    public const DEPRECATED_PORT = 'The service "%s" (%s) implements "%s", deprecated since 1.46.0 and removed in 2.0: implement "%s" instead (see UPGRADING.md "To 1.46.0").';
 
     /** Service id prefix of the alias gates. */
     public const GATE_PREFIX = 'nowo_auth_kit.port.';
@@ -146,14 +153,17 @@ final class AuthKitPortsPass implements CompilerPassInterface
      */
     private function wireAliased(ContainerBuilder $container, string $name, array $port): void
     {
-        $twin = $port['twin'];
+        $twin         = $port['twin'];
+        $legacy       = $port['legacy'];
+        $legacyTarget = $container->hasAlias($legacy) || $container->hasDefinition($legacy) ? $this->resolve($container, $legacy) : null;
+        if ($legacyTarget !== null && $legacyTarget !== $port['built_in']) {
+            $this->noticeLegacy($container, $legacyTarget, $legacy, $twin);
+        }
         if (!$container->hasAlias($twin) && !$container->hasDefinition($twin)) {
             return;
         }
 
-        $legacy       = $port['legacy'];
-        $twinService  = $this->resolve($container, $twin);
-        $legacyTarget = $container->hasAlias($legacy) || $container->hasDefinition($legacy) ? $this->resolve($container, $legacy) : null;
+        $twinService = $this->resolve($container, $twin);
         if ($legacyTarget === $twinService) {
             return; // One service implements both: asked through the deprecated interface until 2.0.
         }
@@ -186,6 +196,19 @@ final class AuthKitPortsPass implements CompilerPassInterface
         if ($class !== null && !is_a($class, $legacy, true) && !is_a($class, $twin, true)) {
             throw new LogicException(sprintf('nowo_auth_kit: the service "%s" (%s) of %s must implement "%s" (or the deprecated "%s").', $id, $class, $option, $twin, $legacy));
         }
+        $this->noticeLegacy($container, $id, $legacy, $twin);
+    }
+
+    /**
+     * 1.54.0: one notice when the service's class (outside AuthKit's own code) implements the deprecated interface.
+     */
+    private function noticeLegacy(ContainerBuilder $container, string $id, string $legacy, string $twin): void
+    {
+        $class = $this->classOf($container, $id);
+        if ($class === null || !is_a($class, $legacy, true) || (str_starts_with($class, 'Nowo\\AuthKitBundle\\') && !str_starts_with($class, 'Nowo\\AuthKitBundle\\Tests\\'))) {
+            return;
+        }
+        trigger_deprecation('nowo-tech/auth-kit-bundle', '1.54', sprintf(self::DEPRECATED_PORT, $this->resolve($container, $id), $class, $legacy, $twin));
     }
 
     private function resolve(ContainerBuilder $container, string $id): string

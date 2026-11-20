@@ -225,6 +225,13 @@ final class Configuration implements ConfigurationInterface
                             '1.7.0',
                             'Using "default_locale", "enabled_locales", and/or "locale_in_path" together with "locale" is deprecated; configure only the "locale" node. Nested "locale" values take precedence.',
                         );
+                    } elseif ($legacyLocale !== []) {
+                        // 1.54.0: the keys alone are deprecated too (removed in 2.0); they still map onto "locale".
+                        trigger_deprecation(
+                            'nowo-tech/auth-kit-bundle',
+                            '1.54',
+                            '"nowo_auth_kit.default_locale", "nowo_auth_kit.enabled_locales" and "nowo_auth_kit.locale_in_path" are deprecated and removed in 2.0: use "nowo_auth_kit.locale.default", "nowo_auth_kit.locale.enabled" and "nowo_auth_kit.locale.in_path".',
+                        );
                     }
 
                     if ($hasExplicitLocale) {
@@ -337,7 +344,7 @@ final class Configuration implements ConfigurationInterface
                             ->end()
                         ->end()
                         ->booleanNode('private_entity_manager')
-                            ->info('Since 1.46.0 (REQ-ARCH-001 rule 6): true writes and reads the AuthKit entities through a private entity manager created on the connection and configuration of the default manager (where 1.45 wrote them), so an AuthKit write never flushes the application\'s pending changes; the tables do not move. null (default) and false keep the 1.45 behaviour (the AuthKit writes flush the application\'s manager) and are deprecated: true becomes the only mode in 2.0.')
+                            ->info('Since 1.46.0 (REQ-ARCH-001 rule 6): true writes and reads the AuthKit entities through a private entity manager created on the connection and configuration of the default manager (where 1.45 wrote them), so an AuthKit write never flushes the application\'s pending changes; the tables do not move. null (default) and false keep the 1.45 behaviour (the AuthKit writes flush the application\'s manager) and are deprecated (false since 1.46.0, unset with the AuthKit entities mapped since 1.54.0, when the host-flush probe also reports what those flushes write for the application): true becomes the only mode in 2.0.')
                             ->defaultNull()
                         ->end()
                         ->enumNode('mapping_type')

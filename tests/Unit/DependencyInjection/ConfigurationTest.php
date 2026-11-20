@@ -15,6 +15,8 @@ use Symfony\Component\Config\Definition\Processor;
 
 final class ConfigurationTest extends TestCase
 {
+    private const LEGACY_LOCALE_NOTICE = 'Since nowo-tech/auth-kit-bundle 1.54: "nowo_auth_kit.default_locale", "nowo_auth_kit.enabled_locales" and "nowo_auth_kit.locale_in_path" are deprecated and removed in 2.0: use "nowo_auth_kit.locale.default", "nowo_auth_kit.locale.enabled" and "nowo_auth_kit.locale.in_path".';
+
     public function testDefaultConfiguration(): void
     {
         $processor = new Processor();
@@ -72,8 +74,11 @@ final class ConfigurationTest extends TestCase
         self::assertSame('redirect', $config['locale']['unlocalized']);
     }
 
+    /** 1.54.0: the legacy keys alone are deprecated (removed in 2.0). */
+    #[IgnoreDeprecations]
     public function testLegacyLocaleInPathTrueMapsToAlways(): void
     {
+        $this->expectUserDeprecationMessage(self::LEGACY_LOCALE_NOTICE);
         $processor = new Processor();
         $config    = $processor->processConfiguration(new Configuration(), [[
             'profiles' => [
@@ -129,8 +134,11 @@ final class ConfigurationTest extends TestCase
         self::assertSame('always', $config['locale']['in_path']);
     }
 
+    /** 1.54.0: the legacy keys alone are deprecated (removed in 2.0). */
+    #[IgnoreDeprecations]
     public function testInvalidLegacyLocaleInPathFallsBackToNever(): void
     {
+        $this->expectUserDeprecationMessage(self::LEGACY_LOCALE_NOTICE);
         $processor = new Processor();
         $config    = $processor->processConfiguration(new Configuration(), [[
             'profiles' => [
@@ -236,8 +244,11 @@ final class ConfigurationTest extends TestCase
         self::assertSame('serve', $config['locale']['unlocalized']);
     }
 
+    /** 1.54.0: the legacy keys alone are deprecated (removed in 2.0). */
+    #[IgnoreDeprecations]
     public function testLegacyLocaleKeysMapToLocaleNode(): void
     {
+        $this->expectUserDeprecationMessage(self::LEGACY_LOCALE_NOTICE);
         $processor = new Processor();
         $config    = $processor->processConfiguration(new Configuration(), [[
             'profiles' => [

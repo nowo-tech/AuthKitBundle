@@ -19,6 +19,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
+use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetTableInvalidationListener;
@@ -87,6 +88,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\TransactionDoctrine\HostFlushProbe;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExportProviderInterface;
@@ -145,6 +147,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
     /** 1.46.0: same, with doctrine.mapping_type xml. */
     public const PASSWORD_RESET_XML_MAPPING_PARAMETER = 'nowo_auth_kit.doctrine.password_reset_xml_mapping_enabled';
+
+    /** 1.54.0: the notice of an unset doctrine.private_entity_manager (the AuthKit entities mapped). */
+    public const PRIVATE_ENTITY_MANAGER_UNSET_DEPRECATION = '"nowo_auth_kit.doctrine.private_entity_manager" is not set: the AuthKit writes flush the application\'s entity manager, including its pending changes. In 2.0 the private entity manager is the only mode (as with true; the option goes). Opt in now with "nowo_auth_kit: { doctrine: { private_entity_manager: true } }", after checking the "Your pending changes to ... were flushed by NowoAuthKitBundle" deprecations (see UPGRADING.md "To 1.54.0").';
 
     /** 1.46.0: whether doctrine.private_entity_manager is true. */
     public const PRIVATE_ENTITY_MANAGER_PARAMETER = 'nowo_auth_kit.doctrine.private_entity_manager';
@@ -367,6 +372,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
      * included), registers the boundary subscriber and, with doctrine/dbal 4, the rollback middleware (attached to the
      * connection by {@see PrivateEntityManagerPass}). null keeps the 1.45 wiring; false too, with a deprecation (the
      * private manager becomes the only mode in 2.0).
+     *
+     * 1.54.0 (REQ-ARCH-001 rule 6 deprecation layer): null (unset) is deprecated too when the AuthKit entities are
+     * mapped (the only case where true is accepted), and host mode wires {@see HostFlushReporter} into AuthKit's
+     * runners, so the application learns which of its pending changes AuthKit's writes flush (2.0 no longer does).
      */
     private function registerPrivateEntityManager(ContainerBuilder $container, ?bool $private, bool $registerMapping): void
     {
@@ -379,6 +388,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
         if ($private === false) {
             trigger_deprecation('nowo-tech/auth-kit-bundle', '1.46', '"nowo_auth_kit.doctrine.private_entity_manager: false" is deprecated: the AuthKit writes then flush the application\'s entity manager, including its pending changes; the private entity manager becomes the only mode in 2.0. Set it to true (see UPGRADING.md "To 1.46.0").');
+        } elseif ($private === null && $registerMapping) {
+            trigger_deprecation('nowo-tech/auth-kit-bundle', '1.54', self::PRIVATE_ENTITY_MANAGER_UNSET_DEPRECATION);
         }
         // 1.50.0 (Beacon spec 239): every AuthKit service gets AuthKit's own runner for its AuthKitTransactionRunner
         // argument (a binding, untracked: services of disabled features may not exist), never a runner the application
@@ -398,6 +409,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         ];
         if ($private === true) {
             $resettables[] = new Reference(AuthKitEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE);
+        } elseif ($registerMapping) {
+            $this->registerHostFlushReporter($container);
+            $resettables[] = new Reference(HostFlushReporter::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE);
         }
         $container->register(UnitOfWorkBoundaries::class, UnitOfWorkBoundaries::class)
             ->addTag('kernel.event_subscriber');
@@ -461,6 +475,27 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         ];
         foreach ($container->getDefinitions() as $id => $definition) {
             $this->usePrivateEntityManager($definition, $arguments, $id);
+        }
+    }
+
+    /**
+     * 1.54.0 (host mode): the host-flush reporter on the shared probe of NowoTransactionDoctrineBundle (its own probe when
+     * the application does not register that bundle), handed to AuthKit's runner and to the services that build their
+     * own runner. MfaStore gets it by autowiring (its argument is nullable).
+     */
+    private function registerHostFlushReporter(ContainerBuilder $container): void
+    {
+        $container->register(HostFlushReporter::class, HostFlushReporter::class)
+            ->setArguments([new Reference(HostFlushProbe::SERVICE_ID, ContainerInterface::NULL_ON_INVALID_REFERENCE)])
+            ->addTag('kernel.reset', ['method' => 'reset']);
+        $reporter = new Reference(HostFlushReporter::class);
+        if ($container->hasDefinition(AuthKitTransactionRunner::SERVICE_ID)) {
+            $container->getDefinition(AuthKitTransactionRunner::SERVICE_ID)->setArgument(5, $reporter);
+        }
+        foreach ([QrLoginChallengeRepository::class, InvitationRepository::class] as $repository) {
+            if ($container->hasDefinition($repository)) {
+                $container->getDefinition($repository)->addMethodCall('setHostFlushReporter', [$reporter]);
+            }
         }
     }
 

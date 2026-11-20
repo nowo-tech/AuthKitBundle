@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\ConflictResponsePass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\EventSubscriber\StorageFailureSubscriber;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
 use Nowo\TransactionDoctrine\WriteUnit\Dbal\CommitTrackingMiddleware;
@@ -23,6 +24,8 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 final class ConflictResponseConfigTest extends TestCase
 {
+    use HostModeNotices;
+
     public function testUnsetOptionsFollowTheHostsPolicyOrTheDefaults(): void
     {
         $container = $this->load([]);

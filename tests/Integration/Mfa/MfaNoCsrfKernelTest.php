@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Mfa;
 
 use LogicException;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -12,6 +13,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class MfaNoCsrfKernelTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     protected static function getKernelClass(): string
     {
         return MfaNoCsrfTestKernel::class;

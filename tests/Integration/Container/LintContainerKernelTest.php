@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\PasswordReset\ResetTableTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\PrivateEntityManager\PrivateEmMfaTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\XmlMapping\XmlMfaTestKernel;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -23,6 +24,8 @@ use Symfony\Component\HttpKernel\Kernel;
  */
 final class LintContainerKernelTest extends TestCase
 {
+    use HostModeNotices;
+
     /**
      * @return iterable<string, array{class-string<Kernel>}>
      */

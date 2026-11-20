@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Invitation\InvitationTokens;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
@@ -30,6 +31,8 @@ use Symfony\Component\HttpKernel\TerminableInterface;
  */
 final class LoadReadinessKernelTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     protected static function getKernelClass(): string
     {
         return LoadReadinessTestKernel::class;

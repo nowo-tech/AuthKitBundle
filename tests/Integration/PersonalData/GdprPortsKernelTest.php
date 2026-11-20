@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\PersonalData\InvitationUserKitEraser;
 use Nowo\AuthKitBundle\PersonalData\InvitationUserKitExportProvider;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountUserKitExportProvider;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraser;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExporter;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -31,6 +32,8 @@ use function random_bytes;
  */
 class GdprPortsKernelTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     private EntityManagerInterface $em;
 
     private KernelUser $subject;

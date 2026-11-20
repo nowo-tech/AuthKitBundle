@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\PrivateEntityManager;
 
 use Nowo\AuthKitBundle\Tests\Integration\Invitation\InvitationFlowKernelTest;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 
 /**
  * Every test of {@see InvitationFlowKernelTest} again with `doctrine.private_entity_manager: true` (1.46.0): the AuthKit rows go
@@ -12,6 +13,8 @@ use Nowo\AuthKitBundle\Tests\Integration\Invitation\InvitationFlowKernelTest;
  */
 final class PrivateEmInvitationFlowKernelTest extends InvitationFlowKernelTest
 {
+    use HostModeNotices;
+
     protected static function getKernelClass(): string
     {
         return PrivateEmInvitationsTestKernel::class;

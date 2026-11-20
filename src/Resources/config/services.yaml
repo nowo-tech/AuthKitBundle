@@ -14,6 +14,8 @@ services:
             - '../../Doctrine/AuthKitSavepoint.php'
             - '../../Doctrine/PrivateEntityManager*.php'
             - '../../Doctrine/UnitOfWorkBoundaries.php'
+            # 1.54.0: registered by NowoAuthKitExtension only in host mode (no doctrine.private_entity_manager: true).
+            - '../../Doctrine/HostFlushReporter.php'
             # 1.50.0: registered below under the bundle's own id; the lock and the row writer are static helpers.
             - '../../Doctrine/AuthKitRows.php'
             - '../../Transaction/'

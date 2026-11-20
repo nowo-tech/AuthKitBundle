@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Invitation\InvitationTokens;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -29,6 +30,8 @@ use function get_debug_type;
  */
 final class InvitationCpReverifyRegressionTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     protected static function getKernelClass(): string
     {
         return InvitationsHostApiShowLinkTestKernel::class;

@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\ProgrammaticLogin;
 
 use Nowo\AuthKitBundle\Mfa\MfaStatus;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
@@ -28,6 +29,8 @@ use function substr_count;
  */
 final class TemplateGapsKernelTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     private const CODES = ['mfa_codes' => ['AAAA-BBBB', 'CCCC-DDDD'], 'mfa_profile' => 'default', 'mfa_account_url' => '/account/security/mfa'];
 
     protected static function getKernelClass(): string

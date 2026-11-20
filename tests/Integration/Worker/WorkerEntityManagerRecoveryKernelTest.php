@@ -9,6 +9,7 @@ use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -23,6 +24,8 @@ use Throwable;
  */
 final class WorkerEntityManagerRecoveryKernelTest extends KernelTestCase
 {
+    use HostModeNotices;
+
     protected static function getKernelClass(): string
     {
         return WorkerRecoveryTestKernel::class;

@@ -35,10 +35,10 @@ final class AdminUserCreatorTest extends TestCase
         $events     = [];
         $dispatcher = new EventDispatcher();
         $dispatcher->addListener(AdminUserCreatingEvent::class, static function (AdminUserCreatingEvent $event) use (&$events): void {
-            $events[] = ['creating', $event->getUser()->getUserIdentifier(), $event->getProfileName()];
+            $events[] = ['creating', $event->userRef()->identifier, $event->getProfileName()];
         });
         $dispatcher->addListener(AdminUserCreatedEvent::class, static function (AdminUserCreatedEvent $event) use (&$events): void {
-            $events[] = ['created', $event->getUser()->getUserIdentifier(), $event->getProfileName(), $event->getRoles()];
+            $events[] = ['created', $event->userRef()->identifier, $event->getProfileName(), $event->getRoles()];
         });
 
         $user = $this->creator(ProfileRegistryFactory::single(TestUser::class), $entityManager, $dispatcher)

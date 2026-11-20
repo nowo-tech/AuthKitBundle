@@ -21,6 +21,7 @@ use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\Routing\PublicUrlGenerator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -35,6 +36,8 @@ use Symfony\Component\Routing\RouteCollection;
 
 final class NowoAuthKitExtensionTest extends TestCase
 {
+    use HostModeNotices;
+
     private NowoAuthKitExtension $extension;
 
     private ContainerBuilder $container;
