@@ -168,6 +168,23 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         self::assertSame([], $this->acceptedEvents());
     }
 
+    public function testAcceptExistingWithADetachedCopyMarksTheCopyTheManagerHolds(): void
+    {
+        $other = $this->user('admin@example.com');
+        $this->invite('member@example.com');
+
+        // 1.55.0: one shared manager. The first copy is detached (invitation() clears the manager before loading),
+        // the second one is the copy the manager holds; no clear() between loading it and accepting.
+        $first   = $this->invitation('member@example.com');
+        $managed = $this->invitation('member@example.com');
+        self::assertSame(InvitationAcceptance::ACCEPTED, $this->acceptor()->acceptExisting($this->user('member@example.com'), $first, 'member@example.com')->status);
+
+        // The acceptance was written on the manager's copy for that id, so that copy is no longer pending.
+        self::assertNotNull($managed->getAcceptedAt());
+        self::assertSame(InvitationAcceptance::NO_INVITATION, $this->acceptor()->acceptExisting($other, $managed, 'member@example.com')->status);
+        self::assertSame('member@example.com', $this->invitation('member@example.com')->getAcceptedBy());
+    }
+
     public function testAcceptExistingIsRaceSafe(): void
     {
         $member = $this->user('member@example.com');

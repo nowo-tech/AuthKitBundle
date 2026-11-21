@@ -7,7 +7,6 @@
   - [Preparing for 2.0: read event properties through their getters](#preparing-for-20-read-event-properties-through-their-getters)
 - [To 1.54.1](#to-1541)
 - [To 1.54.0](#to-1540)
-- [To 1.54.0](#to-1540-1)
   - [The private entity manager notice](#the-private-entity-manager-notice)
   - [Reading the host-flush probe](#reading-the-host-flush-probe)
   - [Other notices](#other-notices)
@@ -178,8 +177,14 @@ the unique key. What this means for you:
   an instance with `Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException`. Change rows through the AuthKit
   services, or call `adopt()` on the repository service first and change the instance it returns.
 
-Without the private manager nothing changes. This is the last step before you set `private_entity_manager: true` if
-you hand AuthKit rows loaded through your own manager to these services.
+Without the private manager (one shared entity manager), the same re-load applies to an instance that manager no
+longer holds (detached, or loaded before a `clear()`). Resend, revoke and the QR transitions now succeed with such an
+instance where they used to fail with a duplicate INSERT. An acceptance marks the copy the manager holds for that id,
+so a managed copy your code keeps shows the invitation as accepted after the call. Instances the manager holds behave
+exactly as before.
+
+This is the last step before you set `private_entity_manager: true` if you hand AuthKit rows loaded through your own
+manager to these services.
 
 ### Preparing for 2.0: read event properties through their getters
 
@@ -207,14 +212,6 @@ public in 2.0; their getters are there so a listener can use one style throughou
 ## To 1.54.1
 
 From **1.54.0**:
-
-```bash
-composer update nowo-tech/auth-kit-bundle
-```
-
-## To 1.54.0
-
-From **1.53.0**:
 
 ```bash
 composer update nowo-tech/auth-kit-bundle

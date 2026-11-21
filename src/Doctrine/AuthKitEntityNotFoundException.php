@@ -23,6 +23,7 @@ final class AuthKitEntityNotFoundException extends RuntimeException
         public readonly string $entityClass,
         public readonly string $id,
     ) {
-        parent::__construct(sprintf('The %s row "%s" no longer exists; nothing was written. Load it again before retrying.', $entityClass, $id));
+        // The identifier stays out of the message (it may reach logs); read it from $id.
+        parent::__construct(sprintf('The %s row no longer exists; nothing was written. Load it again before retrying.', $entityClass));
     }
 }

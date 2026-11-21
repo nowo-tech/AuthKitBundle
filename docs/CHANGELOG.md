@@ -150,7 +150,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `MfaStore::delete()` removes such a credential through AuthKit's instance. The low-level `InvitationRepository::save()`,
   `QrLoginChallengeRepository::save()` and `MfaStore::save()` refuse an existing row AuthKit's manager does not hold with
   `Doctrine\AuthKitEntityNotManagedException` before writing anything (it used to fail on the unique key). Without the
-  private manager nothing changes. Covered on SQLite, MySQL 8.4, MariaDB 11.4 and PostgreSQL 16.
+  private manager (one shared entity manager) the same applies to an instance that manager no longer holds (detached,
+  or loaded before a `clear()`): resend, revoke and the QR transitions re-load it by id and now succeed where they
+  used to fail with a duplicate INSERT, and an acceptance marks the copy the manager holds for that id, so a copy
+  your code holds there shows the invitation as accepted. Instances the manager holds behave as before. Covered on
+  SQLite, MySQL 8.4, MariaDB 11.4 and PostgreSQL 16.
 
 ## [1.54.1] - 2026-11-21
 

@@ -25,6 +25,7 @@ final class AuthKitEntityNotManagedException extends LogicException
         public readonly string $entityClass,
         public readonly string $id,
     ) {
-        parent::__construct(sprintf('The %s row "%s" is not managed by AuthKit\'s entity manager (loaded through another manager?); saving it would insert it again. Pass it to the AuthKit service, which loads it again by id, or load it through the AuthKit repository service.', $entityClass, $id));
+        // The identifier stays out of the message (it may reach logs); read it from $id.
+        parent::__construct(sprintf('The %s row is not managed by AuthKit\'s entity manager (loaded through another manager?); saving it would insert it again. Pass it to the AuthKit service, which loads it again by id, or load it through the AuthKit repository service.', $entityClass));
     }
 }
