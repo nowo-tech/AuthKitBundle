@@ -32,4 +32,12 @@ final class InvitationCreatedEvent extends InvitationEvent
     ) {
         parent::__construct($invitation, $actor, $occurredAt);
     }
+
+    /**
+     * The `$delivery` value (1.55.0): read it here; same value as the property.
+     */
+    public function delivery(): string
+    {
+        return $this->delivery;
+    }
 }

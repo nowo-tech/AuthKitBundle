@@ -32,4 +32,30 @@ abstract class AccountEvent extends Event
     {
         return AuthRequestContexts::fromRequest($this->request, null, $this->profile);
     }
+
+    /**
+     * The `$profile` value (1.55.0): read it here; same value as the property.
+     */
+    public function profile(): string
+    {
+        return $this->profile;
+    }
+
+    /**
+     * The `$account` value (1.55.0): read it here; same value as the property.
+     */
+    public function account(): string
+    {
+        return $this->account;
+    }
+
+    /**
+     * The `$request` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use requestContext(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function request(): Request
+    {
+        return $this->request;
+    }
 }

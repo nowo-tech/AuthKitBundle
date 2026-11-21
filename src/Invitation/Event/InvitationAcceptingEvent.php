@@ -72,4 +72,30 @@ final class InvitationAcceptingEvent
     {
         return AuthUserRefs::fromNullableUser($this->user);
     }
+
+    /**
+     * The `$invitation` value (1.55.0): read it here; same value as the property.
+     */
+    public function invitation(): InvitationSnapshot
+    {
+        return $this->invitation;
+    }
+
+    /**
+     * The `$occurredAt` value (1.55.0): read it here; same value as the property.
+     */
+    public function occurredAt(): DateTimeImmutable
+    {
+        return $this->occurredAt;
+    }
+
+    /**
+     * The `$user` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function user(): ?UserInterface
+    {
+        return $this->user;
+    }
 }

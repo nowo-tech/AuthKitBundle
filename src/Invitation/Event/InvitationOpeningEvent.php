@@ -52,4 +52,20 @@ final class InvitationOpeningEvent
     {
         return $this->refusal;
     }
+
+    /**
+     * The `$invitation` value (1.55.0): read it here; same value as the property.
+     */
+    public function invitation(): InvitationSnapshot
+    {
+        return $this->invitation;
+    }
+
+    /**
+     * The `$occurredAt` value (1.55.0): read it here; same value as the property.
+     */
+    public function occurredAt(): DateTimeImmutable
+    {
+        return $this->occurredAt;
+    }
 }

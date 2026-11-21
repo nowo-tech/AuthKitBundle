@@ -20,4 +20,20 @@ final class MfaChallengeFailedEvent extends MfaEvent
     ) {
         parent::__construct($profile, $user);
     }
+
+    /**
+     * The `$kind` value (1.55.0): read it here; same value as the property.
+     */
+    public function kind(): string
+    {
+        return $this->kind;
+    }
+
+    /**
+     * The `$context` value (1.55.0): read it here; same value as the property.
+     */
+    public function context(): string
+    {
+        return $this->context;
+    }
 }

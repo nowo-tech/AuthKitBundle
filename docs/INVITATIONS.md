@@ -230,6 +230,12 @@ roles throw) and the role rule above against the given actor (`InvitationsAccess
 `NOT_ALLOWED` when the actor lacks a role of the request or of the open invitation — a `null` actor (console) can
 only handle invitations without roles. Other refusals: `RATE_LIMITED` (with `retryAfter`), `CLOSED`, `NOT_CONFIGURED`.
 
+The `Invitation` may also come from your own entity manager (your repository, a route argument). With
+`doctrine.private_entity_manager: true` AuthKit loads the row again by id in its own manager (1.55.0) and works on that
+instance: your instance and your manager are left as they are, so read the result from the outcome. A row deleted in
+the meantime throws `Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException`. The same applies to
+`InvitationAcceptor::attempt()`, `accept()` and `acceptExisting()`, and to the QR login challenge services.
+
 **Pass the signed-in user as the actor** (`Security::getUser()`, or the refreshed token user), never a user object
 built or modified from request data: `holdsAll()` trusts the roles of the object it is given (it builds a
 `UsernamePasswordToken` from `$actor->getRoles()` on the firewall name `nowo_auth_kit_invitations` and asks the access
@@ -402,7 +408,7 @@ it stay sent and no outcome list is returned.
 #[AsEventListener]
 public function onOpening(InvitationOpeningEvent $event): void
 {
-    if (!$this->seats->available($event->invitation->payload['organization'] ?? null)) {
+    if (!$this->seats->available($event->invitation()->payload['organization'] ?? null)) {
         $event->refuse(new InvitationRefusal('invitations.no_seat_left', [], 'messages'));
     }
 }

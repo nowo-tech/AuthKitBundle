@@ -33,4 +33,30 @@ abstract class InvitationEvent
     {
         return AuthUserRefs::fromNullableUser($this->actor);
     }
+
+    /**
+     * The `$invitation` value (1.55.0): read it here; same value as the property.
+     */
+    public function invitation(): InvitationSnapshot
+    {
+        return $this->invitation;
+    }
+
+    /**
+     * The `$actor` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use actorRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function actor(): ?UserInterface
+    {
+        return $this->actor;
+    }
+
+    /**
+     * The `$occurredAt` value (1.55.0): read it here; same value as the property.
+     */
+    public function occurredAt(): DateTimeImmutable
+    {
+        return $this->occurredAt;
+    }
 }

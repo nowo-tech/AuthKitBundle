@@ -45,4 +45,40 @@ final class AdminMagicLinkIssuedEvent
     {
         return AuthUserRefs::fromUser($this->target);
     }
+
+    /**
+     * The `$issuer` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use issuerRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function issuer(): UserInterface
+    {
+        return $this->issuer;
+    }
+
+    /**
+     * The `$target` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use targetRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function target(): UserInterface
+    {
+        return $this->target;
+    }
+
+    /**
+     * The `$delivery` value (1.55.0): read it here; same value as the property.
+     */
+    public function delivery(): string
+    {
+        return $this->delivery;
+    }
+
+    /**
+     * The `$expiresAt` value (1.55.0): read it here; same value as the property.
+     */
+    public function expiresAt(): DateTimeImmutable
+    {
+        return $this->expiresAt;
+    }
 }

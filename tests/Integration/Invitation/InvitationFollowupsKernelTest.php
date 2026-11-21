@@ -178,6 +178,8 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         $first = $this->invitation('member@example.com');
         $this->entityManager()->clear();
         $stale = $this->invitation('member@example.com');
+        // 1.55.0: the acceptance is written on the manager's instance of the row; each request holds its own copy.
+        $this->entityManager()->clear();
         self::assertSame(InvitationAcceptance::ACCEPTED, $this->acceptor()->acceptExisting($this->user('member@example.com'), $first, 'member@example.com')->status);
         self::assertSame(InvitationAcceptance::NOT_ACCEPTED, $this->acceptor()->acceptExisting($other, $stale, 'member@example.com')->status);
         self::assertSame('member@example.com', $this->invitation('member@example.com')->getAcceptedBy());

@@ -34,4 +34,28 @@ final class InvitationLinkRejectedEvent
     {
         return $this->invitation->profile;
     }
+
+    /**
+     * The `$invitation` value (1.55.0): read it here; same value as the property.
+     */
+    public function invitation(): InvitationSnapshot
+    {
+        return $this->invitation;
+    }
+
+    /**
+     * The `$reason` value (1.55.0): read it here; same value as the property.
+     */
+    public function reason(): string
+    {
+        return $this->reason;
+    }
+
+    /**
+     * The `$occurredAt` value (1.55.0): read it here; same value as the property.
+     */
+    public function occurredAt(): DateTimeImmutable
+    {
+        return $this->occurredAt;
+    }
 }
