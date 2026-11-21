@@ -20,4 +20,20 @@ final class MfaTrustedDevicesForgottenEvent extends MfaEvent
     ) {
         parent::__construct($profile, $user);
     }
+
+    /**
+     * The `$reason` value (1.55.0): read it here; same value as the property.
+     */
+    public function reason(): string
+    {
+        return $this->reason;
+    }
+
+    /**
+     * The `$count` value (1.55.0): read it here; same value as the property.
+     */
+    public function count(): int
+    {
+        return $this->count;
+    }
 }

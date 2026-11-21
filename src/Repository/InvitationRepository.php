@@ -9,6 +9,9 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntities;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Entity\Invitation;
@@ -75,11 +78,32 @@ class InvitationRepository extends EntityRepository
 
     /**
      * 1.50.0 (Beacon spec 239): a unit of work of AuthKit's transaction runner on this repository's manager.
+     *
+     * 1.55.0: an existing invitation this repository's manager does not hold (loaded through another manager) is
+     * refused before anything is written, never inserted a second time; change it through {@see InvitationManager}, or
+     * re-resolve it with {@see self::adopt()} first and change that instance.
+     *
+     * @throws AuthKitEntityNotManagedException When the invitation exists and this manager does not hold the instance
+     * @throws AuthKitEntityNotFoundException When its row no longer exists
      */
     public function save(Invitation $invitation): void
     {
         $manager = $this->getEntityManager();
+        AuthKitEntities::assertSavable($manager, $invitation);
         (new AuthKitTransactionRunner($manager, hostFlush: $this->hostFlush))->run(static fn () => $manager->persist($invitation));
+    }
+
+    /**
+     * 1.55.0 (REQ-ARCH-001 rule 6): the instance this repository's manager holds for the invitation, loaded again by id
+     * when the caller's instance comes from another manager (with `doctrine.private_entity_manager: true`, an invitation
+     * the application loaded through its own manager). The same object otherwise, and for a new invitation. The
+     * caller's instance and manager are left untouched.
+     *
+     * @throws AuthKitEntityNotFoundException When the invitation no longer exists
+     */
+    public function adopt(Invitation $invitation): Invitation
+    {
+        return AuthKitEntities::adopt($this->getEntityManager(), $invitation);
     }
 
     /** The invitation still open (pending or expired) for the e-mail in the profile, if any (the newest). */

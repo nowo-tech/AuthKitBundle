@@ -32,4 +32,14 @@ final class MfaResetByAdminEvent extends MfaEvent
     {
         return AuthUserRefs::fromUser($this->actor);
     }
+
+    /**
+     * The `$actor` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use actorRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function actor(): UserInterface
+    {
+        return $this->actor;
+    }
 }

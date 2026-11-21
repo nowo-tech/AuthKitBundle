@@ -31,4 +31,22 @@ abstract class MfaEvent extends Event
     {
         return AuthUserRefs::fromUser($this->user);
     }
+
+    /**
+     * The `$profile` value (1.55.0): read it here; same value as the property.
+     */
+    public function profile(): string
+    {
+        return $this->profile;
+    }
+
+    /**
+     * The `$user` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function user(): UserInterface
+    {
+        return $this->user;
+    }
 }

@@ -70,4 +70,40 @@ final readonly class SwitchOutcome
     {
         return AuthUserRefs::fromNullableUser($this->user);
     }
+
+    /**
+     * The `$status` value (1.55.0): read it here; same value as the property.
+     */
+    public function status(): string
+    {
+        return $this->status;
+    }
+
+    /**
+     * The `$user` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function user(): ?UserInterface
+    {
+        return $this->user;
+    }
+
+    /**
+     * The `$message` value (1.55.0): read it here; same value as the property.
+     */
+    public function message(): ?string
+    {
+        return $this->message;
+    }
+
+    /**
+     * The `$parameters` value (1.55.0): read it here; same value as the property.
+     *
+     * @return array<string, mixed>
+     */
+    public function parameters(): array
+    {
+        return $this->parameters;
+    }
 }

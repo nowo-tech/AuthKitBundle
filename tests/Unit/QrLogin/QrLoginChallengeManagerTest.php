@@ -36,6 +36,8 @@ final class QrLoginChallengeManagerTest extends TestCase
         $this->repository = $this->createMock(QrLoginChallengeRepository::class);
         // 1.50.0: the units of work run their callback (the transaction itself is the runner's, tested apart).
         $this->repository->method('transactional')->willReturnCallback(static fn (callable $work): mixed => $work());
+        // 1.55.0: the challenges of these tests are AuthKit's own instances.
+        $this->repository->method('adopt')->willReturnArgument(0);
         $this->dispatcher = $this->createMock(EventDispatcherInterface::class);
 
         $this->manager = new QrLoginChallengeManager(

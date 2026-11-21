@@ -66,6 +66,7 @@ final class InvitationCompensationTest extends TestCase
 
         $repository = $this->createMock(InvitationRepository::class);
         $repository->method('claim')->willReturn(true);
+        $repository->method('adopt')->willReturnArgument(0);
 
         $connection = $this->createMock(Connection::class);
         $levels     = NestingLevels::on($connection);

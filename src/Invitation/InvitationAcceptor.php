@@ -255,7 +255,9 @@ final readonly class InvitationAcceptor
      * acceptance touched are detached (reload those), never the whole manager.
      *
      * @param UserInterface $user the signed-in account accepting it (the host checks who may act for it)
-     * @param Invitation $invitation an invitation of the bundle entity manager (e.g. listed for the account's e-mail)
+     * @param Invitation $invitation the invitation (e.g. listed for the account's e-mail); 1.55.0: it may come from the
+     *                               application's own entity manager (the checks and the claim use it, the acceptance is
+     *                               written on AuthKit's instance of the row; the caller's instance is not written to)
      * @param string $email the account's current, verified e-mail address (never a value from the request)
      */
     public function acceptExisting(UserInterface $user, Invitation $invitation, string $email): InvitationAcceptance
@@ -372,7 +374,11 @@ final readonly class InvitationAcceptor
             if (!$this->invitations->claim($invitation, $tokenHash, $acceptedBy, $now)) {
                 return [null, $snapshot];
             }
-            $user = $existing;
+            // 1.55.0 (Q-W2-1): the claim above is one conditional UPDATE by id and link. The acceptance is then written
+            // on the instance AuthKit's manager holds: an invitation the application loaded through its own manager is
+            // loaded again by id (never inserted again, and the application's instance is not written to).
+            $invitation = $this->invitations->adopt($invitation);
+            $user       = $existing;
             if (!$user instanceof UserInterface) {
                 // @igor-ignore - Stateless registrar call (persists a new account); no service state changes.
                 $user    = $this->registrar->registerInvited($formData, $profile->name, $roles);

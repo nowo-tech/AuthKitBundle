@@ -43,4 +43,38 @@ final readonly class AccountState
     {
         return AuthUserRefs::fromUser($this->user);
     }
+
+    /**
+     * The `$id` value (1.55.0): read it here; same value as the property.
+     */
+    public function id(): string
+    {
+        return $this->id;
+    }
+
+    /**
+     * The `$user` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function user(): UserInterface
+    {
+        return $this->user;
+    }
+
+    /**
+     * The `$presentation` value (1.55.0): read it here; same value as the property.
+     */
+    public function presentation(): AccountPresentation
+    {
+        return $this->presentation;
+    }
+
+    /**
+     * The `$state` value (1.55.0): read it here; same value as the property.
+     */
+    public function state(): string
+    {
+        return $this->state;
+    }
 }
