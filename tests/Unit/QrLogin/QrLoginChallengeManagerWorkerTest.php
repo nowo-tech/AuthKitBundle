@@ -94,6 +94,7 @@ final class QrLoginChallengeManagerWorkerTest extends TestCase
         $challenge  = $this->challenge();
         $repository = $this->createMock(QrLoginChallengeRepository::class);
         $repository->method('transactional')->willReturnCallback(static fn (callable $work): mixed => $work());
+        $repository->method('adopt')->willReturnArgument(0);
         $repository->method('transitionStatus')->willReturn(true);
         $repository->method('save')->willThrowException(new RuntimeException('flush failed'));
 
@@ -121,6 +122,7 @@ final class QrLoginChallengeManagerWorkerTest extends TestCase
     {
         $repository = $this->createMock(QrLoginChallengeRepository::class);
         $repository->method('transactional')->willReturnCallback(static fn (callable $work): mixed => $work());
+        $repository->method('adopt')->willReturnArgument(0);
         $repository->method('findFresh')->willReturnCallback(function () use ($identityMapCopy): QrLoginChallenge {
             $identityMapCopy->setStatus(QrLoginChallengeStatus::from($this->database['status']));
 

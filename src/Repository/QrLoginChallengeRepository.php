@@ -10,6 +10,9 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntities;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
@@ -45,11 +48,30 @@ class QrLoginChallengeRepository extends EntityRepository
     }
 
     /**
+     * 1.55.0 (REQ-ARCH-001 rule 6): the instance this repository's manager holds for the challenge, loaded again by id
+     * when the caller's instance comes from another manager (with `doctrine.private_entity_manager: true`, a challenge
+     * the application loaded through its own manager). The same object otherwise, and for a new challenge. The caller's
+     * instance and manager are left untouched.
+     *
+     * @throws AuthKitEntityNotFoundException When the challenge no longer exists
+     */
+    public function adopt(QrLoginChallenge $challenge): QrLoginChallenge
+    {
+        return AuthKitEntities::adopt($this->getEntityManager(), $challenge);
+    }
+
+    /**
      * 1.50.0 (Beacon spec 239): a unit of work of AuthKit's transaction runner on this repository's manager.
+     *
+     * 1.55.0: an existing challenge this repository's manager does not hold (loaded through another manager) is refused
+     * before anything is written, never inserted a second time; re-resolve it with {@see self::adopt()} first.
+     *
+     * @throws AuthKitEntityNotManagedException When the challenge exists and this manager does not hold the instance
      */
     public function save(QrLoginChallenge $challenge): void
     {
         $manager = $this->getEntityManager();
+        AuthKitEntities::assertSavable($manager, $challenge);
         $this->transactional(static fn () => $manager->persist($challenge));
     }
 

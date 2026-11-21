@@ -50,4 +50,32 @@ final class MfaLoginCompletedEvent extends MfaEvent
     {
         return AuthRequestContexts::fromRequest($this->request, $this->firewall(), $this->profile);
     }
+
+    /**
+     * The `$token` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use userRef() and firewall(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function token(): TokenInterface
+    {
+        return $this->token;
+    }
+
+    /**
+     * The `$request` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use requestContext(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function request(): Request
+    {
+        return $this->request;
+    }
+
+    /**
+     * The `$firstFactor` value (1.55.0): read it here; same value as the property.
+     */
+    public function firstFactor(): string
+    {
+        return $this->firstFactor;
+    }
 }

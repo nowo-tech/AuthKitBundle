@@ -20,4 +20,20 @@ final class MfaChallengePassedEvent extends MfaEvent
     ) {
         parent::__construct($profile, $user);
     }
+
+    /**
+     * The `$method` value (1.55.0): read it here; same value as the property.
+     */
+    public function method(): string
+    {
+        return $this->method;
+    }
+
+    /**
+     * The `$firstFactor` value (1.55.0): read it here; same value as the property.
+     */
+    public function firstFactor(): string
+    {
+        return $this->firstFactor;
+    }
 }

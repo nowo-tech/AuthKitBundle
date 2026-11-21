@@ -18,4 +18,12 @@ final class MfaRecoveryCodeUsedEvent extends MfaEvent
     ) {
         parent::__construct($profile, $user);
     }
+
+    /**
+     * The `$remaining` value (1.55.0): read it here; same value as the property.
+     */
+    public function remaining(): int
+    {
+        return $this->remaining;
+    }
 }

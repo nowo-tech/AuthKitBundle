@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.55.0] - 2026-11-21](#1550---2026-11-21)
 - [[1.54.1] - 2026-11-21](#1541---2026-11-21)
 - [[1.54.0] - 2026-11-20](#1540---2026-11-20)
 - [[1.53.0] - 2026-11-18](#1530---2026-11-18)
@@ -120,6 +121,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Demo: runs in UiKit's demo platform shell (`nowo-tech/ui-kit-bundle` ^2.60); the demo's own header is gone and the pages use the shell page headers and section cards. Demo only, no bundle change.
+
+## [1.55.0] - 2026-11-21
+
+### Added
+
+- **Getters for the public properties of the events and results.** Every public property of the AuthKit events
+  (invitation, MFA, account switcher, QR login, `AdminMagicLinkIssuedEvent`, `CredentialsChangedEvent`) and of the
+  results `InvitationAcceptance`, `AccountState` and `SwitchOutcome` now has a getter of the same name returning the
+  same value: `delivery()`, `invitation()`, `reason()`, `remaining()`, `count()`, `occurredAt()`, `profile()`,
+  `profileName()`, … (`InvitationAcceptedEvent::isExistingAccount()` for `$existingAccount`). Properties and
+  constructors are unchanged.
+- `InvitationRepository::adopt()` and `QrLoginChallengeRepository::adopt()`: the instance AuthKit's entity manager holds
+  for a row the caller loaded elsewhere (see Fixed).
+
+### Deprecated
+
+- The getters of the framework- and entity-typed properties (`user()`, `actor()`, `issuer()`, `target()`, `from()`,
+  `to()`, `request()`, `token()`, `challenge()`) are deprecated from the start, like the properties they read
+  (deprecated since 1.46.0): 2.0 removes these members from the public surface (REQ-ARCH-001 rule 3). Use
+  `userRef()`, `actorRef()`, `issuerRef()`, `targetRef()`, `fromRef()`, `toRef()`, `requestContext()`, `userRef()`
+  with `firewall()`, and `challengeRef()` / `challengeId()` instead.
+
+### Fixed
+
+- **AuthKit rows loaded through the application's entity manager are no longer inserted a second time (Q-W2-1).** With
+  `doctrine.private_entity_manager: true`, an invitation or a QR login challenge that the application loaded through
+  its own manager (a host repository, a route value resolver, `getReference()`) and handed to
+  `InvitationManager::resend()` / `revoke()`, `InvitationAcceptor::attempt()` / `accept()` / `acceptExisting()` or
+  `QrLoginChallengeManager::approve()` / `deny()` / `consume()` / `isExpiredOrInvalid()` was persisted as new by the
+  private manager: a duplicate INSERT that `uniq_auth_kit_invitation_public_id` (or the challenge's primary key)
+  refused, so the call failed. These services now re-load the row by id in AuthKit's manager and read and write that
+  instance; the application's instance and manager are never flushed, merged, detached or refreshed, and its pending
+  changes stay pending. A row deleted meanwhile fails with `Doctrine\AuthKitEntityNotFoundException` (nothing written).
+  `MfaStore::delete()` removes such a credential through AuthKit's instance. The low-level `InvitationRepository::save()`,
+  `QrLoginChallengeRepository::save()` and `MfaStore::save()` refuse an existing row AuthKit's manager does not hold with
+  `Doctrine\AuthKitEntityNotManagedException` before writing anything (it used to fail on the unique key). Without the
+  private manager (one shared entity manager) the same applies to an instance that manager no longer holds (detached,
+  or loaded before a `clear()`): resend, revoke and the QR transitions re-load it by id and now succeed where they
+  used to fail with a duplicate INSERT, and an acceptance marks the copy the manager holds for that id, so a copy
+  your code holds there shows the invitation as accepted. Instances the manager holds behave as before. Covered on
+  SQLite, MySQL 8.4, MariaDB 11.4 and PostgreSQL 16.
 
 ## [1.54.1] - 2026-11-21
 

@@ -18,4 +18,12 @@ final class MfaTrustedDeviceAddedEvent extends MfaEvent
     ) {
         parent::__construct($profile, $user);
     }
+
+    /**
+     * The `$device` value (1.55.0): read it here; same value as the property.
+     */
+    public function device(): string
+    {
+        return $this->device;
+    }
 }

@@ -36,4 +36,22 @@ final readonly class QrLoginChallengeCreatedEvent
     {
         return QrLoginChallengeRef::fromChallenge($this->challenge);
     }
+
+    /**
+     * The `$challenge` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use challengeRef() or challengeId(); removed in 2.0 with the entity-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function challenge(): QrLoginChallenge
+    {
+        return $this->challenge;
+    }
+
+    /**
+     * The `$profileName` value (1.55.0): read it here; same value as the property.
+     */
+    public function profileName(): string
+    {
+        return $this->profileName;
+    }
 }

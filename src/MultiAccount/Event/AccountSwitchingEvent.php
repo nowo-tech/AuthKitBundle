@@ -70,4 +70,24 @@ final class AccountSwitchingEvent extends AccountEvent
     {
         return AuthUserRefs::fromUser($this->to);
     }
+
+    /**
+     * The `$from` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use fromRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function from(): ?UserInterface
+    {
+        return $this->from;
+    }
+
+    /**
+     * The `$to` value (1.55.0).
+     *
+     * @deprecated since 1.55.0, use toRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
+     */
+    public function to(): UserInterface
+    {
+        return $this->to;
+    }
 }

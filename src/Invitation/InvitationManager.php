@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 use LogicException;
 use Nowo\AuthKitBundle\DependencyInjection\InvitationsConfiguration;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationCreatedEvent;
@@ -261,9 +262,16 @@ final readonly class InvitationManager
      *                          ({@see InvitationsConfiguration::ttlChoices()}), else `ttl_days`; null keeps the invitation's
      * @param bool $returnLink (1.33) send no e-mail and return the link in the outcome ({@see InvitationOutcome::LINK}),
      *                         for a host that sends its own mail; never logged
+     *
+     * 1.55.0: the invitation may come from the application's own entity manager; AuthKit reads and writes the stored row
+     * (loaded again by id), never the caller's instance.
+     *
+     * @throws AuthKitEntityNotFoundException When the invitation no longer exists
      */
     public function resend(?UserInterface $actor, Invitation $invitation, ?int $ttlDays = null, bool $returnLink = false): InvitationOutcome
     {
+        // 1.55.0 (Q-W2-1): an invitation loaded through the application's manager is re-resolved by id (never inserted again).
+        $invitation = $this->invitations->adopt($invitation);
         if (!$invitation->isOpen()) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
         }
@@ -288,9 +296,14 @@ final readonly class InvitationManager
     /**
      * Pending and expired invitations only, by an actor holding every role of the invitation (SEC-004 CD M1); the
      * link stops working. Outcome {@see InvitationOutcome::REVOKED}, `NOT_OPEN` or `NOT_ALLOWED`.
+     *
+     * 1.55.0: the invitation may come from the application's own entity manager (re-resolved by id, as for resend()).
+     *
+     * @throws AuthKitEntityNotFoundException When the invitation no longer exists
      */
     public function revoke(?UserInterface $actor, Invitation $invitation): InvitationOutcome
     {
+        $invitation = $this->invitations->adopt($invitation);
         if (!$invitation->isOpen()) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
         }

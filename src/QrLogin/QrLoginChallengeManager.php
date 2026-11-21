@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\QrLogin;
 
 use DateInterval;
 use DateTimeImmutable;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
@@ -170,6 +171,7 @@ class QrLoginChallengeManager
 
     /**
      * @throws QrLoginChallengeConflictException when the challenge is no longer pending in the database
+     * @throws AuthKitEntityNotFoundException when the challenge no longer exists (1.55.0)
      */
     public function approve(
         QrLoginChallenge $challenge,
@@ -178,6 +180,8 @@ class QrLoginChallengeManager
         ?string $profileName = null,
     ): void {
         $profile = $this->resolveProfile($profileName);
+        // 1.55.0 (Q-W2-1): a challenge loaded through the application's manager is re-resolved by id (never inserted again).
+        $challenge = $this->repository->adopt($challenge);
 
         // 1.50.0: the single-use transition and the approval are one unit of work (never approved without a user).
         // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
@@ -195,10 +199,13 @@ class QrLoginChallengeManager
 
     /**
      * @throws QrLoginChallengeConflictException when the challenge is no longer pending in the database
+     * @throws AuthKitEntityNotFoundException when the challenge no longer exists (1.55.0)
      */
     public function deny(QrLoginChallenge $challenge, ?string $profileName = null): void
     {
         $profile = $this->resolveProfile($profileName);
+        // 1.55.0 (Q-W2-1): a challenge loaded through the application's manager is re-resolved by id (never inserted again).
+        $challenge = $this->repository->adopt($challenge);
         // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
         $this->repository->transactional(function () use ($challenge): void {
             $this->claim($challenge, QrLoginChallengeStatus::Pending, QrLoginChallengeStatus::Denied);
@@ -210,10 +217,13 @@ class QrLoginChallengeManager
 
     /**
      * @throws QrLoginChallengeConflictException when the challenge is no longer approved in the database (already consumed)
+     * @throws AuthKitEntityNotFoundException when the challenge no longer exists (1.55.0)
      */
     public function consume(QrLoginChallenge $challenge, UserInterface $user, ?string $profileName = null): void
     {
         $profile = $this->resolveProfile($profileName);
+        // 1.55.0 (Q-W2-1): a challenge loaded through the application's manager is re-resolved by id (never inserted again).
+        $challenge = $this->repository->adopt($challenge);
         // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
         $this->repository->transactional(function () use ($challenge): void {
             $this->claim($challenge, QrLoginChallengeStatus::Approved, QrLoginChallengeStatus::Consumed);
@@ -223,8 +233,12 @@ class QrLoginChallengeManager
         $this->eventDispatcher->dispatch(new QrLoginCompletedEvent($challenge, $user, $profile->name));
     }
 
+    /**
+     * @throws AuthKitEntityNotFoundException when the challenge no longer exists (1.55.0)
+     */
     public function isExpiredOrInvalid(QrLoginChallenge $challenge): bool
     {
+        $challenge = $this->repository->adopt($challenge);
         if ($challenge->isExpired($this->now()) && $challenge->getStatus() === QrLoginChallengeStatus::Pending) {
             // @igor-ignore - A unit of work run at once and not kept (AuthKit's transaction runner).
             $expired = $this->repository->transactional(function () use ($challenge): bool {

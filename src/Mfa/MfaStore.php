@@ -14,6 +14,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntities;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
 use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
@@ -198,9 +201,17 @@ final readonly class MfaStore
         return [null, $candidates !== []];
     }
 
+    /**
+     * 1.55.0: an existing credential this store's manager does not hold (loaded through another manager) is refused
+     * before anything is written, never inserted a second time.
+     *
+     * @throws AuthKitEntityNotManagedException When the credential exists and the manager does not hold the instance
+     * @throws AuthKitEntityNotFoundException When its row no longer exists
+     */
     public function save(MfaCredential $credential): void
     {
         $em = $this->entityManager();
+        AuthKitEntities::assertSavable($em, $credential);
         // 1.50.0: a unit of work of AuthKit's runner (a closed manager is replaced at the next boundary).
         $this->transactional(static fn () => $em->persist($credential));
     }
@@ -364,7 +375,9 @@ final readonly class MfaStore
     }
 
     /**
-     * Deletes the credential with its recovery codes and trusted devices (user removal / personal data).
+     * Deletes the credential with its recovery codes and trusted devices (user removal / personal data). 1.55.0: a
+     * credential loaded through another manager is removed through the instance this store's manager holds for its id
+     * (nothing to remove when the row is already gone).
      */
     public function delete(MfaCredential $credential): void
     {
@@ -376,8 +389,11 @@ final readonly class MfaStore
                 $connection->executeStatement('DELETE FROM ' . $this->table(MfaRecoveryCode::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
                 $connection->executeStatement('DELETE FROM ' . $this->table(MfaTrustedDevice::class) . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
             });
-            // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
-            $em->remove($credential);
+            $managed = $em->contains($credential) ? $credential : $em->find(MfaCredential::class, $id);
+            if ($managed instanceof MfaCredential) {
+                // @igor-ignore - Unit of work of the entity manager (cleared per request by Doctrine's reset), not worker state.
+                $em->remove($managed);
+            }
         });
     }
 

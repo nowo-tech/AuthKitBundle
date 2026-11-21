@@ -3,9 +3,11 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.55.0](#to-1550)
+  - [AuthKit rows loaded through your own entity manager](#authkit-rows-loaded-through-your-own-entity-manager)
+  - [Preparing for 2.0: read event properties through their getters](#preparing-for-20-read-event-properties-through-their-getters)
 - [To 1.54.1](#to-1541)
 - [To 1.54.0](#to-1540)
-- [To 1.54.0](#to-1540-1)
   - [The private entity manager notice](#the-private-entity-manager-notice)
   - [Reading the host-flush probe](#reading-the-host-flush-probe)
   - [Other notices](#other-notices)
@@ -152,17 +154,73 @@
 
 ## Unreleased
 
-## To 1.54.1
+## To 1.55.0
 
-From **1.54.0**:
+From **1.54.1**:
 
 ```bash
 composer update nowo-tech/auth-kit-bundle
 ```
 
-## To 1.54.0
+From **1.54.x**:
 
-From **1.53.0**:
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+### AuthKit rows loaded through your own entity manager
+
+With `doctrine.private_entity_manager: true`, AuthKit writes its rows through its private manager. An invitation or a
+QR login challenge you load through your own manager (your repository, a route argument, `getReference()`) and pass to
+`InvitationManager::resend()` / `revoke()`, `InvitationAcceptor::attempt()` / `accept()` / `acceptExisting()` or
+`QrLoginChallengeManager::approve()` / `deny()` / `consume()` / `isExpiredOrInvalid()` is now loaded again by id in
+AuthKit's manager, and that instance is read and written. Before, it was inserted a second time and the call failed on
+the unique key. What this means for you:
+
+- Your instance is not changed: read the result from the returned outcome or snapshot, or load the row again. Your
+  manager is never flushed, cleared or detached by these calls, and a later flush of it does not write your stale copy
+  back (it has no changes of its own).
+- A row deleted since you loaded it throws `Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException`; nothing is
+  written.
+- The low-level `InvitationRepository::save()`, `QrLoginChallengeRepository::save()` and `MfaStore::save()` refuse such
+  an instance with `Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException`. Change rows through the AuthKit
+  services, or call `adopt()` on the repository service first and change the instance it returns.
+
+Without the private manager (one shared entity manager), the same re-load applies to an instance that manager no
+longer holds (detached, or loaded before a `clear()`). Resend, revoke and the QR transitions now succeed with such an
+instance where they used to fail with a duplicate INSERT. An acceptance marks the copy the manager holds for that id,
+so a managed copy your code keeps shows the invitation as accepted after the call. Instances the manager holds behave
+exactly as before.
+
+This is the last step before you set `private_entity_manager: true` if you hand AuthKit rows loaded through your own
+manager to these services.
+
+### Preparing for 2.0: read event properties through their getters
+
+Every public property of the AuthKit events and of `InvitationAcceptance`, `AccountState` and `SwitchOutcome` now has
+a getter of the same name (`$existingAccount` → `isExistingAccount()`). PHP cannot report reading a property, so
+search your listeners for property reads on AuthKit events and results and switch them before 2.0:
+
+| Before | Now |
+|---|---|
+| `$event->issuer`, `$event->target` | `$event->issuerRef()`, `$event->targetRef()` |
+| `$event->actor` | `$event->actorRef()` |
+| `$event->user`, `$outcome->user` | `$event->userRef()`, `$outcome->userRef()` |
+| `$event->request` | `$event->requestContext()` |
+| `$event->from`, `$event->to` | `$event->fromRef()`, `$event->toRef()` |
+| `$event->token` | `$event->userRef()` and `$event->firewall()` |
+| `$event->challenge` | `$event->challengeRef()`, `$event->challengeId()` |
+| `$event->delivery`, `$event->invitation`, `$event->reason`, `$event->remaining`, `$event->count`, … | `$event->delivery()`, `$event->invitation()`, `$event->reason()`, `$event->remaining()`, `$event->count()`, … |
+
+The framework- and entity-typed properties (`$user`, `$actor`, `$issuer`, `$target`, `$from`, `$to`, `$request`,
+`$token`, `$challenge`) are deprecated since 1.46.0 and 2.0 removes them from the public surface: their new getters
+(`user()`, `actor()`, …, `challenge()`) are deprecated too and go with them, so move to the `*Ref()` methods
+(`userRef()->user()` still returns your user object, for example to load your own entity). The other properties stay
+public in 2.0; their getters are there so a listener can use one style throughout.
+
+## To 1.54.1
+
+From **1.54.0**:
 
 ```bash
 composer update nowo-tech/auth-kit-bundle
