@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.55.0](#to-1550)
   - [AuthKit rows loaded through your own entity manager](#authkit-rows-loaded-through-your-own-entity-manager)
   - [Preparing for 2.0: read event properties through their getters](#preparing-for-20-read-event-properties-through-their-getters)
 - [To 1.54.1](#to-1541)
@@ -152,6 +153,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.55.0
+
+From **1.54.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 From **1.54.x**:
 
