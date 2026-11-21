@@ -7,6 +7,6 @@
 
 {% block nowo_auth_kit_mfa_account_before %}
     <nav data-testid="demo-account-nav" aria-label="Account">
-        <a class="nowo-ui-link" href="{{ path('demo_home', auth_kit_route_params()) }}">{{ 'demo.home.title'|trans({}, 'demo') }}</a>
+        <a class="nowo-ui-btn nowo-ui-btn--outline nowo-ui-btn--sm" href="{{ path('demo_home', auth_kit_route_params()) }}">{{ 'demo.home.title'|trans({}, 'demo') }}</a>
     </nav>
 {% endblock %}

@@ -16,7 +16,7 @@ test.describe('AuthKit demo happy path', () => {
     const response = await page.goto('/en');
     expect(response?.ok()).toBeTruthy();
     await expect(page.locator('h1')).toContainText('Welcome');
-    await expect(page.locator('[data-testid="demo-locale-switcher"]')).toBeVisible();
+    await expect(page.locator('[data-testid="demo-platform-locales"]')).toBeVisible();
     await expect(page.locator('.nowo-auth-kit-embed__toggle')).toBeVisible();
   });
 

@@ -2,20 +2,27 @@
 
 {% block title %}{{ 'demo.home.title'|trans({}, 'demo') }}{% endblock %}
 
+{% block nowo_ui_page_header %}
+    {% set _toolbar %}
+        <a href="{{ path('nowo_auth_kit_mfa_account', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--outline" data-testid="demo-mfa">{{ 'mfa.account.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        {% if is_granted('ROLE_ADMIN') %}<a href="{{ path('nowo_auth_kit_invitations', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--outline" data-testid="demo-invitations">{{ 'invitation.index.title'|trans({}, 'NowoAuthKitBundle') }}</a>{% endif %}
+        <a href="{{ path('nowo_user_kit_sessions') }}" class="nowo-ui-btn nowo-ui-btn--outline" data-testid="demo-sessions">Sessions</a>
+        <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--outline">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_logout', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--outline">{{ 'demo.home.logout'|trans({}, 'demo') }}</a>
+    {% endset %}
+    {{ include(nowo_ui_partial('page_header'), {
+        title: 'demo.home.heading'|trans({}, 'demo'),
+        intro: 'demo.home.logged_in'|trans({'%email%': user.userIdentifier}, 'demo') ~ ' ' ~ 'demo.home.registration_hint'|trans({}, 'demo'),
+        toolbar: _toolbar,
+    }) }}
+{% endblock %}
+
 {% block body %}
-    <h1>{{ 'demo.home.heading'|trans({}, 'demo') }}</h1>
-    <p>{{ 'demo.home.logged_in'|trans({'%email%': user.userIdentifier}, 'demo') }}</p>
-    <p class="nowo-ui-muted">{{ 'demo.home.registration_hint'|trans({}, 'demo') }}</p>
-    <div class="nowo-ui-row-actions">
-        <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
-        {% if is_granted('ROLE_ADMIN') %}<a href="{{ path('nowo_auth_kit_invitations', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary" data-testid="demo-invitations">{{ 'invitation.index.title'|trans({}, 'NowoAuthKitBundle') }}</a>{% endif %}
-        <a href="{{ path('nowo_auth_kit_mfa_account', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary" data-testid="demo-mfa">{{ 'mfa.account.title'|trans({}, 'NowoAuthKitBundle') }}</a>
-        <a href="{{ path('nowo_user_kit_sessions') }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary" data-testid="demo-sessions">Sessions</a>
-        <a href="{{ path('nowo_auth_kit_logout', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'demo.home.logout'|trans({}, 'demo') }}</a>
-    </div>
     {# 1.34: the account switcher of the avatar menu (AuthKit multi_account) and the two-step verification card. #}
-    <section aria-label="Accounts" data-testid="demo-accounts">
-        {{ include('@NowoAuthKitBundle/accounts/_switcher.html.twig', {target_path: path('demo_home', auth_kit_route_params())}) }}
-    </section>
-    <div>{{ include('@NowoAuthKitBundle/mfa/_account.html.twig') }}</div>
+    {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'Accounts', kind: 'list', testid: 'demo-accounts'} %}
+        {% block section_body %}
+            {{ include('@NowoAuthKitBundle/accounts/_switcher.html.twig', {target_path: path('demo_home', auth_kit_route_params())}) }}
+        {% endblock %}
+    {% endembed %}
+    {{ include('@NowoAuthKitBundle/mfa/_account.html.twig') }}
 {% endblock %}

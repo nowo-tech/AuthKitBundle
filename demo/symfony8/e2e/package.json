@@ -10,8 +10,8 @@
     "to-webp": "node scripts/to-webp.mjs"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.65.1",
-    "sharp": "^0.35.5",
-    "@axe-core/playwright": "~4.14.0"
+    "sharp": "^0.35.5"
   }
 }
