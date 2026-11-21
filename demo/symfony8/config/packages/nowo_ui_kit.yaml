@@ -1,10 +1,12 @@
 # UiKit page contract (REQ-UI-003) and REQ-DEMO-014: UiKit's default theme, unchanged (no theme tokens, no CSS
-# framework, no CDN); one guest layout (the demo shell) for every bundle page.
+# framework, no CDN); the demo platform shell (templates/base.html.twig) is the layout of every bundle page.
 nowo_ui_kit:
     css_framework: custom
+    base_stylesheet: true
     # Row actions with their label (the demo loads no icon font).
     row_actions_display: icon_text
     layouts:
+        # The shell plus the demo delivery inbox (templates/layouts/guest.html.twig).
         guest: 'layouts/guest.html.twig'
         # Invitation administration (AuthKit 1.32): the demo shell itself.
         admin: 'base.html.twig'

@@ -3,6 +3,19 @@ demo:
         nav: Idioma
         en: Inglés
         es: Español
+    menu:
+        welcome: Bienvenida
+        home: Inicio
+        login: Iniciar sesión
+        reset: Restablecer contraseña
+        magic: Acceso mágico
+        register: Registro
+        mfa: Verificación en dos pasos
+        invitations: Invitaciones
+        sessions: Sesiones
+        section_demo: Demo
+        section_flows: Flujos de acceso
+        section_account: Cuenta
     welcome:
         title: Demo Auth Kit
         heading: Bienvenido

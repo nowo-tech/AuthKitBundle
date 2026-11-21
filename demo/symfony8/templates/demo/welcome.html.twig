@@ -2,90 +2,83 @@
 
 {% block title %}{{ 'demo.welcome.title'|trans({}, 'demo') }}{% endblock %}
 
-{% block body %}
-    <h1>{{ 'demo.welcome.heading'|trans({}, 'demo') }}</h1>
-    <p>{{ 'demo.welcome.lead'|trans({}, 'demo') }}</p>
-    <p class="nowo-ui-muted">{{ 'demo.welcome.embed_hint'|trans({}, 'demo') }}</p>
+{% block nowo_ui_page_header %}
+    {% set _toolbar %}
+        <a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--primary">{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_magic_login_request', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--outline">{{ 'magic_login.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_reset_password_request', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--outline">{{ 'reset.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+        <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--outline">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+    {% endset %}
+    {{ include(nowo_ui_partial('page_header'), {
+        title: 'demo.welcome.heading'|trans({}, 'demo'),
+        intro: 'demo.welcome.lead'|trans({}, 'demo') ~ ' ' ~ 'demo.welcome.embed_hint'|trans({}, 'demo'),
+        toolbar: _toolbar,
+    }) }}
+{% endblock %}
 
+{% block body %}
     {% include 'demo/_delivery_inbox.html.twig' %}
 
-    <h2>{{ 'demo.usecase.heading'|trans({}, 'demo') }}</h2>
-    <div class="nowo-ui-cards">
-        <section class="nowo-ui-card">
-            <div class="nowo-ui-card__body">
-                <h3>{{ 'demo.usecase.password.title'|trans({}, 'demo') }}</h3>
-                <p class="nowo-ui-muted">{{ 'demo.usecase.password.body'|trans({}, 'demo') }}</p>
+    <div class="nowo-ui-cards" data-testid="demo-usecases">
+        {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'demo.usecase.password.title'|trans({}, 'demo'), intro: 'demo.usecase.password.body'|trans({}, 'demo'), kind: 'content'} %}
+            {% block section_body %}
                 <ol>
                     <li>{{ 'demo.usecase.password.step1'|trans({}, 'demo') }}</li>
                     <li>{{ 'demo.usecase.password.step2'|trans({}, 'demo') }}</li>
                     <li>{{ 'demo.usecase.password.step3'|trans({}, 'demo') }}</li>
                 </ol>
-                <a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary">{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}</a>
-            </div>
-        </section>
-        <section class="nowo-ui-card">
-            <div class="nowo-ui-card__body">
-                <h3>{{ 'demo.usecase.locale.title'|trans({}, 'demo') }}</h3>
-                <p class="nowo-ui-muted">{{ 'demo.usecase.locale.body'|trans({}, 'demo') }}</p>
+                <div class="nowo-ui-row-actions">
+                    <a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+                </div>
+            {% endblock %}
+        {% endembed %}
+        {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'demo.usecase.locale.title'|trans({}, 'demo'), intro: 'demo.usecase.locale.body'|trans({}, 'demo'), kind: 'content'} %}
+            {% block section_body %}
                 <ol>
                     <li>{{ 'demo.usecase.locale.step1'|trans({}, 'demo') }}</li>
                     <li>{{ 'demo.usecase.locale.step2'|trans({}, 'demo') }}</li>
                     <li>{{ 'demo.usecase.locale.step3'|trans({}, 'demo') }}</li>
                 </ol>
                 <div class="nowo-ui-row-actions">
-                    <a href="{{ path('nowo_auth_kit_login', {_locale: 'en'}) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary">{{ 'demo.usecase.locale.link_en'|trans({}, 'demo') }}</a>
-                    <a href="{{ path('nowo_auth_kit_login', {_locale: 'es'}) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary">{{ 'demo.usecase.locale.link_es'|trans({}, 'demo') }}</a>
+                    <a href="{{ path('nowo_auth_kit_login', {_locale: 'en'}) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'demo.usecase.locale.link_en'|trans({}, 'demo') }}</a>
+                    <a href="{{ path('nowo_auth_kit_login', {_locale: 'es'}) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'demo.usecase.locale.link_es'|trans({}, 'demo') }}</a>
                     <a href="{{ path('nowo_auth_kit_login_unlocalized') }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'demo.usecase.locale.link_bare'|trans({}, 'demo') }}</a>
                 </div>
-            </div>
-        </section>
-        <section class="nowo-ui-card">
-            <div class="nowo-ui-card__body">
-                <h3>{{ 'demo.usecase.reset.title'|trans({}, 'demo') }}</h3>
-                <p class="nowo-ui-muted">{{ 'demo.usecase.reset.body'|trans({}, 'demo') }}</p>
+            {% endblock %}
+        {% endembed %}
+        {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'demo.usecase.reset.title'|trans({}, 'demo'), intro: 'demo.usecase.reset.body'|trans({}, 'demo'), kind: 'content'} %}
+            {% block section_body %}
                 <ol>
                     <li>{{ 'demo.usecase.reset.step1'|trans({}, 'demo') }}</li>
                     <li>{{ 'demo.usecase.reset.step2'|trans({}, 'demo') }}</li>
                     <li>{{ 'demo.usecase.reset.step3'|trans({}, 'demo') }}</li>
                 </ol>
                 <div class="nowo-ui-row-actions">
-                    <a href="{{ path('nowo_auth_kit_reset_password_request', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary">{{ 'reset.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+                    <a href="{{ path('nowo_auth_kit_reset_password_request', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'reset.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
                     <a href="{{ path('nowo_auth_kit_reset_password_request_unlocalized') }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'demo.usecase.locale.link_bare_reset'|trans({}, 'demo') }}</a>
                 </div>
-            </div>
-        </section>
-        <section class="nowo-ui-card">
-            <div class="nowo-ui-card__body">
-                <h3>{{ 'demo.usecase.magic.title'|trans({}, 'demo') }}</h3>
-                <p class="nowo-ui-muted">{{ 'demo.usecase.magic.body'|trans({}, 'demo') }}</p>
+            {% endblock %}
+        {% endembed %}
+        {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'demo.usecase.magic.title'|trans({}, 'demo'), intro: 'demo.usecase.magic.body'|trans({}, 'demo'), kind: 'content'} %}
+            {% block section_body %}
                 <ol>
                     <li>{{ 'demo.usecase.magic.step1'|trans({}, 'demo') }}</li>
                     <li>{{ 'demo.usecase.magic.step2'|trans({}, 'demo') }}</li>
                     <li>{{ 'demo.usecase.magic.step3'|trans({}, 'demo') }}</li>
                 </ol>
                 <div class="nowo-ui-row-actions">
-                    <a href="{{ path('nowo_auth_kit_magic_login_request', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary">{{ 'magic_login.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+                    <a href="{{ path('nowo_auth_kit_magic_login_request', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'magic_login.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
                     <a href="{{ path('nowo_auth_kit_magic_login_request_unlocalized') }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'demo.usecase.locale.link_bare_magic'|trans({}, 'demo') }}</a>
                 </div>
-            </div>
-        </section>
-        <section class="nowo-ui-card">
-            <div class="nowo-ui-card__body">
-                <h3>{{ 'demo.usecase.register.title'|trans({}, 'demo') }}</h3>
-                <p class="nowo-ui-muted">{{ 'demo.usecase.register.body'|trans({}, 'demo') }}</p>
+            {% endblock %}
+        {% endembed %}
+        {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'demo.usecase.register.title'|trans({}, 'demo'), intro: 'demo.usecase.register.body'|trans({}, 'demo'), kind: 'content'} %}
+            {% block section_body %}
                 <div class="nowo-ui-row-actions">
                     <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
                     <a href="{{ path('nowo_auth_kit_register_unlocalized') }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'demo.usecase.locale.link_bare_register'|trans({}, 'demo') }}</a>
                 </div>
-            </div>
-        </section>
-    </div>
-
-    <div class="nowo-ui-row-actions">
-        <a href="{{ path('nowo_auth_kit_login', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary">{{ 'login.title'|trans({}, 'NowoAuthKitBundle') }}</a>
-        <a href="{{ path('nowo_auth_kit_login_unlocalized') }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'demo.usecase.locale.link_bare'|trans({}, 'demo') }}</a>
-        <a href="{{ path('nowo_auth_kit_magic_login_request', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--primary">{{ 'magic_login.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
-        <a href="{{ path('nowo_auth_kit_reset_password_request', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'reset.request.title'|trans({}, 'NowoAuthKitBundle') }}</a>
-        <a href="{{ path('nowo_auth_kit_register', auth_kit_route_params()) }}" class="nowo-ui-btn nowo-ui-btn--sm nowo-ui-btn--outline">{{ 'register.title'|trans({}, 'NowoAuthKitBundle') }}</a>
+            {% endblock %}
+        {% endembed %}
     </div>
 {% endblock %}

@@ -1,26 +1,43 @@
-{#- REQ-DEMO-014: the demo shell is UiKit's admin layout with UiKit's default theme (nowo-ui.css from the bundle's own
-    asset package, no CSS framework, no CDN). Bundle pages render through the same shell (nowo_ui_kit.layouts). -#}
-{% extends '@NowoUiKit/layout/admin.html.twig' %}
+{#- REQ-DEMO-014: the demo runs inside UiKit's shared demo platform shell (@NowoUiKit/demo_platform/layout.html.twig):
+    the same top bar, aside, content width, theme and footer as every other nowo-tech bundle demo. This file only
+    declares the demo (nowo_ui_demo_platform). Bundle pages render through the same shell (nowo_ui_kit.layouts).
+    The Account dropdown is AuthKit's own top-bar widget, so it goes in the top bar (header_end) while signed out. -#}
+{% extends '@NowoUiKit/demo_platform/layout.html.twig' %}
+{% set nowo_ui_demo_platform = {
+    bundle: 'Auth Kit',
+    home_route: 'app_welcome',
+    home_params: auth_kit_route_params(),
+    repository: 'https://github.com/nowo-tech/AuthKitBundle',
+    translation_domain: 'demo',
+    locales: ['en', 'es'],
+    nav: [
+        {label: 'demo.menu.welcome', route: 'app_welcome', params: auth_kit_route_params(), section: 'demo.menu.section_demo'},
+        {label: 'demo.menu.home', route: 'demo_home', params: auth_kit_route_params(), section: 'demo.menu.section_demo'},
+        {label: 'demo.menu.login', route: 'nowo_auth_kit_login', params: auth_kit_route_params(), section: 'demo.menu.section_flows'},
+        {label: 'demo.menu.reset', route: 'nowo_auth_kit_reset_password_request', params: auth_kit_route_params(), section: 'demo.menu.section_flows'},
+        {label: 'demo.menu.magic', route: 'nowo_auth_kit_magic_login_request', params: auth_kit_route_params(), section: 'demo.menu.section_flows'},
+        {label: 'demo.menu.register', route: 'nowo_auth_kit_register', params: auth_kit_route_params(), section: 'demo.menu.section_flows'},
+        {label: 'demo.menu.mfa', route: 'nowo_auth_kit_mfa_account', params: auth_kit_route_params(), section: 'demo.menu.section_account'},
+        {label: 'demo.menu.invitations', route: 'nowo_auth_kit_invitations', params: auth_kit_route_params(), active: ['nowo_auth_kit_invitation*'], section: 'demo.menu.section_account'},
+        {label: 'demo.menu.sessions', route: 'nowo_user_kit_sessions', section: 'demo.menu.section_account'},
+    ],
+} %}
+
+{#- Signed in: the shell's user menu (identifier + sign out); signed out: AuthKit's embedded sign-in dropdown (header_end). -#}
+{% if app.user %}
+    {% set nowo_ui_demo_platform = nowo_ui_demo_platform|merge({auth: {login_href: path('nowo_auth_kit_login', auth_kit_route_params()), logout_href: path('nowo_auth_kit_logout', auth_kit_route_params())}}) %}
+{% endif %}
 
 {% block nowo_ui_document_title %}{% block title %}{{ 'demo.home.title'|trans({}, 'demo') }}{% endblock %} — Symfony 8{% endblock %}
 
 {% block nowo_ui_styles %}
     {{ parent() }}
-    {#- Embedded Account widget (masthead) on every demo page. -#}
-    <link rel="stylesheet" href="{{ asset('css/nowo-auth-kit.css', 'nowo_auth_kit') }}">
+    {#- Embedded Account widget (top bar) on every demo page. -#}
+    <link rel="stylesheet" href="{{ asset('bundles/nowoauthkit/css/nowo-auth-kit.css') }}">
     <link rel="stylesheet" href="{{ asset('bundles/nowopasswordtoggle/css/toggle_password.css') }}">
 {% endblock %}
 
-{% block nowo_ui_navigation %}
-    <header class="nowo-ui-header" data-testid="demo-masthead">
-        <a class="nowo-ui-brand" href="{{ path('app_welcome', auth_kit_route_params()) }}">{{ 'demo.home.title'|trans({}, 'demo') }}</a>
-        <div class="nowo-ui-header__end">
-            {% include 'demo/_locale_switcher.html.twig' %}
-            {#- the auth pages already show the full form: no second (same-id) form in the masthead -#}
-            {% if nowo_ui_page_type|default(null) != 'auth' %}{{ auth_kit_dropdown() }}{% endif %}
-            {{ include('@NowoUiKitBundle/partials/_theme_toggle.html.twig', { compact: true }, false) }}
-        </div>
-    </header>
+{% block nowo_ui_demo_platform_header_end %}
+    {#- the auth pages already show the full form: no second (same-id) form in the top bar; signed in, the shell user menu is shown -#}
+    {% if not app.user and nowo_ui_page_type|default(null) != 'auth' %}{{ auth_kit_dropdown() }}{% endif %}
 {% endblock %}
-
-{% block nowo_ui_content %}{% block body %}{% endblock %}{% endblock %}
