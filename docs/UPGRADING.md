@@ -170,7 +170,9 @@ composer require nowo-tech/auth-kit-bundle:^2.0 -W
 ```
 
 2.0 contains only changes that 1.x announced through deprecation notices: an application that runs the last 1.x
-minor without deprecation notices from this bundle upgrades without code changes. After 2.0.0 is released, the 1.x
+minor without deprecation notices from this bundle, and has none of the uses listed under item 3 of
+[Before you upgrade](#before-you-upgrade) (no notice can report them), upgrades without code changes. After 2.0.0 is
+released, the 1.x
 line receives security fixes for 6 months: fixes rated Moderate and above are backported to the last 1.x minor;
 Low ones are fixed in 2.x only.
 
@@ -210,6 +212,20 @@ On the last 1.x (1.55), clear every deprecation of this bundle:
      `web_ui.layout_template` is null) or uses the globals `nowo_auth_kit_button_class` /
      `nowo_auth_kit_secondary_button_class`. In 2.0 these fail when Twig renders the page ("Unable to find template",
      "Variable … does not exist"), not at build time (see [Templates, blocks and globals](#templates-blocks-and-globals)).
+   - uses of the constants of the removed interfaces: `InvitationActionAuthorizerInterface::AUTHORIZER_TAG`, `INVITE`,
+     `REINVITE`, `RESEND`, `REVOKE`, `RETURN_LINK` and `InvitationGrantInterface::TAG`, also inside classes that already
+     implement the 1.46 ports (1.x documented them on the deprecated interfaces) and in attributes such as
+     `#[AutoconfigureTag(InvitationGrantInterface::TAG)]`. 2.0 fails with `Class "…" not found` when the line runs (at
+     build time in an attribute). Use the same constants on `InvitationActionPolicyInterface` and
+     `InvitationGrantHandlerInterface` (same values; available since 1.56.0, so you can switch on 1.x);
+   - code of yours that calls or constructs AuthKit's built-in port services directly: `DoctrineUserLookup`,
+     `DoctrineUserWriter`, `PropertyAccessUserFactory`, `NullQrLoginStepUp`, `DeviceIntelligenceQrLoginStepUp`,
+     `DefaultEnrolmentGate`, `IdentifierAccountPresenter`, `RoleInvitationsAccessChecker` (for example an adapter of
+     yours that wraps `DoctrineUserLookup`). Their methods now follow the 1.46 ports: `AuthUserRef` in and out
+     (`findByIdentifier()` returns an `AuthUserRef`, `DoctrineUserWriter::add()` takes one), `isUnlocked()` instead of
+     `assertUnlocked()`, `allowsEnrolment(EnrolmentCandidate)`, `presentationFor(AuthUserRef)`, `allowsManage()`; the
+     Device Intelligence step-up takes a `QrLoginStepUpPolicyInterface` and the `RequestStack`. Decorate or alias the
+     ports instead of composing the built-ins.
 
 ### Default flips
 
@@ -340,7 +356,7 @@ Each removed key fails the build with a message that names its replacement. The 
 `nowo_auth_kit.default_locale`, `nowo_auth_kit.enabled_locales` and `nowo_auth_kit.locale_in_path` stay (they come
 from `locale.*`), and so do the read-only `templates.*` mirror (`nowo_auth_kit.templates`,
 `ProfileSettings::$templates`) and `nowo_auth_kit.css` (the 1.x default class names; no longer configurable).
-1.x no longer bridges `css.*` to the UiKit theme: set the UiKit slots yourself.
+2.0 no longer bridges `css.*` to the UiKit theme: set the UiKit slots yourself.
 
 ### Templates, blocks and globals
 

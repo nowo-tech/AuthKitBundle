@@ -1360,7 +1360,7 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->enumNode('approve_requires')
                     ->values(array_map(static fn (QrLoginApproveMode $mode): string => $mode->value, QrLoginApproveMode::cases()))
-                    ->info('session: logged-in phone only. session_step_up: phone session + QrLoginStepUpInterface.')
+                    ->info('session: logged-in phone only. session_step_up: phone session + QrLoginStepUpPolicyInterface (alias it to your policy).')
                     ->defaultValue(QrLoginApproveMode::Session->value)
                 ->end()
                 ->enumNode('desktop_binding')

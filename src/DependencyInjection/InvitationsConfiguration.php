@@ -270,7 +270,7 @@ final class InvitationsConfiguration
                     ->end()
                 ->end()
                 ->scalarNode('access_checker')
-                    ->info('Service id implementing InvitationsAccessCheckerInterface (null: the built-in role checker on access_roles).')
+                    ->info('Service id implementing Invitation\\Security\\InvitationsAccessPolicyInterface (null: the built-in role checker on access_roles).')
                     ->defaultNull()
                 ->end()
                 ->booleanNode('allow_unauthenticated')

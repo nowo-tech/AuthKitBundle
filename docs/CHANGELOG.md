@@ -120,7 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 2.0 removes what 1.x announced through deprecation notices (REQ-BC-001, REQ-ARCH-001 rules 3 and 6): see UPGRADING.md,
-"To 2.0.0". An application that runs 1.55 without deprecation notices from this bundle upgrades without code changes.
+"To 2.0.0". An application that runs 1.55 without deprecation notices from this bundle, and without the uses listed
+in UPGRADING "Before you upgrade", item 3 (which no notice can report), upgrades without code changes.
 
 ### Changed
 

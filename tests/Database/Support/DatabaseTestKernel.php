@@ -8,6 +8,7 @@ use Composer\InstalledVersions;
 use Nowo\AuthKitBundle\Admin\AdminUserCreator;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
+use Nowo\AuthKitBundle\Invitation\InvitationManager;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
@@ -42,6 +43,7 @@ final class DatabaseTestKernel extends InvitationsTestKernel
         'load.acceptor'    => InvitationAcceptor::class,
         'load.admin'       => AdminUserCreator::class,
         'load.invitations' => InvitationRepository::class,
+        'load.inviter'     => InvitationManager::class,
         'load.runner'      => AuthKitTransactionRunner::SERVICE_ID,
         'load.boundary'    => PrivateEntityManagerSubscriber::class,
         'load.social'      => SocialAccountLinker::class,
