@@ -50,7 +50,7 @@ register:
     flash_rate_limited: Troppi tentativi di registrazione. Riprova più tardi.
     flash_unavailable: La registrazione non è al momento disponibile. Riprova più tardi.
     field:
-        email: Email
+        email: "E-mail"
         password: Password di accesso
         password_confirm: Conferma password
         name: Nome

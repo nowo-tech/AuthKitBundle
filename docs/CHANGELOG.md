@@ -118,9 +118,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Translations: the `register.field.email` label is now "Correo electrónico" in Spanish and "E-mail" in Italian (it was the English "Email"). A new strict `TranslationCatalogueTest` fails on a non-en locale missing a key, on a non-en value identical to English (any length, placeholders included; values without letters are skipped) unless allow-listed per locale (brands, units, protocols, loanwords, true cognates), and on stale allow-list entries.
+
 ### Changed
 
 - Demo: runs in UiKit's demo platform shell (`nowo-tech/ui-kit-bundle` ^2.60); the demo's own header is gone and the pages use the shell page headers and section cards. Demo only, no bundle change.
+
+- Demo: `demo/symfony8/config/packages/doctrine.yaml` no longer sets the ORM mapping `alias` option, deprecated since DoctrineBundle 3.4 (`doctrine.orm.entity_managers.<em>.mappings.<name>.alias`); the demo does not use the `App:Entity` short syntax. Demo only, no bundle change.
 
 ## [1.55.0] - 2026-11-21
 
