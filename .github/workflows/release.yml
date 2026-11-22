@@ -137,7 +137,9 @@ jobs:
                 repo: context.repo.repo,
                 release_id: releaseId,
                 body: releaseBody,
-                prerelease: isPrerelease
+                prerelease: isPrerelease,
+                // 1.x maintenance line: a 1.x patch released after 2.0 must never become the "Latest" release.
+                make_latest: 'false'
               });
               console.log('✅ Updated release ' + tagName + ' with changelog');
             } catch (error) {
@@ -176,7 +178,9 @@ jobs:
                 body: releaseBody,
                 draft: false,
                 prerelease: isPrerelease,
-                generate_release_notes: true
+                generate_release_notes: true,
+                // 1.x maintenance line: a 1.x patch released after 2.0 must never become the "Latest" release.
+                make_latest: 'false'
               });
               console.log('✅ Created release ' + tagName + ' with changelog');
             } catch (error) {
