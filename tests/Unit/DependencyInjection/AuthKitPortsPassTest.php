@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
+use Error;
 use LogicException;
 use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\RemovedPortsPass;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
 use Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp;
@@ -82,6 +84,18 @@ final class AuthKitPortsPassTest extends TestCase
         (new AuthKitPortsPass())->process($container);
     }
 
+    /** A class that is not a string once resolved cannot be known before compilation: nothing to check. */
+    public function testAClassParameterThatIsNotAStringIsSkipped(): void
+    {
+        $container = $this->container();
+        $container->setParameter('app.classes', ['not', 'a', 'class']);
+        $container->register('app.odd', '%app.classes%');
+        $container->setParameter(AuthKitPortsPass::SERVICES_PARAMETER, [['mfa_policy', 'app.odd', 'nowo_auth_kit.profiles.default.mfa.policy']]);
+        (new AuthKitPortsPass())->process($container);
+
+        self::assertFalse($container->hasParameter(AuthKitPortsPass::SERVICES_PARAMETER));
+    }
+
     public function testAnEntryWithoutAPathNamesThePort(): void
     {
         $container = $this->container();
@@ -106,6 +120,30 @@ final class AuthKitPortsPassTest extends TestCase
         $container->register('app.bad', stdClass::class)->addTag(InvitationActionPolicyInterface::AUTHORIZER_TAG);
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('of the tag "nowo_auth_kit.invitation_action_authorizer" must implement "' . InvitationActionPolicyInterface::class . '"');
+        (new AuthKitPortsPass())->process($container);
+    }
+
+    /** 2.0: a port service whose class cannot be loaded because it still implements a removed interface. */
+    public function testAClassOnARemovedInterfaceFailsWithTheRemovedPortMessage(): void
+    {
+        $container = $this->container();
+        $class     = 'Nowo\\AuthKitBundle\\Tests\\Fixtures\\RemovedPorts\\ImplementsUserLookup\\OldUsers';
+        $container->register('app.old_users', $class);
+        $container->setAlias(UserDirectoryInterface::class, 'app.old_users');
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(RemovedPortsPass::message('app.old_users', 'Nowo\\AuthKitBundle\\User\\UserLookupInterface'));
+        (new AuthKitPortsPass())->process($container);
+    }
+
+    /** Any other load error is Symfony's / PHP's own. */
+    public function testAnUnrelatedLoadErrorIsRethrown(): void
+    {
+        $container = $this->container();
+        $container->register('app.adapter', 'Nowo\\AuthKitBundle\\Tests\\Fixtures\\RemovedPorts\\UnrelatedMissing\\PolicyAdapter')->addTag(InvitationGrantHandlerInterface::TAG);
+
+        $this->expectException(Error::class);
+        $this->expectExceptionMessage('UserLookupPolicyInterface');
         (new AuthKitPortsPass())->process($container);
     }
 

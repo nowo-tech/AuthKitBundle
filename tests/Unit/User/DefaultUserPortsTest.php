@@ -7,8 +7,10 @@ namespace Nowo\AuthKitBundle\Tests\Unit\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use LogicException;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
 use Nowo\AuthKitBundle\Port\UserCreatorGate;
 use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\Port\UserStoreGate;
@@ -25,6 +27,7 @@ use Nowo\AuthKitBundle\User\NewUser;
 use Nowo\AuthKitBundle\User\PropertyAccessUserFactory;
 use Nowo\AuthKitBundle\User\UserCreationSource;
 use Nowo\AuthKitBundle\User\UserIds;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use Stringable;
@@ -107,6 +110,23 @@ final class DefaultUserPortsTest extends TestCase
         (new UserStoreGate(new DoctrineUserWriter($this->createMock(EntityManagerInterface::class), PropertyAccess::createPropertyAccessor())))
             ->changePassword($noPasswordField, $other, 'hash-2');
         self::assertSame('hash-2', $other->password);
+    }
+
+    /** 2.0: the Doctrine store implements the port; a reference without the user object (or a non-password one) is refused. */
+    public function testTheDoctrineStoreNeedsTheObjectAndAPasswordUser(): void
+    {
+        $writer  = new DoctrineUserWriter($this->createMock(EntityManagerInterface::class), PropertyAccess::createPropertyAccessor());
+        $profile = ProfileRegistryFactory::single(TestUser::class)->getDefault();
+
+        try {
+            $writer->add($profile, AuthUserRef::ofId(TestUser::class, '7'));
+            self::fail('a reference by id alone was stored');
+        } catch (LogicException $refused) {
+            self::assertStringContainsString('::add() needs a reference that carries the user entity', $refused->getMessage());
+        }
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('::changePassword() needs a reference to a');
+        $writer->changePassword($profile, AuthUserRefs::carrying(new stdClass()), 'hash');
     }
 
     public function testPropertyAccessFactoryBuildsSocialUsers(): void

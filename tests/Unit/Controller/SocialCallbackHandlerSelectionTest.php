@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\Controller;
 
 use Doctrine\ORM\EntityManagerInterface;
+use LogicException;
 use Nowo\AuthKitBundle\Controller\SocialLoginCheckController;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Port\Internal\SocialCallbackHandlerInterface;
@@ -13,12 +14,16 @@ use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\ProviderEndpointCatalog;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
+use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
+use Nowo\AuthKitBundle\ValueObject\AuthRequestContext;
+use Nowo\AuthKitBundle\ValueObject\SocialCallbackResult;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -77,6 +82,34 @@ final class SocialCallbackHandlerSelectionTest extends TestCase
         self::assertSame('/login', $this->controller([], $this->store($request))->check($request, 'google')->headers->get('Location'));
     }
 
+    /** 2.0: a host handler is a SocialCallbackStepInterface, asked through its gate (its failure answer is a redirect). */
+    public function testAPortHandlerIsAskedThroughItsGate(): void
+    {
+        $step = $this->createMock(SocialCallbackStepInterface::class);
+        $step->method('supports')->with(self::isInstanceOf(AuthRequestContext::class), 'google')->willReturn(true);
+        $step->expects(self::once())->method('handleFailure')
+            ->with(self::isInstanceOf(AuthRequestContext::class), 'google', SocialCallbackFailure::Unavailable)
+            ->willReturn(SocialCallbackResult::redirect('/invitation'));
+
+        $request = $this->request();
+        $store   = $this->store($request);
+        $request->query->set('state', $store->issue('google'));
+
+        self::assertSame('/invitation', $this->controller([$step], $store)->check($request, 'google')->headers->get('Location'));
+    }
+
+    /** 2.0: a tagged object that is not a port (a class on the removed interface cannot even load) fails closed. */
+    public function testAHandlerThatIsNotAPortFailsClosed(): void
+    {
+        $request = $this->request();
+        $store   = $this->store($request);
+        $request->query->set('state', $store->issue('google'));
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(SocialCallbackStepInterface::class);
+        $this->controller([new stdClass()], $store)->check($request, 'google');
+    }
+
     private function request(): Request
     {
         $request = new Request();
@@ -94,7 +127,7 @@ final class SocialCallbackHandlerSelectionTest extends TestCase
     }
 
     /**
-     * @param list<SocialCallbackHandlerInterface> $handlers
+     * @param list<object> $handlers
      */
     private function controller(array $handlers, SocialLoginStateStore $store): SocialLoginCheckController
     {

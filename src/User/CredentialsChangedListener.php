@@ -11,6 +11,8 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function assert;
+
 /**
  * Applies a host-dispatched {@see CredentialsChangedEvent} (1.41): MFA trusted devices forgotten when the password
  * changed (MFA profiles only), then the pending reset credential cleared (profiles with password reset on); users of no AuthKit profile are ignored.
@@ -28,9 +30,7 @@ final readonly class CredentialsChangedListener
     {
         // 2.0: the user object through the reference (the property is no longer public); always the dispatched object.
         $user = $event->userRef()->user();
-        if (!$user instanceof UserInterface) {
-            return;
-        }
+        assert($user instanceof UserInterface); // the constructor takes a UserInterface
         $profile = $this->profiles->resolveForObject($user);
         if (!$profile instanceof ProfileSettings) {
             return;
