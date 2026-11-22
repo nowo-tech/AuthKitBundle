@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [The bundle declares its own identity / access-key columns (REQ-SEC-006)](#the-bundle-declares-its-own-identity--access-key-columns-req-sec-006)
 - [To 2.0.0](#to-200)
   - [Before you upgrade](#before-you-upgrade)
   - [Default flips](#default-flips)
@@ -167,6 +168,41 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### The bundle declares its own identity / access-key columns (REQ-SEC-006)
+
+Nothing to do: the declaration is discovered by autoconfiguration, and a host that does not install
+`nowo-tech/migrations-kit-bundle` is unaffected.
+
+What you can **remove**: if you excused this bundle's identity columns by hand so the uniform collation gate would
+pass, those entries are now redundant — a declared exact-key column is exempt from the uniform gate by construction,
+and `nowo:migrations:check-key-collations` checks it under its real owner (`nowo-tech/auth-kit-bundle`) instead of
+yours. Delete them:
+
+```diff
+ nowo_migrations_kit:
+     collation_check:
+         ignore_columns:
+-            'auth_kit_mfa.user_type': 'AuthKit MFA owner'
+-            'auth_kit_mfa.user_id': 'AuthKit MFA owner'
+-            'auth_kit_social_account.provider_user_id': 'AuthKit social provider subject'
+-            'auth_kit_social_account.user_id': 'AuthKit social link owner'
+-            'auth_kit_social_account.user_identifier': 'AuthKit social link owner identifier'
+-            'auth_kit_account_vault.user_identifier': 'AuthKit account switcher identifier'
+-            'auth_kit_invitation.email': 'AuthKit invitation e-mail'
+-            'auth_kit_invitation.invited_by': 'AuthKit inviter'
+```
+
+The password reset columns (`auth_kit_password_reset.{user_id,user_identifier,token_hash,code_hash}`) go the same
+way, prefixed tables included: the declaration resolves `nowo_auth_kit.doctrine.table_prefix` itself. Keeping an entry
+is not an error, but it outlives the declaration and goes on excusing a column nothing checks any more, so drop it.
+
+If the gate now *fails* on one of these columns, it is telling the truth: that table predates the collation listeners,
+or it was restored from a dump, and it still carries the host's folding default. Run the `ALTER` the check prints (they
+are the ones in [To 1.47.0](#to-1470)).
+
+With the entities unmapped, or with no profile on `password_reset.storage: table`, the columns of those tables are
+reported as **skipped** with their setting, never as a failure: there is no table to check.
 
 ## To 2.0.0
 
