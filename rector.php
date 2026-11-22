@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
 use Rector\DeadCode\Rector\ClassMethod\RemoveEmptyClassMethodRector;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedConstructorParamRector;
 use Rector\ValueObject\PhpVersion;
 
 return RectorConfig::configure()
@@ -14,6 +15,14 @@ return RectorConfig::configure()
     ->withSkip([
         __DIR__ . '/demo',
         __DIR__ . '/vendor',
+        // 2.0 (W1-1): host classes on the port interfaces removed in 2.0 (they cannot be loaded on purpose).
+        __DIR__ . '/tests/Fixtures/RemovedPorts',
+        // 2.0: arguments of the removed host mode / css.* keys kept, ignored, until 3.0 (public constructors).
+        RemoveUnusedConstructorParamRector::class => [
+            __DIR__ . '/src/Transaction/AuthKitTransactionRunner.php',
+            __DIR__ . '/src/Mfa/MfaStore.php',
+            __DIR__ . '/src/Twig/AuthKitUiExtension.php',
+        ],
         // Symfony 7.4 UserInterface still requires empty eraseCredentials(); Symfony 8 dropped it.
         RemoveEmptyClassMethodRector::class => [
             __DIR__ . '/tests/Stub',

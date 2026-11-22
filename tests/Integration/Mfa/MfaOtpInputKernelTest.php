@@ -14,6 +14,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Twig\Environment;
+use Twig\Error\LoaderError;
 
 use function array_unique;
 use function array_values;
@@ -181,10 +182,10 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
     }
 
     /**
-     * Audit RB-M1: a host template that still applies the 1.51 theme (as the 1.51 USAGE told hosts to) keeps
-     * rendering — the deprecated theme is inert — with exactly one set of boxes and unique ids.
+     * 2.0: the inert 1.52 theme `form/mfa_otp_widget.html.twig` is removed: a host template that still applies it fails
+     * when Twig renders it ("Unable to find template"), and without the line the field renders once.
      */
-    public function testAHostTemplateWithTheDeprecatedThemeRendersOneSetOfBoxes(): void
+    public function testTheRemovedThemeFailsAtRenderAndTheFieldRendersOnceWithoutIt(): void
     {
         $factory = self::getContainer()->get('form.factory');
         self::assertInstanceOf(FormFactoryInterface::class, $factory);
@@ -195,16 +196,22 @@ final class MfaOtpInputKernelTest extends MfaKernelTestCase
 
         $html = $twig->createTemplate(<<<'TWIG'
             <!DOCTYPE html><html><body>
-            {% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}
             {{ form_start(form) }}{{ form_row(form.code) }}{{ form_rest(form) }}{{ form_end(form) }}
             </body></html>
             TWIG)->render(['form' => $form->createView()]);
 
         $crawler = new Crawler($html);
         $this->assertOneOtpField($crawler, 'mfa_code_form', 6);
-        self::assertSame('text', $crawler->filter('input[name="mfa_code_form[code]"]')->attr('type'));
         self::assertSame('1', $crawler->filter('input[name="mfa_code_form[code]"]')->attr('data-nowo-auth-kit-otp-autosubmit'));
-        self::assertNotNull($crawler->filter('[data-nowo-otp-boxes]')->attr('hidden'));
+        self::assertFalse($twig->getLoader()->exists('@NowoAuthKitBundle/form/mfa_otp_widget.html.twig'));
+
+        $form = $factory->create(MfaCodeFormType::class, null, ['otp_input' => $on, 'otp_autosubmit' => true, 'recovery' => true, 'csrf_protection' => false]);
+        $this->expectException(LoaderError::class);
+        $this->expectExceptionMessage('Unable to find template "@NowoAuthKitBundle/form/mfa_otp_widget.html.twig"');
+        $twig->createTemplate(<<<'TWIG'
+            {% form_theme form.code '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}
+            {{ form_row(form.code) }}
+            TWIG)->render(['form' => $form->createView()]);
     }
 
     /**

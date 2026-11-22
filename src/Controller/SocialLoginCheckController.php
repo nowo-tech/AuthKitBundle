@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
+use Nowo\AuthKitBundle\Port\Internal\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Port\SocialCallbackStepGate;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -18,7 +19,6 @@ use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
-use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
@@ -136,8 +136,8 @@ final class SocialLoginCheckController
     }
 
     /**
-     * The first handler that owns the callback. 1.46.0: a handler implementing the deprecated interface is asked as in
-     * 1.45; one implementing only {@see SocialCallbackStepInterface} through its gate (per call).
+     * The first handler that owns the callback: a {@see SocialCallbackStepInterface} through its gate (per call);
+     * AuthKit's own invitation acceptance page through the internal handler interface.
      */
     private function handlerFor(Request $request, string $provider, ProfileSettings $profile): ?SocialCallbackHandlerInterface
     {

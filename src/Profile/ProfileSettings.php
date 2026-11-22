@@ -127,7 +127,7 @@ final readonly class ProfileSettings
     }
 
     /**
-     * Template of an auth page: web_ui.templates.<page>, else the (deprecated) templates.<page> mirror, else the
+     * Template of an auth page: web_ui.templates.<page>, else the templates.<page> mirror (read-only since 2.0), else the
      * bundle default.
      */
     public function template(string $page): string
@@ -152,7 +152,8 @@ final readonly class ProfileSettings
 
     /**
      * Layout handed to 1.x page templates as `layout_template` ({% extends layout_template %}): the override, else
-     * the deprecated bundle layout (a bridge to the UiKit guest layout).
+     * the 1.x bundle layout name (2.0: that template is removed, so a 1.x host page template extending it fails at
+     * render; extend {@see self::layoutTemplate()} or the UiKit guest layout instead).
      */
     public function legacyLayoutTemplate(): string
     {

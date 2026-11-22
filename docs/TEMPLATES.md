@@ -78,7 +78,7 @@ Every page receives:
 | `document_title` | `Label` of `<page>.title` (the `<title>`; the panel heading is `page.title`) |
 | `form_themes` | `web_ui.form_themes`, applied to `page.form` with `form_theme` before the scaffold renders it |
 | `auth_kit_page` | the page key (`login`, `register`, …) |
-| 1.x variables | `layout_template` (the override, else the deprecated bridge `@NowoAuthKitBundle/layout.html.twig`), `login_form` / `registration_form` / `reset_*_form` / `magic_login_*_form` / `approve_form`, routes (`login_route`, `register_route`, …), flags (`registration_allowed`, `password_reset_enabled`, …) — kept for host templates written against 1.x |
+| 1.x variables | `layout_template` (the override; without it, the name of the 1.x bridge `@NowoAuthKitBundle/layout.html.twig`, removed in 2.0, so a 1.x page that extends it fails at render), `login_form` / `registration_form` / `reset_*_form` / `magic_login_*_form` / `approve_form`, routes (`login_route`, `register_route`, …), flags (`registration_allowed`, `password_reset_enabled`, …) — kept for host templates written against 1.x |
 
 Login also gets `social_links` / `sso_links` (`list<View\ProviderLink>`, 1.48: `provider`, `label`, `href`, `mark`), QR show `status_url`, `complete_url`, `start_url`,
 `expires_at`, `expires_in`, `poll_interval_ms`, `public_code`, `qr_data_uri`, `qr_payload`,
@@ -166,9 +166,9 @@ page of every bundle) over per-page overrides.
 `nowo_ui_content`, `nowo_ui_modals`, `nowo_ui_scripts`); the demo's `templates/layouts/guest.html.twig` is a one-file
 bridge over its `base.html.twig`.
 
-The bundle ships no layout loading a CSS framework. `@NowoAuthKitBundle/layout.html.twig` is **deprecated**: it is now a
-bridge to the UiKit guest layout that maps the 1.x blocks (`title`, `stylesheets`, `body`, `auth_brand`, `auth_panel`,
-`javascripts`), passed as `layout_template` to 1.x page templates of host applications. A 1.x host layout set as
+The bundle ships no layout loading a CSS framework. The 1.x bridge `@NowoAuthKitBundle/layout.html.twig` (deprecated
+since 1.27) was **removed in 2.0**, with its blocks `auth_panel_heading`, `auth_brand` and `title`: extend
+`nowo_ui_kit.layouts.guest` or set `web_ui.layout_template`. A 1.x host layout set as
 `web_ui.layout_template` (rendering `auth_panel` instead of the UiKit blocks) still shows the panel: every page defines
 `auth_panel` as `{{ block('nowo_ui_content') }}`.
 
@@ -190,9 +190,9 @@ request `csp_nonce`. Only local asset packages, never a CDN.
 
 ## Theme exception (`theme.bundles.NowoAuthKitBundle`)
 
-Per-bundle classes / attributes go in `nowo_ui_kit.theme.bundles.NowoAuthKitBundle` (and `.pages.auth`). The deprecated
-`css.button_class` / `css.secondary_button_class` (any profile; first non-default value) are bridged there as
-`classes.btn_primary` / `classes.btn_secondary` (prepended, so a host's own exception wins).
+Per-bundle classes / attributes go in `nowo_ui_kit.theme.bundles.NowoAuthKitBundle` (and `.pages.auth`). 2.0 removed
+`css.button_class` / `css.secondary_button_class` and their bridge: set `classes.btn_primary` / `classes.btn_secondary`
+there yourself.
 
 ## Allowed exceptions
 

@@ -13,8 +13,8 @@ use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\QrLogin\DeviceIntelligenceQrLoginStepUp;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
 use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\Tests\Support\Ports\InMemoryTwinUsers;
+use Nowo\AuthKitBundle\Tests\Support\Ports\StepUpHost;
 use ReflectionProperty;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -28,8 +28,6 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class DddHostKernelTest extends WebTestCase
 {
-    use HostModeNotices;
-
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string
@@ -100,7 +98,7 @@ final class DddHostKernelTest extends WebTestCase
         self::assertSame(0, (int) $this->entityManager()->getConnection()->fetchOne('SELECT COUNT(*) FROM kernel_users'));
     }
 
-    public function testTheDeprecatedAliasesAreServedByTheGatesAndTheDeviceDecoratorStillWraps(): void
+    public function testTheGatesServeThePortsAndTheDeviceDecoratorWrapsTheHostPolicy(): void
     {
         $container = self::getContainer();
         // 1.49.0: the identifier normaliser is the outermost decorator; the gate serves the port behind it.
@@ -108,9 +106,12 @@ final class DddHostKernelTest extends WebTestCase
         self::assertInstanceOf(NormalizingUserLookup::class, $lookup);
         self::assertInstanceOf(UserDirectoryGate::class, (new ReflectionProperty(NormalizingUserLookup::class, 'inner'))->getValue($lookup));
 
+        // 2.0: the Device Intelligence step-up decorates the port (the host's policy), behind AuthKit's gate.
         $stepUp = $container->get('test.ddd.qr_step_up');
-        self::assertInstanceOf(DeviceIntelligenceQrLoginStepUp::class, $stepUp);
-        self::assertInstanceOf(QrLoginStepUpGate::class, (new ReflectionProperty(DeviceIntelligenceQrLoginStepUp::class, 'inner'))->getValue($stepUp));
+        self::assertInstanceOf(QrLoginStepUpGate::class, $stepUp);
+        $policy = (new ReflectionProperty(QrLoginStepUpGate::class, 'policy'))->getValue($stepUp);
+        self::assertInstanceOf(DeviceIntelligenceQrLoginStepUp::class, $policy);
+        self::assertInstanceOf(StepUpHost::class, (new ReflectionProperty(DeviceIntelligenceQrLoginStepUp::class, 'inner'))->getValue($policy));
     }
 
     /**

@@ -10,9 +10,9 @@ use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 
 /**
- * Port (1.46.0): the framework-free twin of the deprecated {@see UserLookupInterface} (REQ-ARCH-001 rule 3): an
- * {@see AuthUserRef} instead of the Symfony `UserInterface`. Alias this interface to your adapter (instead of the
- * deprecated one); AuthKit then asks it for every lookup the deprecated port served.
+ * Port (1.46.0; 2.0: replaces the removed `UserLookupInterface`), framework-free (REQ-ARCH-001 rule 3): an
+ * {@see AuthUserRef} instead of the Symfony `UserInterface`. Alias this interface to your adapter; AuthKit asks it for
+ * every user lookup (the default is the Doctrine repository of `user_class`).
  *
  * Every reference you return must carry your security user object ({@see AuthUserRef::of()}): AuthKit signs it in or
  * hands it to Symfony Security. A reference by id alone is refused with a `LogicException`.

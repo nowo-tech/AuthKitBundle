@@ -16,7 +16,6 @@ use Nowo\AuthKitBundle\MultiAccount\AccountVaultStore;
 use Nowo\AuthKitBundle\PersonalData\DormantAccountSwitcherPersonalDataEraser;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\UserKitBundle\PersonalData\ErasureRequest;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraser;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -26,8 +25,6 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class ErasureFeaturesOffKernelTest extends KernelTestCase
 {
-    use HostModeNotices;
-
     private EntityManagerInterface $em;
 
     private KernelUser $subject;

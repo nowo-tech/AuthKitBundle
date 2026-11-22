@@ -6,7 +6,6 @@ namespace Nowo\AuthKitBundle\Tests\Integration\MultiAccount;
 
 use Nowo\AuthKitBundle\MultiAccount\VaultCookie;
 use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaKernelTestCase;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -17,8 +16,6 @@ use function str_replace;
  */
 abstract class MultiAccountKernelTestCase extends MfaKernelTestCase
 {
-    use HostModeNotices;
-
     protected static function getKernelClass(): string
     {
         return MultiAccountTestKernel::class;

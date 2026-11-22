@@ -13,7 +13,6 @@ use Nowo\AuthKitBundle\Doctrine\AuthKitEntities;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
-use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use OverflowException;
@@ -57,23 +56,9 @@ class InvitationRepository extends EntityRepository
     /** Status filters of the administration list (`open` = pending and expired, the default). */
     public const FILTERS = ['open', 'pending', 'expired', 'accepted', 'revoked', 'all'];
 
-    private ?HostFlushReporter $hostFlush = null;
-
     public function __construct(EntityManagerInterface $em)
     {
         parent::__construct($em, $em->getClassMetadata(Invitation::class));
-    }
-
-    /**
-     * 1.54.0 (REQ-ARCH-001 rule 6 deprecation layer): set by the container only without
-     * `doctrine.private_entity_manager: true`, to report the application's pending changes a host-mode flush writes. A
-     * repository Doctrine builds itself ({@see EntityManagerInterface::getRepository()}) has none.
-     *
-     * @internal
-     */
-    public function setHostFlushReporter(?HostFlushReporter $hostFlush): void
-    {
-        $this->hostFlush = $hostFlush; // @igor-ignore - set once by the container when the service is built
     }
 
     /**
@@ -90,13 +75,12 @@ class InvitationRepository extends EntityRepository
     {
         $manager = $this->getEntityManager();
         AuthKitEntities::assertSavable($manager, $invitation);
-        (new AuthKitTransactionRunner($manager, hostFlush: $this->hostFlush))->run(static fn () => $manager->persist($invitation));
+        (new AuthKitTransactionRunner($manager))->run(static fn () => $manager->persist($invitation));
     }
 
     /**
      * 1.55.0 (REQ-ARCH-001 rule 6): the instance this repository's manager holds for the invitation, loaded again by id
-     * when the caller's instance comes from another manager (with `doctrine.private_entity_manager: true`, an invitation
-     * the application loaded through its own manager). The same object otherwise, and for a new invitation. The
+     * when the caller's instance comes from another manager (an invitation the application loaded through its own manager). The same object otherwise, and for a new invitation. The
      * caller's instance and manager are left untouched.
      *
      * @throws AuthKitEntityNotFoundException When the invitation no longer exists

@@ -16,7 +16,6 @@ use Nowo\AuthKitBundle\Invitation\MailerInvitationMailer;
 use Nowo\AuthKitBundle\Invitation\NullInvitationMailer;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
 use Nowo\AuthKitBundle\Invitation\Security\RoleInvitationsAccessChecker;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -32,8 +31,6 @@ use Symfony\Component\Mailer\MailerInterface;
  */
 final class InvitationsConfigurationTest extends TestCase
 {
-    use HostModeNotices;
-
     private const USER = 'App\\Entity\\User';
 
     public function testDefaultsKeepInvitationsDisabled(): void

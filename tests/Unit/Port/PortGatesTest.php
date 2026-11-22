@@ -9,8 +9,9 @@ use InvalidArgumentException;
 use LogicException;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
-use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
-use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
+use Nowo\AuthKitBundle\Port\Internal\InvitationActionAuthorizerInterface;
+use Nowo\AuthKitBundle\Port\Internal\InvitationGrantInterface;
 use Nowo\AuthKitBundle\Port\Ports;
 use Nowo\AuthKitBundle\Port\QrLoginStepUpGate;
 use Nowo\AuthKitBundle\Port\SocialCallbackStepGate;
@@ -346,13 +347,20 @@ final class PortGatesTest extends TestCase
         Ports::invitationActionAuthorizer(new stdClass(), new DateTimeImmutable());
     }
 
-    public function testPortsHandBackDeprecatedImplementationsUnchanged(): void
+    /** 2.0: only the ports are asked; a tagged service on AuthKit's internal interface is refused (fail closed). */
+    public function testPortsRefuseAServiceThatIsNotAPort(): void
     {
         $authorizer = $this->createStub(InvitationActionAuthorizerInterface::class);
         $grant      = $this->createStub(InvitationGrantInterface::class);
 
-        self::assertSame($authorizer, Ports::invitationActionAuthorizer($authorizer, new DateTimeImmutable()));
-        self::assertSame($grant, Ports::invitationGrant($grant));
+        try {
+            Ports::invitationActionAuthorizer($authorizer, new DateTimeImmutable());
+            self::fail('The authorizer was accepted.');
+        } catch (LogicException $refused) {
+            self::assertStringContainsString(InvitationActionPolicyInterface::class, $refused->getMessage());
+        }
+        $this->expectException(LogicException::class);
+        Ports::invitationGrant($grant);
     }
 
     private function userOf(object $policy): ?object

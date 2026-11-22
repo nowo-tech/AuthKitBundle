@@ -16,12 +16,12 @@ use Symfony\Contracts\EventDispatcher\Event;
 abstract class AccountEvent extends Event
 {
     /**
-     * @param Request $request @deprecated since 1.46.0, use requestContext(); removed in 2.0
+     * @param Request $request not public since 2.0: read requestContext()
      */
     public function __construct(
         public readonly string $profile,
         public readonly string $account,
-        public readonly Request $request,
+        private readonly Request $request,
     ) {
     }
 
@@ -47,15 +47,5 @@ abstract class AccountEvent extends Event
     public function account(): string
     {
         return $this->account;
-    }
-
-    /**
-     * The `$request` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use requestContext(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function request(): Request
-    {
-        return $this->request;
     }
 }

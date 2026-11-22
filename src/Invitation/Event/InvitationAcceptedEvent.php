@@ -31,12 +31,12 @@ final class InvitationAcceptedEvent extends InvitationEvent
     public readonly string $userIdentifier;
 
     /**
-     * @param UserInterface $user @deprecated since 1.46.0, use userRef(); removed in 2.0
+     * @param UserInterface $user not public since 2.0: read userRef()
      * @param bool $existingAccount (1.42) true: an existing account accepted it ({@see InvitationAcceptor::acceptExisting()}); no account was created
      */
     public function __construct(
         InvitationSnapshot $invitation,
-        public readonly UserInterface $user,
+        private readonly UserInterface $user,
         DateTimeImmutable $occurredAt,
         public readonly bool $existingAccount = false,
     ) {
@@ -62,16 +62,6 @@ final class InvitationAcceptedEvent extends InvitationEvent
     public function userRef(): AuthUserRef
     {
         return AuthUserRefs::fromUser($this->user);
-    }
-
-    /**
-     * The `$user` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function user(): UserInterface
-    {
-        return $this->user;
     }
 
     /**

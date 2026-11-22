@@ -9,7 +9,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Enum\InvitationStatus;
-use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 
 use function array_unique;
@@ -23,7 +23,7 @@ use function trim;
 
 /**
  * Bundle-owned invitation to create an account by e-mail (`invitations.mode: enabled`). Nothing exists in the user
- * table until it is accepted; the roles (and the host payload, applied by the {@see InvitationGrantInterface}
+ * table until it is accepted; the roles (and the host payload, applied by the {@see InvitationGrantHandlerInterface}
  * services) are applied then. Only the SHA-256 hash of the link token is stored, never the token. The status is
  * derived from the dates ({@see self::status()}).
  *

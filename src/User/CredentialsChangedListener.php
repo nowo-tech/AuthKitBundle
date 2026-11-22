@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * Applies a host-dispatched {@see CredentialsChangedEvent} (1.41): MFA trusted devices forgotten when the password
@@ -25,18 +26,23 @@ final readonly class CredentialsChangedListener
 
     public function __invoke(CredentialsChangedEvent $event): void
     {
-        $profile = $this->profiles->resolveForObject($event->user);
+        // 2.0: the user object through the reference (the property is no longer public); always the dispatched object.
+        $user = $event->userRef()->user();
+        if (!$user instanceof UserInterface) {
+            return;
+        }
+        $profile = $this->profiles->resolveForObject($user);
         if (!$profile instanceof ProfileSettings) {
             return;
         }
 
         if ($event->passwordChanged) {
-            $this->mfaManager?->forgetDevices($event->user, 'password_changed');
+            $this->mfaManager?->forgetDevices($user, 'password_changed');
         }
 
         if (($profile->passwordReset['mode'] ?? 'disabled') !== 'disabled') {
             // @igor-ignore - Stateless call into the token store (writes the user's reset credential).
-            $this->tokenManager->clearForUser($event->user);
+            $this->tokenManager->clearForUser($user);
         }
     }
 }

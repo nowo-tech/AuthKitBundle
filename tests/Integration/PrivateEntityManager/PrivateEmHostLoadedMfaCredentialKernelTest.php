@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Mfa\MfaStore;
 use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaKernelTestCase;
+use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaTestKernel;
 
 /**
  * 1.55.0 (Q-W2-1) with `doctrine.private_entity_manager: true`: an MFA credential the application loaded through its own
@@ -20,7 +21,7 @@ final class PrivateEmHostLoadedMfaCredentialKernelTest extends MfaKernelTestCase
 {
     protected static function getKernelClass(): string
     {
-        return PrivateEmMfaTestKernel::class;
+        return MfaTestKernel::class;
     }
 
     public function testSavingACredentialLoadedByTheApplicationIsRefused(): void

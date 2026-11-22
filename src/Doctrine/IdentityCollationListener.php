@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Doctrine;
 
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
-use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
 use Nowo\AuthKitBundle\Entity\Invitation;
@@ -74,15 +73,5 @@ final readonly class IdentityCollationListener
             PasswordResetCollationListener::warnOnPadSpace($collation, $table, $this->logger);
         }
         PasswordResetCollationListener::collateSchema($args, $columns, $collation);
-    }
-
-    /**
-     * No longer subscribed (1.54.1, audit XI): replacing the table there lost its foreign keys. Kept for BC; does nothing.
-     *
-     * @deprecated since 1.54.1, the collation is applied on postGenerateSchema ({@see self::postGenerateSchema()})
-     */
-    public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $args): void
-    {
-        unset($args);
     }
 }

@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\PasswordReset;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
+use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
@@ -26,7 +27,7 @@ final class PasswordResetUserResolver
         UserIdentifierMatcher $identifierMatcher = new UserIdentifierMatcher(),
         ?UserLookupInterface $userLookup = null,
     ) {
-        $this->userLookup = $userLookup ?? new DoctrineUserLookup($entityManager, $identifierMatcher);
+        $this->userLookup = $userLookup ?? new UserDirectoryGate(new DoctrineUserLookup($entityManager, $identifierMatcher));
     }
 
     public function findByIdentifier(string $identifier, ?string $profileName = null): ?UserInterface

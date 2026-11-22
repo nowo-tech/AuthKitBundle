@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Invitation;
 
-use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessCheckerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessPolicyInterface;
 use Nowo\AuthKitBundle\Invitation\Security\RoleInvitationsAccessChecker;
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\TestCase;
 use stdClass;
@@ -27,20 +28,20 @@ final class InvitationAccessTest extends TestCase
     {
         $authorization = $this->createMock(AuthorizationCheckerInterface::class);
         $authorization->method('isGranted')->willReturnCallback(static fn (string $role): bool => $role === 'ROLE_HR');
-        $user = new TestUser();
+        $user = AuthUserRefs::fromUser(new TestUser());
 
-        self::assertTrue((new RoleInvitationsAccessChecker($authorization, ['ROLE_ADMIN', 'ROLE_HR']))->canManage($user, 'default'));
-        self::assertFalse((new RoleInvitationsAccessChecker($authorization, ['ROLE_ADMIN', '']))->canManage($user, 'default'));
-        self::assertFalse((new RoleInvitationsAccessChecker($authorization, []))->canManage($user, 'default'));
+        self::assertTrue((new RoleInvitationsAccessChecker($authorization, ['ROLE_ADMIN', 'ROLE_HR']))->allowsManage($user, 'default'));
+        self::assertFalse((new RoleInvitationsAccessChecker($authorization, ['ROLE_ADMIN', '']))->allowsManage($user, 'default'));
+        self::assertFalse((new RoleInvitationsAccessChecker($authorization, []))->allowsManage($user, 'default'));
     }
 
     public function testGuard(): void
     {
         $user    = new TestUser();
         $storage = new TokenStorage();
-        $allow   = $this->createMock(InvitationsAccessCheckerInterface::class);
-        $allow->method('canManage')->willReturn(true);
-        $checkers      = new ServiceLocator(['default' => static fn (): InvitationsAccessCheckerInterface => $allow, 'odd' => static fn (): object => new stdClass()]);
+        $allow   = $this->createMock(InvitationsAccessPolicyInterface::class);
+        $allow->method('allowsManage')->willReturn(true);
+        $checkers      = new ServiceLocator(['default' => static fn (): InvitationsAccessPolicyInterface => $allow, 'odd' => static fn (): object => new stdClass()]);
         $authorization = $this->createMock(AuthorizationCheckerInterface::class);
         $authorization->method('isGranted')->willReturnCallback(static fn (string $role): bool => $role === 'ROLE_EDITOR');
         $guard = new InvitationsAccessGuard($checkers, $storage, $authorization, ['demo' => true]);

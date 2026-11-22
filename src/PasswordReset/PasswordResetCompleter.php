@@ -6,12 +6,13 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
+use Nowo\AuthKitBundle\Port\Internal\UserWriterInterface;
+use Nowo\AuthKitBundle\Port\UserStoreGate;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
 use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Nowo\AuthKitBundle\User\UserIds;
-use Nowo\AuthKitBundle\User\UserWriterInterface;
 use SensitiveParameter;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
@@ -42,7 +43,7 @@ final class PasswordResetCompleter
         ?AuthKitTransactionRunner $transactions = null,
     ) {
         $this->transactions = $transactions ?? new AuthKitTransactionRunner($entityManager);
-        $this->userWriter   = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions);
+        $this->userWriter   = $userWriter ?? new UserStoreGate(new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions));
     }
 
     public function complete(PasswordAuthenticatedUserInterface $user, #[SensitiveParameter] string $plainPassword): void
@@ -58,7 +59,7 @@ final class PasswordResetCompleter
             $this->tokenManager->clearForUser($user);
             $this->userWriter->save($profile, $user);
         };
-        $this->userWriter instanceof DoctrineUserWriter ? $this->transactions->runWithAccounts($unit) : $this->transactions->runOnConnection($unit);
+        UserStoreGate::storesThroughDoctrine($this->userWriter) ? $this->transactions->runWithAccounts($unit) : $this->transactions->runOnConnection($unit);
 
         $this->eventDispatcher?->dispatch(new PasswordResetCompletedEvent(
             $profile->name,
@@ -69,7 +70,7 @@ final class PasswordResetCompleter
 
         // JW-A4: the Doctrine listeners (MFA trusted devices) see the change of a Doctrine writer; a host writer gets the
         // explicit event, once.
-        if ($user instanceof UserInterface && !$this->userWriter instanceof DoctrineUserWriter) {
+        if ($user instanceof UserInterface && !UserStoreGate::storesThroughDoctrine($this->userWriter)) {
             $this->eventDispatcher?->dispatch(new CredentialsChangedEvent($user));
         }
     }

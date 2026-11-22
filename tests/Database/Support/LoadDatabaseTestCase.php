@@ -13,7 +13,6 @@ use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Invitation\InvitationTokens;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Throwable;
@@ -35,8 +34,6 @@ use const PHP_URL_PATH;
  */
 abstract class LoadDatabaseTestCase extends TestCase
 {
-    use HostModeNotices;
-
     protected DatabaseTestKernel $kernel;
 
     protected EntityManagerInterface $em;

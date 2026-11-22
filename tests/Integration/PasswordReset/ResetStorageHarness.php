@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetUserResolver;
 use Nowo\AuthKitBundle\PasswordReset\ProfilePasswordResetTokenManager;
 use Nowo\AuthKitBundle\PasswordReset\TablePasswordResetTokenManager;
+use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Repository\PasswordResetRequestRepository;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
@@ -86,7 +87,7 @@ final class ResetStorageHarness
         $limiter  = new AuthKitAttemptLimiter(new ArrayAdapter());
         $resolver = new PasswordResetUserResolver($this->em, $this->profiles);
         $legacy   = new PasswordResetTokenManager($this->em, $accessor, $resolver, $this->profiles, $this->clock, $limiter);
-        $table    = new TablePasswordResetTokenManager($this->requests, new DoctrineUserLookup($this->em), $accessor, $resolver, $this->profiles, $this->clock, $limiter);
+        $table    = new TablePasswordResetTokenManager($this->requests, new UserDirectoryGate(new DoctrineUserLookup($this->em)), $accessor, $resolver, $this->profiles, $this->clock, $limiter);
 
         $this->manager = $storage === 'table' ? new ProfilePasswordResetTokenManager($this->profiles, $legacy, $table) : $legacy;
     }

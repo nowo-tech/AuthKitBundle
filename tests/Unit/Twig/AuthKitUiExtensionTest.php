@@ -13,6 +13,7 @@ use function class_exists;
 
 final class AuthKitUiExtensionTest extends TestCase
 {
+    /** 2.0: the button-class globals of the removed css.* keys are gone (the argument is ignored). */
     public function testExposesDefaultGlobals(): void
     {
         $extension = new AuthKitUiExtension(
@@ -28,8 +29,6 @@ final class AuthKitUiExtensionTest extends TestCase
         self::assertSame(
             [
                 'nowo_auth_kit_form_themes'                          => ['form/auth_kit_theme.html.twig'],
-                'nowo_auth_kit_button_class'                         => 'btn btn-primary',
-                'nowo_auth_kit_secondary_button_class'               => 'nowo-auth-kit__social-button',
                 'nowo_auth_kit_slide_to_confirm_assets'              => false,
                 'nowo_auth_kit_device_intelligence_assets'           => false,
                 'nowo_auth_kit_device_intelligence_collect_endpoint' => '/_device/collect',

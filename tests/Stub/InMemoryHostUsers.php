@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Stub;
 
+use Nowo\AuthKitBundle\Port\Internal\UserFactoryInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserWriterInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\DuplicateUserException;
 use Nowo\AuthKitBundle\User\NewUser;
 use Nowo\AuthKitBundle\User\UserCreationSource;
-use Nowo\AuthKitBundle\User\UserFactoryInterface;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
-use Nowo\AuthKitBundle\User\UserWriterInterface;
 use RuntimeException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;

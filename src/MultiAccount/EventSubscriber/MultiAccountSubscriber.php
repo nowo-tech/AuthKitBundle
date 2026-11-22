@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\MultiAccount\EventSubscriber;
 
+use Closure;
 use Nowo\AuthKitBundle\MagicLogin\AdminMagicLinkIssuer;
 use Nowo\AuthKitBundle\Mfa\Event\MfaLoginCompletedEvent;
 use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
@@ -85,7 +86,11 @@ final readonly class MultiAccountSubscriber
 
     public function onMfaCompleted(MfaLoginCompletedEvent $event): void
     {
-        $this->enrol($event->request, $event->token);
+        // 2.0: the event's request and token are no longer public (REQ-ARCH-001 rule 3); AuthKit's own subscriber reads
+        // them in the event's scope (the same objects as before, nothing is copied or kept).
+        /** @var array{0: Request, 1: TokenInterface} $parts */
+        $parts = Closure::bind(static fn (MfaLoginCompletedEvent $completed): array => [$completed->request, $completed->token], null, MfaLoginCompletedEvent::class)($event);
+        $this->enrol($parts[0], $parts[1]);
     }
 
     public function onLogout(LogoutEvent $event): void

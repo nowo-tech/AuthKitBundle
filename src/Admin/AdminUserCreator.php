@@ -7,6 +7,12 @@ namespace Nowo\AuthKitBundle\Admin;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
+use Nowo\AuthKitBundle\Port\Internal\UserFactoryInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserWriterInterface;
+use Nowo\AuthKitBundle\Port\UserCreatorGate;
+use Nowo\AuthKitBundle\Port\UserDirectoryGate;
+use Nowo\AuthKitBundle\Port\UserStoreGate;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
@@ -19,9 +25,6 @@ use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
 use Nowo\AuthKitBundle\User\NewUser;
 use Nowo\AuthKitBundle\User\PropertyAccessUserFactory;
 use Nowo\AuthKitBundle\User\UserCreationSource;
-use Nowo\AuthKitBundle\User\UserFactoryInterface;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
-use Nowo\AuthKitBundle\User\UserWriterInterface;
 use RuntimeException;
 use SensitiveParameter;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -65,9 +68,9 @@ final class AdminUserCreator
         ?AuthKitTransactionRunner $transactions = null,
     ) {
         $this->transactions = $transactions ?? new AuthKitTransactionRunner($entityManager);
-        $this->userFactory  = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
-        $this->userWriter   = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions);
-        $this->userLookup   = $userLookup ?? new DoctrineUserLookup($entityManager);
+        $this->userFactory  = $userFactory ?? new UserCreatorGate(new PropertyAccessUserFactory($passwordHasher, $propertyAccessor));
+        $this->userWriter   = $userWriter ?? new UserStoreGate(new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions));
+        $this->userLookup   = $userLookup ?? new UserDirectoryGate(new DoctrineUserLookup($entityManager));
     }
 
     public function profile(?string $profileName = null): ProfileSettings
@@ -137,6 +140,6 @@ final class AdminUserCreator
      */
     private function unit(callable $work): mixed
     {
-        return $this->userWriter instanceof DoctrineUserWriter ? $this->transactions->runWithAccounts($work) : $this->transactions->runOnConnection($work);
+        return UserStoreGate::storesThroughDoctrine($this->userWriter) ? $this->transactions->runWithAccounts($work) : $this->transactions->runOnConnection($work);
     }
 }

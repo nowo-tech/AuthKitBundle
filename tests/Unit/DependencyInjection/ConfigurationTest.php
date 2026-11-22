@@ -8,15 +8,14 @@ use InvalidArgumentException;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 
+use function sprintf;
+
 final class ConfigurationTest extends TestCase
 {
-    private const LEGACY_LOCALE_NOTICE = 'Since nowo-tech/auth-kit-bundle 1.54: "nowo_auth_kit.default_locale", "nowo_auth_kit.enabled_locales" and "nowo_auth_kit.locale_in_path" are deprecated and removed in 2.0: use "nowo_auth_kit.locale.default", "nowo_auth_kit.locale.enabled" and "nowo_auth_kit.locale.in_path".';
-
     public function testDefaultConfiguration(): void
     {
         $processor = new Processor();
@@ -34,7 +33,6 @@ final class ConfigurationTest extends TestCase
         self::assertSame('email', $config['profiles']['default']['user_identifier_field']);
         self::assertSame('first_user_only', $config['profiles']['default']['registration_mode']);
         self::assertSame('nowo_auth_kit_login', $config['profiles']['default']['routes']['login']['name']);
-        self::assertSame(['en', 'es'], $config['enabled_locales']);
         self::assertSame('disabled', $config['profiles']['default']['embed']['mode']);
         self::assertFalse($config['profiles']['default']['remember_me']['enabled']);
         self::assertSame(604800, $config['profiles']['default']['remember_me']['lifetime']);
@@ -55,7 +53,7 @@ final class ConfigurationTest extends TestCase
         self::assertFalse($config['profiles']['default']['otp_input']['mfa_code_autosubmit']);
         self::assertTrue($config['profiles']['default']['embed']['show_login']);
         self::assertTrue($config['profiles']['default']['embed']['show_register']);
-        // web_ui (REQ-UI-003): null form themes = defaults resolved by the extension; legacy templates.* mirror
+        // web_ui (REQ-UI-003): null form themes = defaults resolved by the extension; read-only templates.* / css.* mirrors
         self::assertNull($config['profiles']['default']['web_ui']['form_themes']);
         self::assertNull($config['profiles']['default']['web_ui']['layout_template']);
         self::assertNull($config['profiles']['default']['web_ui']['brand']);
@@ -67,30 +65,37 @@ final class ConfigurationTest extends TestCase
         self::assertSame('nowo-auth-kit__button', $config['profiles']['default']['css']['button_class']);
         self::assertSame('nowo-auth-kit__social-button', $config['profiles']['default']['css']['secondary_button_class']);
         self::assertNull($config['outbound_mail_ready_checker']);
-        self::assertFalse($config['locale_in_path']);
+        self::assertArrayNotHasKey('locale_in_path', $config);
+        self::assertArrayNotHasKey('default_locale', $config);
+        self::assertArrayNotHasKey('enabled_locales', $config);
         self::assertSame('never', $config['locale']['in_path']);
         self::assertSame('en', $config['locale']['default']);
         self::assertSame(['en', 'es'], $config['locale']['enabled']);
         self::assertSame('redirect', $config['locale']['unlocalized']);
     }
 
-    /** 1.54.0: the legacy keys alone are deprecated (removed in 2.0). */
-    #[IgnoreDeprecations]
-    public function testLegacyLocaleInPathTrueMapsToAlways(): void
+    /**
+     * 2.0: the root keys deprecated in 1.7 (together with "locale") and 1.54 (alone) fail the build with their
+     * replacement, alone or with the locale node.
+     *
+     * @return iterable<string, array{array<string, mixed>, string}>
+     */
+    public static function removedLocaleKeys(): iterable
     {
-        $this->expectUserDeprecationMessage(self::LEGACY_LOCALE_NOTICE);
-        $processor = new Processor();
-        $config    = $processor->processConfiguration(new Configuration(), [[
-            'profiles' => [
-                'default' => [
-                    'user_class' => TestUser::class,
-                ],
-            ],
-            'locale_in_path' => true,
-        ]]);
+        yield 'locale_in_path' => [['locale_in_path' => true], '"nowo_auth_kit.locale_in_path"'];
+        yield 'default_locale and enabled_locales' => [['default_locale' => 'es', 'enabled_locales' => ['es', 'fr']], '"nowo_auth_kit.default_locale", "nowo_auth_kit.enabled_locales"'];
+        yield 'with the locale node' => [['locale' => ['in_path' => 'both'], 'default_locale' => 'en', 'locale_in_path' => 99], '"nowo_auth_kit.default_locale", "nowo_auth_kit.locale_in_path"'];
+    }
 
-        self::assertSame('always', $config['locale']['in_path']);
-        self::assertTrue($config['locale_in_path']);
+    /**
+     * @param array<string, mixed> $keys
+     */
+    #[DataProvider('removedLocaleKeys')]
+    public function testTheRemovedLocaleKeysFailTheBuild(array $keys, string $named): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage(sprintf(Configuration::REMOVED_LOCALE_KEYS, $named));
+        (new Processor())->processConfiguration(new Configuration(), [['profiles' => ['default' => ['user_class' => TestUser::class]]] + $keys]);
     }
 
     public function testNestedLocaleBoth(): void
@@ -113,8 +118,6 @@ final class ConfigurationTest extends TestCase
         self::assertSame('both', $config['locale']['in_path']);
         self::assertSame('es', $config['locale']['default']);
         self::assertSame('serve', $config['locale']['unlocalized']);
-        self::assertSame('es', $config['default_locale']);
-        self::assertTrue($config['locale_in_path']);
     }
 
     public function testNestedLocaleInPathBoolTrue(): void
@@ -132,49 +135,6 @@ final class ConfigurationTest extends TestCase
         ]]);
 
         self::assertSame('always', $config['locale']['in_path']);
-    }
-
-    /** 1.54.0: the legacy keys alone are deprecated (removed in 2.0). */
-    #[IgnoreDeprecations]
-    public function testInvalidLegacyLocaleInPathFallsBackToNever(): void
-    {
-        $this->expectUserDeprecationMessage(self::LEGACY_LOCALE_NOTICE);
-        $processor = new Processor();
-        $config    = $processor->processConfiguration(new Configuration(), [[
-            'profiles' => [
-                'default' => [
-                    'user_class' => TestUser::class,
-                ],
-            ],
-            'locale_in_path' => 99,
-        ]]);
-
-        self::assertSame('never', $config['locale']['in_path']);
-        self::assertFalse($config['locale_in_path']);
-    }
-
-    // REQ-SF-005: exercises the deprecated configuration on purpose (BC layer); the deprecation is the expected outcome.
-    #[IgnoreDeprecations]
-    public function testLegacyKeysWithLocaleNodeStillProcess(): void
-    {
-        $processor = new Processor();
-        $config    = $processor->processConfiguration(new Configuration(), [[
-            'profiles' => [
-                'default' => [
-                    'user_class' => TestUser::class,
-                ],
-            ],
-            'locale' => [
-                'in_path' => 'both',
-                'default' => 'es',
-            ],
-            'default_locale' => 'en',
-            'locale_in_path' => true,
-        ]]);
-
-        self::assertSame('both', $config['locale']['in_path']);
-        self::assertSame('es', $config['locale']['default']);
-        self::assertSame('es', $config['default_locale']);
     }
 
     public function testPartialLaterBlockKeepsEarlierLocaleAndDefaultProfile(): void
@@ -212,8 +172,6 @@ final class ConfigurationTest extends TestCase
         self::assertSame('es', $config['locale']['default']);
         self::assertSame(['es', 'en'], $config['locale']['enabled']);
         self::assertSame('serve', $config['locale']['unlocalized']);
-        self::assertSame('es', $config['default_locale']);
-        self::assertTrue($config['locale_in_path']);
     }
 
     public function testPartialLaterLocaleBlockOnlyOverridesItsKeys(): void
@@ -242,28 +200,6 @@ final class ConfigurationTest extends TestCase
         self::assertSame('always', $config['locale']['in_path']);
         self::assertSame('es', $config['locale']['default']);
         self::assertSame('serve', $config['locale']['unlocalized']);
-    }
-
-    /** 1.54.0: the legacy keys alone are deprecated (removed in 2.0). */
-    #[IgnoreDeprecations]
-    public function testLegacyLocaleKeysMapToLocaleNode(): void
-    {
-        $this->expectUserDeprecationMessage(self::LEGACY_LOCALE_NOTICE);
-        $processor = new Processor();
-        $config    = $processor->processConfiguration(new Configuration(), [[
-            'profiles' => [
-                'default' => [
-                    'user_class' => TestUser::class,
-                ],
-            ],
-            'default_locale'  => 'es',
-            'enabled_locales' => ['es', 'fr'],
-        ]]);
-
-        self::assertSame('never', $config['locale']['in_path']);
-        self::assertSame('es', $config['locale']['default']);
-        self::assertSame(['es', 'fr'], $config['locale']['enabled']);
-        self::assertSame(['es', 'fr'], $config['enabled_locales']);
     }
 
     public function testDefaultProfileFallsBackToFirstProfile(): void
@@ -417,8 +353,6 @@ final class ConfigurationTest extends TestCase
         ]]);
     }
 
-    // REQ-SF-005: exercises the deprecated configuration on purpose (BC layer); the deprecation is the expected outcome.
-    #[IgnoreDeprecations]
     public function testSingleFormThemeStringIsNormalizedToList(): void
     {
         $processor = new Processor();
@@ -426,17 +360,15 @@ final class ConfigurationTest extends TestCase
             'profiles' => [
                 'default' => [
                     'user_class' => TestUser::class,
-                    'templates'  => [
-                        'form_theme' => 'form/auth_kit_theme.html.twig',
+                    'web_ui'     => [
+                        'form_themes' => 'form/auth_kit_theme.html.twig',
                     ],
                 ],
             ],
         ]]);
 
-        self::assertSame(
-            ['form/auth_kit_theme.html.twig'],
-            $config['profiles']['default']['templates']['form_theme'],
-        );
+        self::assertSame(['form/auth_kit_theme.html.twig'], $config['profiles']['default']['web_ui']['form_themes']);
+        self::assertSame(['form/auth_kit_theme.html.twig'], $config['profiles']['default']['templates']['form_theme'], 'the read-only mirror');
     }
 
     public function testAbsoluteUrlBaseUriDefaultsToNull(): void

@@ -196,30 +196,28 @@ Accepting an invitation with a provider needs no handler of your own since 1.42:
 starts and completes it (its controller is the handler, tagged only then).
 
 A host with its own pending step (accepting an invitation with Google, for example) keeps the one callback URL
-registered at the provider and implements `Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface` (1.37). Autoconfiguration adds the tag `nowo_auth_kit.social_callback_handler`; a `priority` attribute on a manual tag orders several handlers, and the first whose `supports()` is true owns the callback. Without a handler, or when none supports the request, the default flow runs unchanged.
+registered at the provider and implements `Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface` (1.46; 2.0: the only interface, the 1.37 `SocialCallbackHandlerInterface` is removed). Autoconfiguration adds the tag `nowo_auth_kit.social_callback_handler`; a `priority` attribute on a manual tag orders several handlers, and the first whose `supports()` is true owns the callback. Without a handler, or when none supports the request, the default flow runs unchanged.
 
 ```php
-final class InvitationSocialHandler implements SocialCallbackHandlerInterface
+final class InvitationSocialHandler implements SocialCallbackStepInterface
 {
-    public function supports(Request $request, string $provider): bool
+    public function supports(AuthRequestContext $request, string $provider): bool
     {
         // Server-side state, never the query string. Compare the provider you stored.
-        return ($request->getSession()->get(self::SESSION_KEY)['provider'] ?? null) === $provider;
+        return ($request->sessionGet(self::SESSION_KEY)['provider'] ?? null) === $provider;
     }
 
-    public function handle(Request $request, SocialCallbackContext $context): Response
+    public function handle(AuthRequestContext $request, SocialCallbackContext $context): SocialCallbackResult
     {
-        $request->getSession()->remove(self::SESSION_KEY);
+        $request->sessionRemove(self::SESSION_KEY);
         $email = $context->verifiedEmail(); // null unless the provider asserts it is verified
-        // ... your step, then, last of all:
-        $response = $this->security->login($user, 'form_login', $context->profile->firewall);
-
-        return $response ?? new RedirectResponse($this->urls->generate('dashboard'));
+        // ... your step, then AuthKit signs the user in on the profile's firewall (MFA applies) and redirects:
+        return SocialCallbackResult::signIn(AuthUserRef::of($user, User::class, (string) $user->getId(), $user->getUserIdentifier()), $this->urls->generate('dashboard'));
     }
 
-    public function handleFailure(Request $request, string $provider, SocialCallbackFailure $reason): ?Response
+    public function handleFailure(AuthRequestContext $request, string $provider, SocialCallbackFailure $reason): ?SocialCallbackResult
     {
-        $request->getSession()->remove(self::SESSION_KEY);
+        $request->sessionRemove(self::SESSION_KEY);
 
         return null; // null keeps the flash and the redirect to the sign-in page
     }

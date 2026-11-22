@@ -12,7 +12,6 @@ use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Routing\RouterInterface;
@@ -22,8 +21,6 @@ use Symfony\Component\Routing\RouterInterface;
  */
 final class OptInFeaturesKernelTest extends WebTestCase
 {
-    use HostModeNotices;
-
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string

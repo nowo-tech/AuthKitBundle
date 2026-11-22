@@ -16,11 +16,11 @@ use Symfony\Contracts\EventDispatcher\Event;
 abstract class MfaEvent extends Event
 {
     /**
-     * @param UserInterface $user @deprecated since 1.46.0, use userRef(); removed in 2.0
+     * @param UserInterface $user not public since 2.0: read userRef()
      */
     public function __construct(
         public readonly string $profile,
-        public readonly UserInterface $user,
+        private readonly UserInterface $user,
     ) {
     }
 
@@ -38,15 +38,5 @@ abstract class MfaEvent extends Event
     public function profile(): string
     {
         return $this->profile;
-    }
-
-    /**
-     * The `$user` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function user(): UserInterface
-    {
-        return $this->user;
     }
 }

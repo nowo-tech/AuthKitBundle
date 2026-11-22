@@ -14,7 +14,7 @@ use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationCreatedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationResentEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationRevokedEvent;
-use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
 use Nowo\AuthKitBundle\Port\Ports;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
@@ -69,7 +69,7 @@ final readonly class InvitationManager
 
     /**
      * @param list<string> $enabledLocales
-     * @param iterable<InvitationActionAuthorizerInterface> $authorizers host authorisation hooks (1.33, deny only)
+     * @param iterable<InvitationActionPolicyInterface> $authorizers host authorisation hooks (1.33, deny only)
      */
     public function __construct(
         private InvitationRepository $invitations,
@@ -210,9 +210,9 @@ final readonly class InvitationManager
         // grant the invite, the merge into the open invitation and a returned link; a returned link needs an actor.
         if (!$this->holdsAll($actor, $request->roles) || ($invitation instanceof Invitation && !$this->holdsAll($actor, $invitation->getRoles()))
             || ($request->returnLink && !$actor instanceof UserInterface)
-            || !$this->authorized($actor, InvitationActionAuthorizerInterface::INVITE, $request)
-            || ($invitation instanceof Invitation && !$this->authorized($actor, InvitationActionAuthorizerInterface::REINVITE, $invitation, $request))
-            || ($request->returnLink && !$this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $request))) {
+            || !$this->authorized($actor, InvitationActionPolicyInterface::INVITE, $request)
+            || ($invitation instanceof Invitation && !$this->authorized($actor, InvitationActionPolicyInterface::REINVITE, $invitation, $request))
+            || ($request->returnLink && !$this->authorized($actor, InvitationActionPolicyInterface::RETURN_LINK, $request))) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $invitation instanceof Invitation ? $this->snapshot($invitation) : null);
         }
         // 1.42: a batch took one slot of invitations.batch.rate_limit instead of one inviter slot per invitation.
@@ -277,9 +277,9 @@ final readonly class InvitationManager
         }
         $profile = $this->profile($invitation->getProfile());
         $allowed = $this->holdsAll($actor, $invitation->getRoles())
-            && $this->authorized($actor, InvitationActionAuthorizerInterface::RESEND, $invitation)
+            && $this->authorized($actor, InvitationActionPolicyInterface::RESEND, $invitation)
             // SEC-004 CP L1: a returned link needs an actor, and the host authorizers' consent.
-            && (!$returnLink || ($actor instanceof UserInterface && $this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $invitation)));
+            && (!$returnLink || ($actor instanceof UserInterface && $this->authorized($actor, InvitationActionPolicyInterface::RETURN_LINK, $invitation)));
         $refusal = $this->refusal($profile) ?? ($allowed ? null : InvitationOutcome::NOT_ALLOWED);
         if ($refusal !== null) {
             return InvitationOutcome::refused($refusal, $this->snapshot($invitation));
@@ -307,7 +307,7 @@ final readonly class InvitationManager
         if (!$invitation->isOpen()) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
         }
-        if (!$this->holdsAll($actor, $invitation->getRoles()) || !$this->authorized($actor, InvitationActionAuthorizerInterface::REVOKE, $invitation)) {
+        if (!$this->holdsAll($actor, $invitation->getRoles()) || !$this->authorized($actor, InvitationActionPolicyInterface::REVOKE, $invitation)) {
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $this->snapshot($invitation));
         }
 
@@ -350,7 +350,7 @@ final readonly class InvitationManager
         // `return_link` consent (asked here, before any write, for the shown-once link; `returnLink` callers already did).
         $mayShow = $actor instanceof UserInterface && $this->holdsAll($actor, $invitation->getRoles()) && ($returnLink
             || (($profile->invitations['show_link_when_undelivered'] ?? false) === true
-                && $this->authorized($actor, InvitationActionAuthorizerInterface::RETURN_LINK, $invitation)));
+                && $this->authorized($actor, InvitationActionPolicyInterface::RETURN_LINK, $invitation)));
         [$token, $hash] = $this->tokens->generate();
         $now            = $this->now();
         $invitation->issue($hash, $ttl, $now, $actor?->getUserIdentifier());
@@ -420,12 +420,12 @@ final readonly class InvitationManager
     }
 
     /**
-     * Host authorisation (SEC-004 CP L1): every tagged {@see InvitationActionAuthorizerInterface} must grant.
+     * Host authorisation (SEC-004 CP L1): every tagged {@see InvitationActionPolicyInterface} must allow.
      */
     private function authorized(?UserInterface $actor, string $action, Invitation|InvitationRequest $subject, ?InvitationRequest $request = null): bool
     {
         foreach ($this->authorizers as $authorizer) {
-            // 1.46.0: the deprecated interface as in 1.45, else the framework-free twin (snapshot as of now).
+            // The port through its gate (snapshot as of now).
             if (!Ports::invitationActionAuthorizer($authorizer, $this->now())->isGranted($actor, $action, $subject, $request)) {
                 return false;
             }

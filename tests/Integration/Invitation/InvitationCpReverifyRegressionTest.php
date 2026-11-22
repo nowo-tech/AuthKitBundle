@@ -13,13 +13,12 @@ use Nowo\AuthKitBundle\Invitation\InvitationManager;
 use Nowo\AuthKitBundle\Invitation\InvitationOutcome;
 use Nowo\AuthKitBundle\Invitation\InvitationRequest;
 use Nowo\AuthKitBundle\Invitation\InvitationTokens;
-use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 use function get_debug_type;
 
@@ -30,8 +29,6 @@ use function get_debug_type;
  */
 final class InvitationCpReverifyRegressionTest extends KernelTestCase
 {
-    use HostModeNotices;
-
     protected static function getKernelClass(): string
     {
         return InvitationsHostApiShowLinkTestKernel::class;
@@ -75,7 +72,7 @@ final class InvitationCpReverifyRegressionTest extends KernelTestCase
         $this->manager()->invite($this->user('super@example.com'), 'default', new InvitationRequest('w@example.com', payload: ['organization' => 3]));
         $this->mailer()->fail     = true;
         $member                   = $this->user('member@example.com');
-        $this->hooks()->authorize = static fn (?UserInterface $actor, string $action): bool => $action !== InvitationActionAuthorizerInterface::RETURN_LINK;
+        $this->hooks()->authorize = static fn (?AuthUserRef $actor, string $action): bool => $action !== InvitationActionPolicyInterface::RETURN_LINK;
         $denied                   = $this->manager()->resend($member, $this->invitation('w@example.com'));
         self::assertSame(InvitationOutcome::NOT_DELIVERED, $denied->status);
         self::assertNull($denied->url);

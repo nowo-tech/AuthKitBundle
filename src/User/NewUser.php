@@ -13,7 +13,7 @@ use function array_keys;
 use function is_string;
 
 /**
- * What AuthKit asks a {@see UserFactoryInterface} to build (1.41). Plain data only: the factory decides how the host
+ * What AuthKit asks a {@see UserCreatorInterface} to build (1.41). Plain data only: the factory decides how the host
  * user is constructed (named constructor, domain invariants, ...).
  *
  * - {@see UserCreationSource::Form} / {@see UserCreationSource::Invitation}: `$formData` holds the submitted registration

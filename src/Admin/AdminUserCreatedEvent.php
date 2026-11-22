@@ -9,8 +9,6 @@ use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-use function trigger_deprecation;
-
 /**
  * Dispatched by {@see AdminUserCreator} after the new admin has been flushed.
  *
@@ -26,16 +24,6 @@ final class AdminUserCreatedEvent
         private readonly string $profileName,
         private readonly array $roles,
     ) {
-    }
-
-    /**
-     * @deprecated since 1.46.0, use userRef(); removed in 2.0
-     */
-    public function getUser(): UserInterface&PasswordAuthenticatedUserInterface
-    {
-        trigger_deprecation('nowo-tech/auth-kit-bundle', '1.54', '"%s::getUser()" is deprecated since 1.46.0 and removed in 2.0: use userRef() (see UPGRADING.md "To 1.46.0").', self::class);
-
-        return $this->user;
     }
 
     public function getProfileName(): string

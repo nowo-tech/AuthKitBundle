@@ -23,9 +23,9 @@ use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Repository\QrLoginChallengeRepository;
 use Nowo\AuthKitBundle\Tests\Database\Support\DatabaseTestKernel;
+use Nowo\AuthKitBundle\Tests\Database\Support\HostEntity\HostInvitationNote;
 use Nowo\AuthKitBundle\Tests\Database\Support\HostLoadedEntitiesTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Psr\Cache\CacheItemPoolInterface;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -51,8 +51,6 @@ use const PHP_URL_PATH;
  */
 final class HostLoadedEntitiesTest extends KernelTestCase
 {
-    use HostModeNotices;
-
     protected static function getKernelClass(): string
     {
         return HostLoadedEntitiesTestKernel::class;
@@ -251,6 +249,55 @@ final class HostLoadedEntitiesTest extends KernelTestCase
         self::assertSame(1, (int) $this->connection()->fetchOne("SELECT COUNT(*) FROM kernel_users WHERE email = 'pending@example.com'"));
         self::assertSame('the application\'s own pending change', $this->column('message', $id));
         self::assertNotNull($this->column('revoked_at', $id), 'the application\'s flush keeps AuthKit\'s revocation');
+    }
+
+    /**
+     * 2.0 (W1-2): a host entity that points at an AuthKit row through the application's own `getReference()` is
+     * written by the application's flush (the foreign key), AuthKit's private manager is not involved, and the AuthKit
+     * writes around it never flush that pending note.
+     */
+    public function testAHostEntityPointingAtAnInvitationThroughAReferenceIsFlushedByTheApplication(): void
+    {
+        $id   = $this->invitation('jane@example.com');
+        $user = (new KernelUser())->setEmail('author@example.com')->setPassword('author-password');
+        $this->host()->persist($user);
+        $this->host()->flush();
+        $reference = $this->host()->getReference(Invitation::class, $id);
+        self::assertInstanceOf(Invitation::class, $reference);
+        $this->host()->persist(new HostInvitationNote($reference, $user, 'call on Monday'));
+
+        // AuthKit writes in between never flush the pending note.
+        self::assertSame(InvitationOutcome::SENT, $this->manager()->resend(null, $this->hostInvitation($id))->status);
+        $this->qr()->deny($this->hostChallenge($this->challenge()));
+        self::assertSame(0, (int) $this->connection()->fetchOne('SELECT COUNT(*) FROM host_invitation_note'), 'not flushed by AuthKit');
+
+        $this->host()->flush();
+        self::assertSame($id, (int) $this->connection()->fetchOne('SELECT invitation_id FROM host_invitation_note'));
+        $private = self::getContainer()->get(AuthKitEntityManager::class);
+        self::assertInstanceOf(AuthKitEntityManager::class, $private);
+        self::assertFalse($private->live()->getUnitOfWork()->isInIdentityMap($reference), 'the reference stays the application\'s');
+        self::assertSame(1, (int) $this->connection()->fetchOne('SELECT COUNT(*) FROM auth_kit_invitation'), 'no duplicate invitation row');
+    }
+
+    /**
+     * 2.0 (W1-2): the account write of an acceptance goes through the application's manager (the documented residual):
+     * the account and the invitation are written once, a host user entity the application already holds is used as is.
+     */
+    public function testAnExistingHostUserAcceptsWithoutADuplicateInvitationRowAndKeepsItsOwnInstance(): void
+    {
+        $member = (new KernelUser())->setEmail('jane@example.com')->setPassword('jane-password');
+        $this->host()->persist($member);
+        $this->host()->flush();
+        $id = $this->invitation('jane@example.com');
+
+        $acceptance = $this->acceptor()->acceptExisting($member, $this->hostInvitation($id), 'jane@example.com');
+
+        self::assertSame(InvitationAcceptance::ACCEPTED, $acceptance->status);
+        self::assertSame($member, $acceptance->userRef()?->user(), 'the host\'s own user instance');
+        self::assertTrue($this->host()->contains($member));
+        self::assertSame(1, (int) $this->connection()->fetchOne('SELECT COUNT(*) FROM auth_kit_invitation'));
+        self::assertSame(1, (int) $this->connection()->fetchOne("SELECT COUNT(*) FROM kernel_users WHERE email = 'jane@example.com'"));
+        self::assertNotNull($this->column('accepted_at', $id));
     }
 
     private function invitation(string $email): int

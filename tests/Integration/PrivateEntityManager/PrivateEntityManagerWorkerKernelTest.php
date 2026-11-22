@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Mfa\MfaStore;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaKernelTestCase;
+use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaTestKernel;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
@@ -47,7 +48,7 @@ final class PrivateEntityManagerWorkerKernelTest extends MfaKernelTestCase
 
     protected static function getKernelClass(): string
     {
-        return PrivateEmMfaTestKernel::class;
+        return MfaTestKernel::class;
     }
 
     /**

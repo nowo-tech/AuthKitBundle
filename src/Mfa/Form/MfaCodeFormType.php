@@ -45,7 +45,7 @@ final class MfaCodeFormType extends AbstractType
 
     /**
      * Block prefix of the OTP code field. 1.52: OtpInputBundle's own (`nowo_otp_input`); it was AuthKit's
-     * `nowo_auth_kit_mfa_otp` in 1.51 (form/mfa_otp_widget.html.twig: deprecated, inert, removed in 2.0).
+     * `nowo_auth_kit_mfa_otp` in 1.51 (its inert form/mfa_otp_widget.html.twig theme was removed in 2.0).
      */
     public const OTP_BLOCK_PREFIX = 'nowo_otp_input';
 

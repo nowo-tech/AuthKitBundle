@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Mfa\Event\MfaRecoveryCodeUsedEvent;
 use Nowo\AuthKitBundle\Mfa\Event\MfaResetByAdminEvent;
 use Nowo\AuthKitBundle\Mfa\Event\MfaTrustedDevicesForgottenEvent;
 use Nowo\AuthKitBundle\Mfa\Totp\Totp;
+use Nowo\AuthKitBundle\Port\Internal\MfaPolicyInterface;
 use Nowo\AuthKitBundle\Port\Ports;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
@@ -138,7 +139,7 @@ final readonly class MfaManager
             }
         }
         if ($this->policies?->has($profile->name) === true) {
-            // 1.46.0: the deprecated interface as in 1.45, else the framework-free twin through its gate.
+            // The port through its gate.
             $service = $this->policies->get($profile->name);
             $policy  = Ports::mfaPolicy($service);
             if (!$policy instanceof MfaPolicyInterface) {

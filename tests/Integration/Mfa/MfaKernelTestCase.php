@@ -10,7 +10,6 @@ use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\Totp\Totp;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -27,8 +26,6 @@ use function str_replace;
  */
 abstract class MfaKernelTestCase extends WebTestCase
 {
-    use HostModeNotices;
-
     protected KernelBrowser $client;
 
     /** @var list<object> */

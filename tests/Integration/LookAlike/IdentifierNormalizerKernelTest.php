@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Identity\LowercaseAsciiEmailIdentifierNormalizer;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginUserResolver;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
@@ -24,8 +25,6 @@ use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -61,8 +60,6 @@ use function str_ends_with;
  */
 final class IdentifierNormalizerKernelTest extends KernelTestCase
 {
-    use HostModeNotices;
-
     private const STORED = 'ada@example.com';
 
     private const TYPED = 'Ada@Example.COM';

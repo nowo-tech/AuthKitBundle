@@ -13,10 +13,10 @@ use Nowo\AuthKitBundle\ValueObject\QrLoginChallengeRef;
 final readonly class QrLoginChallengeCreatedEvent
 {
     /**
-     * @param QrLoginChallenge $challenge @deprecated since 1.46.0, use challengeRef() or challengeId(); removed in 2.0
+     * @param QrLoginChallenge $challenge not public since 2.0: read challengeRef() or challengeId()
      */
     public function __construct(
-        public QrLoginChallenge $challenge,
+        private QrLoginChallenge $challenge,
         public string $profileName,
     ) {
     }
@@ -35,16 +35,6 @@ final readonly class QrLoginChallengeCreatedEvent
     public function challengeRef(): QrLoginChallengeRef
     {
         return QrLoginChallengeRef::fromChallenge($this->challenge);
-    }
-
-    /**
-     * The `$challenge` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use challengeRef() or challengeId(); removed in 2.0 with the entity-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function challenge(): QrLoginChallenge
-    {
-        return $this->challenge;
     }
 
     /**

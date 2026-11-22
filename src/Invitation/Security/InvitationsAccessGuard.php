@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Invitation\Security;
 
+use Nowo\AuthKitBundle\Port\Internal\InvitationsAccessCheckerInterface;
 use Nowo\AuthKitBundle\Port\Ports;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;

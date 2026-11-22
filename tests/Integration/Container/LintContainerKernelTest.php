@@ -8,9 +8,7 @@ use Nowo\AuthKitBundle\Tests\Integration\Ddd\DddHostTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\AuthKitTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\PasswordReset\ResetTableTestKernel;
-use Nowo\AuthKitBundle\Tests\Integration\PrivateEntityManager\PrivateEmMfaTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\XmlMapping\XmlMfaTestKernel;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -24,8 +22,6 @@ use Symfony\Component\HttpKernel\Kernel;
  */
 final class LintContainerKernelTest extends TestCase
 {
-    use HostModeNotices;
-
     /**
      * @return iterable<string, array{class-string<Kernel>}>
      */
@@ -33,7 +29,6 @@ final class LintContainerKernelTest extends TestCase
     {
         yield 'default' => [AuthKitTestKernel::class];
         yield 'mfa (default doctrine)' => [MfaTestKernel::class];
-        yield 'private entity manager' => [PrivateEmMfaTestKernel::class];
         yield 'xml mapping + private entity manager' => [XmlMfaTestKernel::class];
         yield 'password reset table' => [ResetTableTestKernel::class];
         yield 'DDD host: framework-free ports, reset table, xml, private entity manager' => [DddHostTestKernel::class];

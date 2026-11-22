@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Port;
 
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
+use Nowo\AuthKitBundle\Identity\NormalizingUserLookup;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\UserDirectoryInterface;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Serves the deprecated {@see UserLookupInterface} alias with the host's {@see UserDirectoryInterface} (1.46.0, wired by
- * {@see AuthKitPortsPass} when the application aliases the 1.46
- * interface). A returned reference must carry a Symfony security user (`LogicException` otherwise).
+ * AuthKit's internal {@see UserLookupInterface} over the {@see UserDirectoryInterface} port (1.46.0; 2.0: always, see
+ * services.yaml and {@see AuthKitPortsPass}); {@see NormalizingUserLookup} decorates it.
  *
  * @internal
  */

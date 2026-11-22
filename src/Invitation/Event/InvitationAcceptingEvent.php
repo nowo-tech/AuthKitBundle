@@ -29,12 +29,12 @@ final class InvitationAcceptingEvent
     private bool $refused = false;
 
     /**
-     * @param UserInterface|null $user @deprecated since 1.46.0, use userRef(); removed in 2.0
+     * @param UserInterface|null $user not public since 2.0: read userRef()
      */
     public function __construct(
         public readonly InvitationSnapshot $invitation,
         public readonly DateTimeImmutable $occurredAt,
-        public readonly ?UserInterface $user = null,
+        private readonly ?UserInterface $user = null,
     ) {
     }
 
@@ -87,15 +87,5 @@ final class InvitationAcceptingEvent
     public function occurredAt(): DateTimeImmutable
     {
         return $this->occurredAt;
-    }
-
-    /**
-     * The `$user` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function user(): ?UserInterface
-    {
-        return $this->user;
     }
 }

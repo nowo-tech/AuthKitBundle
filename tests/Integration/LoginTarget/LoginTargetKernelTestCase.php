@@ -7,7 +7,6 @@ namespace Nowo\AuthKitBundle\Tests\Integration\LoginTarget;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
@@ -16,8 +15,6 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 abstract class LoginTargetKernelTestCase extends WebTestCase
 {
-    use HostModeNotices;
-
     protected KernelBrowser $client;
 
     protected function setUp(): void

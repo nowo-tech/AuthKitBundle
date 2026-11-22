@@ -3,6 +3,15 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Before you upgrade](#before-you-upgrade)
+  - [Default flips](#default-flips)
+  - [Private manager only](#private-manager-only)
+  - [Port interfaces](#port-interfaces)
+  - [Event and result members](#event-and-result-members)
+  - [Configuration](#configuration)
+  - [Templates, blocks and globals](#templates-blocks-and-globals)
+  - [Other removals](#other-removals)
+  - [1.x support](#1x-support)
 - [To 1.55.1](#to-1551)
 - [To 1.55.0](#to-1550)
   - [AuthKit rows loaded through your own entity manager](#authkit-rows-loaded-through-your-own-entity-manager)
@@ -154,6 +163,210 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+```bash
+composer require nowo-tech/auth-kit-bundle:^2.0 -W
+```
+
+2.0 contains only changes that 1.x announced through deprecation notices: an application that runs the last 1.x
+minor without deprecation notices from this bundle upgrades without code changes. After 2.0.0 is released, the 1.x
+line receives security fixes for 6 months: fixes rated Moderate and above are backported to the last 1.x minor;
+Low ones are fixed in 2.x only.
+
+Unchanged in 2.0: password hashing, MFA secrets and recovery codes, PKCE, the attempt limiter, QR binding, magic links,
+the invitation tokens, the routes, the tables and the conflict answers (409 + `CONFLICT_001` / `CONFLICT_002`). No
+migration is needed.
+
+### Before you upgrade
+
+On the last 1.x (1.55), clear every deprecation of this bundle:
+
+1. The 1.54 notices (see [To 1.54.0](#to-1540)):
+   - > "nowo_auth_kit.doctrine.private_entity_manager" is not set: the AuthKit writes flush the application's entity
+     > manager, including its pending changes. In 2.0 the private entity manager is the only mode (as with true; the
+     > option goes). […]
+   - > The service "app.lookup" (App\Security\Lookup) implements "Nowo\AuthKitBundle\User\UserLookupInterface",
+     > deprecated since 1.46.0 and removed in 2.0: implement "Nowo\AuthKitBundle\User\UserDirectoryInterface" instead
+     > (see UPGRADING.md "To 1.46.0").
+   - > "Nowo\AuthKitBundle\Admin\AdminUserCreatingEvent::getUser()" is deprecated since 1.46.0 and removed in 2.0: use
+     > userRef() […] (also `AdminUserCreatedEvent::getUser()`);
+   - > "nowo_auth_kit.default_locale", "nowo_auth_kit.enabled_locales" and "nowo_auth_kit.locale_in_path" are
+     > deprecated and removed in 2.0 […]
+   - the 1.27 notices of `templates.*` and `css.*` (`The "layout" option at "…templates" is deprecated, …`) and the
+     1.46 notice of `private_entity_manager: false`.
+2. Every host-flush probe line, `Your pending changes to App\X were flushed by NowoAuthKitBundle; 2.0 no longer does.`
+   Each class listed is a change of yours that 2.0 no longer stores for you (see
+   [Private manager only](#private-manager-only)); the 1.54 [probe guide](#reading-the-host-flush-probe) explains how to
+   read them. Then set `doctrine.private_entity_manager: true` on 1.x and run your suite once more.
+3. What no notice can report:
+   - reads of the deprecated public properties of the events and results. Search your listeners for `->user`,
+     `->actor`, `->issuer`, `->target`, `->from`, `->to`, `->token`, `->request` and `->challenge` on AuthKit events,
+     `InvitationAcceptance`, `AccountState` and `SwitchOutcome`, and for the 1.55 getters `user()`, `actor()`,
+     `issuer()`, `target()`, `from()`, `to()`, `request()`, `token()` and `challenge()` (see
+     [Event and result members](#event-and-result-members));
+   - a `{% form_theme … '@NowoAuthKitBundle/form/mfa_otp_widget.html.twig' %}` line, and a page template of yours that
+     extends `layout_template` with `@NowoAuthKitBundle/layout.html.twig` as its value (the 1.x layout, used while
+     `web_ui.layout_template` is null) or uses the globals `nowo_auth_kit_button_class` /
+     `nowo_auth_kit_secondary_button_class`. In 2.0 these fail when Twig renders the page ("Unable to find template",
+     "Variable … does not exist"), not at build time (see [Templates, blocks and globals](#templates-blocks-and-globals)).
+
+### Default flips
+
+| Option | 1.x | 2.0 |
+|---|---|---|
+| `doctrine.private_entity_manager` | unset or `false`: the AuthKit writes flush your entity manager; `true`: AuthKit's private manager | AuthKit's private manager always (with the AuthKit entities mapped). `false` fails the build; `true` is accepted until 3.0 and logs "The "nowo_auth_kit.doctrine.private_entity_manager" option has no effect since 2.0 (the private entity manager is the only mode); remove it." |
+
+There is no option to keep the 1.x behaviour: flush your own pending changes yourself. Hosts without the AuthKit
+entities mapped (`doctrine.register_mapping: false`, or `auto` without social login, QR login, invitations, MFA or the
+account switcher) write no AuthKit rows: nothing changes for them, and `private_entity_manager: true` is still refused
+there, as in 1.x. The container parameter `nowo_auth_kit.doctrine.private_entity_manager` stays: it is `true` whenever
+the private manager is registered.
+
+### Private manager only
+
+The private entity manager of [To 1.46.0](#private-entity-manager-doctrineprivate_entity_manager) is now unconditional:
+
+- AuthKit writes its rows (QR login challenges, invitations, MFA credentials, social accounts and credentials, the
+  account switcher) through its own entity manager, on the connection and mapping of your default manager. The tables
+  do not move, and a transaction you open around an AuthKit call includes AuthKit's statements (savepoints).
+- **Your pending changes are no longer flushed by AuthKit.** A change of yours that was only stored because an AuthKit
+  write flushed your manager is no longer stored: typically in a listener of an AuthKit event, a port of yours, or code
+  that changes an entity and then calls an AuthKit service. Flush it yourself. The 1.54 probe lines are the list of
+  such changes in your application.
+- The reverse, which the probe cannot see: **an AuthKit row you load through an AuthKit repository service
+  (`InvitationRepository`, `QrLoginChallengeRepository`: they are on the private manager), change, and then flush
+  your own manager is not saved**; the private manager drops it at the next request, message or command boundary with
+  a warning. Change AuthKit rows through the AuthKit services. `SocialLoginAccountRepository` and
+  `SocialLoginCredentialRepository` as your manager returns them (`$em->getRepository(SocialLoginAccount::class)`)
+  stay on your manager, as in 1.46: editing social accounts or credentials through them and flushing your manager
+  still works.
+- AuthKit rows you load through your own manager (a repository of yours, a route argument, `getReference()`) are
+  loaded again by id in AuthKit's manager when you hand them to `InvitationManager`, `InvitationAcceptor` or
+  `QrLoginChallengeManager` (1.55.0, [AuthKit rows loaded through your own entity manager](#authkit-rows-loaded-through-your-own-entity-manager)).
+  Your instance is not changed; read the result from the returned outcome.
+- To point an entity of yours at an AuthKit row (a `ManyToOne` to `Invitation`), use
+  `$yourManager->getReference(Invitation::class, $id)` and flush your manager: the foreign key is written, and AuthKit's
+  manager is not involved.
+- **Residual: the account writes still go through your manager.** Your user entities are yours: the Doctrine user
+  store (`User\Doctrine\DoctrineUserWriter`, the default of `UserStoreInterface`), the password-reset credential kept
+  on the user entity, and your `InvitationGrantHandlerInterface` services inside the acceptance transaction write
+  through your entity manager, and the Doctrine store flushes it. A registration, an invitation acceptance, a social
+  sign-up, an administrator creation or a password reset can therefore still write pending changes of yours. Do not
+  rely on it; alias `UserStoreInterface` to your own store to control it.
+- A port of yours whose correctness depended on AuthKit's flush (a custom `UserStoreInterface` that only changed a
+  managed entity, a grant handler that changed an entity without flushing) must now commit its own change.
+- FrankenPHP worker mode with kernel reset off: the private manager is dropped at every request, message, command and
+  `kernel.reset` boundary, as in 1.x with the option on.
+
+### Port interfaces
+
+The 1.45 host port interfaces deprecated in 1.46.0 are removed. Implement their twin (the [1.46 table](#framework-free-host-ports-optional-until-20)):
+
+| Removed interface | Implement instead | Wiring |
+|---|---|---|
+| `User\UserLookupInterface` | `User\UserDirectoryInterface` | alias the port to your service |
+| `User\UserFactoryInterface` | `User\UserCreatorInterface` | alias |
+| `User\UserWriterInterface` | `User\UserStoreInterface` | alias |
+| `QrLogin\QrLoginStepUpInterface` | `QrLogin\QrLoginStepUpPolicyInterface` (return `false` instead of throwing) | alias |
+| `Mfa\MfaPolicyInterface` | `Mfa\MfaRequirementPolicyInterface` | same `mfa.policy` service id |
+| `MultiAccount\EnrolmentGateInterface` | `MultiAccount\EnrolmentPolicyInterface` | same `multi_account.enrolment_gate` |
+| `MultiAccount\AccountPresenterInterface` | `MultiAccount\AccountPresentationProviderInterface` | same `multi_account.presenter` |
+| `Invitation\Security\InvitationsAccessCheckerInterface` | `Invitation\Security\InvitationsAccessPolicyInterface` | same `invitations.security.access_checker` |
+| `Invitation\Security\InvitationActionAuthorizerInterface` | `Invitation\Security\InvitationActionPolicyInterface` | autoconfigured, same tag |
+| `Invitation\InvitationGrantInterface` | `Invitation\InvitationGrantHandlerInterface` | autoconfigured, same tag |
+| `SocialLogin\SocialCallbackHandlerInterface` | `SocialLogin\SocialCallbackStepInterface` | autoconfigured, same tag |
+
+- The constants moved with them: `InvitationActionAuthorizerInterface::AUTHORIZER_TAG`, `INVITE`, `REINVITE`,
+  `RESEND`, `REVOKE` and `RETURN_LINK` are now on `InvitationActionPolicyInterface`;
+  `InvitationGrantInterface::TAG` is `InvitationGrantHandlerInterface::TAG` (same values).
+- The ports are now always defined: `UserDirectoryInterface`, `UserCreatorInterface`, `UserStoreInterface` and
+  `QrLoginStepUpPolicyInterface` point at the built-ins (`DoctrineUserLookup`, `PropertyAccessUserFactory`,
+  `DoctrineUserWriter`, `NullQrLoginStepUp`), which implement them; the per-profile defaults
+  (`DefaultEnrolmentGate`, `IdentifierAccountPresenter`, `RoleInvitationsAccessChecker`) implement theirs. Same
+  behaviour as in 1.x.
+- **Decorators move to the port's id.** A decorator of a removed id (`#[AsDecorator(QrLoginStepUpInterface::class)]`,
+  `decorates: Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface`, `on_invalid: ignore`
+  included) has no replacement under the old id: decorate the port instead (`QrLoginStepUpPolicyInterface`,
+  `UserDirectoryInterface`, …). For the tagged ports, register another tagged service (every authorizer must allow).
+  AuthKit's own Device Intelligence step-up now decorates `QrLoginStepUpPolicyInterface`.
+- **A removed path fails the build.** A service, alias or `#[AsAlias]` under a removed id, a decorator of one, and a
+  class of yours that still implements a removed interface (Symfony would otherwise drop it silently, and a host rule
+  on QR approval, invitation actions or the MFA requirement would disappear) fail the container build with "the
+  service "…" uses …, which was deprecated in 1.46.0 and removed in 2.0. Implement … instead". A configured or tagged
+  port service that does not implement its port fails the build, as in 1.46.
+
+### Event and result members
+
+The members deprecated in 1.46.0 ([Event accessors](#event-accessors)) are no longer public. The constructors are
+unchanged (you can still dispatch `new CredentialsChangedEvent($user, …)`):
+
+| Removed (public property, and its 1.55 getter) | Use |
+|---|---|
+| `AdminUserCreatingEvent::getUser()`, `AdminUserCreatedEvent::getUser()` | `userRef()`, `userRef()->user()` for the object |
+| `AdminMagicLinkIssuedEvent::$issuer` / `issuer()`, `::$target` / `target()` | `issuerRef()`, `targetRef()` |
+| `InvitationEvent::$actor` / `actor()` (Created, Resent, Revoked, Accepted) | `actorRef()` |
+| `InvitationAcceptedEvent::$user` / `user()`, `InvitationAcceptingEvent::$user` / `user()` | `userRef()` |
+| `MfaEvent::$user` / `user()` (all MFA events) | `userRef()` |
+| `MfaResetByAdminEvent::$actor` / `actor()` | `actorRef()` |
+| `MfaLoginCompletedEvent::$token` / `token()`, `::$request` / `request()` | `userRef()` + `firewall()`, `requestContext()` |
+| `AccountEvent::$request` / `request()` (Added, Removed, Switched, Switching) | `requestContext()` |
+| `AccountAddedEvent::$user`, `AccountRemovedEvent::$user` (and `user()`) | `userRef()` |
+| `AccountSwitchedEvent::$from` / `$to`, `AccountSwitchingEvent::$from` / `$to` (and `from()`, `to()`) | `fromRef()`, `toRef()` |
+| `QrLogin{ChallengeCreated,Approved,Denied,Completed}Event::$challenge` / `challenge()` | `challengeRef()`, `challengeId()` |
+| `QrLogin{Approved,Completed}Event::$user` / `user()` | `userRef()` |
+| `CredentialsChangedEvent::$user` / `user()` (read side) | `userRef()` |
+| `AccountState::$user`, `SwitchOutcome::$user`, `InvitationAcceptance::$user` (and `user()`) | `userRef()` |
+
+The other properties stay public, with their 1.55 getters. The read-write semantics stay:
+`AccountSwitchingEvent::refuse()`, `InvitationAcceptingEvent::refuse()`, and fields you set on
+`AdminUserCreatingEvent::userRef()->user()` (the object AuthKit persists).
+
+### Configuration
+
+| Removed key | Deprecated since | Use |
+|---|---|---|
+| `default_locale` (root) | 1.7 (alone: 1.54) | `locale.default` |
+| `enabled_locales` (root) | 1.7 (alone: 1.54) | `locale.enabled` |
+| `locale_in_path` (root) | 1.7 (alone: 1.54) | `locale.in_path` (`never` / `always` / `both`) |
+| `templates.layout` (per profile, and the root shorthand) | 1.27 | `web_ui.layout_template` (null = `nowo_ui_kit.layouts.guest`) |
+| `templates.<page>` | 1.27 | `web_ui.templates.<page>` |
+| `templates.form_theme` | 1.27 | `web_ui.form_themes` |
+| `css.button_class` | 1.27 | `nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary` |
+| `css.secondary_button_class` | 1.27 | `nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_secondary` |
+| `doctrine.private_entity_manager: false` | 1.46 | remove it (see [Default flips](#default-flips)) |
+
+Each removed key fails the build with a message that names its replacement. The container parameters
+`nowo_auth_kit.default_locale`, `nowo_auth_kit.enabled_locales` and `nowo_auth_kit.locale_in_path` stay (they come
+from `locale.*`), and so do the read-only `templates.*` mirror (`nowo_auth_kit.templates`,
+`ProfileSettings::$templates`) and `nowo_auth_kit.css` (the 1.x default class names; no longer configurable).
+1.x no longer bridges `css.*` to the UiKit theme: set the UiKit slots yourself.
+
+### Templates, blocks and globals
+
+| Removed | Deprecated since | Use |
+|---|---|---|
+| `@NowoAuthKitBundle/layout.html.twig` (and its blocks `auth_panel_heading`, `auth_brand`, `title`) | 1.27 | `nowo_ui_kit.layouts.guest`; `page.title`, `web_ui.brand`, `nowo_ui_document_title` |
+| Twig globals `nowo_auth_kit_button_class`, `nowo_auth_kit_secondary_button_class` | 1.27 | `nowo_ui_class('btn_primary' / 'btn_secondary', 'NowoAuthKitBundle')` |
+| `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` (block `nowo_auth_kit_mfa_otp_widget`) | 1.52 | nothing: delete the `form_theme` line (the field renders with OtpInputBundle's widget) |
+
+AuthKit's own pages never used them. A page template of yours written against 1.x that extends `layout_template`
+still receives `web_ui.layout_template` when you set it; without it, it receives the removed layout's name
+(`ProfileSettings::legacyLayoutTemplate()`) and Twig fails with "Unable to find template". Extend your own layout or
+`@NowoUiKit/page/auth.html.twig` instead.
+
+### Other removals
+
+- `Doctrine\IdentityCollationListener::postGenerateSchemaTable()` and
+  `Doctrine\PasswordResetCollationListener::postGenerateSchemaTable()` (no-ops since 1.54.1): the collation and the
+  foreign keys are applied on `postGenerateSchema`, as since 1.54.1.
+- The host-flush probe of 1.54 (`Doctrine\HostFlushReporter`, internal) and its notices.
+  `AuthKitTransactionRunner` and `MfaStore` keep their trailing `$hostFlush` constructor argument, ignored (removed in
+  3.0).
+
+### 1.x support
+
+1.x receives security fixes for 6 months after 2.0.0: fixes rated Moderate and above are backported to the last 1.x
+minor (1.55); Low ones are fixed in 2.x only. See [.github/SECURITY.md](../.github/SECURITY.md).
 
 ## To 1.55.1
 

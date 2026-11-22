@@ -8,12 +8,12 @@ use Nowo\AuthKitBundle\Admin\AdminUserCreator;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginUserResolver;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestHandler;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\AuthKitTestKernel;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 

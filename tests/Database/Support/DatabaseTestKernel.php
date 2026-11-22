@@ -22,7 +22,6 @@ use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 use function getenv;
 use function is_string;
 use function md5;
-use function str_ends_with;
 use function sys_get_temp_dir;
 use function version_compare;
 
@@ -87,9 +86,6 @@ final class DatabaseTestKernel extends InvitationsTestKernel
             ]);
         }
         $container->register(SlowUserPersist::class)->addTag('doctrine.event_listener', ['event' => 'prePersist']);
-        if (str_ends_with($this->environment, '_private')) {
-            $container->loadFromExtension('nowo_auth_kit', ['doctrine' => ['private_entity_manager' => true]]);
-        }
         foreach (self::SERVICES as $id => $service) {
             $container->setAlias($id, $service)->setPublic(true);
         }

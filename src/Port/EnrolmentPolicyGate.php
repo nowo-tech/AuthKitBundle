@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Port;
 
 use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
-use Nowo\AuthKitBundle\MultiAccount\EnrolmentGateInterface;
 use Nowo\AuthKitBundle\MultiAccount\EnrolmentPolicyInterface;
+use Nowo\AuthKitBundle\Port\Internal\EnrolmentGateInterface;
 use Nowo\AuthKitBundle\ValueObject\EnrolmentCandidate;
 use Symfony\Component\Security\Core\Authentication\Token\RememberMeToken;
 use Symfony\Component\Security\Core\Authentication\Token\SwitchUserToken;
@@ -17,9 +17,9 @@ use function is_string;
 use function method_exists;
 
 /**
- * Asks a host {@see EnrolmentPolicyInterface} (1.46.0) where the bundle asks the deprecated
+ * Asks a host {@see EnrolmentPolicyInterface} (1.46.0) where the bundle asks its internal
  * {@see EnrolmentGateInterface}: the token becomes an {@see EnrolmentCandidate} (user, firewall, AuthKit second factor
- * pending, impersonation, role names, scalar attributes). Built per call by {@see Ports}.
+ * pending, impersonation, role names, scalar attributes). Built per call by {@see Ports} (2.0: the only way AuthKit asks the port).
  *
  * @internal
  */

@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Port;
 
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
+use Nowo\AuthKitBundle\Port\Internal\UserFactoryInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\NewUser;
 use Nowo\AuthKitBundle\User\UserCreatorInterface;
-use Nowo\AuthKitBundle\User\UserFactoryInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Serves the deprecated {@see UserFactoryInterface} alias with the host's {@see UserCreatorInterface} (1.46.0, wired by
- * {@see AuthKitPortsPass}). The returned reference must carry a
- * password-authenticated Symfony security user (`LogicException` otherwise).
+ * AuthKit's internal {@see UserFactoryInterface} over the {@see UserCreatorInterface} port (1.46.0; 2.0: always, see
+ * services.yaml and {@see AuthKitPortsPass}). The returned reference must carry a password-authenticated Symfony
+ * security user (`LogicException` otherwise).
  *
  * @internal
  */

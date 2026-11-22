@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Doctrine;
 
-use Doctrine\DBAL\Schema\Schema;
-use Doctrine\DBAL\Schema\Table;
-use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
-use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Doctrine\Persistence\Mapping\Driver\MappingDriverChain;
 use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
-use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\AuthKitBundle\Tests\Support\SchemaShape;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use ReflectionClass;
 
 use function array_keys;
 use function dirname;
@@ -105,17 +101,14 @@ final class IdentityCollationListenerTest extends TestCase
         self::assertSame('utf8mb4_bin', $args->getSchema()->getTable('xi_child')->getColumn('owner')->getPlatformOptions()['collation'] ?? null);
     }
 
-    public function testTheFormerTableEventDoesNothing(): void
+    public function testTheFormerTableEventIsGone(): void
     {
-        $em    = SchemaShape::entityManager(['driver' => 'pdo_mysql', 'serverVersion' => '8.4.0']);
-        $table = new Table('auth_kit_mfa');
-        $args  = new GenerateSchemaTableEventArgs(new ClassMetadata(MfaCredential::class), new Schema(), $table);
-
-        (new IdentityCollationListener())->postGenerateSchemaTable($args);
-        (new PasswordResetCollationListener())->postGenerateSchemaTable($args);
-
-        self::assertSame($table, $args->getClassTable());
-        self::assertFalse($em->getConnection()->isConnected());
+        // 2.0: the postGenerateSchemaTable() no-ops deprecated in 1.54.1 are removed; only postGenerateSchema stays.
+        foreach ([IdentityCollationListener::class, PasswordResetCollationListener::class] as $listener) {
+            $class = new ReflectionClass($listener);
+            self::assertFalse($class->hasMethod('postGenerateSchemaTable'), $listener);
+            self::assertTrue($class->hasMethod('postGenerateSchema'), $listener);
+        }
     }
 
     public function testThePasswordResetListenerWarnsOnTheFallbackToo(): void

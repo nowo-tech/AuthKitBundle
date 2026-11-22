@@ -21,11 +21,11 @@ final readonly class AccountState
     public const SIGNED_OUT = 'signed_out';
 
     /**
-     * @param UserInterface $user @deprecated since 1.46.0, use userRef(); removed in 2.0
+     * @param UserInterface $user not public since 2.0: read userRef()
      */
     public function __construct(
         public string $id,
-        public UserInterface $user,
+        private UserInterface $user,
         public AccountPresentation $presentation,
         public string $state,
     ) {
@@ -50,16 +50,6 @@ final readonly class AccountState
     public function id(): string
     {
         return $this->id;
-    }
-
-    /**
-     * The `$user` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function user(): UserInterface
-    {
-        return $this->user;
     }
 
     /**

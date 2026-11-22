@@ -2,7 +2,7 @@
 
 How AuthKit stays correct when the same data is written at the same time (nowo-tech REQ-RUNTIME-003): two users, two
 workers, or a request sent twice. It covers FrankenPHP worker mode with the kernel reset off, standard Symfony hosts
-and DDD hosts, with or without the private entity manager (`doctrine.private_entity_manager: true`).
+and DDD hosts. Since 2.0 AuthKit's rows always go through its private entity manager.
 
 The [High load](USAGE.md#high-load) section of USAGE has the operational side: topology, PgBouncer, Galera and DBAL 3.
 
@@ -100,7 +100,7 @@ nowo_auth_kit:
 - `commit_detection: false` drops AuthKit's own middleware. `CONFLICT_002` then comes only from a host write unit
   (`ConcurrencyConflict::$committed`), and a conflict after a commit answers `CONFLICT_001`.
 
-The other concurrency settings are in [High load](USAGE.md#high-load): `doctrine.private_entity_manager`, DBAL 3
+The other concurrency settings are in [High load](USAGE.md#high-load): DBAL 3
 savepoints and the topology limits.
 
 ## Lock order

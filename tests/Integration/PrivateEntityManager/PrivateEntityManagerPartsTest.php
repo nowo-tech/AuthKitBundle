@@ -25,7 +25,7 @@ use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\RecordingLogger;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
+use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaTestKernel;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Log\AbstractLogger;
 use ReflectionProperty;
@@ -45,11 +45,9 @@ use function assert;
  */
 final class PrivateEntityManagerPartsTest extends KernelTestCase
 {
-    use HostModeNotices;
-
     protected static function getKernelClass(): string
     {
-        return PrivateEmMfaTestKernel::class;
+        return MfaTestKernel::class;
     }
 
     #[Test]

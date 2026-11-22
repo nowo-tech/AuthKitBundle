@@ -9,12 +9,12 @@ use Nowo\AuthKitBundle\ValueObject\AuthRequestContext;
 use Nowo\AuthKitBundle\ValueObject\SocialCallbackResult;
 
 /**
- * Takes over the OAuth callback when the host has its own pending step (1.46.0): the framework-free twin of the
- * deprecated {@see SocialCallbackHandlerInterface} (REQ-ARCH-001 rule 3). Autoconfigured with the same tag
- * (`nowo_auth_kit.social_callback_handler`, `priority` orders several handlers); the first that supports the callback
- * owns it (a class cannot implement both interfaces: their methods share names).
+ * Takes over the OAuth callback when the host has its own pending step (1.46.0): a framework-free port (REQ-ARCH-001
+ * rule 3; 2.0: replaces the removed `SocialCallbackHandlerInterface`). Autoconfigured with the tag
+ * `nowo_auth_kit.social_callback_handler` (`priority` orders several handlers); the first that supports the callback
+ * owns it.
  *
- * Same guarantees as the deprecated interface: AuthKit verifies the OAuth state, PKCE and the code exchange before
+ * Guarantees: AuthKit verifies the OAuth state, PKCE and the code exchange before
  * {@see self::handle()} runs, a sign-in that fails afterwards is rolled back, and the first factor is marked `social`.
  * Instead of signing in and building a response yourself, return a {@see SocialCallbackResult}: AuthKit signs the user
  * in on the profile's firewall (MFA applies) and redirects. Keep pending data in the session

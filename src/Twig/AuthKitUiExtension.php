@@ -20,11 +20,15 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
 {
     /**
      * @param array<string, mixed> $templates
-     * @param array{button_class?: string, secondary_button_class?: string} $css
+     * @param array{button_class?: string, secondary_button_class?: string} $css unused since 2.0 (the
+     *                                                                           nowo_auth_kit_button_class globals of
+     *                                                                           the removed css.* keys are gone);
+     *                                                                           kept for BC
      */
+    // @phpstan-ignore constructor.unusedParameter
     public function __construct(
         private readonly array $templates,
-        private readonly array $css,
+        array $css,
         private readonly OutboundMailReadyCheckerInterface $outboundMailReadyChecker,
         private readonly bool $slideToConfirmAssets = false,
         private readonly bool $deviceIntelligenceAssets = false,
@@ -45,10 +49,7 @@ final class AuthKitUiExtension extends AbstractExtension implements GlobalsInter
             : Configuration::defaultFormThemes();
 
         return [
-            'nowo_auth_kit_form_themes' => $formThemes,
-            // 1.x (deprecated with css.*): pages use the UiKit btn_primary / btn_secondary slots.
-            'nowo_auth_kit_button_class'                         => $this->css['button_class'] ?? 'nowo-auth-kit__button',
-            'nowo_auth_kit_secondary_button_class'               => $this->css['secondary_button_class'] ?? 'nowo-auth-kit__social-button',
+            'nowo_auth_kit_form_themes'                          => $formThemes,
             'nowo_auth_kit_slide_to_confirm_assets'              => $this->shouldLoadSlideToConfirmAssets(),
             'nowo_auth_kit_device_intelligence_assets'           => $this->shouldLoadDeviceIntelligenceAssets(),
             'nowo_auth_kit_device_intelligence_collect_endpoint' => $this->deviceIntelligenceCollectEndpoint,

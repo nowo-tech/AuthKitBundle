@@ -13,7 +13,6 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
-use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Psr\Log\LoggerInterface;
@@ -108,16 +107,6 @@ final readonly class PasswordResetCollationListener
             self::warnOnPadSpace($collation, $table, $this->logger);
         }
         self::collateSchema($args, $columns, $collation);
-    }
-
-    /**
-     * No longer subscribed (1.54.1, audit XI): replacing the table there lost its foreign keys. Kept for BC; does nothing.
-     *
-     * @deprecated since 1.54.1, the collation is applied on postGenerateSchema ({@see self::postGenerateSchema()})
-     */
-    public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $args): void
-    {
-        unset($args);
     }
 
     /**

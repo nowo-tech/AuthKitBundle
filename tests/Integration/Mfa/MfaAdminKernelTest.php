@@ -34,7 +34,7 @@ final class MfaAdminKernelTest extends MfaKernelTestCase
         self::assertResponseRedirects('/admin/mfa/admin@example.com', 303);
         $reset = $this->eventsOf(MfaResetByAdminEvent::class);
         self::assertCount(1, $reset);
-        self::assertSame('boss@example.com', $reset[0]->actor->getUserIdentifier());
+        self::assertSame('boss@example.com', $reset[0]->actorRef()->identifier);
         self::assertFalse($this->manager()->isEnabled($this->user('admin@example.com')));
 
         $crawler = $this->client->request('GET', '/admin/mfa/admin@example.com');

@@ -23,6 +23,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaKernelTestCase;
+use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaTestKernel;
 use ReflectionProperty;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
@@ -37,7 +38,7 @@ final class PrivateEntityManagerKernelTest extends MfaKernelTestCase
 {
     protected static function getKernelClass(): string
     {
-        return PrivateEmMfaTestKernel::class;
+        return MfaTestKernel::class;
     }
 
     public function testTheBundleServicesUseThePrivateManager(): void

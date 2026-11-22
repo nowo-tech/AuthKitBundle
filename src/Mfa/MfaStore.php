@@ -19,7 +19,6 @@ use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
-use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
@@ -44,12 +43,13 @@ final readonly class MfaStore
      * 1.50.0: the optional EntityManagerRecovery argument is gone (writes go through AuthKit's transaction runner; a
      * manager closed by a failed write is replaced at the next unit-of-work boundary).
      *
-     * @param HostFlushReporter|null $hostFlush 1.54.0: reports the application's pending changes a host-mode flush writes
-     *                                          (wired only without `doctrine.private_entity_manager: true`)
+     * @param object|null $hostFlush @deprecated since 2.0, ignored (the 1.54 host-flush reporter of the removed host
+     *                               mode); removed in 3.0
      */
+    // @phpstan-ignore constructor.unusedParameter
     public function __construct(
         private ManagerRegistry $doctrine,
-        private ?HostFlushReporter $hostFlush = null,
+        ?object $hostFlush = null,
     ) {
     }
 
@@ -444,7 +444,7 @@ final readonly class MfaStore
      */
     private function transactional(callable $work): mixed
     {
-        return (new AuthKitTransactionRunner($this->entityManager(), hostFlush: $this->hostFlush))->run($work);
+        return (new AuthKitTransactionRunner($this->entityManager()))->run($work);
     }
 
     private function connection(): Connection

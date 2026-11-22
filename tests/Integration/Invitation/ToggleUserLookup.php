@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Invitation;
 
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**

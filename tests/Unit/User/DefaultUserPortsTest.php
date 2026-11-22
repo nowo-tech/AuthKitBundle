@@ -9,6 +9,9 @@ use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
+use Nowo\AuthKitBundle\Port\UserCreatorGate;
+use Nowo\AuthKitBundle\Port\UserDirectoryGate;
+use Nowo\AuthKitBundle\Port\UserStoreGate;
 use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
 use Nowo\AuthKitBundle\Tests\Stub\RoleWritableUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
@@ -45,7 +48,7 @@ final class DefaultUserPortsTest extends TestCase
         $em->method('contains')->willReturn(true);
         $em->expects(self::once())->method('refresh')->with($user);
 
-        $lookup = new DoctrineUserLookup($em);
+        $lookup = new UserDirectoryGate(new DoctrineUserLookup($em));
         self::assertSame($user, $lookup->findById($profile, '7'));
         self::assertNull($lookup->findById($profile, 'abc'), 'A non-user row is not a user.');
         self::assertNull($lookup->findById($profile, '8'));
@@ -62,7 +65,7 @@ final class DefaultUserPortsTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($repository);
 
-        $lookup = new DoctrineUserLookup($em);
+        $lookup = new UserDirectoryGate(new DoctrineUserLookup($em));
         self::assertNull($lookup->findByIdentifier($profile, 'a@example.com'));
         self::assertSame(3, $lookup->countUsers($profile));
     }
@@ -76,7 +79,7 @@ final class DefaultUserPortsTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getClassMetadata')->willReturn($unmapped);
         $em->expects(self::never())->method('createQueryBuilder');
-        self::assertFalse((new DoctrineUserLookup($em))->hasCaseVariant($profile, 'email', 'A@example.com'));
+        self::assertFalse((new UserDirectoryGate(new DoctrineUserLookup($em)))->hasCaseVariant($profile, 'email', 'A@example.com'));
 
     }
 
@@ -88,7 +91,7 @@ final class DefaultUserPortsTest extends TestCase
         $em->expects(self::once())->method('remove')->with($user);
         $em->expects(self::atLeastOnce())->method('flush');
 
-        $writer  = new DoctrineUserWriter($em, PropertyAccess::createPropertyAccessor());
+        $writer  = new UserStoreGate(new DoctrineUserWriter($em, PropertyAccess::createPropertyAccessor()));
         $profile = ProfileRegistryFactory::single(TestUser::class)->getDefault();
         $writer->add($profile, $user);
         $writer->changePassword($profile, $user, 'hash-1');
@@ -101,7 +104,7 @@ final class DefaultUserPortsTest extends TestCase
             'registration_fields' => FieldConfigNormalizer::normalizeRegistrationFields(['email']),
         ])->getDefault();
         $other = new RoleWritableUser();
-        (new DoctrineUserWriter($this->createMock(EntityManagerInterface::class), PropertyAccess::createPropertyAccessor()))
+        (new UserStoreGate(new DoctrineUserWriter($this->createMock(EntityManagerInterface::class), PropertyAccess::createPropertyAccessor())))
             ->changePassword($noPasswordField, $other, 'hash-2');
         self::assertSame('hash-2', $other->password);
     }
@@ -110,7 +113,7 @@ final class DefaultUserPortsTest extends TestCase
     {
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturnCallback(static fn (object $u, string $plain): string => 'hashed:' . $plain);
-        $factory = new PropertyAccessUserFactory($hasher, PropertyAccess::createPropertyAccessor());
+        $factory = new UserCreatorGate(new PropertyAccessUserFactory($hasher, PropertyAccess::createPropertyAccessor()));
         $profile = ProfileRegistryFactory::single(RoleWritableUser::class)->getDefault();
 
         $user = $factory->create($profile, NewUser::forSocial('s@example.com', 'Sam', 'random', ['ROLE_USER']));

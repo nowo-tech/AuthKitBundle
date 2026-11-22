@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\ProgrammaticLoginAuthenticatorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\QrCodeGeneratorPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\RemovedPortsPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
@@ -44,7 +45,11 @@ class NowoAuthKitBundle extends Bundle
         $container->addCompilerPass(new MultiAccountPass());
         $container->addCompilerPass(new ProgrammaticLoginAuthenticatorPass());
         $container->addCompilerPass(new AvailabilityCheckersPass());
-        // 1.46.0: after the autoconfiguration tags, before decorators (framework-free port twins).
+        // 2.0 (XR-WF-M1): a service on a port interface removed in 2.0 fails the build: at 1000, while the loader errors
+        // still sit on the definitions, and at 99, once the #[AsDecorator] / #[AsAlias] attributes are applied (100).
+        // Then the ports themselves (after the autoconfiguration tags, before decorators).
+        $container->addCompilerPass(new RemovedPortsPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 1000);
+        $container->addCompilerPass(new RemovedPortsPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 99);
         $container->addCompilerPass(new AuthKitPortsPass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, 0);
         // 1.53.0 (REQ-RUNTIME-003): the commit ledger of the conflict answer, before DoctrineBundle reads doctrine.middleware.
         $container->addCompilerPass(new ConflictResponsePass(), PassConfig::TYPE_BEFORE_OPTIMIZATION, ConflictResponsePass::PRIORITY);

@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\MultiAccount\AccountVaultStore;
 use Nowo\AuthKitBundle\MultiAccount\DefaultEnrolmentGate;
 use Nowo\AuthKitBundle\MultiAccount\VaultCookie;
 use Nowo\AuthKitBundle\MultiAccount\VaultCrypto;
+use Nowo\AuthKitBundle\Port\EnrolmentPolicyGate;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\UserKitBundle\Sessions\UserSessionManager;
@@ -115,7 +116,7 @@ final class MultiAccountUnitTest extends TestCase
 
     public function testGateAndEntity(): void
     {
-        $gate = new DefaultEnrolmentGate();
+        $gate = new EnrolmentPolicyGate(new DefaultEnrolmentGate());
         self::assertTrue($gate->isComplete(new UsernamePasswordToken(new InMemoryUser('a', null), 'main')));
         self::assertFalse($gate->isComplete(new NullToken()));
         $now = new DateTimeImmutable();

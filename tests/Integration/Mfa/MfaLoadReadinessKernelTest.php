@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Mfa;
 
 use DateTimeImmutable;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Mfa\Event\MfaTrustedDeviceAddedEvent;
 use Nowo\AuthKitBundle\Mfa\MfaOwner;
@@ -100,7 +101,10 @@ final class MfaLoadReadinessKernelTest extends MfaKernelTestCase
     {
         $store      = $this->store();
         $credential = $store->credentialOrNew('default', new MfaOwner(KernelUser::class, 'member@example.com'), new DateTimeImmutable());
-        $this->em()->detach($credential);
+        // 2.0: the credential is AuthKit's private manager's: detach it there.
+        $private = self::getContainer()->get(AuthKitEntityManager::class);
+        self::assertInstanceOf(AuthKitEntityManager::class, $private);
+        $private->detach($credential);
 
         $seen = $store->locked($credential, static fn (MfaCredential $locked): MfaCredential => $locked);
 

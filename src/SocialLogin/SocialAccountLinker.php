@@ -11,6 +11,12 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Port\Internal\UserFactoryInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserWriterInterface;
+use Nowo\AuthKitBundle\Port\UserCreatorGate;
+use Nowo\AuthKitBundle\Port\UserDirectoryGate;
+use Nowo\AuthKitBundle\Port\UserStoreGate;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Security\ExactIdentifier;
@@ -25,10 +31,7 @@ use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
 use Nowo\AuthKitBundle\User\NewUser;
 use Nowo\AuthKitBundle\User\PropertyAccessUserFactory;
 use Nowo\AuthKitBundle\User\UserCreationSource;
-use Nowo\AuthKitBundle\User\UserFactoryInterface;
 use Nowo\AuthKitBundle\User\UserIds;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
-use Nowo\AuthKitBundle\User\UserWriterInterface;
 use Psr\Clock\ClockInterface;
 use RuntimeException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -78,9 +81,9 @@ final class SocialAccountLinker
         ?AuthKitTransactionRunner $transactions = null,
     ) {
         $this->transactions = $transactions ?? new AuthKitTransactionRunner($privateEntityManager ?? $entityManager, $entityManager);
-        $this->userLookup   = $userLookup ?? new DoctrineUserLookup($entityManager, $this->identifierMatcher);
-        $this->userFactory  = $userFactory ?? new PropertyAccessUserFactory($passwordHasher, $propertyAccessor);
-        $this->userWriter   = $userWriter ?? new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions);
+        $this->userLookup   = $userLookup ?? new UserDirectoryGate(new DoctrineUserLookup($entityManager, $this->identifierMatcher));
+        $this->userFactory  = $userFactory ?? new UserCreatorGate(new PropertyAccessUserFactory($passwordHasher, $propertyAccessor));
+        $this->userWriter   = $userWriter ?? new UserStoreGate(new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions));
     }
 
     /**
@@ -290,7 +293,7 @@ final class SocialAccountLinker
      */
     private function compensate(ProfileSettings $profile, ?UserInterface $created): void
     {
-        if (!$created instanceof UserInterface || $this->userWriter instanceof DoctrineUserWriter) {
+        if (!$created instanceof UserInterface || UserStoreGate::storesThroughDoctrine($this->userWriter)) {
             return;
         }
 
@@ -354,7 +357,7 @@ final class SocialAccountLinker
             // JW-A1: stored now, inside the link transaction: a writer that defers to save() must not keep the old password.
             $this->userWriter->save($profile, $user);
             // JW-A4: the Doctrine listeners see the change of a Doctrine writer; a host writer gets the explicit event.
-            if (!$this->userWriter instanceof DoctrineUserWriter) {
+            if (!UserStoreGate::storesThroughDoctrine($this->userWriter)) {
                 $events[] = new CredentialsChangedEvent($user);
             }
         }

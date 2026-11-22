@@ -16,7 +16,6 @@ use Nowo\AuthKitBundle\Mfa\Totp\Totp;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\Tests\Integration\Invitation\CapturingInvitationMailer;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -36,8 +35,6 @@ use const PHP_URL_QUERY;
  */
 abstract class ProgrammaticLoginKernelTestCase extends WebTestCase
 {
-    use HostModeNotices;
-
     protected KernelBrowser $client;
 
     protected function setUp(): void

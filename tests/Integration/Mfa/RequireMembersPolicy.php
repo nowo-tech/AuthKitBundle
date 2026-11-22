@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Mfa;
 
-use Nowo\AuthKitBundle\Mfa\MfaPolicyInterface;
 use Nowo\AuthKitBundle\Mfa\MfaRequirement;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Nowo\AuthKitBundle\Mfa\MfaRequirementPolicyInterface;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 
 /**
  * Host policy of the sessions kernel: `support@` must have MFA (besides the ROLE_ADMIN rule).
  */
-final class RequireMembersPolicy implements MfaPolicyInterface
+final class RequireMembersPolicy implements MfaRequirementPolicyInterface
 {
-    public function requirement(UserInterface $user, string $profile): MfaRequirement
+    public function requirementFor(AuthUserRef $user, string $profile): MfaRequirement
     {
-        return $user->getUserIdentifier() === 'support@example.com' ? MfaRequirement::Required : MfaRequirement::Optional;
+        return $user->identifier === 'support@example.com' ? MfaRequirement::Required : MfaRequirement::Optional;
     }
 }
