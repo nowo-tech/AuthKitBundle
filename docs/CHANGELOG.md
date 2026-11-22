@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.0.0] - 2026-11-22](#200---2026-11-22)
 - [[1.56.0] - 2026-11-22](#1560---2026-11-22)
 - [[1.55.1] - 2026-11-22](#1551---2026-11-22)
 - [[1.55.0] - 2026-11-21](#1550---2026-11-21)
@@ -119,6 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [2.0.0] - 2026-11-22
 
 2.0 removes what 1.x announced through deprecation notices (REQ-BC-001, REQ-ARCH-001 rules 3 and 6): see UPGRADING.md,
 "To 2.0.0". An application that runs 1.56 without deprecation notices from this bundle, and without the uses listed

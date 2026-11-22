@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.0.0](#to-200)
   - [Before you upgrade](#before-you-upgrade)
   - [Default flips](#default-flips)
   - [Private manager only](#private-manager-only)
@@ -166,6 +167,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.0.0
+
+From **1.56.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ```bash
 composer require nowo-tech/auth-kit-bundle:^2.0 -W
