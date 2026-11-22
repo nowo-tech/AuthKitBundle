@@ -19,12 +19,12 @@ final class AdminMagicLinkIssuedEvent
     public const DELIVERY_EMAIL = 'email';
 
     /**
-     * @param UserInterface $issuer @deprecated since 1.46.0, use issuerRef(); removed in 2.0
-     * @param UserInterface $target @deprecated since 1.46.0, use targetRef(); removed in 2.0
+     * @param UserInterface $issuer not public since 2.0: read issuerRef()
+     * @param UserInterface $target not public since 2.0: read targetRef()
      */
     public function __construct(
-        public readonly UserInterface $issuer,
-        public readonly UserInterface $target,
+        private readonly UserInterface $issuer,
+        private readonly UserInterface $target,
         public readonly string $delivery,
         public readonly DateTimeImmutable $expiresAt,
     ) {
@@ -44,26 +44,6 @@ final class AdminMagicLinkIssuedEvent
     public function targetRef(): AuthUserRef
     {
         return AuthUserRefs::fromUser($this->target);
-    }
-
-    /**
-     * The `$issuer` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use issuerRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function issuer(): UserInterface
-    {
-        return $this->issuer;
-    }
-
-    /**
-     * The `$target` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use targetRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function target(): UserInterface
-    {
-        return $this->target;
     }
 
     /**

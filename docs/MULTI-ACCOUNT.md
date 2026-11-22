@@ -89,8 +89,8 @@ switcher routes), keep form CSRF on, and the PHP `sodium` extension.
 | `chooser.cross_tab_notice` | `false` | Other tabs show "you switched account in another tab" (`BroadcastChannel`, CSP nonce aware) |
 | `chooser.other_account_avatars` | `false` | 1.35: while the browser is signed in, also show the presenter's avatar of its other accounts (fetched with the active session's cookie, which the host may refuse). Never on anonymous pages (sign-in page, chooser after sign-out): initials there. Default: the active account only |
 | `rate_limit.switch` / `add` / `invalid` | `30/600`, `10/3600`, `20/600` | Per client IP: switches and adds are refused over the limit; unknown tokens are counted and logged only (a shared IP never disables other browsers' vaults) |
-| `enrolment_gate` | `null` | Service id of an `EnrolmentGateInterface` (default: complete once AuthKit MFA passed, never while impersonating) |
-| `presenter` | `null` | Service id of an `AccountPresenterInterface` (name, identifier, avatar; default: the identifier) |
+| `enrolment_gate` | `null` | Service id of an `EnrolmentPolicyInterface` (default: complete once AuthKit MFA passed, never while impersonating) |
+| `presenter` | `null` | Service id of an `AccountPresentationProviderInterface` (name, identifier, avatar; default: the identifier) |
 | `routes.*` | `/accounts`, `/accounts/add`, `/accounts/{account}/switch`, `/accounts/{account}/sign-out`, `/accounts/sign-out-all` | Paths and names |
 
 ## User menu and chooser

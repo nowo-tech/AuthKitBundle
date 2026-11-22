@@ -96,8 +96,8 @@ final class AdminMagicLinkIssuerTest extends TestCase
         self::assertSame('https://example.test/login/magic/check?u=1', $link->getUrl());
         self::assertCount(1, $events);
         self::assertInstanceOf(AdminMagicLinkIssuedEvent::class, $events[0]);
-        self::assertSame($admin, $events[0]->issuer);
-        self::assertSame($member, $events[0]->target);
+        self::assertSame($admin, $events[0]->issuerRef()->user());
+        self::assertSame($member, $events[0]->targetRef()->user());
         self::assertSame(AdminMagicLinkIssuedEvent::DELIVERY_SHOWN, $events[0]->delivery);
         self::assertEquals($link->getExpiresAt(), $events[0]->expiresAt);
     }

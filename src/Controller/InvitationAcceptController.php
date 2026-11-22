@@ -21,6 +21,7 @@ use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
 use Nowo\AuthKitBundle\Invitation\InvitationTokens;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
+use Nowo\AuthKitBundle\Port\Internal\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
@@ -33,7 +34,6 @@ use Nowo\AuthKitBundle\SocialLogin\Pkce;
 use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
-use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
@@ -222,12 +222,13 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
                 }
                 $acceptance = $this->acceptor->attempt($invitation, $tokenHash, $data);
                 $session->remove($key);
-                if (!$acceptance->user instanceof UserInterface) {
+                $accepted = $acceptance->userRef()?->user();
+                if (!$accepted instanceof UserInterface) {
                     // 1.33: the host's translatable reason (pre-accept event or grant), else the neutral text.
                     return $this->notice($profile, 'not_accepted', Response::HTTP_OK, $acceptance->refusal);
                 }
 
-                return $this->signIn($request, $profile, $acceptance->user);
+                return $this->signIn($request, $profile, $accepted);
             }
         }
 
@@ -389,7 +390,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
             new SocialUserProfile($social->id, $email, $social->name, $social->raw, $email !== null),
             $this->socialFormData($profile, $social->name),
         );
-        $user = $result->user;
+        $user = $result->userRef()?->user();
         if (!$user instanceof UserInterface) {
             return match ($result->status) {
                 InvitationAcceptance::EMAIL_MISMATCH => $this->notice($profile, 'social_mismatch', Response::HTTP_OK, null, $session->has(self::SESSION_KEY . $profile->name)),

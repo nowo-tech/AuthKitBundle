@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\Enum\QrLoginDesktopBinding;
 use Nowo\AuthKitBundle\Enum\QrLoginMode;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Enum\SocialLoginMode;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
@@ -21,12 +22,14 @@ use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 
-use function array_filter;
+use function array_intersect;
 use function array_key_exists;
 use function array_keys;
 use function array_values;
 use function class_exists;
+use function implode;
 use function in_array;
 use function is_array;
 use function is_bool;
@@ -34,7 +37,6 @@ use function is_string;
 use function preg_match;
 use function sprintf;
 use function strtolower;
-use function trigger_deprecation;
 use function trim;
 
 /**
@@ -44,8 +46,22 @@ final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_auth_kit';
 
-    /** Deprecated 1.x layout (a bridge to the UiKit guest layout since 1.27); as a layout override it means null. */
+    /**
+     * The 1.x layout `@NowoAuthKitBundle/layout.html.twig` (a bridge to the UiKit guest layout from 1.27). 2.0: the
+     * template is removed; as `web_ui.layout_template` it still means null (the UiKit guest layout), and it is the value
+     * of the read-only `templates.layout` mirror and of {@see ProfileSettings::legacyLayoutTemplate()} without an
+     * override, so a 1.x host page template that extends `layout_template` fails at render ("unable to find").
+     */
     public const LEGACY_LAYOUT = '@NowoAuthKitBundle/layout.html.twig';
+
+    /** 2.0: the build error of the removed root locale keys (deprecated since 1.7 / 1.54). */
+    public const REMOVED_LOCALE_KEYS = 'The AuthKit option(s) %s were removed in 2.0 (deprecated since 1.54; together with "locale" since 1.7): use "nowo_auth_kit.locale.default", "nowo_auth_kit.locale.enabled" and "nowo_auth_kit.locale.in_path" instead. See UPGRADING.md, "To 2.0.0".';
+
+    /** 2.0: the build error of the removed per-profile templates.* keys (deprecated since 1.27). */
+    public const REMOVED_TEMPLATES_KEY = 'The AuthKit option "templates" (templates.layout, templates.<page>, templates.form_theme) was removed in 2.0 (deprecated since 1.27): use "web_ui.layout_template" (null = nowo_ui_kit.layouts.guest), "web_ui.templates.<page>" and "web_ui.form_themes" instead. See UPGRADING.md, "To 2.0.0".';
+
+    /** 2.0: the build error of the removed per-profile css.* keys (deprecated since 1.27). */
+    public const REMOVED_CSS_KEY = 'The AuthKit option "css" (css.button_class, css.secondary_button_class) was removed in 2.0 (deprecated since 1.27): set "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary" / "btn_secondary" instead. See UPGRADING.md, "To 2.0.0".';
 
     public const UI_KIT_FORM_THEME = '@NowoUiKit/form/nowo_ui_layout.html.twig';
 
@@ -200,47 +216,14 @@ final class Configuration implements ConfigurationInterface
                     // Each config block (one per file / env) is normalized on its own before the blocks are
                     // merged, so only map keys this block sets: injecting defaults here would let a later
                     // partial block (e.g. config/packages/prod/*.yaml) reset values set by an earlier one.
-                    // Derived keys (default_profile, legacy mirrors) are filled after the merge (validate()).
-                    $hasExplicitLocale = isset($config['locale']) && is_array($config['locale']);
-                    $legacyLocale      = [];
-                    if (array_key_exists('locale_in_path', $config)) {
-                        $legacyInPath = $config['locale_in_path'];
-                        if (is_bool($legacyInPath)) {
-                            $legacyInPath = $legacyInPath ? 'always' : 'never';
-                        } elseif (!is_string($legacyInPath) || !in_array($legacyInPath, ['never', 'always', 'both'], true)) {
-                            $legacyInPath = 'never';
-                        }
-                        $legacyLocale['in_path'] = $legacyInPath;
+                    // Derived keys (default_profile) are filled after the merge (validate()).
+                    // 2.0: the root keys deprecated in 1.7 / 1.54 are removed; name their replacements.
+                    $removedLocaleKeys = array_values(array_intersect(['default_locale', 'enabled_locales', 'locale_in_path'], array_keys($config)));
+                    if ($removedLocaleKeys !== []) {
+                        throw new InvalidConfigurationException(sprintf(self::REMOVED_LOCALE_KEYS, '"nowo_auth_kit.' . implode('", "nowo_auth_kit.', $removedLocaleKeys) . '"'));
                     }
-                    if (array_key_exists('default_locale', $config)) {
-                        $legacyLocale['default'] = $config['default_locale'];
-                    }
-                    if (array_key_exists('enabled_locales', $config)) {
-                        $legacyLocale['enabled'] = $config['enabled_locales'];
-                    }
-
-                    if ($hasExplicitLocale && $legacyLocale !== []) {
-                        trigger_deprecation(
-                            'nowo-tech/auth-kit-bundle',
-                            '1.7.0',
-                            'Using "default_locale", "enabled_locales", and/or "locale_in_path" together with "locale" is deprecated; configure only the "locale" node. Nested "locale" values take precedence.',
-                        );
-                    } elseif ($legacyLocale !== []) {
-                        // 1.54.0: the keys alone are deprecated too (removed in 2.0); they still map onto "locale".
-                        trigger_deprecation(
-                            'nowo-tech/auth-kit-bundle',
-                            '1.54',
-                            '"nowo_auth_kit.default_locale", "nowo_auth_kit.enabled_locales" and "nowo_auth_kit.locale_in_path" are deprecated and removed in 2.0: use "nowo_auth_kit.locale.default", "nowo_auth_kit.locale.enabled" and "nowo_auth_kit.locale.in_path".',
-                        );
-                    }
-
-                    if ($hasExplicitLocale) {
-                        if (is_bool($config['locale']['in_path'] ?? null)) {
-                            $config['locale']['in_path'] = $config['locale']['in_path'] ? 'always' : 'never';
-                        }
-                        $config['locale'] += $legacyLocale;
-                    } elseif ($legacyLocale !== []) {
-                        $config['locale'] = $legacyLocale;
+                    if (isset($config['locale']) && is_array($config['locale']) && is_bool($config['locale']['in_path'] ?? null)) {
+                        $config['locale']['in_path'] = $config['locale']['in_path'] ? 'always' : 'never';
                     }
 
                     return $config;
@@ -253,11 +236,6 @@ final class Configuration implements ConfigurationInterface
                         $profileNames              = array_keys($config['profiles']);
                         $config['default_profile'] = $profileNames[0] ?? 'default';
                     }
-
-                    // Legacy mirrors of the merged locale node (deprecated keys, kept for BC).
-                    $config['default_locale']  = $config['locale']['default'];
-                    $config['enabled_locales'] = $config['locale']['enabled'];
-                    $config['locale_in_path']  = $config['locale']['in_path'] !== 'never';
 
                     return $config;
                 })
@@ -336,7 +314,7 @@ final class Configuration implements ConfigurationInterface
                             ->end()
                         ->end()
                         ->scalarNode('entity_manager')
-                            ->info('Since 1.43.0: name of an additional entity manager that maps the AuthKit entities (the host maps them there itself). After a failed write the bundle resets only its own managers: the one the write went through, the manager of the AuthKit entities (ManagerRegistry::getManagerForClass(), always included) and this one. Without doctrine.private_entity_manager the bundle mapping and writes stay on the default manager; with it (1.46.0) the private manager is still created on the default manager, and this one stays in the recovery set. The build fails when the manager does not exist or does not map Nowo\\AuthKitBundle\\Entity.')
+                            ->info('Since 1.43.0: name of an additional entity manager that maps the AuthKit entities (the host maps them there itself). After a failed write the bundle resets only its own managers: the one the write went through, the manager of the AuthKit entities (ManagerRegistry::getManagerForClass(), always included) and this one. The private entity manager (2.0: the only mode) is still created on the default manager, and this one stays in the recovery set. The build fails when the manager does not exist or does not map Nowo\\AuthKitBundle\\Entity.')
                             ->defaultNull()
                             ->validate()
                                 ->ifTrue(static fn (mixed $value): bool => $value !== null && (!is_string($value) || $value === ''))
@@ -344,8 +322,9 @@ final class Configuration implements ConfigurationInterface
                             ->end()
                         ->end()
                         ->booleanNode('private_entity_manager')
-                            ->info('Since 1.46.0 (REQ-ARCH-001 rule 6): true writes and reads the AuthKit entities through a private entity manager created on the connection and configuration of the default manager (where 1.45 wrote them), so an AuthKit write never flushes the application\'s pending changes; the tables do not move. null (default) and false keep the 1.45 behaviour (the AuthKit writes flush the application\'s manager) and are deprecated (false since 1.46.0, unset with the AuthKit entities mapped since 1.54.0, when the host-flush probe also reports what those flushes write for the application): true becomes the only mode in 2.0.')
+                            ->info('2.0: no effect. With the AuthKit entities mapped, AuthKit always reads and writes them through a private entity manager created on the connection and configuration of the default manager (the tables do not move), so an AuthKit write never flushes the application\'s pending changes; the account writes (the application\'s user entities) still go through the application\'s manager. false fails the build; true is accepted until 3.0 (deprecated) and is still refused without the AuthKit entities mapped.')
                             ->defaultNull()
+                            ->setDeprecated('nowo-tech/auth-kit-bundle', '2.0', 'The "%path%.%node%" option has no effect since 2.0 (the private entity manager is the only mode); remove it.')
                         ->end()
                         ->enumNode('mapping_type')
                             ->values([self::MAPPING_TYPE_ATTRIBUTE, self::MAPPING_TYPE_XML])
@@ -470,6 +449,10 @@ final class Configuration implements ConfigurationInterface
                     ->requiresAtLeastOneElement()
                     ->useAttributeAsKey('name')
                     ->prototype('array')
+                        ->beforeNormalization()
+                            ->always()
+                            ->then(static fn (mixed $profile): mixed => self::refuseRemovedProfileKeys($profile))
+                        ->end()
                         ->validate()
                             ->always()
                             ->then(static fn (array $profile): array => self::resolveWebUi($profile))
@@ -523,8 +506,6 @@ final class Configuration implements ConfigurationInterface
                                 ->prototype('variable')->end()
                             ->end()
                             ->append($this->createWebUiNode())
-                            ->append($this->createTemplatesNode())
-                            ->append($this->createCssNode())
                             ->append($this->createEmbedNode())
                             ->append($this->createPasswordResetNode())
                             ->append($this->createMagicLoginNode())
@@ -546,7 +527,7 @@ final class Configuration implements ConfigurationInterface
                     ->end()
                 ->end()
                 ->arrayNode('locale')
-                    ->info('Auth route localization. Prefer this node over legacy default_locale / enabled_locales / locale_in_path.')
+                    ->info('Auth route localization (2.0: the root default_locale / enabled_locales / locale_in_path keys are removed).')
                     ->addDefaultsIfNotSet()
                     ->children()
                         ->enumNode('in_path')
@@ -580,19 +561,6 @@ final class Configuration implements ConfigurationInterface
                             ->defaultFalse()
                         ->end()
                     ->end()
-                ->end()
-                ->scalarNode('default_locale')
-                    ->info('Deprecated: use locale.default.')
-                    ->defaultValue('en')
-                ->end()
-                ->arrayNode('enabled_locales')
-                    ->info('Deprecated: use locale.enabled.')
-                    ->scalarPrototype()->end()
-                    ->defaultValue(['en', 'es'])
-                ->end()
-                ->variableNode('locale_in_path')
-                    ->info('Deprecated: use locale.in_path (never|always|both). Bool true/false still accepted.')
-                    ->defaultFalse()
                 ->end()
             ->end();
 
@@ -969,55 +937,6 @@ final class Configuration implements ConfigurationInterface
         return $node;
     }
 
-    private function createTemplatesNode(): ArrayNodeDefinition
-    {
-        $node     = (new TreeBuilder('templates'))->getRootNode();
-        $children = $node
-            ->info('Deprecated since 1.27: use web_ui.layout_template, web_ui.templates.<page> and web_ui.form_themes.')
-            ->children();
-        $children->scalarNode('layout')
-            ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "web_ui.layout_template" (null = UiKit guest layout).')
-        ->end();
-        foreach (array_keys(self::PAGE_TEMPLATES) as $page) {
-            $children->scalarNode($page)
-                ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "web_ui.templates.%node%".')
-            ->end();
-        }
-        $children->arrayNode('form_theme')
-            ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "web_ui.form_themes".')
-            ->beforeNormalization()
-                ->ifString()
-                ->then(static fn (string $value): array => [$value])
-            ->end()
-            ->scalarPrototype()->end()
-        ->end();
-        $children->end();
-
-        return $node;
-    }
-
-    private function createCssNode(): ArrayNodeDefinition
-    {
-        $node = (new TreeBuilder('css'))->getRootNode();
-        $node
-            ->addDefaultsIfNotSet()
-            ->info('Deprecated since 1.27: buttons use the UiKit btn_primary / btn_secondary slots (nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes).')
-            ->children()
-                ->scalarNode('button_class')
-                    ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary".')
-                    ->defaultValue(self::DEFAULT_BUTTON_CLASS)
-                    ->cannotBeEmpty()
-                ->end()
-                ->scalarNode('secondary_button_class')
-                    ->setDeprecated('nowo-tech/auth-kit-bundle', '1.27.0', 'The "%node%" option at "%path%" is deprecated, use "nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_secondary".')
-                    ->defaultValue(self::DEFAULT_SECONDARY_BUTTON_CLASS)
-                    ->cannotBeEmpty()
-                ->end()
-            ->end();
-
-        return $node;
-    }
-
     /**
      * Default form themes of the auth forms: the UiKit form theme, then the PasswordToggle widget theme (on UiKit
      * slots) when that bundle is registered ($bundles = kernel.bundles) or, without the kernel bundle list, installed.
@@ -1062,9 +981,30 @@ final class Configuration implements ConfigurationInterface
     }
 
     /**
-     * Maps the deprecated per-profile templates.* keys onto web_ui.* (after the config blocks are merged; a web_ui
-     * value other than the default wins) and rebuilds templates.* as a resolved legacy mirror for 1.x readers
-     * (form themes: {@see self::withFormThemes()}, applied by the extension).
+     * 2.0: the per-profile `templates.*` and `css.*` keys (deprecated since 1.27) are removed. A profile (or the root
+     * shorthand, moved into the default profile) that still sets one fails the build with the replacement, instead of
+     * Symfony's generic "unrecognized option".
+     *
+     * @throws InvalidConfigurationException when the profile sets `templates` or `css`
+     */
+    private static function refuseRemovedProfileKeys(mixed $profile): mixed
+    {
+        if (is_array($profile) && array_key_exists('templates', $profile)) {
+            throw new InvalidConfigurationException(self::REMOVED_TEMPLATES_KEY);
+        }
+        if (is_array($profile) && array_key_exists('css', $profile)) {
+            throw new InvalidConfigurationException(self::REMOVED_CSS_KEY);
+        }
+
+        return $profile;
+    }
+
+    /**
+     * Resolves web_ui after the config blocks are merged (the former layout `@NowoAuthKitBundle/layout.html.twig` as
+     * `web_ui.layout_template` means null) and fills the read-only mirrors `templates.*` (layout, pages, form themes:
+     * {@see self::withFormThemes()}, applied by the extension) and `css.*` (the 1.x default class names) that 1.x
+     * readers of the processed configuration, of {@see ProfileSettings} and of the `nowo_auth_kit.templates` /
+     * `nowo_auth_kit.css` parameters find. Since 2.0 neither key can be configured.
      *
      * @param array<string, mixed> $profile
      *
@@ -1072,30 +1012,17 @@ final class Configuration implements ConfigurationInterface
      */
     private static function resolveWebUi(array $profile): array
     {
-        /** @var array<string, mixed> $legacy */
-        $legacy = is_array($profile['templates'] ?? null) ? $profile['templates'] : [];
         /** @var array{layout_template: ?string, templates: array<string, string>, form_themes: ?list<string>, brand: ?string, qr_login: array{stimulus_controller: ?string}} $webUi */
         $webUi = $profile['web_ui'];
-
-        if (is_string($legacy['layout'] ?? null) && $webUi['layout_template'] === null && $legacy['layout'] !== self::LEGACY_LAYOUT) {
-            $webUi['layout_template'] = $legacy['layout'];
-        }
         if ($webUi['layout_template'] === self::LEGACY_LAYOUT) {
             $webUi['layout_template'] = null;
-        }
-        foreach (self::PAGE_TEMPLATES as $page => $default) {
-            if (is_string($legacy[$page] ?? null) && $legacy[$page] !== '' && $webUi['templates'][$page] === $default) {
-                $webUi['templates'][$page] = $legacy[$page];
-            }
-        }
-        if ($webUi['form_themes'] === null && is_array($legacy['form_theme'] ?? null)) {
-            $webUi['form_themes'] = array_values(array_filter($legacy['form_theme'], is_string(...)));
         }
 
         $profile['web_ui']    = $webUi;
         $profile['templates'] = ['layout' => $webUi['layout_template'] ?? self::LEGACY_LAYOUT]
             + $webUi['templates']
             + ['form_theme' => $webUi['form_themes']];
+        $profile['css'] = ['button_class' => self::DEFAULT_BUTTON_CLASS, 'secondary_button_class' => self::DEFAULT_SECONDARY_BUTTON_CLASS];
 
         return $profile;
     }
@@ -1433,7 +1360,7 @@ final class Configuration implements ConfigurationInterface
                 ->end()
                 ->enumNode('approve_requires')
                     ->values(array_map(static fn (QrLoginApproveMode $mode): string => $mode->value, QrLoginApproveMode::cases()))
-                    ->info('session: logged-in phone only. session_step_up: phone session + QrLoginStepUpInterface.')
+                    ->info('session: logged-in phone only. session_step_up: phone session + QrLoginStepUpPolicyInterface (alias it to your policy).')
                     ->defaultValue(QrLoginApproveMode::Session->value)
                 ->end()
                 ->enumNode('desktop_binding')

@@ -8,7 +8,6 @@ use InvalidArgumentException;
 use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -21,8 +20,6 @@ use Symfony\Component\DependencyInjection\Reference;
  */
 final class InvitationFollowupsConfigurationTest extends TestCase
 {
-    use HostModeNotices;
-
     private const USER = 'App\\Entity\\User';
 
     private const SOCIAL_TAG = 'nowo_auth_kit.social_callback_handler';

@@ -8,7 +8,6 @@ use Nowo\AuthKitBundle\Tests\Integration\Invitation\InvitationsTestKernel;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-use function str_ends_with;
 use function sys_get_temp_dir;
 
 /**
@@ -31,8 +30,5 @@ final class LoadReadinessTestKernel extends InvitationsTestKernel
     {
         parent::configureContainer($container, $loader);
         $container->register(RefusingGrant::class)->setAutoconfigured(true);
-        if (str_ends_with($this->environment, '_private')) {
-            $container->loadFromExtension('nowo_auth_kit', ['doctrine' => ['private_entity_manager' => true]]);
-        }
     }
 }

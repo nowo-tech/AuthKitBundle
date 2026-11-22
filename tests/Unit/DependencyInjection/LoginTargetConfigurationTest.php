@@ -14,7 +14,6 @@ use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetVoterInterface;
 use Nowo\AuthKitBundle\Security\SessionExpired\SessionExpiredResponder;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -31,8 +30,6 @@ use function ltrim;
  */
 final class LoginTargetConfigurationTest extends TestCase
 {
-    use HostModeNotices;
-
     public function testDefaults(): void
     {
         $config = $this->process([]);

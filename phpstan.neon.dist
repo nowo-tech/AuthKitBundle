@@ -10,6 +10,8 @@ parameters:
         - tests
     excludePaths:
         - src/Resources/*
+        # 2.0 (W1-1): host classes on the port interfaces removed in 2.0, for the kernel test of the build error.
+        - tests/Fixtures/RemovedPorts/*
     # 1.50.0 (Beacon spec 239): PhpStanFrankenPhp 1.4 worker load-readiness rules (ruleset-worker.neon is included,
     # so they are enabled through their parameters). Every write unit goes through AuthKit's transaction runner.
     frankenphp:

@@ -6,10 +6,11 @@ namespace Nowo\AuthKitBundle\Security;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
+use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 
 /**
  * Determines whether registration is currently allowed: the open registration page ({@see self::isRegistrationAllowed()})
@@ -25,7 +26,7 @@ final class RegistrationGate
         private readonly ProfileRegistry $profileRegistry,
         ?UserLookupInterface $userLookup = null,
     ) {
-        $this->userLookup = $userLookup ?? new DoctrineUserLookup($entityManager);
+        $this->userLookup = $userLookup ?? new UserDirectoryGate(new DoctrineUserLookup($entityManager));
     }
 
     public function isRegistrationAllowed(?string $profileName = null): bool

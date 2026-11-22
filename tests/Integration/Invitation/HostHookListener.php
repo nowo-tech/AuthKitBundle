@@ -5,29 +5,28 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Invitation;
 
 use Closure;
-use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationOpeningEvent;
-use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusal;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusedException;
 use Nowo\AuthKitBundle\Invitation\InvitationRequest;
 use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
-use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
 use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use RuntimeException;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * The 1.33 host hooks: records rejected links, refuses before acceptance (`refuseBefore`) or in the grant
  * (`refuseInGrant`) with a translatable reason. 1.42: refuses (`refuseOpening`) or fails (`crashOpening`,
  * `crashBefore`) when a link is opened, and records who accepts (`acceptingUsers`) and the registrations.
  */
-final class HostHookListener implements EventSubscriberInterface, InvitationGrantInterface, InvitationActionAuthorizerInterface
+final class HostHookListener implements EventSubscriberInterface, InvitationGrantHandlerInterface, InvitationActionPolicyInterface
 {
-    /** @var (Closure(?UserInterface, string, Invitation|InvitationRequest, ?InvitationRequest): bool)|null */
+    /** @var (Closure(?AuthUserRef, string, InvitationRequest|InvitationSnapshot, ?InvitationRequest): bool)|null */
     public ?Closure $authorize = null;
 
     /** @var list<string> actions asked to the authorizer */
@@ -93,7 +92,7 @@ final class HostHookListener implements EventSubscriberInterface, InvitationGran
 
     public function accepting(InvitationAcceptingEvent $event): void
     {
-        $this->acceptingUsers[] = $event->isExistingAccount() ? $event->user?->getUserIdentifier() : null;
+        $this->acceptingUsers[] = $event->isExistingAccount() ? $event->userRef()?->identifier : null;
         if ($this->crashBefore) {
             throw new RuntimeException('Pre-accept hook bug.');
         }
@@ -102,14 +101,14 @@ final class HostHookListener implements EventSubscriberInterface, InvitationGran
         }
     }
 
-    public function isGranted(?UserInterface $actor, string $action, Invitation|InvitationRequest $subject, ?InvitationRequest $request = null): bool
+    public function allows(?AuthUserRef $actor, string $action, InvitationSnapshot|InvitationRequest $subject, ?InvitationRequest $request = null): bool
     {
         $this->asked[] = $action;
 
         return !$this->authorize instanceof Closure || ($this->authorize)($actor, $action, $subject, $request);
     }
 
-    public function grant(InvitationSnapshot $invitation, UserInterface $user): void
+    public function grantTo(InvitationSnapshot $invitation, AuthUserRef $user): void
     {
         if ($this->refuseInGrant instanceof InvitationRefusal) {
             throw InvitationRefusedException::because($this->refuseInGrant);

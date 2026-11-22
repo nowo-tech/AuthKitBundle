@@ -7,7 +7,7 @@ namespace Nowo\AuthKitBundle\Invitation;
 use RuntimeException;
 
 /**
- * Thrown by an {@see InvitationGrantInterface} to refuse an acceptance (the transaction is rolled back). The message
+ * Thrown by an {@see InvitationGrantHandlerInterface} to refuse an acceptance (the transaction is rolled back). The message
  * is never shown to the invitee; the optional {@see InvitationRefusal} (1.33, {@see self::because()}) is.
  */
 final class InvitationRefusedException extends RuntimeException

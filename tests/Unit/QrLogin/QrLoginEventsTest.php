@@ -34,7 +34,7 @@ final class QrLoginEventsTest extends TestCase
         $challenge = $this->challenge();
         $event     = new QrLoginChallengeCreatedEvent($challenge, 'default');
 
-        self::assertSame($challenge, $event->challenge);
+        self::assertSame($challenge->getId(), $event->challengeId());
         self::assertSame('default', $event->profileName);
     }
 
@@ -44,8 +44,8 @@ final class QrLoginEventsTest extends TestCase
         $user      = new TestUser();
         $event     = new QrLoginApprovedEvent($challenge, $user, 'default');
 
-        self::assertSame($user, $event->user);
-        self::assertSame($challenge, $event->challenge);
+        self::assertSame($user, $event->userRef()->user());
+        self::assertSame($challenge->getId(), $event->challengeId());
     }
 
     public function testDeniedAndCompletedEvents(): void
@@ -57,7 +57,7 @@ final class QrLoginEventsTest extends TestCase
         $completed = new QrLoginCompletedEvent($challenge, $user, 'admin');
 
         self::assertSame('admin', $denied->profileName);
-        self::assertSame($user, $completed->user);
+        self::assertSame($user, $completed->userRef()->user());
         self::assertSame('admin', $completed->profileName);
     }
 }

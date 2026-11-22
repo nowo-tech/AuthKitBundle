@@ -17,11 +17,11 @@ use Symfony\Component\Security\Core\User\UserInterface;
 abstract class InvitationEvent
 {
     /**
-     * @param UserInterface|null $actor who did it (null: a command, or an anonymous demo administrator); @deprecated since 1.46.0, use actorRef(); removed in 2.0
+     * @param UserInterface|null $actor who did it (null: a command, or an anonymous demo administrator); not public since 2.0: read actorRef()
      */
     public function __construct(
         public readonly InvitationSnapshot $invitation,
-        public readonly ?UserInterface $actor,
+        private readonly ?UserInterface $actor,
         public readonly DateTimeImmutable $occurredAt,
     ) {
     }
@@ -40,16 +40,6 @@ abstract class InvitationEvent
     public function invitation(): InvitationSnapshot
     {
         return $this->invitation;
-    }
-
-    /**
-     * The `$actor` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use actorRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function actor(): ?UserInterface
-    {
-        return $this->actor;
     }
 
     /**

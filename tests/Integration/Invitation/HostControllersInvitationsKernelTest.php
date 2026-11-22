@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Invitation;
 
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Routing\Loader\AttributeServicesLoader;
 use Symfony\Component\Routing\RouterInterface;
@@ -20,8 +19,6 @@ use function str_contains;
  */
 final class HostControllersInvitationsKernelTest extends TestCase
 {
-    use HostModeNotices;
-
     public function testRoutingControllersAloneRegistersNoInvitationRoute(): void
     {
         if (!class_exists(AttributeServicesLoader::class)) {

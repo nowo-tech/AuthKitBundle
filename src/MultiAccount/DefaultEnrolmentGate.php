@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\MultiAccount;
 
-use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
-use Symfony\Component\Security\Core\Authentication\Token\SwitchUserToken;
-use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
+use Nowo\AuthKitBundle\ValueObject\EnrolmentCandidate;
 
 /**
- * Default enrolment gate (1.34): a token with a user, not waiting for AuthKit's second factor (D-M8: native MFA only)
+ * Default enrolment policy (1.34): a token with a user, not waiting for AuthKit's second factor (D-M8: native MFA only)
  * and not an impersonation.
+ *
+ * 2.0: on the port {@see EnrolmentPolicyInterface} (it implemented the removed EnrolmentGateInterface on the token;
+ * the candidate carries the same three facts, so the answer is the same).
  */
-final class DefaultEnrolmentGate implements EnrolmentGateInterface
+final class DefaultEnrolmentGate implements EnrolmentPolicyInterface
 {
-    public function isComplete(TokenInterface $token): bool
+    public function allowsEnrolment(EnrolmentCandidate $candidate): bool
     {
-        return $token->getUser() instanceof UserInterface && !$token instanceof MfaPendingToken && !$token instanceof SwitchUserToken;
+        return $candidate->user instanceof AuthUserRef && !$candidate->secondFactorPending && !$candidate->impersonated;
     }
 }

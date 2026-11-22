@@ -9,7 +9,6 @@ use Nowo\AuthKitBundle\PersonalData\InvitationUserKitEraser;
 use Nowo\AuthKitBundle\PersonalData\InvitationUserKitExportProvider;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountPersonalDataEraser;
 use Nowo\AuthKitBundle\PersonalData\SocialAccountUserKitExportProvider;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -17,8 +16,6 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class GdprPortsDisabledKernelTest extends KernelTestCase
 {
-    use HostModeNotices;
-
     protected static function getKernelClass(): string
     {
         return GdprPortsDisabledTestKernel::class;

@@ -8,6 +8,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
+use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
@@ -17,7 +19,6 @@ use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Nowo\TransactionContract\TransientStorageFailure;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -47,7 +48,7 @@ final class QrLoginCompleteController
         private readonly ?SocialHandlerSignInRollback $signInRollback = null,
         ?UserLookupInterface $userLookup = null,
     ) {
-        $this->userLookup = $userLookup ?? new DoctrineUserLookup($entityManager, $this->identifierMatcher);
+        $this->userLookup = $userLookup ?? new UserDirectoryGate(new DoctrineUserLookup($entityManager, $this->identifierMatcher));
     }
 
     #[Route(path: '/login/qr/{id}/complete', name: 'nowo_auth_kit_qr_login_complete', requirements: ['id' => '[0-9a-f\\-]{36}'], methods: ['GET'])]

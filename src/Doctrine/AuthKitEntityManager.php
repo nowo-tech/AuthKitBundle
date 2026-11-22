@@ -29,8 +29,8 @@ use function ksort;
 use function sprintf;
 
 /**
- * AuthKit's private entity manager (1.46.0, REQ-ARCH-001 rule 6; opt-in with
- * `nowo_auth_kit.doctrine.private_entity_manager: true` until 2.0).
+ * AuthKit's private entity manager (1.46.0, REQ-ARCH-001 rule 6; 2.0: the only mode whenever the AuthKit entities
+ * are mapped).
  *
  * Up to 1.45 the bundle wrote its own rows (QR login challenges, invitations, MFA credentials, social accounts and
  * credentials) through the application's entity manager: saving one flushed every change the application had left

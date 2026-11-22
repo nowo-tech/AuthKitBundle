@@ -8,6 +8,7 @@ use Composer\InstalledVersions;
 use Nowo\AuthKitBundle\Admin\AdminUserCreator;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
+use Nowo\AuthKitBundle\Invitation\InvitationManager;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
@@ -22,7 +23,6 @@ use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 use function getenv;
 use function is_string;
 use function md5;
-use function str_ends_with;
 use function sys_get_temp_dir;
 use function version_compare;
 
@@ -43,6 +43,7 @@ final class DatabaseTestKernel extends InvitationsTestKernel
         'load.acceptor'    => InvitationAcceptor::class,
         'load.admin'       => AdminUserCreator::class,
         'load.invitations' => InvitationRepository::class,
+        'load.inviter'     => InvitationManager::class,
         'load.runner'      => AuthKitTransactionRunner::SERVICE_ID,
         'load.boundary'    => PrivateEntityManagerSubscriber::class,
         'load.social'      => SocialAccountLinker::class,
@@ -87,9 +88,6 @@ final class DatabaseTestKernel extends InvitationsTestKernel
             ]);
         }
         $container->register(SlowUserPersist::class)->addTag('doctrine.event_listener', ['event' => 'prePersist']);
-        if (str_ends_with($this->environment, '_private')) {
-            $container->loadFromExtension('nowo_auth_kit', ['doctrine' => ['private_entity_manager' => true]]);
-        }
         foreach (self::SERVICES as $id => $service) {
             $container->setAlias($id, $service)->setPublic(true);
         }

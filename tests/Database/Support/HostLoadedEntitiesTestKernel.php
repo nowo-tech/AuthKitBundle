@@ -35,6 +35,13 @@ final class HostLoadedEntitiesTestKernel extends InvitationsTestKernel
     protected function configureContainer(ContainerBuilder $container, LoaderInterface $loader): void
     {
         parent::configureContainer($container, $loader);
+        // 2.0 (W1-2): a host entity with a ManyToOne to an AuthKit row, on the application's manager only.
+        $container->loadFromExtension('doctrine', ['orm' => ['mappings' => ['HostEntity' => [
+            'type'      => 'attribute',
+            'is_bundle' => false,
+            'dir'       => '%kernel.project_dir%/tests/Database/Support/HostEntity',
+            'prefix'    => 'Nowo\\AuthKitBundle\\Tests\\Database\\Support\\HostEntity',
+        ]]]]);
         $url = DatabaseTestKernel::databaseUrl();
         if ($url !== null) {
             $container->loadFromExtension('doctrine', ['dbal' => ['url' => $url] + (DatabaseTestKernel::dbal3() ? ['use_savepoints' => true] : [])]);
@@ -42,6 +49,5 @@ final class HostLoadedEntitiesTestKernel extends InvitationsTestKernel
                 $container->loadFromExtension('doctrine', ['orm' => ['enable_native_lazy_objects' => true]]);
             }
         }
-        $container->loadFromExtension('nowo_auth_kit', ['doctrine' => ['private_entity_manager' => true]]);
     }
 }

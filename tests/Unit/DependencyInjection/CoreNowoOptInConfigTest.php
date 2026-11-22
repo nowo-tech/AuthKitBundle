@@ -6,7 +6,6 @@ namespace Nowo\AuthKitBundle\Tests\Unit\DependencyInjection;
 
 use InvalidArgumentException;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
@@ -19,8 +18,6 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
  */
 final class CoreNowoOptInConfigTest extends TestCase
 {
-    use HostModeNotices;
-
     public function testDefaultsKeepPreviousBehaviour(): void
     {
         $container = $this->load([]);

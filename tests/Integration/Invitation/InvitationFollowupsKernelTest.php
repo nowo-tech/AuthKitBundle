@@ -33,7 +33,6 @@ use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\SocialProviderResponses;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
@@ -74,8 +73,6 @@ use const PHP_URL_QUERY;
  */
 final class InvitationFollowupsKernelTest extends WebTestCase
 {
-    use HostModeNotices;
-
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string
@@ -116,7 +113,7 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         $acceptance = $this->acceptor()->acceptExisting($member, $this->invitation('member@example.com'), 'Member@Example.com');
 
         self::assertSame(InvitationAcceptance::ACCEPTED, $acceptance->status);
-        self::assertSame($member, $acceptance->user);
+        self::assertSame($member, $acceptance->userRef()?->user());
         self::assertSame('member@example.com', $acceptance->invitation?->acceptedBy);
         $stored = $this->invitation('member@example.com');
         self::assertNotNull($stored->getAcceptedAt());
@@ -168,20 +165,21 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         self::assertSame([], $this->acceptedEvents());
     }
 
-    public function testAcceptExistingWithADetachedCopyMarksTheCopyTheManagerHolds(): void
+    public function testAcceptExistingWithCopiesOfTheApplicationLeavesThemUntouched(): void
     {
         $other = $this->user('admin@example.com');
         $this->invite('member@example.com');
 
-        // 1.55.0: one shared manager. The first copy is detached (invitation() clears the manager before loading),
-        // the second one is the copy the manager holds; no clear() between loading it and accepting.
+        // 2.0: the private manager is the only mode. Both copies come from the application's manager (the first one is
+        // detached: invitation() clears that manager before loading); AuthKit re-loads the row by id in its own manager.
         $first   = $this->invitation('member@example.com');
         $managed = $this->invitation('member@example.com');
         self::assertSame(InvitationAcceptance::ACCEPTED, $this->acceptor()->acceptExisting($this->user('member@example.com'), $first, 'member@example.com')->status);
 
-        // The acceptance was written on the manager's copy for that id, so that copy is no longer pending.
-        self::assertNotNull($managed->getAcceptedAt());
-        self::assertSame(InvitationAcceptance::NO_INVITATION, $this->acceptor()->acceptExisting($other, $managed, 'member@example.com')->status);
+        // The application's copy is never changed by AuthKit. A later acceptance with that stale copy (it still reads
+        // pending) is refused by the single-use claim on AuthKit's row: nothing is written (as in 1.55 with the option on).
+        self::assertNull($managed->getAcceptedAt());
+        self::assertSame(InvitationAcceptance::NOT_ACCEPTED, $this->acceptor()->acceptExisting($other, $managed, 'member@example.com')->status);
         self::assertSame('member@example.com', $this->invitation('member@example.com')->getAcceptedBy());
     }
 

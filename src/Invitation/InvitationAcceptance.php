@@ -31,11 +31,11 @@ final readonly class InvitationAcceptance
     public const NOT_ACCEPTED = 'not_accepted';
 
     /**
-     * @param UserInterface|null $user @deprecated since 1.46.0, use userRef(); removed in 2.0
+     * @param UserInterface|null $user not public since 2.0: read userRef()
      */
     private function __construct(
         public string $status,
-        public ?UserInterface $user = null,
+        private ?UserInterface $user = null,
         public ?InvitationSnapshot $invitation = null,
         public ?InvitationRefusal $refusal = null,
     ) {
@@ -70,16 +70,6 @@ final readonly class InvitationAcceptance
     public function status(): string
     {
         return $this->status;
-    }
-
-    /**
-     * The `$user` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use userRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function user(): ?UserInterface
-    {
-        return $this->user;
     }
 
     /**

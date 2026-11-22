@@ -7,10 +7,10 @@ namespace Nowo\AuthKitBundle\Tests\Unit\Identity;
 use Nowo\AuthKitBundle\Identity\ExactIdentifierNormalizer;
 use Nowo\AuthKitBundle\Identity\LowercaseAsciiEmailIdentifierNormalizer;
 use Nowo\AuthKitBundle\Identity\NormalizingUserLookup;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use PHPUnit\Framework\TestCase;
 
 /**

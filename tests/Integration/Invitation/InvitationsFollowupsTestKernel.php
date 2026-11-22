@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Invitation;
 
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\SocialProviderResponses;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;

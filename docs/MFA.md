@@ -85,7 +85,7 @@ nowo_auth_kit:
 | `mfa.totp.digits` / `period` / `window` | `6` / `30` / `1` | RFC 6238 parameters; `window` = accepted clock skew in steps (0–2) |
 | `mfa.recovery_codes.count` / `low_warning` | `10` / `3` | Codes per set; the account page warns at or below `low_warning` |
 | `mfa.required_roles` | `[]` | Roles (hierarchy aware) that must have MFA |
-| `mfa.policy` | `null` | Service id of an `Mfa\MfaPolicyInterface` (host rules) |
+| `mfa.policy` | `null` | Service id of an `Mfa\MfaRequirementPolicyInterface` (host rules; 2.0: the only interface) |
 | `mfa.grace_period` | `604800` | Seconds a required user may still sign in without MFA; `0` = enrol at the next sign-in |
 | `mfa.pending_lifetime` | `300` | Seconds a sign-in may wait for its code |
 | `mfa.max_attempts` | `5` | Wrong codes per pending sign-in |
@@ -130,11 +130,11 @@ trusted device. Disabling, re-enrolling or resetting MFA bumps the UserKit remem
 A user is required when one of `required_roles` is reachable, or when the `mfa.policy` service says so:
 
 ```php
-final class OrganizationMfaPolicy implements MfaPolicyInterface
+final class OrganizationMfaPolicy implements MfaRequirementPolicyInterface
 {
-    public function requirement(UserInterface $user, string $profile): MfaRequirement
+    public function requirementFor(AuthUserRef $user, string $profile): MfaRequirement
     {
-        return $user instanceof User && $user->belongsToStrictOrganization() ? MfaRequirement::Required : MfaRequirement::Optional;
+        return $this->organizations->isStrictFor($user->id) ? MfaRequirement::Required : MfaRequirement::Optional;
     }
 }
 ```

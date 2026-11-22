@@ -8,12 +8,11 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\ProfilePasswordResetTokenManager;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -31,8 +30,6 @@ use function memory_get_usage;
  */
 final class ResetTableKernelTest extends WebTestCase
 {
-    use HostModeNotices;
-
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string

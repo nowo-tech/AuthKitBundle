@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\User\Doctrine;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
+use Nowo\AuthKitBundle\User\UserDirectoryInterface;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function is_numeric;
@@ -16,10 +18,11 @@ use function sprintf;
 use function trim;
 
 /**
- * Default {@see UserLookupInterface} (the behaviour before 1.41): the Doctrine repository of `user_class` on the
- * bundle's entity manager; identifier matches checked by {@see UserIdentifierMatcher}; managed results refreshed.
+ * Default {@see UserDirectoryInterface} (the behaviour before 1.41): the Doctrine repository of `user_class` on the
+ * bundle's entity manager; identifier matches checked by {@see UserIdentifierMatcher}; managed results refreshed. The
+ * references carry the user object (2.0: on the port, it implemented the removed UserLookupInterface).
  */
-final readonly class DoctrineUserLookup implements UserLookupInterface
+final readonly class DoctrineUserLookup implements UserDirectoryInterface
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
@@ -27,7 +30,7 @@ final readonly class DoctrineUserLookup implements UserLookupInterface
     ) {
     }
 
-    public function findByIdentifier(ProfileSettings $profile, string $identifier): ?UserInterface
+    public function findByIdentifier(ProfileSettings $profile, string $identifier): ?AuthUserRef
     {
         // The stored identifier must equal the input (NFC, case-insensitive): an accent/case-insensitive database
         // collation must not resolve a look-alike address to another account (SEC-004 H1).
@@ -37,14 +40,14 @@ final readonly class DoctrineUserLookup implements UserLookupInterface
             $identifier,
         );
 
-        return $user instanceof UserInterface ? $this->fresh($user) : null;
+        return $user instanceof UserInterface ? AuthUserRefs::fromUser($this->fresh($user)) : null;
     }
 
-    public function findById(ProfileSettings $profile, string $id): ?UserInterface
+    public function findById(ProfileSettings $profile, string $id): ?AuthUserRef
     {
         $user = $this->entityManager->find($profile->userClass, is_numeric($id) ? (int) $id : $id);
 
-        return $user instanceof UserInterface ? $this->fresh($user) : null;
+        return $user instanceof UserInterface ? AuthUserRefs::fromUser($this->fresh($user)) : null;
     }
 
     public function countUsers(ProfileSettings $profile): int

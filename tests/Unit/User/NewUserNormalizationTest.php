@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\User;
 
 use Nowo\AuthKitBundle\Identity\LowercaseAsciiEmailIdentifierNormalizer;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\User\NewUser;
 use Nowo\AuthKitBundle\User\UserCreationSource;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use PHPUnit\Framework\TestCase;
 
 /**

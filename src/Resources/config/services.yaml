@@ -8,14 +8,12 @@ services:
         resource: '../../'
         exclude:
             - '../../DependencyInjection/'
-            # 1.46.0: registered by NowoAuthKitExtension only with doctrine.private_entity_manager: true.
+            # 1.46.0: registered by NowoAuthKitExtension only with the AuthKit entities mapped (2.0: always the private manager).
             - '../../Doctrine/AuthKitEntityManager.php'
             - '../../Doctrine/AuthKitManagerRegistry.php'
             - '../../Doctrine/AuthKitSavepoint.php'
             - '../../Doctrine/PrivateEntityManager*.php'
             - '../../Doctrine/UnitOfWorkBoundaries.php'
-            # 1.54.0: registered by NowoAuthKitExtension only in host mode (no doctrine.private_entity_manager: true).
-            - '../../Doctrine/HostFlushReporter.php'
             # 1.50.0: registered below under the bundle's own id; the lock and the row writer are static helpers.
             - '../../Doctrine/AuthKitRows.php'
             - '../../Transaction/'
@@ -97,26 +95,45 @@ services:
             $userEntity: '@Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager'
             $table: '@Nowo\AuthKitBundle\PasswordReset\TablePasswordResetTokenManager'
 
-    # 1.41 user ports (DDD / hexagonal hosts): alias them to your own adapters. Defaults: the Doctrine +
-    # PropertyAccessor behaviour of earlier releases.
-    Nowo\AuthKitBundle\User\UserFactoryInterface:
+    # User ports (framework-free since 1.46.0; 2.0: the only ones). Alias them to your own adapters (DDD / hexagonal
+    # hosts). Defaults: the Doctrine + PropertyAccessor behaviour of earlier releases.
+    Nowo\AuthKitBundle\User\UserCreatorInterface:
         alias: Nowo\AuthKitBundle\User\PropertyAccessUserFactory
 
-    Nowo\AuthKitBundle\User\UserWriterInterface:
+    Nowo\AuthKitBundle\User\UserStoreInterface:
         alias: Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter
 
-    Nowo\AuthKitBundle\User\UserLookupInterface:
+    Nowo\AuthKitBundle\User\UserDirectoryInterface:
         alias: Nowo\AuthKitBundle\User\Doctrine\DoctrineUserLookup
+
+    # 2.0: the internal gates the AuthKit services are wired to, over whatever serves each port (never alias these).
+    nowo_auth_kit.port.user_factory:
+        class: Nowo\AuthKitBundle\Port\UserCreatorGate
+        arguments: ['@Nowo\AuthKitBundle\User\UserCreatorInterface']
+
+    Nowo\AuthKitBundle\Port\Internal\UserFactoryInterface: '@nowo_auth_kit.port.user_factory'
+
+    nowo_auth_kit.port.user_writer:
+        class: Nowo\AuthKitBundle\Port\UserStoreGate
+        arguments: ['@Nowo\AuthKitBundle\User\UserStoreInterface']
+
+    Nowo\AuthKitBundle\Port\Internal\UserWriterInterface: '@nowo_auth_kit.port.user_writer'
+
+    nowo_auth_kit.port.user_lookup:
+        class: Nowo\AuthKitBundle\Port\UserDirectoryGate
+        arguments: ['@Nowo\AuthKitBundle\User\UserDirectoryInterface']
+
+    Nowo\AuthKitBundle\Port\Internal\UserLookupInterface: '@nowo_auth_kit.port.user_lookup'
 
     # 1.49.0: identifier normaliser port. `nowo_auth_kit.identifier_normalizer` re-points the alias
     # (lowercase_ascii_email | a service id); an application alias of the interface wins over both.
     Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface:
         alias: Nowo\AuthKitBundle\Identity\ExactIdentifierNormalizer
 
-    # 1.49.0: outermost decorator of the user lookup port (after AuthKitPortsPass picked the gate or the host
-    # adapter): every lookup by identifier receives the normalised identifier.
+    # 1.49.0: outermost decorator of the user lookup (over the gate of the user directory port): every lookup by
+    # identifier receives the normalised identifier.
     Nowo\AuthKitBundle\Identity\NormalizingUserLookup:
-        decorates: Nowo\AuthKitBundle\User\UserLookupInterface
+        decorates: Nowo\AuthKitBundle\Port\Internal\UserLookupInterface
         decoration_priority: -1024
         arguments:
             $inner: '@.inner'
@@ -280,13 +297,28 @@ services:
             # Optional (symfony/lock): serializes the counter read-modify-write per key.
             $lockFactory: '@?lock.factory'
 
-    Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface:
+    # QR login step-up port (framework-free since 1.46.0; 2.0: the only one). The default always refuses: alias the
+    # port to your own policy when approve_requires is session_step_up.
+    Nowo\AuthKitBundle\QrLogin\QrLoginStepUpPolicyInterface:
         alias: Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp
 
+    # 2.0: decorates the port (it decorated the removed QrLoginStepUpInterface): the trusted-device check of
+    # device_intelligence.qr_login.approve_require_trusted runs before the policy.
     Nowo\AuthKitBundle\QrLogin\DeviceIntelligenceQrLoginStepUp:
-        decorates: Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface
+        decorates: Nowo\AuthKitBundle\QrLogin\QrLoginStepUpPolicyInterface
         arguments:
             $inner: '@.inner'
+            $requestStack: '@request_stack'
+
+    # 2.0: the internal gate the QR approval asks (never alias it).
+    nowo_auth_kit.port.qr_step_up:
+        class: Nowo\AuthKitBundle\Port\QrLoginStepUpGate
+        arguments:
+            - '@Nowo\AuthKitBundle\QrLogin\QrLoginStepUpPolicyInterface'
+            - '@Nowo\AuthKitBundle\Profile\RequestProfileResolver'
+            - '@?security.token_storage'
+
+    Nowo\AuthKitBundle\Port\Internal\QrLoginStepUpInterface: '@nowo_auth_kit.port.qr_step_up'
 
     Nowo\AuthKitBundle\DeviceIntelligence\NewDeviceLoginNotifierInterface:
         alias: Nowo\AuthKitBundle\DeviceIntelligence\NullNewDeviceLoginNotifier
@@ -373,8 +405,8 @@ services:
         arguments:
             $eventDispatcher: '@?event_dispatcher'
 
-    # 1.50.0 (Beacon spec 239): AuthKit's transaction runner (the extension points it at the private entity manager
-    # with doctrine.private_entity_manager: true). Arguments: AuthKit rows' manager, the accounts' manager, registry.
+    # 1.50.0 (Beacon spec 239): AuthKit's transaction runner (the extension points it at the private entity manager,
+    # 2.0: whenever the AuthKit entities are mapped). Arguments: AuthKit rows' manager, the accounts' manager, registry.
     nowo_auth_kit.transaction_runner:
         class: Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner
         arguments:

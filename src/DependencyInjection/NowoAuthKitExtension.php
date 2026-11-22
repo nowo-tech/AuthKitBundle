@@ -19,7 +19,6 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
-use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetTableInvalidationListener;
@@ -35,8 +34,6 @@ use Nowo\AuthKitBundle\Identity\LowercaseAsciiEmailIdentifierNormalizer;
 use Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
-use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
-use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessGuard;
 use Nowo\AuthKitBundle\Invitation\Security\RoleInvitationsAccessChecker;
@@ -83,16 +80,14 @@ use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetVoterInterface;
 use Nowo\AuthKitBundle\Security\SessionExpired\SessionExpiredResponder;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
-use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
-use Nowo\AuthKitBundle\View\AuthPageFactory;
-use Nowo\TransactionDoctrine\HostFlushProbe;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExportProviderInterface;
 use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Argument\BoundArgument;
 use Symfony\Component\DependencyInjection\Argument\IteratorArgument;
@@ -126,7 +121,6 @@ use function is_bool;
 use function is_string;
 use function sprintf;
 use function str_starts_with;
-use function trigger_deprecation;
 use function trim;
 
 /**
@@ -148,10 +142,13 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     /** 1.46.0: same, with doctrine.mapping_type xml. */
     public const PASSWORD_RESET_XML_MAPPING_PARAMETER = 'nowo_auth_kit.doctrine.password_reset_xml_mapping_enabled';
 
-    /** 1.54.0: the notice of an unset doctrine.private_entity_manager (the AuthKit entities mapped). */
-    public const PRIVATE_ENTITY_MANAGER_UNSET_DEPRECATION = '"nowo_auth_kit.doctrine.private_entity_manager" is not set: the AuthKit writes flush the application\'s entity manager, including its pending changes. In 2.0 the private entity manager is the only mode (as with true; the option goes). Opt in now with "nowo_auth_kit: { doctrine: { private_entity_manager: true } }", after checking the "Your pending changes to ... were flushed by NowoAuthKitBundle" deprecations (see UPGRADING.md "To 1.54.0").';
+    /** 2.0: the build error of `doctrine.private_entity_manager: false` (the private manager is the only mode). */
+    public const PRIVATE_ENTITY_MANAGER_FALSE_ERROR = '"nowo_auth_kit.doctrine.private_entity_manager: false" is no longer supported: since 2.0 AuthKit always reads and writes its rows through its own private entity manager and never flushes the application\'s entity manager for them. Remove the option (true is accepted until 3.0 and has no effect) and flush your own pending changes yourself. See UPGRADING.md, "To 2.0.0".';
 
-    /** 1.46.0: whether doctrine.private_entity_manager is true. */
+    /**
+     * 1.46.0: whether AuthKit's private entity manager is registered. 2.0: always true when the AuthKit entities are
+     * mapped (the private manager is the only mode), false without them. Kept for host code that reads it.
+     */
     public const PRIVATE_ENTITY_MANAGER_PARAMETER = 'nowo_auth_kit.doctrine.private_entity_manager';
 
     /** 1.53.0: NowoTransactionDoctrineBundle's conflict policy (its `conflict_response`), when the host has it. */
@@ -312,7 +309,6 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $this->registerMultiAccount($container, $profiles, $loader);
         $this->registerPersonalDataPorts($container, $config['personal_data']);
         $this->registerPersonalDataErasers($container, $registerMapping, $config['personal_data']['enabled'] === true);
-        $container->registerForAutoconfiguration(SocialCallbackHandlerInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
         $container->registerForAutoconfiguration(SocialCallbackStepInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
 
         if ($config['flash']['twig_filter'] !== true) {
@@ -367,29 +363,32 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     }
 
     /**
-     * 1.46.0 (REQ-ARCH-001 rule 6): `doctrine.private_entity_manager: true` points every service that reads or writes
-     * the AuthKit entities at {@see AuthKitEntityManager} / {@see AuthKitManagerRegistry} (inline definitions
-     * included), registers the boundary subscriber and, with doctrine/dbal 4, the rollback middleware (attached to the
-     * connection by {@see PrivateEntityManagerPass}). null keeps the 1.45 wiring; false too, with a deprecation (the
-     * private manager becomes the only mode in 2.0).
+     * 1.46.0 (REQ-ARCH-001 rule 6): with the AuthKit entities mapped, every service that reads or writes them is pointed
+     * at {@see AuthKitEntityManager} / {@see AuthKitManagerRegistry} (inline definitions included), the boundary
+     * subscriber is registered and, with doctrine/dbal 4, the rollback middleware (attached to the connection by
+     * {@see PrivateEntityManagerPass}).
      *
-     * 1.54.0 (REQ-ARCH-001 rule 6 deprecation layer): null (unset) is deprecated too when the AuthKit entities are
-     * mapped (the only case where true is accepted), and host mode wires {@see HostFlushReporter} into AuthKit's
-     * runners, so the application learns which of its pending changes AuthKit's writes flush (2.0 no longer does).
+     * 2.0: the private entity manager is the only mode. `doctrine.private_entity_manager: false` fails the build;
+     * `true` is a deprecated no-op (removed in 3.0) and still refused without the AuthKit entities mapped, as in 1.x.
+     * Without the entities mapped (`register_mapping: false`, or `auto` without a feature that uses them) there are no
+     * AuthKit rows: no private manager is registered.
+     *
+     * @throws InvalidConfigurationException when the option is false, or true without the AuthKit entities mapped
      */
     private function registerPrivateEntityManager(ContainerBuilder $container, ?bool $private, bool $registerMapping): void
     {
-        $container->setParameter(self::PRIVATE_ENTITY_MANAGER_PARAMETER, $private === true);
+        if ($private === false) {
+            throw new InvalidConfigurationException(self::PRIVATE_ENTITY_MANAGER_FALSE_ERROR);
+        }
+        if ($private === true && !$registerMapping) {
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.private_entity_manager: true" needs the AuthKit entities mapped on the default entity manager (doctrine.register_mapping: true or auto with a feature that uses them).');
+        }
+        $container->setParameter(self::PRIVATE_ENTITY_MANAGER_PARAMETER, $registerMapping);
         // Never autowired: a host entity manager named like the parameter must not become the private one.
         foreach ([SocialAccountLinker::class, InvitationAcceptor::class] as $service) {
             if ($container->hasDefinition($service)) {
                 $container->getDefinition($service)->setArgument('$privateEntityManager', null);
             }
-        }
-        if ($private === false) {
-            trigger_deprecation('nowo-tech/auth-kit-bundle', '1.46', '"nowo_auth_kit.doctrine.private_entity_manager: false" is deprecated: the AuthKit writes then flush the application\'s entity manager, including its pending changes; the private entity manager becomes the only mode in 2.0. Set it to true (see UPGRADING.md "To 1.46.0").');
-        } elseif ($private === null && $registerMapping) {
-            trigger_deprecation('nowo-tech/auth-kit-bundle', '1.54', self::PRIVATE_ENTITY_MANAGER_UNSET_DEPRECATION);
         }
         // 1.50.0 (Beacon spec 239): every AuthKit service gets AuthKit's own runner for its AuthKitTransactionRunner
         // argument (a binding, untracked: services of disabled features may not exist), never a runner the application
@@ -402,27 +401,21 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
         // 1.50.0 (Beacon spec 239): the unit-of-work boundaries are tracked in every mode. At each outermost boundary a
         // manager closed by a failed AuthKit write is replaced (never in the middle of the request that closed it), and
-        // with the private manager that manager is dropped too.
+        // the private manager is dropped too.
         $resettables = [
             new Reference(AuthKitTransactionRunner::SERVICE_ID, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE),
             new Reference(EntityManagerRecovery::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE),
         ];
-        if ($private === true) {
+        if ($registerMapping) {
             $resettables[] = new Reference(AuthKitEntityManager::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE);
-        } elseif ($registerMapping) {
-            $this->registerHostFlushReporter($container);
-            $resettables[] = new Reference(HostFlushReporter::class, ContainerInterface::IGNORE_ON_UNINITIALIZED_REFERENCE);
         }
         $container->register(UnitOfWorkBoundaries::class, UnitOfWorkBoundaries::class)
             ->addTag('kernel.event_subscriber');
         $container->register(PrivateEntityManagerSubscriber::class, PrivateEntityManagerSubscriber::class)
             ->setArguments([new Reference(UnitOfWorkBoundaries::class), new IteratorArgument($resettables)])
             ->addTag('kernel.event_subscriber');
-        if ($private !== true) {
-            return;
-        }
         if (!$registerMapping) {
-            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.private_entity_manager: true" needs the AuthKit entities mapped on the default entity manager (doctrine.register_mapping: true or auto with a feature that uses them).');
+            return;
         }
 
         $container->register(AuthKitEntityManager::class, AuthKitEntityManager::class)
@@ -475,27 +468,6 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         ];
         foreach ($container->getDefinitions() as $id => $definition) {
             $this->usePrivateEntityManager($definition, $arguments, $id);
-        }
-    }
-
-    /**
-     * 1.54.0 (host mode): the host-flush reporter on the shared probe of NowoTransactionDoctrineBundle (its own probe when
-     * the application does not register that bundle), handed to AuthKit's runner and to the services that build their
-     * own runner. MfaStore gets it by autowiring (its argument is nullable).
-     */
-    private function registerHostFlushReporter(ContainerBuilder $container): void
-    {
-        $container->register(HostFlushReporter::class, HostFlushReporter::class)
-            ->setArguments([new Reference(HostFlushProbe::SERVICE_ID, ContainerInterface::NULL_ON_INVALID_REFERENCE)])
-            ->addTag('kernel.reset', ['method' => 'reset']);
-        $reporter = new Reference(HostFlushReporter::class);
-        if ($container->hasDefinition(AuthKitTransactionRunner::SERVICE_ID)) {
-            $container->getDefinition(AuthKitTransactionRunner::SERVICE_ID)->setArgument(5, $reporter);
-        }
-        foreach ([QrLoginChallengeRepository::class, InvitationRepository::class] as $repository) {
-            if ($container->hasDefinition($repository)) {
-                $container->getDefinition($repository)->addMethodCall('setHostFlushReporter', [$reporter]);
-            }
         }
     }
 
@@ -713,7 +685,6 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     public function prepend(ContainerBuilder $container): void
     {
         $this->prependFormKitDefaults($container);
-        $this->prependUiKitThemeBridge($container);
         $this->prependDoctrineMappingOptOut($container);
         if (!$container->hasExtension('framework')) {
             return;
@@ -870,40 +841,6 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
         if ($seed !== []) {
             $container->prependExtensionConfig('nowo_form_kit', $seed);
-        }
-    }
-
-    /**
-     * Deprecated css.button_class / css.secondary_button_class (any profile; first non-default value wins) →
-     * nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary / btn_secondary, prepended so a host's own
-     * theme exception still wins (REQ-UI-003 chrome bridge, removed in 2.0).
-     */
-    private function prependUiKitThemeBridge(ContainerBuilder $container): void
-    {
-        if (!$container->hasExtension('nowo_ui_kit')) {
-            return;
-        }
-
-        $map     = ['button_class' => ['btn_primary', Configuration::DEFAULT_BUTTON_CLASS], 'secondary_button_class' => ['btn_secondary', Configuration::DEFAULT_SECONDARY_BUTTON_CLASS]];
-        $classes = [];
-        foreach ($container->getExtensionConfig($this->getAlias()) as $config) {
-            /** @var array<string, mixed> $config */
-            $blocks = [$config['css'] ?? null];
-            foreach (is_array($config['profiles'] ?? null) ? $config['profiles'] : [] as $profile) {
-                $blocks[] = is_array($profile) ? ($profile['css'] ?? null) : null;
-            }
-            foreach ($blocks as $css) {
-                foreach ($map as $key => [$slot, $default]) {
-                    $value = is_array($css) ? ($css[$key] ?? null) : null;
-                    if (is_string($value) && $value !== '' && $value !== $default && !isset($classes[$slot])) {
-                        $classes[$slot] = $value;
-                    }
-                }
-            }
-        }
-
-        if ($classes !== []) {
-            $container->prependExtensionConfig('nowo_ui_kit', ['theme' => ['bundles' => [AuthPageFactory::BUNDLE => ['classes' => $classes]]]]);
         }
     }
 
@@ -1236,8 +1173,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
     }
 
     /**
-     * Records a per-profile port service for {@see AuthKitPortsPass} (1.46.0: build failure when its class implements
-     * neither the deprecated port nor its framework-free twin).
+     * Records a per-profile port service for {@see AuthKitPortsPass} (build failure when its class does not implement
+     * the port).
      */
     private function addPortService(ContainerBuilder $container, string $port, string $id, string $path): void
     {
@@ -1292,11 +1229,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         $container->getDefinition(InvitationsAccessGuard::class)->setArgument('$checkers', ServiceLocatorTagPass::register($container, $checkers));
-        $container->registerForAutoconfiguration(InvitationGrantInterface::class)->addTag(InvitationGrantInterface::TAG);
-        $container->registerForAutoconfiguration(InvitationActionAuthorizerInterface::class)->addTag(InvitationActionAuthorizerInterface::AUTHORIZER_TAG);
-        // 1.46.0: the framework-free twins share the tags (asked through their gates, see Port\Ports).
-        $container->registerForAutoconfiguration(InvitationGrantHandlerInterface::class)->addTag(InvitationGrantInterface::TAG);
-        $container->registerForAutoconfiguration(InvitationActionPolicyInterface::class)->addTag(InvitationActionAuthorizerInterface::AUTHORIZER_TAG);
+        // 1.46.0: the framework-free ports (2.0: the only ones; asked through their gates, see Port\Ports).
+        $container->registerForAutoconfiguration(InvitationGrantHandlerInterface::class)->addTag(InvitationGrantHandlerInterface::TAG);
+        $container->registerForAutoconfiguration(InvitationActionPolicyInterface::class)->addTag(InvitationActionPolicyInterface::AUTHORIZER_TAG);
 
         if ($checkers === []) {
             $container->removeDefinition(PurgeInvitationsCommand::class);

@@ -37,6 +37,16 @@ final class AuthUserRefs
             : new AuthUserRef(UserIds::className($user), $id, '', [], $user);
     }
 
+    /**
+     * 2.0: a reference that only carries the user object (its class, no id, no identifier, no roles), for the built-in
+     * user creator and store, which read nothing but the object. Nothing is read from the user: an account not stored
+     * yet may have no id and uninitialised properties (the Doctrine defaults never read them in 1.x either).
+     */
+    public static function carrying(object $user): AuthUserRef
+    {
+        return new AuthUserRef(UserIds::className($user), null, '', [], $user);
+    }
+
     /** Same as {@see self::fromUser()}, null for null. */
     public static function fromNullableUser(?object $user): ?AuthUserRef
     {

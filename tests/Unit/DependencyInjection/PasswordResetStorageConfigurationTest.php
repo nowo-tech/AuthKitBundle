@@ -10,7 +10,6 @@ use Nowo\AuthKitBundle\Doctrine\PasswordResetTableInvalidationListener;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManager;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\PasswordReset\ProfilePasswordResetTokenManager;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -22,8 +21,6 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
  */
 final class PasswordResetStorageConfigurationTest extends TestCase
 {
-    use HostModeNotices;
-
     public function testDefaultKeepsTheUserEntityStore(): void
     {
         $container = $this->load([]);

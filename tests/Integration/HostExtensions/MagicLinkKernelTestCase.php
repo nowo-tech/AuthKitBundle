@@ -7,7 +7,6 @@ namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkHandlerInterface;
@@ -17,8 +16,6 @@ use Symfony\Component\Security\Http\LoginLink\LoginLinkHandlerInterface;
  */
 abstract class MagicLinkKernelTestCase extends WebTestCase
 {
-    use HostModeNotices;
-
     protected function useLink(): mixed
     {
         $client = self::createClient();

@@ -9,7 +9,6 @@ use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaAuthenticationSubscriber;
 use Nowo\AuthKitBundle\Mfa\EventSubscriber\MfaSessionsSubscriber;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -24,8 +23,6 @@ use function str_contains;
  */
 final class MfaConfigurationTest extends TestCase
 {
-    use HostModeNotices;
-
     private const USER = 'App\\Entity\\User';
 
     public function testDefaultsRegisterNothing(): void

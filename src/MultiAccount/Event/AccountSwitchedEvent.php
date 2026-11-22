@@ -16,10 +16,10 @@ use Symfony\Component\Security\Core\User\UserInterface;
 final class AccountSwitchedEvent extends AccountEvent
 {
     /**
-     * @param UserInterface|null $from @deprecated since 1.46.0, use fromRef(); removed in 2.0
-     * @param UserInterface $to @deprecated since 1.46.0, use toRef(); removed in 2.0
+     * @param UserInterface|null $from not public since 2.0: read fromRef()
+     * @param UserInterface $to not public since 2.0: read toRef()
      */
-    public function __construct(string $profile, string $account, Request $request, public readonly ?UserInterface $from, public readonly UserInterface $to)
+    public function __construct(string $profile, string $account, Request $request, private readonly ?UserInterface $from, private readonly UserInterface $to)
     {
         parent::__construct($profile, $account, $request);
     }
@@ -38,25 +38,5 @@ final class AccountSwitchedEvent extends AccountEvent
     public function toRef(): AuthUserRef
     {
         return AuthUserRefs::fromUser($this->to);
-    }
-
-    /**
-     * The `$from` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use fromRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function from(): ?UserInterface
-    {
-        return $this->from;
-    }
-
-    /**
-     * The `$to` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use toRef(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function to(): UserInterface
-    {
-        return $this->to;
     }
 }

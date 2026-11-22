@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Enum;
 
-use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 
 /**
- * Why a social callback did not reach {@see SocialCallbackHandlerInterface::handle()}.
+ * Why a social callback did not reach {@see SocialCallbackStepInterface}.
  */
 enum SocialCallbackFailure: string
 {

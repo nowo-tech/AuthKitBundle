@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\User;
 
+use Nowo\AuthKitBundle\Port\AuthUserRefs;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -14,7 +16,9 @@ use function is_string;
 use function method_exists;
 
 /**
- * Default {@see UserFactoryInterface} (the behaviour before 1.41): `new ($profile->userClass)()` and PropertyAccessor
+ * Default {@see UserCreatorInterface} (the behaviour before 1.41; 2.0: on the port, it implemented the removed
+ * UserFactoryInterface; the reference only carries the new user object, see
+ * {@see AuthUserRefs::carrying()}): `new ($profile->userClass)()` and PropertyAccessor
  * writes.
  *
  * - form / invitation: every mapped `registration_fields[]` value to its `property`, `hash: true` values hashed;
@@ -24,7 +28,7 @@ use function method_exists;
  *   random password to `password`;
  * - roles with `setRoles()`, else a writable `roles` property.
  */
-final readonly class PropertyAccessUserFactory implements UserFactoryInterface
+final readonly class PropertyAccessUserFactory implements UserCreatorInterface
 {
     public function __construct(
         private UserPasswordHasherInterface $passwordHasher,
@@ -32,7 +36,7 @@ final readonly class PropertyAccessUserFactory implements UserFactoryInterface
     ) {
     }
 
-    public function create(ProfileSettings $profile, NewUser $newUser): UserInterface&PasswordAuthenticatedUserInterface
+    public function create(ProfileSettings $profile, NewUser $newUser): AuthUserRef
     {
         /** @var PasswordAuthenticatedUserInterface&UserInterface $user */
         $user = new ($profile->userClass)();
@@ -49,7 +53,7 @@ final readonly class PropertyAccessUserFactory implements UserFactoryInterface
             $this->propertyAccessor->setValue($user, 'roles', $newUser->roles);
         }
 
-        return $user;
+        return AuthUserRefs::carrying($user);
     }
 
     /**

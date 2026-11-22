@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Identity;
 
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\User\UserDirectoryInterface;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**

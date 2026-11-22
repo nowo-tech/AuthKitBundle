@@ -111,7 +111,7 @@ nowo_auth_kit:
 
 | Key | Meaning |
 |-----|---------|
-| `approve_requires` | **`session_step_up` (default recommended):** phone already logged in **and** local unlock via `QrLoginStepUpInterface` (PIN / biometrics / WebAuthn). `session` = logged-in phone only. `phone_otp` = SMS/WhatsApp OTP only (weaker vs SIM swap). `either` = session_step_up **or** phone_otp |
+| `approve_requires` | **`session_step_up` (default recommended):** phone already logged in **and** local unlock via `QrLoginStepUpPolicyInterface` (PIN / biometrics / WebAuthn). `session` = logged-in phone only. `phone_otp` = SMS/WhatsApp OTP only (weaker vs SIM swap). `either` = session_step_up **or** phone_otp |
 | `desktop_binding` | `strict` (default): `complete` / `status` require desktop challenge cookie **and** matching IP+UA hashes. `soft`: cookie required; IP/UA mismatch → allow + `QrLoginBindingMismatchEvent`. `off`: cookie only |
 | `challenge_ttl` | Hard expiry for QR + approve secret (default **90s**, clamp 30–180) |
 | `rate_limit.*` | Symfony RateLimiter policies (bundle ships defaults; apps may override) |
@@ -235,7 +235,7 @@ Alternative (stricter): desktop first asks “phone or email”, then QR is boun
 | `QrLoginChallengeManager` | create / expire / approve / deny / consume + desktop cookie/IP/UA checks |
 | `QrLoginUserResolver` | find user by `phone_field` + verified |
 | `QrLoginRateLimiter` | Enforce `rate_limit.*` (Symfony RateLimiter factory) |
-| `QrLoginStepUpInterface` | App: verify local PIN / biometrics / WebAuthn before approve (`session_step_up`) |
+| `QrLoginStepUpPolicyInterface` | App: verify local PIN / biometrics / WebAuthn before approve (`session_step_up`); alias it to your service |
 | `DeviceIntelligenceQrLoginStepUp` | Optional decorator: require trusted device when `device_intelligence.qr_login.approve_require_trusted` is true |
 | `QrLoginNotifierInterface` | OTP / deep link SMS (Null + Logging samples; never log secrets) |
 | `QrCodeGeneratorInterface` | `pngDataUri(string $payload): string` (Null → text fallback) |
@@ -271,7 +271,7 @@ These four controls are **product requirements**, not optional tips.
 
 | Mode | When to use |
 |------|-------------|
-| `session_step_up` (**default**) | Phone has an existing AuthKit/app session **and** `QrLoginStepUpInterface::assertUnlocked($request)` succeeds (app PIN, biometric prompt, or WebAuthn). SMS is **not** enough |
+| `session_step_up` (**default**) | Phone has an existing AuthKit/app session **and** `QrLoginStepUpPolicyInterface::isUnlocked($request, $user)` returns true (app PIN, biometric prompt, or WebAuthn). SMS is **not** enough |
 | `session` | Logged-in phone without step-up (lower assurance demos only) |
 | `phone_otp` | SMS/WhatsApp OTP to verified phone — **explicit low-assurance**; document SIM-swap residual in SECURITY.md |
 | `either` | `session_step_up` **or** `phone_otp` |
@@ -279,14 +279,15 @@ These four controls are **product requirements**, not optional tips.
 Bundle contract:
 
 ```php
-interface QrLoginStepUpInterface
+interface QrLoginStepUpPolicyInterface
 {
-    /** @throws AccessDeniedException when unlock fails / cancelled */
-    public function assertUnlocked(Request $request): void;
+    /** True only when the approving user unlocked the step-up; false answers 403. */
+    public function isUnlocked(AuthRequestContext $request, ?AuthUserRef $user): bool;
 }
 ```
 
-Default implementation: `NullQrLoginStepUp` throws if `approve_requires` needs step-up (forces apps to wire a real unlock). Demo may ship a “type your PIN” stub.
+Default implementation: `NullQrLoginStepUp` refuses (forces apps to wire a real unlock). 2.0: the 1.x
+`QrLoginStepUpInterface` (`assertUnlocked(Request)`) is removed. Demo may ship a “type your PIN” stub.
 
 Stolen-phone residual with step-up: attacker needs biometrics/PIN knowledge — accepted and documented; pair with remote logout / phone re-verify in the app.
 
@@ -419,7 +420,7 @@ Apps subscribe for audit / throttle (same pattern as `MagicLoginRequestedEvent`)
 
 | Phase | Scope |
 |-------|--------|
-| **P0** | Config + entity (incl. desktop cookie/IP/UA hashes) + rate limiter + start/show/status/complete + approve with `session_step_up` (`QrLoginStepUpInterface`) + Twig + privacy-safe QR URL + tests |
+| **P0** | Config + entity (incl. desktop cookie/IP/UA hashes) + rate limiter + start/show/status/complete + approve with `session_step_up` (`QrLoginStepUpPolicyInterface`) + Twig + privacy-safe QR URL + tests |
 | **P1** | `phone_otp` / `either` + `QrLoginNotifierInterface` + Logging/Null notifiers |
 | **P2** | QR PNG generator (`EndroidQrCodeGenerator` + `suggest endroid/qr-code`) — **Done** in 1.12.1; PIN step-up stub / demo polish optional |
 | **P3** | Audit table, coarse geo on approve UI, `public_code` entry without camera |

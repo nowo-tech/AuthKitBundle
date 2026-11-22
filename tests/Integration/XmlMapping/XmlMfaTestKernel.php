@@ -28,6 +28,6 @@ final class XmlMfaTestKernel extends MfaTestKernel
     {
         parent::configureContainer($container, $loader);
         $container->loadFromExtension('doctrine', ['orm' => ['auto_mapping' => true]]);
-        $container->loadFromExtension('nowo_auth_kit', ['doctrine' => ['mapping_type' => 'xml', 'private_entity_manager' => true]]);
+        $container->loadFromExtension('nowo_auth_kit', ['doctrine' => ['mapping_type' => 'xml']]);
     }
 }

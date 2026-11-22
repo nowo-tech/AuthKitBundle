@@ -80,7 +80,8 @@ discouraged: they stop receiving fixes (e.g. the 1.27 field-order fix of the res
 ### Available variables
 
 Every page: `page` (`AuthPage`), `document_title`, `form_themes`, `auth_kit_page`, plus the 1.x variables below
-(`layout_template` is the deprecated bridge layout unless `web_ui.layout_template` is set).
+(`layout_template` is `web_ui.layout_template`; without it, the name of the 1.x layout removed in 2.0, so a 1.x page
+template that still extends it fails at render).
 
 **Login** (`security/login.html.twig`):
 
@@ -102,7 +103,6 @@ Every page: `page` (`AuthPage`), `document_title`, `form_themes`, `auth_kit_page
 | Variable / function | Description |
 |---------------------|-------------|
 | `nowo_auth_kit_form_themes` | Form themes of the default profile (`web_ui.form_themes`) |
-| `nowo_auth_kit_button_class` / `nowo_auth_kit_secondary_button_class` | Deprecated (1.27) with `css.*` |
 | `nowo_auth_kit_outbound_mail_ready()` | Whether outbound email-dependent UI should be shown |
 | `nowo_auth_kit_slide_to_confirm_assets` / `nowo_auth_kit_device_intelligence_assets` / `nowo_auth_kit_otp_input_assets` / `nowo_auth_kit_password_toggle_assets` | Which widget assets the pages load |
 | `nowo_auth_kit_device_intelligence_collect_endpoint` | POST path for `collect()` (default `/_device/collect`) |
@@ -110,8 +110,8 @@ Every page: `page` (`AuthPage`), `document_title`, `form_themes`, `auth_kit_page
 ### Custom layout
 
 Per profile, `web_ui.layout_template` overrides `nowo_ui_kit.layouts.guest` (for example an admin profile with its
-own frame). The layout must render the UiKit canonical blocks. `@NowoAuthKitBundle/layout.html.twig` is deprecated
-(a bridge to the UiKit guest layout kept for 1.x page templates).
+own frame). The layout must render the UiKit canonical blocks. The 1.x bridge `@NowoAuthKitBundle/layout.html.twig`
+was removed in 2.0 (see [UPGRADING](UPGRADING.md#templates-blocks-and-globals)).
 
 ### Bootstrap 5 and password toggle (demo reference)
 
@@ -178,7 +178,7 @@ With `invitations.mode: enabled` (1.32, often with `registration_mode: invite_on
 2. The invitee opens `/invitation/{token}`; the token hash moves to the session and the page redirects to
    `/invitation`, the registration form with the invited e-mail pre-filled (locked with `lock_email`).
 3. On valid submit the account is created like a registration (fields, hashing, `registration_role` plus the
-   invitation roles), the invitation is claimed (single use), the `InvitationGrantInterface` services run, and the
+   invitation roles), the invitation is claimed (single use), the `InvitationGrantHandlerInterface` services run, and the
    user is signed in.
 4. Host code calling `InvitationManager` directly passes the **signed-in user** as the actor (never a user object
    rebuilt from request data): the role rule trusts that object's roles.
@@ -366,18 +366,19 @@ If your application conditionally enables outbound email, also gate password-res
 ## Account switcher avatars (1.35)
 
 With `multi_account.enabled`, the switcher (`@NowoAuthKitBundle/accounts/_switcher.html.twig`) shows the avatar your
-`AccountPresenterInterface` returns, through UiKit's avatar partial:
+`AccountPresentationProviderInterface` returns, through UiKit's avatar partial:
 
 ```php
 use Nowo\AuthKitBundle\MultiAccount\AccountPresentation;
-use Nowo\AuthKitBundle\MultiAccount\AccountPresenterInterface;
+use Nowo\AuthKitBundle\MultiAccount\AccountPresentationProviderInterface;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 
-final class AppAccountPresenter implements AccountPresenterInterface
+final class AppAccountPresenter implements AccountPresentationProviderInterface
 {
-    public function present(UserInterface $user): AccountPresentation
+    public function presentationFor(AuthUserRef $user): AccountPresentation
     {
         // A stable, access-checked, host-generated URL (same-origin /path or https://), never a user-entered one.
-        return new AccountPresentation($user->getDisplayName(), $user->getUserIdentifier(), $this->avatars->urlFor($user, 32));
+        return new AccountPresentation($this->names->displayNameOf($user->id), $user->identifier, $this->avatars->urlFor($user->id, 32));
     }
 }
 ```
@@ -487,15 +488,14 @@ opt-in.
 ### Standard Symfony host
 
 Nothing to configure: attribute mapping of the AuthKit tables on your default entity manager, a Doctrine user entity
-(`user_class`) written by the Doctrine user adapters, the reset credential on the user. Ports you implement can stay
-on the 1.45 interfaces until 2.0. Recommended before 2.0: `doctrine.private_entity_manager: true`.
+(`user_class`) written by the Doctrine user adapters, the reset credential on the user. AuthKit writes its own rows
+through its private entity manager (2.0: always), so it never flushes your pending changes.
 
 ### DDD / hexagonal host (1.46 opt-ins)
 
 ```yaml
 nowo_auth_kit:
     doctrine:
-        private_entity_manager: true   # AuthKit never flushes your entity manager
         mapping_type: xml              # optional: XML mapping of the AuthKit tables
     password_reset:
         storage: table                 # reset credential in auth_kit_password_reset, never on your user
@@ -504,7 +504,7 @@ nowo_auth_kit:
 and implement the framework-free ports (no Symfony type in their signatures; users are `ValueObject\AuthUserRef`,
 requests `ValueObject\AuthRequestContext`, invitations `InvitationSnapshot`):
 
-| 1.46 port (implement) | Replaces (deprecated, removed in 2.0) | Wiring |
+| Port (implement) | Replaces (1.x, removed in 2.0) | Wiring |
 |---|---|---|
 | `User\UserDirectoryInterface` | `User\UserLookupInterface` | alias the interface |
 | `User\UserCreatorInterface` | `User\UserFactoryInterface` | alias |
@@ -518,8 +518,7 @@ requests `ValueObject\AuthRequestContext`, invitations `InvitationSnapshot`):
 | `Invitation\InvitationGrantHandlerInterface` | `Invitation\InvitationGrantInterface` | autoconfigured tag |
 | `SocialLogin\SocialCallbackStepInterface` | `SocialLogin\SocialCallbackHandlerInterface` | autoconfigured tag |
 
-A service implementing the deprecated interface is asked through it exactly as in 1.45; one implementing only the 1.46
-port through an internal gate. The user ports (and `SocialCallbackResult::signIn()`) need the `AuthUserRef` to carry
+AuthKit asks each port through an internal gate; the built-in defaults implement the ports too. The user ports (and `SocialCallbackResult::signIn()`) need the `AuthUserRef` to carry
 the security user object your user provider returns (`AuthUserRef::of()`): AuthKit signs that object in and hashes its
 password, so your domain aggregate stays behind your adapter. `AuthUserRef::$roles` has no role hierarchy applied. The build fails when a port service implements neither
 interface. The suite boots such a host end to end: `tests/Integration/Ddd/DddHostKernelTest.php`.
@@ -529,16 +528,16 @@ interface. The suite boots such a host end to end: `tests/Integration/Ddd/DddHos
 - Point `profiles.<name>.user_class` at your **security user** (the class your user provider returns, implementing
   `UserInterface` and `PasswordAuthenticatedUserInterface`), not at a domain aggregate. Login goes through your
   firewall and user provider.
-- **User ports (1.41).** AuthKit creates, stores and finds users only through three interfaces (namespace
-  `Nowo\AuthKitBundle\User`). The defaults reproduce the earlier behaviour (Doctrine entity, no-argument constructor,
+- **User ports (1.41; 1.46 framework-free).** AuthKit creates, stores and finds users only through three interfaces
+  (namespace `Nowo\AuthKitBundle\User`). The defaults reproduce the earlier behaviour (Doctrine entity, no-argument constructor,
   PropertyAccessor writes); alias them to your own adapters when the security user is not a Doctrine entity or your
   domain owns persistence:
 
   | Port | Used by | Default |
   |---|---|---|
-  | `UserFactoryInterface::create(ProfileSettings, NewUser)` | registration, invited registration, social sign-up, `nowo:auth-kit:create-admin` | `PropertyAccessUserFactory` |
-  | `UserWriterInterface` (`add`, `remove`, `changePassword`, `save`) | the same flows, password reset completion, social `link_existing_account: reset_password` | `Doctrine\DoctrineUserWriter` |
-  | `UserLookupInterface` (`findByIdentifier`, `findById`, `countUsers`, `hasCaseVariant`) | password reset, magic login, QR completion, MFA admin, social sign-in, registration gate, `first_user_only`, create-admin | `Doctrine\DoctrineUserLookup` |
+  | `UserCreatorInterface::create(ProfileSettings, NewUser)` | registration, invited registration, social sign-up, `nowo:auth-kit:create-admin` | `PropertyAccessUserFactory` |
+  | `UserStoreInterface` (`add`, `remove`, `changePassword`, `save`) | the same flows, password reset completion, social `link_existing_account: reset_password` | `Doctrine\DoctrineUserWriter` |
+  | `UserDirectoryInterface` (`findByIdentifier`, `findById`, `countUsers`, `hasCaseVariant`) | password reset, magic login, QR completion, MFA admin, social sign-in, registration gate, `first_user_only`, create-admin | `Doctrine\DoctrineUserLookup` |
 
   `NewUser` is a plain DTO: the source (`UserCreationSource`: `form`, `invitation`, `social`, `admin`), the roles, the
   submitted registration form (`formData`, keyed by `registration_fields[].name`, values still plain), or the
@@ -552,15 +551,15 @@ interface. The suite boots such a host end to end: `tests/Integration/Ddd/DddHos
 
   ```yaml
   # config/services.yaml
-  Nowo\AuthKitBundle\User\UserFactoryInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
-  Nowo\AuthKitBundle\User\UserWriterInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
-  Nowo\AuthKitBundle\User\UserLookupInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
+  Nowo\AuthKitBundle\User\UserCreatorInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
+  Nowo\AuthKitBundle\User\UserStoreInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
+  Nowo\AuthKitBundle\User\UserDirectoryInterface: '@App\Infrastructure\AuthKit\AuthKitUsers'
   ```
 
 - **1.46:** every event also exposes bundle value objects only: `userRef()` / `actorRef()` / `fromRef()` / `toRef()`
   (`AuthUserRef`), `requestContext()` (`AuthRequestContext`), `challengeId()` / `challengeRef()` on the QR events. The
-  Symfony-typed members are deprecated (removed in 2.0); see [UPGRADING](UPGRADING.md#to-1460). Put scalars, not the
-  VOs, in a Messenger message.
+  Symfony-typed members are no longer public since 2.0; see [UPGRADING](UPGRADING.md#event-and-result-members). Put
+  scalars, not the VOs, in a Messenger message.
 - React to AuthKit in your application layer through events and translate them into your own domain events:
   - `User\Event\UserRegisteredEvent` (1.41): profile, user class, `userId` (`(string) getId()`), identifier, source,
     roles — scalars only. Dispatched once the account is stored: after the flush of the registration page and of
@@ -579,9 +578,10 @@ interface. The suite boots such a host end to end: `tests/Integration/Ddd/DddHos
   trusted devices and clears the pending reset credential through `PasswordResetTokenManagerInterface`.
 - Plug your own rules and delivery in through the ports:
   `PasswordResetNotifierInterface`, `MagicLoginNotifierInterface`, `NewDeviceLoginNotifierInterface`,
-  `InvitationMailerInterface` (aliases); `InvitationGrantInterface`, `InvitationActionAuthorizerInterface`,
-  `SocialCallbackHandlerInterface` (autoconfigured tags); `InvitationsAccessCheckerInterface`,
-  `MfaPolicyInterface`, `AccountPresenterInterface`, `EnrolmentGateInterface`, `FeatureAvailabilityCheckerInterface`,
+  `InvitationMailerInterface` (aliases); `InvitationGrantHandlerInterface`, `InvitationActionPolicyInterface`,
+  `SocialCallbackStepInterface` (autoconfigured tags); `InvitationsAccessPolicyInterface`,
+  `MfaRequirementPolicyInterface`, `AccountPresentationProviderInterface`, `EnrolmentPolicyInterface`,
+  `FeatureAvailabilityCheckerInterface`,
   `OutboundMailReadyCheckerInterface`, `RecipientLocaleResolverInterface` (service ids in config).
   `PasswordResetTokenManagerInterface` can be re-aliased to keep reset credentials out of the user entity.
 
@@ -593,29 +593,31 @@ namespace App\Infrastructure\AuthKit;
 use App\Domain\User\User;                 // your aggregate (named constructor, no setters)
 use App\Domain\User\UserRepository;       // your port
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
-use Nowo\AuthKitBundle\User\{DuplicateUserException, NewUser, UserFactoryInterface, UserLookupInterface, UserWriterInterface};
+use Nowo\AuthKitBundle\User\{DuplicateUserException, NewUser, UserCreatorInterface, UserDirectoryInterface, UserStoreInterface};
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\Security\Core\User\{PasswordAuthenticatedUserInterface, UserInterface};
 
-final readonly class AuthKitUsers implements UserFactoryInterface, UserWriterInterface, UserLookupInterface
+final readonly class AuthKitUsers implements UserCreatorInterface, UserStoreInterface, UserDirectoryInterface
 {
     public function __construct(private UserRepository $users, private UserPasswordHasherInterface $hasher) {}
 
-    public function create(ProfileSettings $profile, NewUser $newUser): UserInterface&PasswordAuthenticatedUserInterface
+    public function create(ProfileSettings $profile, NewUser $newUser): AuthUserRef
     {
         $email = $newUser->identifier ?? $newUser->formData['email'];
         $user  = SecurityUser::pending($email, $newUser->roles);             // your security-user adapter
         $user->hash($this->hasher->hashPassword($user, $newUser->plainPassword ?? $newUser->formData['password']));
 
-        return $user;
+        // The reference carries your security user object: AuthKit signs it in.
+        return AuthUserRef::of($user, SecurityUser::class, null, $email, $newUser->roles);
     }
 
-    public function add(ProfileSettings $profile, UserInterface $user): void
+    public function add(ProfileSettings $profile, AuthUserRef $user): void
     {
-        if ($this->users->emailTaken($user->getUserIdentifier())) {
+        if ($this->users->emailTaken($user->identifier)) {
             throw new DuplicateUserException('E-mail taken.');
         }
-        $this->users->add(User::register($this->users->nextId(), $user->getUserIdentifier(), $user->getPassword(), $user->getRoles()));
+        $security = $user->user();                                         // the object create() returned
+        $this->users->add(User::register($this->users->nextId(), $user->identifier, $security->getPassword(), $user->roles));
     }
 
     // remove(), changePassword(), save(), findByIdentifier(), findById(), countUsers(), hasCaseVariant() …
@@ -628,18 +630,18 @@ final readonly class AuthKitUsers implements UserFactoryInterface, UserWriterInt
 namespace App\Infrastructure\AuthKit;
 
 use App\Application\Membership\AddMemberToTeam;   // your use case
-use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
-use Symfony\Component\Security\Core\User\UserInterface;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 
-final readonly class TeamInvitationGrant implements InvitationGrantInterface
+final readonly class TeamInvitationGrant implements InvitationGrantHandlerInterface
 {
     public function __construct(private AddMemberToTeam $addMember) {}
 
-    public function grant(InvitationSnapshot $invitation, UserInterface $user): void
+    public function grantTo(InvitationSnapshot $invitation, AuthUserRef $user): void
     {
         // Translate the bundle DTO into your command; the domain never sees AuthKit types.
-        ($this->addMember)($user->getUserIdentifier(), $invitation->payload['team'] ?? null);
+        ($this->addMember)($user->identifier, $invitation->payload['team'] ?? null);
     }
 }
 ```
@@ -652,10 +654,9 @@ The class is autoconfigured with the `nowo_auth_kit.invitation_grant` tag.
   and found with a DQL query on that column. Since 1.46 `password_reset.storage: table` keeps them in the bundle's
   `auth_kit_password_reset` table instead (no column on your user, no write to it, non-Doctrine users found again
   through the user directory port); see [PASSWORD-RESET](PASSWORD-RESET.md).
-- Without `doctrine.private_entity_manager: true`, AuthKit writes its own rows through your default entity manager and
-  its flush also commits changes you left pending there (1.45 behaviour, until 2.0). Since 1.54 the unset option logs
-  a deprecation, and each such flush reports the classes of your pending changes ("Your pending changes to App\X were
-  flushed by NowoAuthKitBundle; 2.0 no longer does."): see [UPGRADING](UPGRADING.md#reading-the-host-flush-probe).
+- Since 2.0 AuthKit writes its own rows through its private entity manager only: a change of yours that relied on an
+  AuthKit write to be flushed is no longer stored (see [UPGRADING](UPGRADING.md#private-manager-only)). The account
+  writes (your user entities) still go through your manager, and the Doctrine user store flushes it.
 - The invitation acceptance and `SocialAccountLinker::linkAndSignIn()` open their transaction on the bundle's entity
   manager connection. A host writer on another connection is not rolled back with them. AuthKit compensates with
   `remove()`, but between `add()` and that removal the account exists (and stays if `remove()` fails, which is logged).
@@ -687,8 +688,8 @@ concurrency controls, the conflict codes and the residual risks are in [CONCURRE
 - **Your entity manager is yours.** AuthKit never runs its writes on a runner you bind to `TransactionRunnerInterface`
   (DoctrineDeadlockRetryBundle's adapter, your own). It never resets or clears your manager: a manager a failed AuthKit
   flush closed stays closed for the rest of the request (your next flush fails loudly) and is replaced at the next
-  request, message or command boundary. With `doctrine.private_entity_manager: true` AuthKit's rows never touch your
-  manager (REQ-ARCH-001 rule 6); the Doctrine user writer still stores accounts through it, as before.
+  request, message or command boundary. AuthKit's rows never touch your manager (REQ-ARCH-001 rule 6; 2.0: always);
+  the Doctrine user writer still stores accounts through it, as before.
 - **No retries inside AuthKit.** Since 1.53.0 lock conflicts (deadlock, lock wait, serialization failure, an account
   lock not obtained) answer `409 Conflict` on AuthKit's pages (`conflict_response.status: 503` keeps the 1.50–1.52
   answer), with `CONFLICT_001` and `Retry-After` when nothing was committed, `CONFLICT_002` without it when part of the

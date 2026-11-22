@@ -2,7 +2,7 @@
 
 How AuthKit stays correct when the same data is written at the same time (nowo-tech REQ-RUNTIME-003): two users, two
 workers, or a request sent twice. It covers FrankenPHP worker mode with the kernel reset off, standard Symfony hosts
-and DDD hosts, with or without the private entity manager (`doctrine.private_entity_manager: true`).
+and DDD hosts. Since 2.0 AuthKit's rows always go through its private entity manager.
 
 The [High load](USAGE.md#high-load) section of USAGE has the operational side: topology, PgBouncer, Galera and DBAL 3.
 
@@ -33,7 +33,7 @@ the rows the failed unit touched are detached.
 | Password reset (request, token, completion) | One unit each (`runWithAccounts`, `runOnConnection`, `forConnection` for the reset table) | The new password and the cleared reset credential are one unit (a failure keeps neither, the link stays usable); the credential columns are re-read from the database before a check | 409 `CONFLICT_001` |
 | QR login (create, approve, deny, consume, expire) | One unit each (`QrLoginChallengeRepository::transactional`) | Challenge id inserted through `AuthKitRows::insert` (unique key plus catch: a new id is drawn); state changes re-read the row (`findFresh`) in the unit | 409 `CONFLICT_001`; `CONFLICT_002` when the challenge was consumed and the sign-in then met the conflict |
 | MFA (enrolment, verification, recovery codes, trusted devices, disabling) | One unit each (`MfaStore`) | `FOR UPDATE` on the credential row first; first enrolment through `AuthKitRows::insert` (the row another request wrote is read with a lock); attempt counters under `symfony/lock` | 409 `CONFLICT_001` |
-| Invitations (create, resend, revoke) | One unit each (`InvitationRepository::save`) | Rate limiter; random public id and token (unique keys) | 409 `CONFLICT_001` |
+| Invitations (create, resend, revoke) | One unit each (`InvitationRepository::save`; 2.0: resend, re-invite and revoke through `saveWhileOpen()`, a conditional UPDATE guarded on the row still being open) | Rate limiter; random public id and token (unique keys); a racing acceptance wins (`NOT_OPEN`, nothing written) | 409 `CONFLICT_001` |
 | Several accounts (vault entries) | Single DBAL statements (`AccountVaultStore`) | Unique token hash; deletes by id | 409 `CONFLICT_001` |
 | Personal data erasure (`DoctrineInvitationPersonalData`) | One unit (`forConnection`) | Paged by id | Host's port caller |
 | Purge commands (invitations, account vault) | Paged statements (500 rows per statement) | Deletes by id, capped batches | Console: the command fails; the next run continues |
@@ -100,7 +100,7 @@ nowo_auth_kit:
 - `commit_detection: false` drops AuthKit's own middleware. `CONFLICT_002` then comes only from a host write unit
   (`ConcurrencyConflict::$committed`), and a conflict after a commit answers `CONFLICT_001`.
 
-The other concurrency settings are in [High load](USAGE.md#high-load): `doctrine.private_entity_manager`, DBAL 3
+The other concurrency settings are in [High load](USAGE.md#high-load): DBAL 3
 savepoints and the topology limits.
 
 ## Lock order

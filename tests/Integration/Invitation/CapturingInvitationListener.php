@@ -10,16 +10,16 @@ use Nowo\AuthKitBundle\Invitation\Event\InvitationCreatedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationResentEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationRevokedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationsPurgedEvent;
-use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusedException;
 use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * Records the invitation audit events and the grant calls; `refuse` makes the grant refuse the acceptance.
  */
-final class CapturingInvitationListener implements EventSubscriberInterface, InvitationGrantInterface
+final class CapturingInvitationListener implements EventSubscriberInterface, InvitationGrantHandlerInterface
 {
     /** @var list<object> */
     public array $events = [];
@@ -55,7 +55,7 @@ final class CapturingInvitationListener implements EventSubscriberInterface, Inv
         $this->purged[] = $event;
     }
 
-    public function grant(InvitationSnapshot $invitation, UserInterface $user): void
+    public function grantTo(InvitationSnapshot $invitation, AuthUserRef $user): void
     {
         if ($this->crash) {
             throw new LogicException('Grant bug.');
@@ -63,6 +63,6 @@ final class CapturingInvitationListener implements EventSubscriberInterface, Inv
         if ($this->refuse) {
             throw new InvitationRefusedException('No seat left.');
         }
-        $this->granted[] = $invitation->email . ' -> ' . $user->getUserIdentifier();
+        $this->granted[] = $invitation->email . ' -> ' . $user->identifier;
     }
 }

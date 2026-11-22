@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Port;
 
-use Nowo\AuthKitBundle\DependencyInjection\Compiler\AuthKitPortsPass;
+use Nowo\AuthKitBundle\Port\Internal\QrLoginStepUpInterface;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
-use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface;
+use Nowo\AuthKitBundle\QrLogin\DeviceIntelligenceQrLoginStepUp;
 use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpPolicyInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -14,11 +14,9 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Serves the deprecated {@see QrLoginStepUpInterface} alias with the host's {@see QrLoginStepUpPolicyInterface}
- * (1.46.0) when the application aliases the 1.46 interface (wired by
- * {@see AuthKitPortsPass}); the bundle's Device Intelligence decorator
- * of the deprecated id still wraps it. Anything but `true` throws {@see AccessDeniedException} (403, as with the
- * deprecated interface); other exceptions propagate.
+ * AuthKit's internal {@see QrLoginStepUpInterface} over the {@see QrLoginStepUpPolicyInterface} port (1.46.0; 2.0:
+ * always, see services.yaml), decorators of the port ({@see DeviceIntelligenceQrLoginStepUp}) included. Anything but
+ * `true` throws {@see AccessDeniedException} (403); other exceptions propagate.
  *
  * @internal
  */

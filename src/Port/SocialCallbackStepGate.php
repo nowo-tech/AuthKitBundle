@@ -6,10 +6,10 @@ namespace Nowo\AuthKitBundle\Port;
 
 use LogicException;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
+use Nowo\AuthKitBundle\Port\Internal\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
-use Nowo\AuthKitBundle\SocialLogin\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\ValueObject\AuthRequestContext;
 use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
@@ -23,7 +23,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Badge\RememberMeBadge
 use function sprintf;
 
 /**
- * Asks a host {@see SocialCallbackStepInterface} (1.46.0) where the social callback asks the deprecated
+ * Asks a host {@see SocialCallbackStepInterface} (1.46.0) where the social callback asks its internal
  * {@see SocialCallbackHandlerInterface}: the request becomes an {@see AuthRequestContext}
  * and a {@see SocialCallbackResult} becomes the sign-in (`Security::login()` on the profile's firewall with the
  * authenticator AuthKit's own social sign-in uses) and the redirect. Built per call by the controller; the controller's

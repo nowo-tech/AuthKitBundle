@@ -51,7 +51,8 @@ class HostExtensionsTestKernel extends AuthKitTestKernel
         $container->register('test.magic_checker', ToggleAvailabilityChecker::class)->setPublic(true);
         $container->register('test.reset_checker', ToggleAvailabilityChecker::class)->setPublic(true);
         $container->register(SocialProviderResponses::class)->setPublic(true);
-        $container->register(PendingStepCallbackHandler::class)->setAutowired(true)->setAutoconfigured(true)->setPublic(true);
+        // 2.0: the Request / Response handler interface is AuthKit's internal one (no longer autoconfigured): tagged by hand.
+        $container->register(PendingStepCallbackHandler::class)->setAutowired(true)->setAutoconfigured(true)->setPublic(true)->addTag('nowo_auth_kit.social_callback_handler');
         $container->register(ToggleMailReadyChecker::class)->setPublic(true);
         $container->register('logger', RecordingLogger::class)->setPublic(true);
     }

@@ -13,7 +13,7 @@ Invite people by e-mail instead of (or besides) the open registration. Opt-in pe
 - [Accept page](#accept-page)
 - [E-mail delivery](#e-mail-delivery)
 - [PHP API](#php-api)
-- [Host grants (InvitationGrantInterface)](#host-grants-invitationgrantinterface)
+- [Host grants (InvitationGrantHandlerInterface)](#host-grants-invitationgranthandlerinterface)
 - [Host with its own invitation UI (1.33)](#host-with-its-own-invitation-ui-133)
 - [Host follow-ups (1.42)](#host-follow-ups-142)
 - [Audit events](#audit-events)
@@ -32,7 +32,7 @@ Invite people by e-mail instead of (or besides) the open registration. Opt-in pe
 4. The page is AuthKit's **registration form** with the invited e-mail pre-filled (read-only with
    `lock_email: true`). Submitting creates the account (registration fields, hashing, `registration_role` plus the
    invitation roles), claims the invitation (one conditional `UPDATE`: single use), runs the host
-   [grants](#host-grants-invitationgrantinterface) — all in one transaction — then signs the account in.
+   [grants](#host-grants-invitationgranthandlerinterface) — all in one transaction — then signs the account in.
 5. Resend issues a new token (the previous link stops working at once) and a new expiry; revoke stops the link.
    Expiry is derived from `expires_at` (no scheduled job); `nowo:auth-kit:invitations:purge` deletes old closed rows.
 
@@ -111,7 +111,7 @@ All keys live under `profiles.<name>.invitations` (or the flat `invitations` of 
 | `admin.layout_template` | `null` | Layout of the administration pages (null: `nowo_ui_kit.layouts.admin`) |
 | `admin.templates.index` / `new` / `link` | bundle templates | Page template overrides |
 | `security.access_roles` | `[ROLE_ADMIN]` | Required roles (any). An empty list is refused (it would let every signed-in user invite) |
-| `security.access_checker` | `null` | Service id implementing `InvitationsAccessCheckerInterface` (custom rules) |
+| `security.access_checker` | `null` | Service id implementing `InvitationsAccessPolicyInterface` (custom rules) |
 | `security.allow_unauthenticated` | `false` | **DEV/DEMO only**, literal boolean, refused unless `kernel.debug` is true |
 | `routes.accept` | `/invitation/{token}`, `nowo_auth_kit_invitation_accept` | Accept page (the token-less `/invitation` is the same route). The path must end with `/{token}` (1.33); token: 43 base64url characters. With `locale.in_path`: `false` → `/invitation/{token}`; `true` → only `/{_locale}/invitation/{token}` (a bare link is 404); `both` → `/{_locale}/…` plus the bare path, which redirects to the localized URL (`unlocalized: redirect`, token kept in the path) or serves it in the default locale (`serve`) |
 | `routes.index` / `new` / `resend` / `revoke` | `/admin/invitations…`, `nowo_auth_kit_invitations…` | Administration routes (paths must start with a single `/`) |
@@ -230,8 +230,8 @@ roles throw) and the role rule above against the given actor (`InvitationsAccess
 `NOT_ALLOWED` when the actor lacks a role of the request or of the open invitation — a `null` actor (console) can
 only handle invitations without roles. Other refusals: `RATE_LIMITED` (with `retryAfter`), `CLOSED`, `NOT_CONFIGURED`.
 
-The `Invitation` may also come from your own entity manager (your repository, a route argument). With
-`doctrine.private_entity_manager: true` AuthKit loads the row again by id in its own manager (1.55.0) and works on that
+The `Invitation` may also come from your own entity manager (your repository, a route argument). AuthKit loads the row
+again by id in its own private manager (1.55.0; 2.0: the only mode) and works on that
 instance: your instance and your manager are left as they are, so read the result from the outcome. A row deleted in
 the meantime throws `Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException`. The same applies to
 `InvitationAcceptor::attempt()`, `accept()` and `acceptExisting()`, and to the QR login challenge services.
@@ -254,12 +254,14 @@ When an inviter is demoted, disabled or deleted, revoke their open invitations f
 $manager->revokeOpenBy($inviter->getUserIdentifier());   // returns the count; one InvitationRevokedEvent each
 ```
 
-## Host grants (InvitationGrantInterface)
+## Host grants (InvitationGrantHandlerInterface)
 
-Implement `Nowo\AuthKitBundle\Invitation\InvitationGrantInterface` (autoconfigured, tag
+Implement `Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface` (`grantTo(InvitationSnapshot, AuthUserRef)`; autoconfigured, tag
 `nowo_auth_kit.invitation_grant`) to apply what the payload carries — memberships, groups, a seat. It runs inside the
 acceptance transaction after the account is persisted; throw `InvitationRefusedException` to refuse (everything is
-rolled back, the invitee sees `not_accepted`). Re-check there anything the inviter may no longer grant.
+rolled back, the invitee sees `not_accepted`). Re-check there anything the inviter may no longer grant. Your changes
+are flushed with the account inside that transaction when they are on the application's entity manager (the account
+write flushes it); store anything else yourself (2.0: AuthKit's private manager never flushes yours).
 
 ## Host with its own invitation UI (1.33)
 
@@ -287,11 +289,11 @@ sending (`InvitationOutcome::CLOSED`) and accepting** (the accept page answers 4
 **Authorise every action (required when invitations carry no roles).** AuthKit authorises by Symfony roles only;
 for an invitation without roles (e.g. Beacon: base role from `registration_role`, membership and org role in the
 payload) that check always passes, so any actor could resend another organization's invitation or merge into it.
-Implement `Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface` (autoconfigured, tag
-`nowo_auth_kit.invitation_action_authorizer`):
+Implement `Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface` (autoconfigured, tag
+`nowo_auth_kit.invitation_action_authorizer`; the action names are its constants):
 
 ```php
-public function isGranted(?UserInterface $actor, string $action, Invitation|InvitationRequest $subject, ?InvitationRequest $request = null): bool
+public function allows(?AuthUserRef $actor, string $action, InvitationSnapshot|InvitationRequest $subject, ?InvitationRequest $request = null): bool
 ```
 
 It is asked for `invite` (the request), `reinvite` (the open invitation a re-invite would merge into, with the

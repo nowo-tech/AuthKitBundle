@@ -56,9 +56,6 @@ Each **profile** maps a `user_class` to its own auth settings (registration, log
 | `profiles` | map | `default` | Named profile definitions (at least one required). |
 | `outbound_mail_ready_checker` | string\|null | `null` | Optional service id implementing `OutboundMailReadyCheckerInterface` for UI gating. |
 | `locale` | map | see below | Preferred locale / path configuration. |
-| `default_locale` | string | `en` | **Deprecated** — use `locale.default`. |
-| `enabled_locales` | list | `[en, es]` | **Deprecated** — use `locale.enabled`. |
-| `locale_in_path` | bool\|string | `false` | **Deprecated** — use `locale.in_path` (`never`\|`always`\|`both`). Bool `true` ≡ `always`. |
 
 Each profile supports all keys documented below (`user_class`, `registration_mode`, `routes`, `templates`, etc.). Every profile must use a **unique** `user_class` and **unique route names** across profiles.
 
@@ -194,9 +191,8 @@ nowo_auth_kit:
         qr_login:
             stimulus_controller: null   # e.g. qr-login: Stimulus values/targets on the QR challenge, no bundled poller
 
-    # Deprecated since 1.27 (mapped to web_ui / the UiKit theme; see UPGRADING "Template contract (1.27)")
-    # templates: { layout, login, register, …, form_theme }
-    # css: { button_class, secondary_button_class }
+    # 2.0: templates.* and css.* (deprecated since 1.27) are removed (the build fails): use web_ui.* and the UiKit
+    # theme slots (nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary / btn_secondary)
 
     embed:
         mode: disabled              # disabled | dropdown
@@ -297,7 +293,7 @@ nowo_auth_kit:
     doctrine:
         register_mapping: true  # true | false | auto
         entity_manager: null    # 1.43.0+: extra manager that also maps the AuthKit entities, reset too (getManagerForClass() is always included)
-        private_entity_manager: null  # 1.46.0+: true = AuthKit rows through a private manager on the default one (never flushes yours); false deprecated; unset deprecated since 1.54 (true is the only mode in 2.0)
+        private_entity_manager: null  # 2.0: no effect, the private manager is the only mode (AuthKit rows through a private manager on the default one, never flushes yours); false fails the build, true is deprecated (removed in 3.0)
         mapping_type: attribute # 1.46.0+: attribute | xml (src/Resources/config/doctrine-xml)
     routing:
         skip_disabled_features: false
@@ -491,7 +487,7 @@ php bin/console assets:install
 The bundle is **optional**. If it is not installed, AuthKit keeps a normal checkbox / QR submit button. The default layout loads CSS/JS only when `slide_to_confirm.enabled` is true **and** the package is present.
 
 - **Registration:** `gate` keeps the Register button (disabled until the slide completes). `legal` (and other auto-submit profiles) hide the extra submit — finishing the slide posts the form. Unmapped consent fields are not written to the user entity.
-- **QR approve:** `qr_login_approve: danger` replaces the Approve button with `SwipeToSubmitType`. CSRF is enforced on that form. Step-up (`QrLoginStepUpInterface`) still runs after a valid slide.
+- **QR approve:** `qr_login_approve: danger` replaces the Approve button with `SwipeToSubmitType`. CSRF is enforced on that form. Step-up (`QrLoginStepUpPolicyInterface`) still runs after a valid slide.
 - The gesture is **confirmation UX**, not authorization. Keep CSRF, authentication, and server checks.
 
 See [SlideToConfirmBundle](https://github.com/nowo-tech/SlideToConfirmBundle).
@@ -525,7 +521,7 @@ The bundle is **optional** (`composer suggest` only). It needs **PHP 8.3+**; Aut
 | `device_rate_limit` | `false` | Extra `AuthKitAttemptLimiter` consume keyed by device ULID on register / reset request / magic-login request. Missing observation is a no-op (first HTML hit is not locked out) |
 
 **Rate-limit atomicity:** `AuthKitAttemptLimiter` (registration / reset / magic-login / QR / device limits, OTP lockout) stores counters in `cache.app`, which has no atomic increment. When `symfony/lock` is installed (FrameworkBundle then registers `lock.factory`), the check-and-increment runs under a per-key lock so concurrent requests cannot overshoot the limit. Without it the counter is best-effort (parallel requests can slip a few attempts past the limit). On several hosts, point `framework.lock` at a shared store (Redis, PDO, …); the default `flock` store only serializes one host.
-| `qr_login.approve_require_trusted` | `false` | QR `session_step_up` requires an observed **trusted** device. Default `NullQrLoginStepUp` is skipped so it does not throw; a custom `QrLoginStepUpInterface` still runs after the trusted-device check |
+| `qr_login.approve_require_trusted` | `false` | QR `session_step_up` requires an observed **trusted** device. Default `NullQrLoginStepUp` is skipped so it does not refuse; a custom `QrLoginStepUpPolicyInterface` still runs after the trusted-device check |
 
 Alias `NewDeviceLoginNotifierInterface` to your mailer/SMS service if you enable `new_device_notify` (default: `NullNewDeviceLoginNotifier`).
 
@@ -706,7 +702,8 @@ set it to the bare twin (`nowo_auth_kit_logout_unlocalized`) and enable this opt
 redirected (302, 307 for POST, query string kept) to `/logout` and intercepted too. With `both` + `redirect` keep
 `nowo_auth_kit_logout`. See [UPGRADING](UPGRADING.md#logout-with-localein_path-1312).
 
-Legacy keys `default_locale`, `enabled_locales`, and `locale_in_path` (bool) still work and map into `locale.*`.
+The root keys `default_locale`, `enabled_locales` and `locale_in_path` were removed in 2.0 (the build fails with the
+replacement): use `locale.*`.
 
 Update `access_control` (or run `nowo:auth-kit:configure-security`). Use `auth_kit_route_params()` in Twig. See [USAGE.md](USAGE.md#locale-in-url-paths).
 
@@ -879,7 +876,7 @@ An application alias of `Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInt
 Applied before every lookup by identifier: password sign-in (the AuthKit login form's `login_form[_username]`, replaced
 at `kernel.request` priority 16 before the firewall, so the user provider and login throttling see it), magic login,
 password reset request and code, social e-mail match, QR completion, MFA admin reset, admin creation. Host lookup
-adapters (`UserDirectoryInterface` / `UserLookupInterface`) receive the normalised identifier in `findByIdentifier()`;
+adapters (`UserDirectoryInterface`) receive the normalised identifier in `findByIdentifier()`;
 `hasCaseVariant()` receives the raw value.
 
 Accounts AuthKit creates (registration, invitation, admin, social): the factory or your `UserCreatorInterface` receives
@@ -925,11 +922,12 @@ attributes. Per profile:
 | `web_ui.qr_login.stimulus_controller` | Stimulus identifier for the QR challenge (values + targets; the bundled poller is not loaded) |
 | `embed.*` | embedded widget templates (`auth_kit_dropdown()`) |
 
-Deprecated aliases (1.27, removed in 2.0): `templates.layout` → `web_ui.layout_template` (the old default
-`@NowoAuthKitBundle/layout.html.twig` means null), `templates.<page>` → `web_ui.templates.<page>`,
-`templates.form_theme` → `web_ui.form_themes`, `css.button_class` / `css.secondary_button_class` →
-`nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary` / `btn_secondary` (bridged automatically).
-`templates.*` stays readable (container parameter `nowo_auth_kit.templates`, profile settings) as a resolved mirror.
+Removed in 2.0 (deprecated since 1.27; the build fails and names the replacement): `templates.layout` →
+`web_ui.layout_template` (the former default `@NowoAuthKitBundle/layout.html.twig` as `web_ui.layout_template` still
+means null), `templates.<page>` → `web_ui.templates.<page>`, `templates.form_theme` → `web_ui.form_themes`,
+`css.button_class` / `css.secondary_button_class` → `nowo_ui_kit.theme.bundles.NowoAuthKitBundle.classes.btn_primary` /
+`btn_secondary` (no longer bridged). `templates.*` stays readable (container parameter `nowo_auth_kit.templates`,
+profile settings) as a resolved, read-only mirror; `nowo_auth_kit.css` holds the 1.x default class names.
 
 ```yaml
 nowo_auth_kit:
@@ -953,9 +951,9 @@ nowo_ui_kit:
                 classes: { btn_primary: 'w-100' }
 ```
 
-Twig globals (1.x, kept): `nowo_auth_kit_form_themes` (default profile `web_ui.form_themes`),
-`nowo_auth_kit_button_class` / `nowo_auth_kit_secondary_button_class` (deprecated with `css.*`),
-`nowo_auth_kit_outbound_mail_ready()`.
+Twig globals: `nowo_auth_kit_form_themes` (default profile `web_ui.form_themes`), `nowo_auth_kit_outbound_mail_ready()`.
+2.0 removed `nowo_auth_kit_button_class` / `nowo_auth_kit_secondary_button_class` (deprecated with `css.*`): use
+`nowo_ui_class('btn_primary' / 'btn_secondary', 'NowoAuthKitBundle')`.
 
 The bundle prepends an asset package named `nowo_auth_kit` with base path `/bundles/nowoauthkit` (`css/nowo-auth-kit.css`,
 `js/nowo-auth-kit-qr-login.js`).

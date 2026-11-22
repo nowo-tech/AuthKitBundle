@@ -10,7 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptance;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
-use Nowo\AuthKitBundle\Invitation\InvitationGrantInterface;
+use Nowo\AuthKitBundle\Invitation\InvitationGrantHandlerInterface;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusal;
 use Nowo\AuthKitBundle\Invitation\InvitationRefusedException;
 use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
@@ -21,13 +21,13 @@ use Nowo\AuthKitBundle\Tests\Stub\HostDomainUser;
 use Nowo\AuthKitBundle\Tests\Stub\InMemoryHostUsers;
 use Nowo\AuthKitBundle\Tests\Support\NestingLevels;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccess;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * JW-A2: an invitation refused by a grant (or failing later) leaves no usable account when the host writer stores
@@ -86,8 +86,8 @@ final class InvitationCompensationTest extends TestCase
             userWriter: $users,
             userLookup: $users,
         );
-        $grant = new class implements InvitationGrantInterface {
-            public function grant(InvitationSnapshot $invitation, UserInterface $user): void
+        $grant = new class implements InvitationGrantHandlerInterface {
+            public function grantTo(InvitationSnapshot $invitation, AuthUserRef $user): void
             {
                 throw InvitationRefusedException::because(new InvitationRefusal('host.no_seat_left'));
             }

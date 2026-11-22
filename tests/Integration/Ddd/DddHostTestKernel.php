@@ -6,7 +6,8 @@ namespace Nowo\AuthKitBundle\Tests\Integration\Ddd;
 
 use Composer\InstalledVersions;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
-use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface;
+use Nowo\AuthKitBundle\Port\Internal\QrLoginStepUpInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpPolicyInterface;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\AuthKitTestKernel;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\CapturingPasswordResetNotifier;
@@ -17,7 +18,6 @@ use Nowo\AuthKitBundle\Tests\Support\Ports\InMemoryTwinUsers;
 use Nowo\AuthKitBundle\Tests\Support\Ports\StepUpHost;
 use Nowo\AuthKitBundle\User\UserCreatorInterface;
 use Nowo\AuthKitBundle\User\UserDirectoryInterface;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Nowo\AuthKitBundle\User\UserStoreInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Config\Loader\LoaderInterface;
@@ -110,7 +110,7 @@ final class DddHostTestKernel extends AuthKitTestKernel
             'login_success_route' => 'kernel_home',
             'password_reset'      => ['mode' => 'enabled', 'delivery' => 'link', 'storage' => 'table'],
             'qr_login'            => ['mode' => 'enabled', 'approve_requires' => 'session_step_up'],
-            'doctrine'            => ['private_entity_manager' => true, 'mapping_type' => 'xml'],
+            'doctrine'            => ['mapping_type' => 'xml'],
             'web_ui'              => ['brand' => 'Acme'],
         ]);
 

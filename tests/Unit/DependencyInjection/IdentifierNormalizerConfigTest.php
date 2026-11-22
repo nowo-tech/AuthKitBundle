@@ -12,8 +12,7 @@ use Nowo\AuthKitBundle\Identity\LoginIdentifierNormalizationListener;
 use Nowo\AuthKitBundle\Identity\LowercaseAsciiEmailIdentifierNormalizer;
 use Nowo\AuthKitBundle\Identity\NormalizingUserLookup;
 use Nowo\AuthKitBundle\Identity\UserIdentifierNormalizerInterface;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use stdClass;
@@ -26,8 +25,6 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
  */
 final class IdentifierNormalizerConfigTest extends TestCase
 {
-    use HostModeNotices;
-
     private const USER = 'App\\Entity\\User';
 
     /** @return iterable<string, array{array<string, mixed>, string}> */

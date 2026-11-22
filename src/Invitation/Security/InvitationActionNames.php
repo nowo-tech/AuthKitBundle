@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Invitation\Security;
 
 /**
- * 1.56.0: the autoconfiguration tag and the action names of the invitation action hook, declared once and inherited by
- * both {@see InvitationActionPolicyInterface} and the deprecated {@see InvitationActionAuthorizerInterface} (a class
- * implementing both keeps compiling). Read them as `InvitationActionPolicyInterface::INVITE`, … (2.0 keeps them there).
+ * 1.56.0: the autoconfiguration tag and the action names of the invitation action hook, inherited by
+ * {@see InvitationActionPolicyInterface} (in 1.x also by the deprecated `InvitationActionAuthorizerInterface`, removed in
+ * 2.0). Read them as `InvitationActionPolicyInterface::INVITE`, ….
  *
  * @internal
  */

@@ -221,13 +221,14 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-MULTI-006**: `MultiAccountPass` fails closed when UserKit sessions or the firewall data are missing.
 - **FR-MULTI-007**: Twig `MultiAccountExtension`, `AccountRow`, `AccountSwitcherView` and the switcher / chooser templates.
 
-### Private entity manager (v1.46, opt-in `doctrine.private_entity_manager`)
+### Private entity manager (v1.46 opt-in; v2.0 the only mode)
 
 - **FR-PEM-001**: `AuthKitEntityManager` and `AuthKitManagerRegistry` give AuthKit stores a private entity manager, so the bundle never flushes the host's (REQ-ARCH-001 rule 6).
 - **FR-PEM-002**: `PrivateEntityManagerMiddleware`, `Driver`, `Connection` and `Subscriber` report commits, rollbacks and savepoints of the shared connection to the private manager.
 - **FR-PEM-003**: `PrivateEntityManagerPass` wires the mode and `EntityManagerOptionPass` validates `doctrine.entity_manager`.
-- **FR-PEM-004** (v1.54): `HostFlushReporter` reports, in host mode (`private_entity_manager` unset or false), the application's pending changes an AuthKit write flushes (one deprecation per class and unit of work; read-only, reset at every boundary).
-- **FR-PEM-005** (v1.55, Q-W2-1): `AuthKitEntities` re-resolves by id, in AuthKit's manager, an AuthKit row the application loaded through its own manager (`adopt()`) and refuses to save an existing row that manager does not hold (`assertSavable()`), with `AuthKitEntityNotFoundException` / `AuthKitEntityNotManagedException`.
+- **FR-PEM-004** (v1.54; removed in 2.0 with host mode): `HostFlushReporter` reports, in host mode (`private_entity_manager` unset or false), the application's pending changes an AuthKit write flushes (one deprecation per class and unit of work; read-only, reset at every boundary).
+- **FR-PEM-005** (v1.55, Q-W2-1): `AuthKitEntities` re-resolves by id, in AuthKit's manager, an AuthKit row the application loaded through its own manager (`adopt()`) and refuses to save an existing row that manager does not hold (`assertSavable()`), with `AuthKitEntityNotFoundException` / `AuthKitEntityNotManagedException`; nothing of the application's manager is flushed, merged or detached. (The 1.54 host-flush reporter `HostFlushReporter` was removed in 2.0 with host mode.)
+- **FR-PEM-006** (v2.0): with the AuthKit entities mapped the private manager is always registered; `doctrine.private_entity_manager: false` fails the build, `true` is a deprecated no-op (removed in 3.0). The account writes stay on the application's manager (documented residual).
 
 ### Transactions, locks and savepoints (v1.43-1.48)
 
@@ -243,11 +244,11 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-EXACT-002**: `IdentityCollationListener` and `PasswordResetCollationListener` set a binary NO PAD collation on identity columns (MySQL / MariaDB).
 - **FR-IDNORM-001**: `UserIdentifierNormalizerInterface` with `ExactIdentifierNormalizer` (default) and `LowercaseAsciiEmailIdentifierNormalizer` (opt-in `identifier_normalizer`); `NormalizingUserLookup` decorates the user lookup port and `LoginIdentifierNormalizationListener` normalises the posted login identifier.
 
-### Framework-free ports (v1.46, REQ-ARCH-001 rule 3)
+### Framework-free ports (v1.46; v2.0 the only ports, REQ-ARCH-001 rule 3)
 
-- **FR-PORT-001**: Gates (`UserCreatorGate`, `UserDirectoryGate`, `UserStoreGate`, `EnrolmentPolicyGate`, `AccountPresentationGate`, `MfaRequirementPolicyGate`, `InvitationActionPolicyGate`, `InvitationGrantHandlerGate`, `InvitationsAccessPolicyGate`, `QrLoginStepUpGate`, `SocialCallbackStepGate`) serve the deprecated Symfony-typed interfaces with the host's framework-free twin; `Ports` picks the interface per object at call time; `AuthUserRefs` and `AuthRequestContexts` convert from Symfony types.
+- **FR-PORT-001**: Gates (`UserCreatorGate`, `UserDirectoryGate`, `UserStoreGate`, `EnrolmentPolicyGate`, `AccountPresentationGate`, `MfaRequirementPolicyGate`, `InvitationActionPolicyGate`, `InvitationGrantHandlerGate`, `InvitationsAccessPolicyGate`, `QrLoginStepUpGate`, `SocialCallbackStepGate`) serve AuthKit's internal adapter interfaces (`Port\Internal\*`, v2.0; the 1.x Symfony-typed host interfaces they replace were removed) with the host's (or the built-in) port; `Ports` wraps per-profile and tagged port services at call time; `AuthUserRefs` and `AuthRequestContexts` convert from Symfony types.
 - **FR-PORT-002**: Value objects `AuthUserRef`, `AuthRequestContext`, `EnrolmentCandidate`, `QrLoginChallengeRef`, `SocialCallbackResult`; `Internal\HiddenValues` keeps their sensitive values out of dumps.
-- **FR-PORT-003**: `AuthKitPortsPass` wires the twins and refuses a port service implementing neither interface.
+- **FR-PORT-003**: `AuthKitPortsPass` refuses a port service that does not implement its port; `RemovedPortsPass` (v2.0) fails the build on any service, alias, decorator or autodiscovered class still on an interface removed in 2.0.
 
 ### User ports (v1.41, v1.46)
 

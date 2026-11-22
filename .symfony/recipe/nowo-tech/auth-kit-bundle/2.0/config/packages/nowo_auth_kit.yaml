@@ -1,0 +1,52 @@
+nowo_auth_kit:
+    default_profile: default
+    profiles:
+        default:
+            user_class: App\Entity\User
+            user_identifier_field: email
+            registration_mode: first_user_only
+            registration_role: ROLE_USER
+            # remember_me:
+            #     enabled: true
+            #     lifetime: 604800
+            #     path: /
+            # password_strength:
+            #     enabled: true
+            #     level: medium
+            #     policy_mode: level
+            # slide_to_confirm:
+            #     enabled: true
+            #     registration_consent: gate
+            #     qr_login_approve: danger
+            # device_intelligence:
+            #     enabled: true
+            #     new_device_notify: true
+            #     device_rate_limit: true
+            #     qr_login:
+            #         approve_require_trusted: true
+            # otp_input:
+            #     enabled: true
+            #     password_reset_code: true
+            # magic_login:
+            #     mode: enabled
+            #     lifetime: 600
+            #     max_uses: 1
+    # 2.0: the root default_locale / enabled_locales / locale_in_path keys are removed (the build fails); use locale.*.
+    locale:
+        default: en
+        enabled: [en, es]
+    # flash:
+    #     translate: true                 # store AuthKit flashes as translated text
+    #     twig_filter: true               # {{ message|flash_trans }}
+    #     twig_filter_domains: [messages, NowoAuthKitBundle]
+    # recipient_locale:
+    #     enabled: true                   # user implements PreferredLocaleAwareInterface
+    #     resolver: ~                     # or a RecipientLocaleResolverInterface service id
+    # create_admin:                       # bin/console nowo:auth-kit:create-admin
+    #     min_password_length: 12
+    #     roles: [ROLE_ADMIN]
+
+when@prod:
+    nowo_auth_kit:
+        # Fail compile if Login Throttle Bundle is missing (Flex also requires the package).
+        login_throttle_required: true

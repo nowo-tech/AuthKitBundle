@@ -52,7 +52,7 @@ final class StorageFailureSubscriberTest extends TestCase
         $error = $event->getThrowable();
         self::assertInstanceOf(HttpException::class, $error);
         self::assertSame(409, $error->getStatusCode());
-        self::assertSame(['Retry-After' => '3'], $error->getHeaders());
+        self::assertSame(['X-Conflict-Code' => 'CONFLICT_001', 'Retry-After' => '3'], $error->getHeaders());
         self::assertSame(TransientStorageFailure::DEFAULT_MESSAGE, $error->getMessage(), 'no SQL');
     }
 
@@ -62,7 +62,7 @@ final class StorageFailureSubscriberTest extends TestCase
             $error = $this->dispatch($failure, ['_controller' => 'Nowo\\AuthKitBundle\\Controller\\RegisterController::register'])->getThrowable();
             self::assertInstanceOf(HttpException::class, $error);
             self::assertSame(409, $error->getStatusCode());
-            self::assertSame(['Retry-After' => '1'], $error->getHeaders());
+            self::assertSame(['X-Conflict-Code' => 'CONFLICT_001', 'Retry-After' => '1'], $error->getHeaders());
         }
     }
 
@@ -70,11 +70,11 @@ final class StorageFailureSubscriberTest extends TestCase
     {
         $error = $this->dispatch(new TransientStorageFailure(), ['_route' => 'nowo_auth_kit_login'])->getThrowable();
         self::assertInstanceOf(HttpException::class, $error);
-        self::assertSame(['Retry-After' => (string) StorageFailureSubscriber::RETRY_AFTER], $error->getHeaders());
+        self::assertSame(['X-Conflict-Code' => 'CONFLICT_001', 'Retry-After' => (string) StorageFailureSubscriber::RETRY_AFTER], $error->getHeaders());
 
         $error = $this->dispatch(new TransientStorageFailure(), ['_route' => 'nowo_auth_kit_login'], null, new ConflictResponsePolicy(409, 7))->getThrowable();
         self::assertInstanceOf(HttpException::class, $error);
-        self::assertSame(['Retry-After' => '7'], $error->getHeaders());
+        self::assertSame(['X-Conflict-Code' => 'CONFLICT_001', 'Retry-After' => '7'], $error->getHeaders());
     }
 
     public function testAHostCanKeepThe503(): void
@@ -83,7 +83,7 @@ final class StorageFailureSubscriberTest extends TestCase
         $error  = $this->dispatch(new TransientStorageFailure(2), ['_route' => 'nowo_auth_kit_login'], null, $policy)->getThrowable();
         self::assertInstanceOf(HttpException::class, $error);
         self::assertSame(503, $error->getStatusCode());
-        self::assertSame(['Retry-After' => '2'], $error->getHeaders());
+        self::assertSame(['X-Conflict-Code' => 'CONFLICT_001', 'Retry-After' => '2'], $error->getHeaders());
 
         $response = $this->dispatch(new TransientStorageFailure(2), ['_route' => 'nowo_auth_kit_login'], 'json', $policy)->getResponse();
         self::assertInstanceOf(JsonResponse::class, $response);
@@ -99,6 +99,7 @@ final class StorageFailureSubscriberTest extends TestCase
         self::assertSame(409, $response->getStatusCode());
         self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_001"}', $response->getContent());
         self::assertSame('2', $response->headers->get('Retry-After'));
+        self::assertSame('CONFLICT_001', $response->headers->get('X-Conflict-Code'));
         self::assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
     }
 
@@ -109,13 +110,14 @@ final class StorageFailureSubscriberTest extends TestCase
         $error = $this->dispatch($conflict, ['_route' => 'nowo_auth_kit_register'])->getThrowable();
         self::assertInstanceOf(HttpException::class, $error);
         self::assertSame(409, $error->getStatusCode());
-        self::assertSame([], $error->getHeaders());
+        self::assertSame(['X-Conflict-Code' => 'CONFLICT_002'], $error->getHeaders(), 'the code, never Retry-After');
         self::assertSame(StorageFailureSubscriber::COMMITTED_MESSAGE, $error->getMessage());
 
         $response = $this->dispatch($conflict, ['_route' => 'nowo_auth_kit_register'], 'json')->getResponse();
         self::assertInstanceOf(JsonResponse::class, $response);
         self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_002"}', $response->getContent());
         self::assertFalse($response->headers->has('Retry-After'));
+        self::assertSame('CONFLICT_002', $response->headers->get('X-Conflict-Code'));
 
         $retrySafe = new ConcurrencyConflict(3, TransientFailureKind::Deadlock, 1, $this->driver(DeadlockException::class));
         $response  = $this->dispatch($retrySafe, ['_route' => 'nowo_auth_kit_register'], 'json')->getResponse();
@@ -162,7 +164,7 @@ final class StorageFailureSubscriberTest extends TestCase
         $ledger->record();
         $error = $this->dispatch(new TransientStorageFailure(1), ['_route' => 'nowo_auth_kit_login'], null, null, $ledger)->getThrowable();
         self::assertInstanceOf(HttpException::class, $error);
-        self::assertSame(['Retry-After' => '1'], $error->getHeaders(), 'no snapshot: nothing known to be committed');
+        self::assertSame(['X-Conflict-Code' => 'CONFLICT_001', 'Retry-After' => '1'], $error->getHeaders(), 'no snapshot: nothing known to be committed');
     }
 
     public function testUniqueViolationsOptimisticLocksAndLostConnectionsAreNotConflicts(): void

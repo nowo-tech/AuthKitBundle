@@ -15,12 +15,13 @@ use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationManager;
 use Nowo\AuthKitBundle\Invitation\InvitationOutcome;
 use Nowo\AuthKitBundle\Invitation\InvitationRequest;
+use Nowo\AuthKitBundle\Invitation\InvitationSnapshot;
 use Nowo\AuthKitBundle\Invitation\InvitationTokens;
-use Nowo\AuthKitBundle\Invitation\Security\InvitationActionAuthorizerInterface;
+use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
+use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Psr\Cache\CacheItemPoolInterface;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -28,7 +29,6 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 use function intdiv;
 use function parse_url;
@@ -44,8 +44,6 @@ use const PHP_URL_PATH;
  */
 final class InvitationCpRegressionTest extends WebTestCase
 {
-    use HostModeNotices;
-
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string
@@ -86,10 +84,8 @@ final class InvitationCpRegressionTest extends WebTestCase
 
         // Host rule: only the super administrator may act on organization 2.
         $this->hooks()->asked     = [];
-        $this->hooks()->authorize = static function (?UserInterface $actor, string $action, Invitation|InvitationRequest $subject): bool {
-            $payload = $subject instanceof Invitation ? $subject->getPayload() : $subject->payload;
-
-            return ($payload['organization'] ?? null) !== 2 || $actor?->getUserIdentifier() === 'super@example.com';
+        $this->hooks()->authorize = static function (?AuthUserRef $actor, string $action, InvitationSnapshot|InvitationRequest $subject): bool {
+            return ($subject->payload['organization'] ?? null) !== 2 || $actor?->identifier === 'super@example.com';
         };
         $member = $this->user('member@example.com');
         $merge  = $this->manager()->invite($member, 'default', new InvitationRequest('v@example.com', payload: ['organization' => 2, 'org_role' => 'owner', 'teams' => ['admins']], returnLink: true));
@@ -99,9 +95,9 @@ final class InvitationCpRegressionTest extends WebTestCase
         self::assertSame(InvitationOutcome::NOT_ALLOWED, $this->manager()->resend($member, $this->invitation('v@example.com'), null, true)->status);
         self::assertSame(InvitationOutcome::NOT_ALLOWED, $this->manager()->revoke($member, $this->invitation('v@example.com'))->status);
         self::assertSame([
-            InvitationActionAuthorizerInterface::INVITE,
-            InvitationActionAuthorizerInterface::RESEND,
-            InvitationActionAuthorizerInterface::REVOKE,
+            InvitationActionPolicyInterface::INVITE,
+            InvitationActionPolicyInterface::RESEND,
+            InvitationActionPolicyInterface::REVOKE,
         ], $this->hooks()->asked);
 
         // The re-invite by an allowed actor records who made it; the original inviter stays invitedBy.
@@ -109,7 +105,7 @@ final class InvitationCpRegressionTest extends WebTestCase
         $this->hooks()->asked     = [];
         $allowed                  = $this->manager()->invite($member, 'default', new InvitationRequest('v@example.com', payload: ['organization' => 2], returnLink: true));
         self::assertSame(InvitationOutcome::LINK, $allowed->status);
-        self::assertSame([InvitationActionAuthorizerInterface::INVITE, InvitationActionAuthorizerInterface::REINVITE, InvitationActionAuthorizerInterface::RETURN_LINK], $this->hooks()->asked);
+        self::assertSame([InvitationActionPolicyInterface::INVITE, InvitationActionPolicyInterface::REINVITE, InvitationActionPolicyInterface::RETURN_LINK], $this->hooks()->asked);
         self::assertSame('super@example.com', $allowed->invitation?->invitedBy);
         self::assertSame('member@example.com', $allowed->invitation->lastSentBy);
         self::assertSame('member@example.com', $this->invitation('v@example.com')->getLastSentBy());

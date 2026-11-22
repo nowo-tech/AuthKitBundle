@@ -9,11 +9,11 @@ use Nowo\AuthKitBundle\User\Event\CredentialsChangedEvent;
 use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 
 /**
- * Port (1.46.0): the framework-free twin of the deprecated {@see UserWriterInterface} (REQ-ARCH-001 rule 3). Stores the
+ * Port (1.46.0; 2.0: replaces the removed `UserWriterInterface`), framework-free (REQ-ARCH-001 rule 3). Stores the
  * users AuthKit creates or changes. The references AuthKit passes carry the user object it works on
  * ({@see AuthUserRef::user()}: the one your {@see UserCreatorInterface} or {@see UserDirectoryInterface} returned).
  *
- * Same contract as the deprecated port: throw {@see DuplicateUserException} for a taken unique value; `remove()` is
+ * Contract (as the 1.x port's): throw {@see DuplicateUserException} for a taken unique value; `remove()` is
  * the compensation of a failed acceptance / social sign-in / `first_user_only` race; after `changePassword()` AuthKit
  * always calls `save()` and dispatches {@see CredentialsChangedEvent} itself.
  */

@@ -11,8 +11,7 @@ use function str_ends_with;
 use function str_starts_with;
 
 /**
- * One host rule, written once and implemented through both the deprecated ports ({@see LegacyRulePorts}) and their
- * 1.46 twins ({@see TwinRulePorts}), for the equivalence matrix.
+ * One host rule, written once and implemented through the ports ({@see TwinRulePorts}).
  */
 final class PortRule
 {

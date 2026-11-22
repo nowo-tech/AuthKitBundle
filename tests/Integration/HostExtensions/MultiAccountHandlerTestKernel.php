@@ -58,7 +58,8 @@ final class MultiAccountHandlerTestKernel extends MultiAccountTestKernel
         if (is_string($url) && $url !== '') {
             $container->loadFromExtension('doctrine', ['dbal' => ['url' => $url]]);
         }
-        $container->register(PendingStepCallbackHandler::class)->setAutowired(true)->setAutoconfigured(true)->setPublic(true);
+        // 2.0: the Request / Response handler interface is AuthKit's internal one (no longer autoconfigured): tagged by hand.
+        $container->register(PendingStepCallbackHandler::class)->setAutowired(true)->setAutoconfigured(true)->setPublic(true)->addTag('nowo_auth_kit.social_callback_handler');
     }
 
     protected function configureRoutes(RoutingConfigurator $routes): void

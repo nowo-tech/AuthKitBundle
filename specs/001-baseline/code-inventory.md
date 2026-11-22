@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-22 (1.56.0)  
-**Units**: **470** (`399` PHP under `src/` + `71` Resources)
+**Last audited**: 2026-11-22 (feat/2.0, after 1.56.0)  
+**Units**: **468** (`399` PHP under `src/` + `69` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -127,7 +127,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `QrLogin/QrLoginChallengeManager.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/QrLoginGate.php` | production | FR-QR-001 | Mapped |
 | `QrLogin/QrLoginRateLimiter.php` | production | FR-QR-001 | Mapped |
-| `QrLogin/QrLoginStepUpInterface.php` | production | FR-QR-001 | Mapped |
+| `Port/Internal/QrLoginStepUpInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-QR-001, FR-PORT-001 | Mapped |
 | `QrLogin/QrLoginUserResolver.php` | production | FR-QR-001 | Mapped |
 | `Repository/QrLoginChallengeRepository.php` | production | FR-QR-001 | Mapped |
 | `Form/QrLoginRetryType.php` | production | FR-QR-001 | Mapped |
@@ -294,7 +294,6 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Resources/views/embed/_login_panel.html.twig` | production | FR-TWIG-001 | Mapped |
 | `Resources/views/embed/_register_panel.html.twig` | production | FR-TWIG-001 | Mapped |
 | `Resources/views/embed/dropdown.html.twig` | production | FR-TWIG-001 | Mapped |
-| `Resources/views/layout.html.twig` | production | FR-TWIG-001 | Mapped |
 | `Resources/views/security/login.html.twig` | production | FR-TWIG-001 | Mapped |
 | `Resources/views/security/magic_login_confirm.html.twig` | production | FR-TWIG-001 | Mapped |
 | `Resources/views/security/magic_login_request.html.twig` | production | FR-TWIG-001 | Mapped |
@@ -339,7 +338,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Invitation/Event/InvitationsPurgedEvent.php` | production | FR-INV-008 | Mapped |
 | `Invitation/InvitationAcceptance.php` | production | FR-INVH-003, FR-INVH-006 | Mapped |
 | `Invitation/InvitationAcceptor.php` | production | FR-INV-002, FR-INV-005, FR-INVH-002, FR-INVH-003, FR-INVH-006, FR-INVF-001, FR-INVF-004, FR-INVF-005, FR-INVF-006 | Mapped |
-| `Invitation/InvitationGrantInterface.php` | production | FR-INV-005 | Mapped |
+| `Port/Internal/InvitationGrantInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-INV-005, FR-PORT-001 | Mapped |
 | `Invitation/InvitationGrantTag.php` | production ([spec 004](../004-invitations-host-api/spec.md)) | FR-INVH-011 | Mapped |
 | `Invitation/InvitationMail.php` | production | FR-INV-007 | Mapped |
 | `Invitation/InvitationMailerInterface.php` | production | FR-INV-007 | Mapped |
@@ -353,9 +352,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Invitation/InvitationTokens.php` | production | FR-INV-002 | Mapped |
 | `Invitation/MailerInvitationMailer.php` | production | FR-INV-007 | Mapped |
 | `Invitation/NullInvitationMailer.php` | production | FR-INV-007 | Mapped |
-| `Invitation/Security/InvitationActionAuthorizerInterface.php` | production | FR-INVH-010 | Mapped |
+| `Port/Internal/InvitationActionAuthorizerInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-INVH-010, FR-PORT-001 | Mapped |
 | `Invitation/Security/InvitationActionNames.php` | production | FR-INVH-011 | Mapped |
-| `Invitation/Security/InvitationsAccessCheckerInterface.php` | production | FR-INV-004 | Mapped |
+| `Port/Internal/InvitationsAccessCheckerInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-INV-004, FR-PORT-001 | Mapped |
 | `Invitation/Security/InvitationsAccessGuard.php` | production | FR-INV-004 | Mapped |
 | `Invitation/Security/RoleInvitationsAccessChecker.php` | production | FR-INV-004 | Mapped |
 | `Invitation/Ui/InvitationAdminPages.php` | production | FR-INV-004 | Mapped |
@@ -383,6 +382,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
 | `DependencyInjection/Compiler/AuthKitPortsPass.php` | production | FR-PORT-003 | Mapped |
+| `DependencyInjection/Compiler/RemovedPortsPass.php` | production | FR-PORT-003 | Mapped |
 | `Internal/HiddenValues.php` | production | FR-PORT-002 | Mapped |
 | `Port/AccountPresentationGate.php` | production | FR-PORT-001 | Mapped |
 | `Port/AuthRequestContexts.php` | production | FR-PORT-001 | Mapped |
@@ -416,7 +416,6 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Doctrine/PrivateEntityManagerDriver.php` | production | FR-PEM-002 | Mapped |
 | `Doctrine/PrivateEntityManagerMiddleware.php` | production | FR-PEM-002 | Mapped |
 | `Doctrine/PrivateEntityManagerSubscriber.php` | production | FR-PEM-002 | Mapped |
-| `Doctrine/HostFlushReporter.php` | production | FR-PEM-004 | Mapped |
 | `Doctrine/AuthKitEntities.php` | production | FR-PEM-005 | Mapped |
 | `Doctrine/AuthKitEntityNotFoundException.php` | production | FR-PEM-005 | Mapped |
 | `Doctrine/AuthKitEntityNotManagedException.php` | production | FR-PEM-005 | Mapped |
@@ -445,7 +444,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Mfa/MfaManager.php` | production | FR-MFA-001 | Mapped |
 | `Mfa/MfaOwner.php` | production | FR-MFA-001 | Mapped |
 | `Mfa/MfaOwnerResolver.php` | production | FR-MFA-001 | Mapped |
-| `Mfa/MfaPolicyInterface.php` | production | FR-MFA-001 | Mapped |
+| `Port/Internal/MfaPolicyInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-MFA-001, FR-PORT-001 | Mapped |
 | `Mfa/MfaRequirement.php` | production | FR-MFA-001 | Mapped |
 | `Mfa/MfaRequirementPolicyInterface.php` | production | FR-MFA-001 | Mapped |
 | `Mfa/MfaStatus.php` | production | FR-MFA-001 | Mapped |
@@ -460,7 +459,6 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Mfa/Twig/MfaExtension.php` | production | FR-MFA-001 | Mapped |
 | `Resources/config/mfa.yaml` | production | FR-MFA-001 | Mapped |
 | `Resources/public/js/nowo-auth-kit-otp.js` | production | FR-MFA-008 | Mapped |
-| `Resources/views/form/mfa_otp_widget.html.twig` | production | FR-MFA-008 | Mapped |
 | `Resources/views/mfa/_account.html.twig` | production | FR-MFA-008 | Mapped |
 | `Resources/views/mfa/_code_form.html.twig` | production | FR-MFA-008 | Mapped |
 | `Resources/views/mfa/_codes.html.twig` | production | FR-MFA-008 | Mapped |
@@ -483,7 +481,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Entity/AccountVaultEntry.php` | production | FR-MULTI-002 | Mapped |
 | `MultiAccount/AccountPresentation.php` | production | FR-MULTI-001 | Mapped |
 | `MultiAccount/AccountPresentationProviderInterface.php` | production | FR-MULTI-001 | Mapped |
-| `MultiAccount/AccountPresenterInterface.php` | production | FR-MULTI-001 | Mapped |
+| `Port/Internal/AccountPresenterInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-MULTI-001, FR-PORT-001 | Mapped |
 | `MultiAccount/AccountRemovalReason.php` | production | FR-MULTI-001 | Mapped |
 | `MultiAccount/AccountState.php` | production | FR-MULTI-001 | Mapped |
 | `MultiAccount/AccountVault.php` | production | FR-MULTI-001 | Mapped |
@@ -491,7 +489,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `MultiAccount/Command/PurgeAccountVaultCommand.php` | production | FR-MULTI-005 | Mapped |
 | `MultiAccount/Controller/AccountsController.php` | production | FR-MULTI-003 | Mapped |
 | `MultiAccount/DefaultEnrolmentGate.php` | production | FR-MULTI-001 | Mapped |
-| `MultiAccount/EnrolmentGateInterface.php` | production | FR-MULTI-001 | Mapped |
+| `Port/Internal/EnrolmentGateInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-MULTI-001, FR-PORT-001 | Mapped |
 | `MultiAccount/EnrolmentPolicyInterface.php` | production | FR-MULTI-001 | Mapped |
 | `MultiAccount/EventSubscriber/MultiAccountSubscriber.php` | production | FR-MULTI-003 | Mapped |
 | `MultiAccount/IdentifierAccountPresenter.php` | production | FR-MULTI-001 | Mapped |
@@ -565,7 +563,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `SocialLogin/FirstUserLockRequired.php` | production | FR-SOCSTEP-001 | Mapped |
 | `SocialLogin/ProviderMarkResolver.php` | production | FR-SOCSTEP-001 | Mapped |
 | `SocialLogin/SocialCallbackContext.php` | production | FR-SOCSTEP-001 | Mapped |
-| `SocialLogin/SocialCallbackHandlerInterface.php` | production | FR-SOCSTEP-001 | Mapped |
+| `Port/Internal/SocialCallbackHandlerInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-SOCSTEP-001, FR-PORT-001 | Mapped |
 | `SocialLogin/SocialCallbackStepInterface.php` | production | FR-SOCSTEP-001 | Mapped |
 | `SocialLogin/SocialHandlerSignInRollback.php` | production | FR-SOCSTEP-001 | Mapped |
 
@@ -691,20 +689,20 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `User/UserCreationSource.php` | production | FR-USER-001 | Mapped |
 | `User/UserCreatorInterface.php` | production | FR-USER-001 | Mapped |
 | `User/UserDirectoryInterface.php` | production | FR-USER-001 | Mapped |
-| `User/UserFactoryInterface.php` | production | FR-USER-001 | Mapped |
+| `Port/Internal/UserFactoryInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-USER-001, FR-PORT-001 | Mapped |
 | `User/UserIds.php` | production | FR-USER-001 | Mapped |
-| `User/UserLookupInterface.php` | production | FR-USER-001 | Mapped |
+| `Port/Internal/UserLookupInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-USER-001, FR-PORT-001 | Mapped |
 | `User/UserStoreInterface.php` | production | FR-USER-001 | Mapped |
-| `User/UserWriterInterface.php` | production | FR-USER-001 | Mapped |
+| `Port/Internal/UserWriterInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-USER-001, FR-PORT-001 | Mapped |
 
 ## Summary
 
 | Metric | Count |
 | --- | ---: |
 | PHP under `src/` | 399 |
-| Resources (config/translations/views/public) | 71 |
-| **Total production sources** | **470** |
-| Audit command | `git ls-files src \| wc -l` → 470 |
+| Resources (config/translations/views/public) | 69 |
+| **Total production sources** | **468** |
+| Audit command | `git ls-files src \| wc -l` → 468 |
 
 ## Coverage gate
 

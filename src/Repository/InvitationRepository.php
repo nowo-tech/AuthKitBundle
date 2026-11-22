@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Repository;
 
 use Closure;
 use DateTimeImmutable;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -13,7 +14,6 @@ use Nowo\AuthKitBundle\Doctrine\AuthKitEntities;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotFoundException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityNotManagedException;
 use Nowo\AuthKitBundle\Doctrine\AuthKitSavepoint;
-use Nowo\AuthKitBundle\Doctrine\HostFlushReporter;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use OverflowException;
@@ -57,23 +57,9 @@ class InvitationRepository extends EntityRepository
     /** Status filters of the administration list (`open` = pending and expired, the default). */
     public const FILTERS = ['open', 'pending', 'expired', 'accepted', 'revoked', 'all'];
 
-    private ?HostFlushReporter $hostFlush = null;
-
     public function __construct(EntityManagerInterface $em)
     {
         parent::__construct($em, $em->getClassMetadata(Invitation::class));
-    }
-
-    /**
-     * 1.54.0 (REQ-ARCH-001 rule 6 deprecation layer): set by the container only without
-     * `doctrine.private_entity_manager: true`, to report the application's pending changes a host-mode flush writes. A
-     * repository Doctrine builds itself ({@see EntityManagerInterface::getRepository()}) has none.
-     *
-     * @internal
-     */
-    public function setHostFlushReporter(?HostFlushReporter $hostFlush): void
-    {
-        $this->hostFlush = $hostFlush; // @igor-ignore - set once by the container when the service is built
     }
 
     /**
@@ -90,13 +76,64 @@ class InvitationRepository extends EntityRepository
     {
         $manager = $this->getEntityManager();
         AuthKitEntities::assertSavable($manager, $invitation);
-        (new AuthKitTransactionRunner($manager, hostFlush: $this->hostFlush))->run(static fn () => $manager->persist($invitation));
+        (new AuthKitTransactionRunner($manager))->run(static fn () => $manager->persist($invitation));
+    }
+
+    /**
+     * 2.0 (REQ-RUNTIME-003, audit XX-I1): stores the change of an existing invitation (a resend, a re-invite, a
+     * revocation) only while its row is still open, in one unit of work: a conditional UPDATE writes the new token hash
+     * and the revocation guarded on `acceptedAt IS NULL AND revokedAt IS NULL` (it also takes the row lock), and the
+     * remaining changes are flushed in the same transaction. A concurrent acceptance therefore either commits first
+     * (nothing is written here: the instance is refreshed from the row and false is returned) or waits and then finds
+     * the old token gone or the invitation revoked (its own single-use claim fails). A new invitation is inserted.
+     *
+     * @throws AuthKitEntityNotManagedException When the invitation exists and this manager does not hold the instance
+     * @throws AuthKitEntityNotFoundException When its row no longer exists
+     *
+     * @return bool false when the invitation was accepted or revoked meanwhile (nothing written)
+     *
+     * @internal used by InvitationManager
+     */
+    public function saveWhileOpen(Invitation $invitation): bool
+    {
+        if ($invitation->getId() === null) {
+            $this->save($invitation);
+
+            return true;
+        }
+        $manager = $this->getEntityManager();
+        AuthKitEntities::assertSavable($manager, $invitation);
+
+        // On the connection: the manager is flushed only after the guard (a flush first would write the change unguarded).
+        return (new AuthKitTransactionRunner($manager))->runOnConnection(function () use ($manager, $invitation): bool {
+            $query = $manager->createQueryBuilder()
+                ->update(Invitation::class, 'i')
+                ->set('i.tokenHash', ':hash')
+                ->set('i.revokedAt', ':revokedAt')
+                ->set('i.revokedBy', ':revokedBy')
+                ->where('i.id = :id')
+                ->andWhere('i.acceptedAt IS NULL')
+                ->andWhere('i.revokedAt IS NULL')
+                ->setParameter('hash', $invitation->getTokenHash())
+                ->setParameter('revokedAt', $invitation->getRevokedAt(), Types::DATETIME_IMMUTABLE)
+                ->setParameter('revokedBy', $invitation->getRevokedBy())
+                ->setParameter('id', $invitation->getId())
+                ->getQuery();
+            if ($this->write(static fn (): mixed => $query->execute()) !== 1) {
+                // Accepted or revoked meanwhile: drop this unit's changes, write nothing.
+                $manager->refresh($invitation);
+
+                return false;
+            }
+            $manager->flush();
+
+            return true;
+        });
     }
 
     /**
      * 1.55.0 (REQ-ARCH-001 rule 6): the instance this repository's manager holds for the invitation, loaded again by id
-     * when the caller's instance comes from another manager (with `doctrine.private_entity_manager: true`, an invitation
-     * the application loaded through its own manager). The same object otherwise, and for a new invitation. The
+     * when the caller's instance comes from another manager (an invitation the application loaded through its own manager). The same object otherwise, and for a new invitation. The
      * caller's instance and manager are left untouched.
      *
      * @throws AuthKitEntityNotFoundException When the invitation no longer exists

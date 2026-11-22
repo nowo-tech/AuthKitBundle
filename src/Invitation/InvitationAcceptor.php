@@ -15,7 +15,9 @@ use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationAcceptingEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationOpeningEvent;
+use Nowo\AuthKitBundle\Port\Internal\UserWriterInterface;
 use Nowo\AuthKitBundle\Port\Ports;
+use Nowo\AuthKitBundle\Port\UserStoreGate;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
@@ -25,10 +27,8 @@ use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Transaction\AccountLock;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
-use Nowo\AuthKitBundle\User\Doctrine\DoctrineUserWriter;
 use Nowo\AuthKitBundle\User\Event\UserRegisteredEvent;
 use Nowo\AuthKitBundle\User\UserCreationSource;
-use Nowo\AuthKitBundle\User\UserWriterInterface;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -52,7 +52,7 @@ use function trim;
  * replaced token (constant-time hash comparison); an expired one whose token is still the current one is reported as
  * such. {@see self::accept()} claims the invitation (single use: one conditional UPDATE), creates the account through
  * {@see UserRegistrar::registerInvited()} with the roles still grantable (`invitations.roles` re-checked), runs the
- * {@see InvitationGrantInterface} services and commits — all in one transaction — then dispatches
+ * {@see InvitationGrantHandlerInterface} services and commits — all in one transaction — then dispatches
  * {@see InvitationAcceptedEvent}.
  *
  * 1.33: {@see InvitationAcceptingEvent} before the transaction (a host may refuse with a reason shown to the invitee),
@@ -73,7 +73,7 @@ final readonly class InvitationAcceptor
     public const REJECTED_EVENT_WINDOW = 3600;
 
     /**
-     * @param iterable<InvitationGrantInterface> $grants
+     * @param iterable<InvitationGrantHandlerInterface> $grants
      */
     // 1.50.0: the EntityManagerRecovery argument is kept for compatibility (closed managers are replaced at the boundary).
     // @phpstan-ignore constructor.unusedParameter
@@ -211,7 +211,9 @@ final readonly class InvitationAcceptor
      */
     public function accept(Invitation $invitation, string $tokenHash, array $formData): ?UserInterface
     {
-        return $this->attempt($invitation, $tokenHash, $formData)->user;
+        $user = $this->attempt($invitation, $tokenHash, $formData)->userRef()?->user();
+
+        return $user instanceof UserInterface ? $user : null;
     }
 
     /**
@@ -244,14 +246,14 @@ final readonly class InvitationAcceptor
      * ({@see self::sameEmail()}: ASCII case-insensitive, otherwise NFC byte-equal), {@see InvitationAcceptingEvent} with
      * {@see InvitationAcceptingEvent::$user} set (a host refuses there, e.g. no seat left), then one transaction: the
      * single-use conditional claim of the current link (a resend, revoke or concurrent acceptance in between makes it
-     * fail: `not_accepted`), the {@see InvitationGrantInterface} services, the commit; then
+     * fail: `not_accepted`), the {@see InvitationGrantHandlerInterface} services, the commit; then
      * {@see InvitationAcceptedEvent} with `existingAccount: true`. No account is created and no
      * {@see UserRegisteredEvent} is dispatched.
      *
      * The account must be of the invitation profile's `user_class` (`not_accepted` otherwise). AuthKit never changes
      * the roles of an existing account: an invitation that still carries a grantable role (`invitations.roles`) is
      * refused (`not_accepted`); invite existing accounts without roles, or grant them in an
-     * {@see InvitationGrantInterface}. Call it outside your own transaction (its events follow its own commit). 1.50.0: on a failure only the rows the
+     * {@see InvitationGrantHandlerInterface}. Call it outside your own transaction (its events follow its own commit). 1.50.0: on a failure only the rows the
      * acceptance touched are detached (reload those), never the whole manager.
      *
      * @param UserInterface $user the signed-in account accepting it (the host checks who may act for it)
@@ -387,7 +389,7 @@ final readonly class InvitationAcceptor
             $invitation->markAccepted($user->getUserIdentifier(), $now);
             $accepted = InvitationSnapshot::of($invitation, $now);
             foreach ($this->grants as $grant) {
-                // 1.46.0: the deprecated interface as in 1.45, else the framework-free twin.
+                // The port through its gate.
                 Ports::invitationGrant($grant)->grant($accepted, $user);
             }
 
@@ -455,7 +457,7 @@ final readonly class InvitationAcceptor
      */
     private function compensate(ProfileSettings $profile, ?UserInterface $user): void
     {
-        if (!$user instanceof UserInterface || !$this->userWriter instanceof UserWriterInterface || $this->userWriter instanceof DoctrineUserWriter) {
+        if (!$user instanceof UserInterface || !$this->userWriter instanceof UserWriterInterface || UserStoreGate::storesThroughDoctrine($this->userWriter)) {
             return;
         }
 

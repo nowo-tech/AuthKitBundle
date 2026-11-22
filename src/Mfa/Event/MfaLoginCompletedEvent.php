@@ -20,14 +20,14 @@ use function is_string;
 final class MfaLoginCompletedEvent extends MfaEvent
 {
     /**
-     * @param TokenInterface $token @deprecated since 1.46.0, use userRef() and firewall(); removed in 2.0
-     * @param Request $request @deprecated since 1.46.0, use requestContext(); removed in 2.0
+     * @param TokenInterface $token not public since 2.0: read userRef() and firewall()
+     * @param Request $request not public since 2.0: read requestContext()
      */
     public function __construct(
         string $profile,
         UserInterface $user,
-        public readonly TokenInterface $token,
-        public readonly Request $request,
+        private readonly TokenInterface $token,
+        private readonly Request $request,
         public readonly string $firstFactor,
     ) {
         parent::__construct($profile, $user);
@@ -49,26 +49,6 @@ final class MfaLoginCompletedEvent extends MfaEvent
     public function requestContext(): AuthRequestContext
     {
         return AuthRequestContexts::fromRequest($this->request, $this->firewall(), $this->profile);
-    }
-
-    /**
-     * The `$token` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use userRef() and firewall(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function token(): TokenInterface
-    {
-        return $this->token;
-    }
-
-    /**
-     * The `$request` value (1.55.0).
-     *
-     * @deprecated since 1.55.0, use requestContext(); removed in 2.0 with the framework-typed property (REQ-ARCH-001 rule 3)
-     */
-    public function request(): Request
-    {
-        return $this->request;
     }
 
     /**

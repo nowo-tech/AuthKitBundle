@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Controller\InvitationAcceptController;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationCreatedEvent;
 use Nowo\AuthKitBundle\Invitation\Event\InvitationLinkRejectedEvent;
@@ -24,7 +25,6 @@ use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
@@ -52,8 +52,6 @@ use const PHP_URL_PATH;
  */
 final class InvitationHostApiKernelTest extends WebTestCase
 {
-    use HostModeNotices;
-
     private KernelBrowser $client;
 
     protected static function getKernelClass(): string
@@ -284,6 +282,10 @@ final class InvitationHostApiKernelTest extends WebTestCase
         $this->entityManager()->createQuery('UPDATE ' . Invitation::class . ' i SET i.expiresAt = :past WHERE i.email = :email')
             ->setParameter('past', new DateTimeImmutable('-1 day'))->setParameter('email', 'late@example.com')->execute();
         $this->entityManager()->clear();
+        // 2.0: AuthKit's private manager still holds the copy it wrote; drop it, as the next request would.
+        $private = self::getContainer()->get(AuthKitEntityManager::class);
+        self::assertInstanceOf(AuthKitEntityManager::class, $private);
+        $private->reset();
         $session->set(InvitationAcceptor::SESSION_KEY . 'default', $acceptor->hashToken($this->token($late)));
         self::assertSame(InvitationAcceptance::EXPIRED, $acceptor->acceptPendingForSocial($session, 'default', $this->social('late@example.com', true))->status);
 

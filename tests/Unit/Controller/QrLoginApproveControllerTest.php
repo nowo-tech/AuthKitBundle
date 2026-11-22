@@ -10,12 +10,13 @@ use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
 use Nowo\AuthKitBundle\Enum\QrLoginChallengeStatus;
 use Nowo\AuthKitBundle\Form\QrLoginDenyType;
 use Nowo\AuthKitBundle\Form\SlideToConfirmTypeResolver;
+use Nowo\AuthKitBundle\Port\Internal\QrLoginStepUpInterface;
+use Nowo\AuthKitBundle\Port\QrLoginStepUpGate;
 use Nowo\AuthKitBundle\QrLogin\NullQrLoginStepUp;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeConflictException;
 use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\QrLogin\QrLoginRateLimiter;
-use Nowo\AuthKitBundle\QrLogin\QrLoginStepUpInterface;
 use Nowo\AuthKitBundle\QrLogin\QrLoginUserResolver;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
@@ -124,7 +125,7 @@ final class QrLoginApproveControllerTest extends TestCase
                 PropertyAccess::createPropertyAccessor(),
             ),
             $rateLimiter ?? new QrLoginRateLimiter(new AuthKitAttemptLimiter(new ArrayAdapter())),
-            $stepUp ?? new NullQrLoginStepUp(),
+            $stepUp ?? new QrLoginStepUpGate(new NullQrLoginStepUp(), ProfileRegistryFactory::requestResolver(TestUser::class, $overrides)),
             $tokenStorage ?? new TokenStorage(),
             ProfileRegistryFactory::requestResolver(TestUser::class, $overrides),
             $formFactory ?? $this->validFormFactory(),

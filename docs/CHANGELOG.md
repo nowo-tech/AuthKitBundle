@@ -120,6 +120,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+2.0 removes what 1.x announced through deprecation notices (REQ-BC-001, REQ-ARCH-001 rules 3 and 6): see UPGRADING.md,
+"To 2.0.0". An application that runs 1.56 without deprecation notices from this bundle, and without the uses listed
+in UPGRADING "Before you upgrade", item 3 (which no notice can report), upgrades without code changes.
+
+### Changed
+
+- **BREAKING:** the private entity manager is the only mode (REQ-ARCH-001 rule 6). With the AuthKit entities mapped,
+  AuthKit always reads and writes its rows through its own entity manager (on the default manager's connection and
+  mapping; the tables do not move) and never flushes the application's pending changes. `doctrine.private_entity_manager:
+  false` fails the build; `true` is a deprecated no-op until 3.0. The account writes (the application's user entities,
+  the reset credential on the user entity, the invitation grants inside the acceptance) still go through the
+  application's manager. Hosts without the AuthKit entities mapped are unchanged.
+- **BREAKING:** AuthKit's built-in port services implement the 1.46 ports: `DoctrineUserLookup` (`UserDirectoryInterface`),
+  `PropertyAccessUserFactory` (`UserCreatorInterface`), `DoctrineUserWriter` (`UserStoreInterface`), `NullQrLoginStepUp`
+  and `DeviceIntelligenceQrLoginStepUp` (`QrLoginStepUpPolicyInterface`; the Device Intelligence step-up now decorates
+  that port), `DefaultEnrolmentGate` (`EnrolmentPolicyInterface`), `IdentifierAccountPresenter`
+  (`AccountPresentationProviderInterface`), `RoleInvitationsAccessChecker` (`InvitationsAccessPolicyInterface`). The
+  ports are aliased to them by default. Same behaviour.
+- **BREAKING:** the tag and action constants of the removed `InvitationActionAuthorizerInterface` are on
+  `InvitationActionPolicyInterface`, and `InvitationGrantInterface::TAG` is `InvitationGrantHandlerInterface::TAG` (same
+  values).
+
+### Removed
+
+- **BREAKING:** the 1.45 host port interfaces deprecated in 1.46.0 (notice since 1.54.0): `User\UserLookupInterface`,
+  `User\UserFactoryInterface`, `User\UserWriterInterface`, `QrLogin\QrLoginStepUpInterface`, `Mfa\MfaPolicyInterface`,
+  `MultiAccount\EnrolmentGateInterface`, `MultiAccount\AccountPresenterInterface`,
+  `Invitation\Security\InvitationsAccessCheckerInterface`, `Invitation\Security\InvitationActionAuthorizerInterface`,
+  `Invitation\InvitationGrantInterface`, `SocialLogin\SocialCallbackHandlerInterface`. A service, alias or decorator
+  under a removed id, or a class that still implements a removed interface, fails the container build with the
+  replacement (it is never dropped silently: a dropped host decorator would widen access).
+- **BREAKING:** the event and result members deprecated in 1.46.0 are no longer public, and the getters 1.55.0 added for
+  them (deprecated from the start) are gone: `AdminUserCreatingEvent::getUser()`, `AdminUserCreatedEvent::getUser()`,
+  `AdminMagicLinkIssuedEvent::$issuer` / `$target`, `InvitationEvent::$actor`, `InvitationAcceptedEvent::$user`,
+  `InvitationAcceptingEvent::$user`, `MfaEvent::$user`, `MfaResetByAdminEvent::$actor`,
+  `MfaLoginCompletedEvent::$token` / `$request`, `AccountEvent::$request`, `AccountAddedEvent::$user`,
+  `AccountRemovedEvent::$user`, `AccountSwitchedEvent::$from` / `$to`, `AccountSwitchingEvent::$from` / `$to`, the
+  `$challenge` of the four QR login events, `QrLogin{Approved,Completed}Event::$user`, `CredentialsChangedEvent::$user`,
+  `AccountState::$user`, `SwitchOutcome::$user`, `InvitationAcceptance::$user`. Constructors unchanged; use the `*Ref()`
+  accessors.
+- **BREAKING:** the configuration keys deprecated in 1.7 / 1.27 / 1.54: the root `default_locale`, `enabled_locales`,
+  `locale_in_path` (use `locale.*`), and per profile `templates.*` (use `web_ui.*`) and `css.*` (use the UiKit
+  `btn_primary` / `btn_secondary` slots). Each fails the build with its replacement. The `css.*` bridge into the UiKit
+  theme is gone.
+- **BREAKING:** the templates and globals deprecated in 1.27 / 1.52: `@NowoAuthKitBundle/layout.html.twig` (and its
+  blocks `auth_panel_heading`, `auth_brand`, `title`), the Twig globals `nowo_auth_kit_button_class` /
+  `nowo_auth_kit_secondary_button_class`, and the inert `@NowoAuthKitBundle/form/mfa_otp_widget.html.twig` (block
+  `nowo_auth_kit_mfa_otp_widget`).
+- **BREAKING:** the host-mode code of the 1.54 deprecation layer: the "not set" notice, the host-flush probe
+  (`Doctrine\HostFlushReporter`, internal) and `setHostFlushReporter()` of `InvitationRepository` /
+  `QrLoginChallengeRepository` (internal). `AuthKitTransactionRunner` and `MfaStore` keep their trailing `$hostFlush`
+  constructor argument, ignored and deprecated (removed in 3.0).
+- `IdentityCollationListener::postGenerateSchemaTable()` and `PasswordResetCollationListener::postGenerateSchemaTable()`
+  (no-ops since 1.54.1).
+
+### Deprecated
+
+- `doctrine.private_entity_manager: true` has no effect (removed in 3.0).
+
+### Fixed
+
+- Conflict answers (REQ-RUNTIME-003 rule 6) now carry `X-Conflict-Code` (`CONFLICT_001` with `Retry-After`,
+  `CONFLICT_002` without), on pages and JSON alike, through the conflict policy's `headersFor()` /
+  `httpExceptionFor()`. Up to 1.55 the code was only in the JSON body.
+- A resend, a re-invite or a revocation that raced with an acceptance could write over the accepted invitation (a new
+  token, or `revokedAt` on an accepted row) after reading it open (audit XX-I1). The change is now written by a
+  conditional UPDATE guarded on the row still being open, with the rest of the change in the same transaction: when the
+  acceptance committed first, nothing is written, no mail or event is sent and the outcome is `NOT_OPEN`. Covered on
+  SQLite, MySQL 8.4, MariaDB 11.4 and PostgreSQL 16.
+- AuthKit's writes no longer flush the application's pending changes (audit XB): closed by the private entity manager
+  being the only mode (see Changed).
+
+### Security
+
+- 1.x receives security fixes for 6 months after 2.0.0 (Moderate and above backported to the last 1.x minor); see
+  `.github/SECURITY.md`.
+
 ## [1.56.0] - 2026-11-22
 
 ### Added

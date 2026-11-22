@@ -17,7 +17,7 @@ use const PREG_SPLIT_NO_EMPTY;
 /**
  * Display data of one account (name, identifier for the secondary line, optional avatar URL).
  *
- * `avatarUrl` (from the host's {@see AccountPresenterInterface}) should be stable and access-checked when the browser
+ * `avatarUrl` (from the host's {@see AccountPresentationProviderInterface}) should be stable and access-checked when the browser
  * fetches it (no bearer secret). Since 1.35 the switcher renders it only through {@see avatarUrlFor()}: UiKit's avatar
  * URL policy (`https://` without userinfo, or a same-origin `/path`) and, by default, for the active account only.
  */

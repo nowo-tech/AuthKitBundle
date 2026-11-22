@@ -8,7 +8,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
@@ -17,8 +16,6 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class InvitationEnvBaseRegressionTest extends WebTestCase
 {
-    use HostModeNotices;
-
     protected static function getKernelClass(): string
     {
         return InvitationsEnvBaseTestKernel::class;

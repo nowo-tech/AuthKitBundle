@@ -10,6 +10,10 @@ use Nowo\AuthKitBundle\MultiAccount\Event\AccountAddedEvent;
 use Nowo\AuthKitBundle\MultiAccount\Event\AccountRemovedEvent;
 use Nowo\AuthKitBundle\MultiAccount\Event\AccountSwitchedEvent;
 use Nowo\AuthKitBundle\MultiAccount\Event\AccountSwitchingEvent;
+use Nowo\AuthKitBundle\Port\AccountPresentationGate;
+use Nowo\AuthKitBundle\Port\EnrolmentPolicyGate;
+use Nowo\AuthKitBundle\Port\Internal\AccountPresenterInterface;
+use Nowo\AuthKitBundle\Port\Internal\EnrolmentGateInterface;
 use Nowo\AuthKitBundle\Port\Ports;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
@@ -864,14 +868,14 @@ final readonly class AccountVault
     {
         $gate = $this->gates->has($profile->name) ? Ports::enrolmentGate($this->gates->get($profile->name)) : null;
 
-        return $gate instanceof EnrolmentGateInterface ? $gate : new DefaultEnrolmentGate();
+        return $gate instanceof EnrolmentGateInterface ? $gate : new EnrolmentPolicyGate(new DefaultEnrolmentGate());
     }
 
     private function presenter(ProfileSettings $profile): AccountPresenterInterface
     {
         $presenter = $this->presenters->has($profile->name) ? Ports::accountPresenter($this->presenters->get($profile->name)) : null;
 
-        return $presenter instanceof AccountPresenterInterface ? $presenter : new IdentifierAccountPresenter();
+        return $presenter instanceof AccountPresenterInterface ? $presenter : new AccountPresentationGate(new IdentifierAccountPresenter());
     }
 
     private function context(ProfileSettings $profile): string

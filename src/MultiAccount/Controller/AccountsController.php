@@ -96,7 +96,7 @@ final class AccountsController
         $outcome = $this->vault->switch($request, $profile, $account);
         if ($outcome->status === SwitchOutcome::SWITCHED || $outcome->status === SwitchOutcome::REVIVED) {
             if ($outcome->status === SwitchOutcome::SWITCHED) {
-                $this->flash->flash($request, 'success', 'accounts.flash.switched', ['%account%' => $outcome->user?->getUserIdentifier() ?? '']);
+                $this->flash->flash($request, 'success', 'accounts.flash.switched', ['%account%' => $outcome->userRef()->identifier ?? '']);
             }
 
             return $this->noStore(new RedirectResponse($this->afterSwitch($request, $profile), Response::HTTP_SEE_OTHER));

@@ -9,7 +9,7 @@ use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Enum\InvitationStatus;
 
 /**
- * Immutable copy of an invitation for events, mailers, templates and the {@see InvitationGrantInterface} services.
+ * Immutable copy of an invitation for events, mailers, templates and the {@see InvitationGrantHandlerInterface} services.
  * It never carries the token nor its hash.
  */
 final readonly class InvitationSnapshot

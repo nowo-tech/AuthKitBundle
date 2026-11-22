@@ -42,8 +42,8 @@ class MultiAccountFlowKernelTest extends MultiAccountKernelTestCase
         self::assertSame('member@example.com|' . UsernamePasswordToken::class, $this->whoami(), 'No password, no MFA: the original token is back.');
         self::assertNotSame($before, $this->client->getCookieJar()->get('MOCKSESSID')?->getValue());
         $switched = $this->eventsOf(AccountSwitchedEvent::class);
-        self::assertSame('support@example.com', $switched[0]->from?->getUserIdentifier());
-        self::assertSame('member@example.com', $switched[0]->to->getUserIdentifier());
+        self::assertSame('support@example.com', $switched[0]->fromRef()?->identifier);
+        self::assertSame('member@example.com', $switched[0]->toRef()->identifier);
 
         $this->switchTo('support@example.com');
         self::assertStringStartsWith('support@example.com|', $this->whoami());

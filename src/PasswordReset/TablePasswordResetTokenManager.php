@@ -6,12 +6,12 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 
 use LogicException;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
+use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\PasswordResetRequestRepository;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\User\UserIds;
-use Nowo\AuthKitBundle\User\UserLookupInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;

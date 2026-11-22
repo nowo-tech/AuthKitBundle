@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Port;
 
-use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessCheckerInterface;
 use Nowo\AuthKitBundle\Invitation\Security\InvitationsAccessPolicyInterface;
+use Nowo\AuthKitBundle\Port\Internal\InvitationsAccessCheckerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Asks a host {@see InvitationsAccessPolicyInterface} (1.46.0) where the bundle asks the deprecated
- * {@see InvitationsAccessCheckerInterface}. Only `true` allows; exceptions propagate. Built per call by {@see Ports}.
+ * Asks a host {@see InvitationsAccessPolicyInterface} (1.46.0) where the bundle asks its internal
+ * {@see InvitationsAccessCheckerInterface}. Only `true` allows; exceptions propagate. Built per call by {@see Ports} (2.0: the only way AuthKit asks the port).
  *
  * @internal
  */

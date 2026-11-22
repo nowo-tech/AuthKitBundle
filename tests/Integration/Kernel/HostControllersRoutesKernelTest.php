@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Kernel;
 
-use Nowo\AuthKitBundle\Tests\Support\HostModeNotices;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Routing\Loader\AttributeServicesLoader;
 use Symfony\Component\Routing\RouterInterface;
@@ -21,8 +20,6 @@ use function str_starts_with;
  */
 final class HostControllersRoutesKernelTest extends TestCase
 {
-    use HostModeNotices;
-
     public function testRoutingControllersAloneRegistersNoAuthKitRoute(): void
     {
         if (!class_exists(AttributeServicesLoader::class)) {
