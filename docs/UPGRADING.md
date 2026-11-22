@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.56.0](#to-1560)
   - [Preparing for 2.0: the tag and action constants](#preparing-for-20-the-tag-and-action-constants)
 - [To 1.55.1](#to-1551)
 - [To 1.55.0](#to-1550)
@@ -155,6 +156,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 1.56.0
+
+From **1.55.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ```bash
 composer update nowo-tech/auth-kit-bundle
