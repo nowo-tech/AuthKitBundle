@@ -53,6 +53,7 @@ final class ConflictAnswerTest extends LoadDatabaseTestCase
         $page = $browser->getResponse();
         self::assertSame(Response::HTTP_CONFLICT, $page->getStatusCode());
         self::assertSame('1', $page->headers->get('Retry-After'));
+        self::assertSame('CONFLICT_001', $page->headers->get('X-Conflict-Code'));
         self::assertStringNotContainsStringIgnoringCase('FOR UPDATE', (string) $page->getContent(), 'no SQL');
 
         // A JSON client: the 1.50 keys and the code.
@@ -60,6 +61,7 @@ final class ConflictAnswerTest extends LoadDatabaseTestCase
         $json = $browser->getResponse();
         self::assertSame(Response::HTTP_CONFLICT, $json->getStatusCode());
         self::assertSame('1', $json->headers->get('Retry-After'));
+        self::assertSame('CONFLICT_001', $json->headers->get('X-Conflict-Code'));
         self::assertSame(['ok' => false, 'error' => 'unavailable', 'code' => 'CONFLICT_001'], json_decode((string) $json->getContent(), true, 512, JSON_THROW_ON_ERROR));
 
         $this->assertHealthy();
@@ -97,11 +99,13 @@ final class ConflictAnswerTest extends LoadDatabaseTestCase
         self::assertSame(Response::HTTP_CONFLICT, $json->getStatusCode());
         self::assertSame(['ok' => false, 'error' => 'unavailable', 'code' => 'CONFLICT_002'], json_decode((string) $json->getContent(), true, 512, JSON_THROW_ON_ERROR));
         self::assertFalse($json->headers->has('Retry-After'));
+        self::assertSame('CONFLICT_002', $json->headers->get('X-Conflict-Code'));
 
         // A page gets the same status, without Retry-After.
         $browser->request('POST', CommitThenConflictController::PATH . '?commit=1');
         self::assertSame(Response::HTTP_CONFLICT, $browser->getResponse()->getStatusCode());
         self::assertFalse($browser->getResponse()->headers->has('Retry-After'));
+        self::assertSame('CONFLICT_002', $browser->getResponse()->headers->get('X-Conflict-Code'));
 
         $this->assertHealthy();
         self::assertSame(2, $this->rows("SELECT COUNT(*) FROM auth_kit_invitation WHERE email = 'first@example.com'"), 'the committed unit of each request stays, once');

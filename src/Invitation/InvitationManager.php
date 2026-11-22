@@ -311,7 +311,9 @@ final readonly class InvitationManager
             return InvitationOutcome::refused(InvitationOutcome::NOT_ALLOWED, $this->snapshot($invitation));
         }
 
-        return InvitationOutcome::revoked($this->close($actor, $invitation));
+        $closed = $this->close($actor, $invitation);
+
+        return $closed instanceof InvitationSnapshot ? InvitationOutcome::revoked($closed) : InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
     }
 
     /**
@@ -327,8 +329,9 @@ final readonly class InvitationManager
         for ($batch = 0; $batch < self::REVOKE_MAX_BATCHES; ++$batch) {
             $open = $this->invitations->findOpenByInviter($inviter, self::REVOKE_BATCH, $profile);
             foreach ($open as $invitation) {
-                $this->close($actor, $invitation);
-                ++$revoked;
+                if ($this->close($actor, $invitation) instanceof InvitationSnapshot) {
+                    ++$revoked;
+                }
             }
             if (count($open) < self::REVOKE_BATCH) {
                 break;
@@ -354,7 +357,11 @@ final readonly class InvitationManager
         [$token, $hash] = $this->tokens->generate();
         $now            = $this->now();
         $invitation->issue($hash, $ttl, $now, $actor?->getUserIdentifier());
-        $this->invitations->save($invitation);
+        // 2.0 (REQ-RUNTIME-003, XX-I1): an existing invitation is re-issued only while it is still open (a concurrent
+        // acceptance or revocation wins; nothing is written and nothing is sent).
+        if (!$this->invitations->saveWhileOpen($invitation)) {
+            return InvitationOutcome::refused(InvitationOutcome::NOT_OPEN, $this->snapshot($invitation));
+        }
 
         $snapshot = $this->snapshot($invitation);
         /** @var array{accept: array{name: string}} $routes */
@@ -381,11 +388,16 @@ final readonly class InvitationManager
         };
     }
 
-    private function close(?UserInterface $actor, Invitation $invitation): InvitationSnapshot
+    /**
+     * 2.0 (REQ-RUNTIME-003, XX-I1): null when the invitation was accepted or revoked meanwhile (nothing written, no event).
+     */
+    private function close(?UserInterface $actor, Invitation $invitation): ?InvitationSnapshot
     {
         $now = $this->now();
         $invitation->revoke($actor?->getUserIdentifier(), $now);
-        $this->invitations->save($invitation);
+        if (!$this->invitations->saveWhileOpen($invitation)) {
+            return null;
+        }
         $snapshot = $this->snapshot($invitation);
         $this->eventDispatcher?->dispatch(new InvitationRevokedEvent($snapshot, $actor, $now));
 

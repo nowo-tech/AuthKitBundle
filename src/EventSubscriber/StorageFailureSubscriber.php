@@ -120,10 +120,11 @@ final class StorageFailureSubscriber implements EventSubscriberInterface
         if ($hint === false) {
             return;
         }
-        $code    = $this->committed($request, $error) ? ConflictCode::Committed : ConflictCode::RetrySafe;
-        $headers = $code->retrySafe() ? $this->policy->headers($hint) : [];
+        $code = $this->committed($request, $error) ? ConflictCode::Committed : ConflictCode::RetrySafe;
+        // 2.0 (REQ-RUNTIME-003 rule 6): X-Conflict-Code on every conflict answer; Retry-After only for CONFLICT_001.
+        $headers = $this->policy->headersFor($code, $hint);
         if ($request->getPreferredFormat() !== 'json') {
-            $event->setThrowable(new HttpException($this->policy->status, $code->retrySafe() ? TransientStorageFailure::DEFAULT_MESSAGE : self::COMMITTED_MESSAGE, $error, $headers));
+            $event->setThrowable($this->policy->httpExceptionFor($code, $code->retrySafe() ? TransientStorageFailure::DEFAULT_MESSAGE : self::COMMITTED_MESSAGE, $error, $hint));
 
             return;
         }

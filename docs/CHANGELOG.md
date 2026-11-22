@@ -177,6 +177,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `doctrine.private_entity_manager: true` has no effect (removed in 3.0).
 
+### Fixed
+
+- Conflict answers (REQ-RUNTIME-003 rule 6) now carry `X-Conflict-Code` (`CONFLICT_001` with `Retry-After`,
+  `CONFLICT_002` without), on pages and JSON alike, through the conflict policy's `headersFor()` /
+  `httpExceptionFor()`. Up to 1.55 the code was only in the JSON body.
+- A resend, a re-invite or a revocation that raced with an acceptance could write over the accepted invitation (a new
+  token, or `revokedAt` on an accepted row) after reading it open (audit XX-I1). The change is now written by a
+  conditional UPDATE guarded on the row still being open, with the rest of the change in the same transaction: when the
+  acceptance committed first, nothing is written, no mail or event is sent and the outcome is `NOT_OPEN`. Covered on
+  SQLite, MySQL 8.4, MariaDB 11.4 and PostgreSQL 16.
+- AuthKit's writes no longer flush the application's pending changes (audit XB): closed by the private entity manager
+  being the only mode (see Changed).
+
 ### Security
 
 - 1.x receives security fixes for 6 months after 2.0.0 (Moderate and above backported to the last 1.x minor); see

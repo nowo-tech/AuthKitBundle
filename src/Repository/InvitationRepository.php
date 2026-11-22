@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Repository;
 
 use Closure;
 use DateTimeImmutable;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -76,6 +77,58 @@ class InvitationRepository extends EntityRepository
         $manager = $this->getEntityManager();
         AuthKitEntities::assertSavable($manager, $invitation);
         (new AuthKitTransactionRunner($manager))->run(static fn () => $manager->persist($invitation));
+    }
+
+    /**
+     * 2.0 (REQ-RUNTIME-003, audit XX-I1): stores the change of an existing invitation (a resend, a re-invite, a
+     * revocation) only while its row is still open, in one unit of work: a conditional UPDATE writes the new token hash
+     * and the revocation guarded on `acceptedAt IS NULL AND revokedAt IS NULL` (it also takes the row lock), and the
+     * remaining changes are flushed in the same transaction. A concurrent acceptance therefore either commits first
+     * (nothing is written here: the instance is refreshed from the row and false is returned) or waits and then finds
+     * the old token gone or the invitation revoked (its own single-use claim fails). A new invitation is inserted.
+     *
+     * @throws AuthKitEntityNotManagedException When the invitation exists and this manager does not hold the instance
+     * @throws AuthKitEntityNotFoundException When its row no longer exists
+     *
+     * @return bool false when the invitation was accepted or revoked meanwhile (nothing written)
+     *
+     * @internal used by InvitationManager
+     */
+    public function saveWhileOpen(Invitation $invitation): bool
+    {
+        if ($invitation->getId() === null) {
+            $this->save($invitation);
+
+            return true;
+        }
+        $manager = $this->getEntityManager();
+        AuthKitEntities::assertSavable($manager, $invitation);
+
+        // On the connection: the manager is flushed only after the guard (a flush first would write the change unguarded).
+        return (new AuthKitTransactionRunner($manager))->runOnConnection(function () use ($manager, $invitation): bool {
+            $query = $manager->createQueryBuilder()
+                ->update(Invitation::class, 'i')
+                ->set('i.tokenHash', ':hash')
+                ->set('i.revokedAt', ':revokedAt')
+                ->set('i.revokedBy', ':revokedBy')
+                ->where('i.id = :id')
+                ->andWhere('i.acceptedAt IS NULL')
+                ->andWhere('i.revokedAt IS NULL')
+                ->setParameter('hash', $invitation->getTokenHash())
+                ->setParameter('revokedAt', $invitation->getRevokedAt(), Types::DATETIME_IMMUTABLE)
+                ->setParameter('revokedBy', $invitation->getRevokedBy())
+                ->setParameter('id', $invitation->getId())
+                ->getQuery();
+            if ($this->write(static fn (): mixed => $query->execute()) !== 1) {
+                // Accepted or revoked meanwhile: drop this unit's changes, write nothing.
+                $manager->refresh($invitation);
+
+                return false;
+            }
+            $manager->flush();
+
+            return true;
+        });
     }
 
     /**

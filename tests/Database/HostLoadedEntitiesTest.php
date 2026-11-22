@@ -6,6 +6,8 @@ namespace Nowo\AuthKitBundle\Tests\Database;
 
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
@@ -298,6 +300,43 @@ final class HostLoadedEntitiesTest extends KernelTestCase
         self::assertSame(1, (int) $this->connection()->fetchOne('SELECT COUNT(*) FROM auth_kit_invitation'));
         self::assertSame(1, (int) $this->connection()->fetchOne("SELECT COUNT(*) FROM kernel_users WHERE email = 'jane@example.com'"));
         self::assertNotNull($this->column('accepted_at', $id));
+    }
+
+    /**
+     * 2.0 (REQ-RUNTIME-003, audit XX-I1): resend and revoke are guarded on the row still being open. An acceptance
+     * that commits after AuthKit read the invitation (its manager still holds the open copy) wins: the resend and the
+     * revocation write nothing (no new token, no revocation over an accepted row) and answer NOT_OPEN.
+     */
+    public function testAResendOrARevokeRacingAnAcceptanceWritesNothing(): void
+    {
+        $id    = $this->invitation('race@example.com');
+        $stale = $this->invitations()->find($id);
+        self::assertInstanceOf(Invitation::class, $stale);
+        self::assertTrue($stale->isOpen());
+        $hash  = $this->column('token_hash', $id);
+        $sends = (int) $this->column('send_count', $id);
+
+        // Another request accepts the invitation and commits (its single-use claim).
+        $this->connection()->executeStatement(
+            'UPDATE auth_kit_invitation SET accepted_at = ?, accepted_by = ? WHERE id = ?',
+            [new DateTimeImmutable(), 'race@example.com', $id],
+            [Types::DATETIME_IMMUTABLE, ParameterType::STRING, ParameterType::INTEGER],
+        );
+
+        self::assertSame(InvitationOutcome::NOT_OPEN, $this->manager()->resend(null, $stale)->status);
+        self::assertSame($hash, $this->column('token_hash', $id), 'no new token over an accepted invitation');
+        self::assertSame($sends, (int) $this->column('send_count', $id));
+        self::assertSame(InvitationOutcome::NOT_OPEN, $this->manager()->revoke(null, $stale)->status);
+        self::assertNull($this->column('revoked_at', $id), 'an accepted invitation is never revoked');
+        self::assertNotNull($this->column('accepted_at', $id));
+        self::assertSame(0, $this->connection()->getTransactionNestingLevel());
+
+        // Without the race the same calls still write.
+        $open = $this->invitation('open@example.com');
+        self::assertSame(InvitationOutcome::SENT, $this->manager()->resend(null, $this->hostInvitation($open))->status);
+        self::assertNotSame($this->hash('open@example.com'), $this->column('token_hash', $open));
+        self::assertSame(InvitationOutcome::REVOKED, $this->manager()->revoke(null, $this->hostInvitation($open))->status);
+        self::assertNotNull($this->column('revoked_at', $open));
     }
 
     private function invitation(string $email): int

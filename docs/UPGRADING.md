@@ -10,6 +10,7 @@
   - [Event and result members](#event-and-result-members)
   - [Configuration](#configuration)
   - [Templates, blocks and globals](#templates-blocks-and-globals)
+  - [Fixes that come with 2.0](#fixes-that-come-with-20)
   - [Other removals](#other-removals)
   - [1.x support](#1x-support)
 - [To 1.55.1](#to-1551)
@@ -353,6 +354,13 @@ AuthKit's own pages never used them. A page template of yours written against 1.
 still receives `web_ui.layout_template` when you set it; without it, it receives the removed layout's name
 (`ProfileSettings::legacyLayoutTemplate()`) and Twig fails with "Unable to find template". Extend your own layout or
 `@NowoUiKit/page/auth.html.twig` instead.
+
+### Fixes that come with 2.0
+
+- Conflict answers now carry the `X-Conflict-Code` header (`CONFLICT_001` / `CONFLICT_002`) on pages too.
+- A resend, re-invite or revocation that loses a race with an acceptance writes nothing and answers `NOT_OPEN`
+  (it used to re-issue a token or set a revocation on the accepted invitation). `revokeOpenBy()` counts only the
+  invitations it actually revoked.
 
 ### Other removals
 
