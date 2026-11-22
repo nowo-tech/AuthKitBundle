@@ -309,27 +309,30 @@ final class HostLoadedEntitiesTest extends KernelTestCase
      */
     public function testAResendOrARevokeRacingAnAcceptanceWritesNothing(): void
     {
-        $id    = $this->invitation('race@example.com');
-        $stale = $this->invitations()->find($id);
-        self::assertInstanceOf(Invitation::class, $stale);
-        self::assertTrue($stale->isOpen());
-        $hash  = $this->column('token_hash', $id);
-        $sends = (int) $this->column('send_count', $id);
+        foreach (['resend', 'revoke'] as $call) {
+            $id    = $this->invitation($call . '-race@example.com');
+            $stale = $this->invitations()->find($id);
+            self::assertInstanceOf(Invitation::class, $stale);
+            self::assertTrue($stale->isOpen());
+            $hash  = $this->column('token_hash', $id);
+            $sends = (int) $this->column('send_count', $id);
 
-        // Another request accepts the invitation and commits (its single-use claim).
-        $this->connection()->executeStatement(
-            'UPDATE auth_kit_invitation SET accepted_at = ?, accepted_by = ? WHERE id = ?',
-            [new DateTimeImmutable(), 'race@example.com', $id],
-            [Types::DATETIME_IMMUTABLE, ParameterType::STRING, ParameterType::INTEGER],
-        );
+            // Another request accepts the invitation and commits (its single-use claim).
+            $this->connection()->executeStatement(
+                'UPDATE auth_kit_invitation SET accepted_at = ?, accepted_by = ? WHERE id = ?',
+                [new DateTimeImmutable(), $call . '-race@example.com', $id],
+                [Types::DATETIME_IMMUTABLE, ParameterType::STRING, ParameterType::INTEGER],
+            );
 
-        self::assertSame(InvitationOutcome::NOT_OPEN, $this->manager()->resend(null, $stale)->status);
-        self::assertSame($hash, $this->column('token_hash', $id), 'no new token over an accepted invitation');
-        self::assertSame($sends, (int) $this->column('send_count', $id));
-        self::assertSame(InvitationOutcome::NOT_OPEN, $this->manager()->revoke(null, $stale)->status);
-        self::assertNull($this->column('revoked_at', $id), 'an accepted invitation is never revoked');
-        self::assertNotNull($this->column('accepted_at', $id));
-        self::assertSame(0, $this->connection()->getTransactionNestingLevel());
+            $outcome = $call === 'resend' ? $this->manager()->resend(null, $stale) : $this->manager()->revoke(null, $stale);
+            self::assertSame(InvitationOutcome::NOT_OPEN, $outcome->status, $call);
+            self::assertSame($hash, $this->column('token_hash', $id), 'no new token over an accepted invitation');
+            self::assertSame($sends, (int) $this->column('send_count', $id));
+            self::assertNull($this->column('revoked_at', $id), 'an accepted invitation is never revoked');
+            self::assertNotNull($this->column('accepted_at', $id));
+            self::assertNotNull($stale->getAcceptedAt(), 'AuthKit\'s copy shows the stored row again');
+            self::assertSame(0, $this->connection()->getTransactionNestingLevel());
+        }
 
         // Without the race the same calls still write.
         $open = $this->invitation('open@example.com');
