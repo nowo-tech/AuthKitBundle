@@ -226,8 +226,9 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-PEM-001**: `AuthKitEntityManager` and `AuthKitManagerRegistry` give AuthKit stores a private entity manager, so the bundle never flushes the host's (REQ-ARCH-001 rule 6).
 - **FR-PEM-002**: `PrivateEntityManagerMiddleware`, `Driver`, `Connection` and `Subscriber` report commits, rollbacks and savepoints of the shared connection to the private manager.
 - **FR-PEM-003**: `PrivateEntityManagerPass` wires the mode and `EntityManagerOptionPass` validates `doctrine.entity_manager`.
+- **FR-PEM-004** (v1.54; removed in 2.0 with host mode): `HostFlushReporter` reports, in host mode (`private_entity_manager` unset or false), the application's pending changes an AuthKit write flushes (one deprecation per class and unit of work; read-only, reset at every boundary).
 - **FR-PEM-005** (v1.55, Q-W2-1): `AuthKitEntities` re-resolves by id, in AuthKit's manager, an AuthKit row the application loaded through its own manager (`adopt()`) and refuses to save an existing row that manager does not hold (`assertSavable()`), with `AuthKitEntityNotFoundException` / `AuthKitEntityNotManagedException`; nothing of the application's manager is flushed, merged or detached. (The 1.54 host-flush reporter `HostFlushReporter` was removed in 2.0 with host mode.)
-- **FR-PEM-004** (v2.0): with the AuthKit entities mapped the private manager is always registered; `doctrine.private_entity_manager: false` fails the build, `true` is a deprecated no-op (removed in 3.0). The account writes stay on the application's manager (documented residual).
+- **FR-PEM-006** (v2.0): with the AuthKit entities mapped the private manager is always registered; `doctrine.private_entity_manager: false` fails the build, `true` is a deprecated no-op (removed in 3.0). The account writes stay on the application's manager (documented residual).
 
 ### Transactions, locks and savepoints (v1.43-1.48)
 

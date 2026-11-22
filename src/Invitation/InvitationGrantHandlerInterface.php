@@ -11,11 +11,11 @@ use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
  * Applies what an accepted invitation carries besides the roles, inside the acceptance transaction after the account is
  * persisted and the invitation claimed; throw {@see InvitationRefusedException} to refuse the acceptance.
  *
- * 2.0: the only interface of this SPI (the 1.32 `InvitationGrantInterface` is removed); the tag moved here from it.
+ * The tag is a constant of this interface (`InvitationGrantHandlerInterface::TAG`; declared in
+ * {@see InvitationGrantTag} since 1.56.0). 2.0: the only interface of this SPI (the 1.32 `InvitationGrantInterface` is
+ * removed).
  */
-interface InvitationGrantHandlerInterface
+interface InvitationGrantHandlerInterface extends InvitationGrantTag
 {
-    public const TAG = 'nowo_auth_kit.invitation_grant';
-
     public function grantTo(InvitationSnapshot $invitation, AuthUserRef $user): void;
 }

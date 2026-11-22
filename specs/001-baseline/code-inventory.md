@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-22 (feat/2.0)  
-**Units**: **466** (`397` PHP under `src/` + `69` Resources)
+**Last audited**: 2026-11-22 (feat/2.0, after 1.56.0)  
+**Units**: **468** (`399` PHP under `src/` + `69` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -339,6 +339,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Invitation/InvitationAcceptance.php` | production | FR-INVH-003, FR-INVH-006 | Mapped |
 | `Invitation/InvitationAcceptor.php` | production | FR-INV-002, FR-INV-005, FR-INVH-002, FR-INVH-003, FR-INVH-006, FR-INVF-001, FR-INVF-004, FR-INVF-005, FR-INVF-006 | Mapped |
 | `Port/Internal/InvitationGrantInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-INV-005, FR-PORT-001 | Mapped |
+| `Invitation/InvitationGrantTag.php` | production ([spec 004](../004-invitations-host-api/spec.md)) | FR-INVH-011 | Mapped |
 | `Invitation/InvitationMail.php` | production | FR-INV-007 | Mapped |
 | `Invitation/InvitationMailerInterface.php` | production | FR-INV-007 | Mapped |
 | `Invitation/InvitationManager.php` | production | FR-INV-003, FR-INVH-004, FR-INVH-005, FR-INVH-008, FR-INVF-002 | Mapped |
@@ -352,6 +353,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Invitation/MailerInvitationMailer.php` | production | FR-INV-007 | Mapped |
 | `Invitation/NullInvitationMailer.php` | production | FR-INV-007 | Mapped |
 | `Port/Internal/InvitationActionAuthorizerInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-INVH-010, FR-PORT-001 | Mapped |
+| `Invitation/Security/InvitationActionNames.php` | production | FR-INVH-011 | Mapped |
 | `Port/Internal/InvitationsAccessCheckerInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-INV-004, FR-PORT-001 | Mapped |
 | `Invitation/Security/InvitationsAccessGuard.php` | production | FR-INV-004 | Mapped |
 | `Invitation/Security/RoleInvitationsAccessChecker.php` | production | FR-INV-004 | Mapped |
@@ -697,10 +699,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 397 |
+| PHP under `src/` | 399 |
 | Resources (config/translations/views/public) | 69 |
-| **Total production sources** | **466** |
-| Audit command | `git ls-files src \| wc -l` → 466 |
+| **Total production sources** | **468** |
+| Audit command | `git ls-files src \| wc -l` → 468 |
 
 ## Coverage gate
 

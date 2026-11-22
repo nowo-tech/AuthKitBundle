@@ -21,22 +21,11 @@ use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
  * invite, the invitation on resend, when the link is returned to the caller). Hosts whose payload carries grants
  * (e.g. `payload[merge_key]` = organization, an org role) must check the actor on them here.
  *
- * 2.0: the only interface of this hook (the 1.33 `InvitationActionAuthorizerInterface` is removed); the tag and the
- * action names moved here from it.
+ * The tag and the action names are constants of this interface (`InvitationActionPolicyInterface::AUTHORIZER_TAG`,
+ * `INVITE`, `REINVITE`, `RESEND`, `REVOKE`, `RETURN_LINK`; declared in {@see InvitationActionNames} since 1.56.0). 2.0:
+ * the only interface of this hook (the 1.33 `InvitationActionAuthorizerInterface` is removed).
  */
-interface InvitationActionPolicyInterface
+interface InvitationActionPolicyInterface extends InvitationActionNames
 {
-    public const AUTHORIZER_TAG = 'nowo_auth_kit.invitation_action_authorizer';
-
-    public const INVITE = 'invite';
-
-    public const REINVITE = 'reinvite';
-
-    public const RESEND = 'resend';
-
-    public const REVOKE = 'revoke';
-
-    public const RETURN_LINK = 'return_link';
-
     public function allows(?AuthUserRef $actor, string $action, InvitationSnapshot|InvitationRequest $subject, ?InvitationRequest $request = null): bool;
 }

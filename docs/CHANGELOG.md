@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.56.0] - 2026-11-22](#1560---2026-11-22)
 - [[1.55.1] - 2026-11-22](#1551---2026-11-22)
 - [[1.55.0] - 2026-11-21](#1550---2026-11-21)
 - [[1.54.1] - 2026-11-21](#1541---2026-11-21)
@@ -120,7 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 2.0 removes what 1.x announced through deprecation notices (REQ-BC-001, REQ-ARCH-001 rules 3 and 6): see UPGRADING.md,
-"To 2.0.0". An application that runs 1.55 without deprecation notices from this bundle, and without the uses listed
+"To 2.0.0". An application that runs 1.56 without deprecation notices from this bundle, and without the uses listed
 in UPGRADING "Before you upgrade", item 3 (which no notice can report), upgrades without code changes.
 
 ### Changed
@@ -195,6 +196,20 @@ in UPGRADING "Before you upgrade", item 3 (which no notice can report), upgrades
 
 - 1.x receives security fixes for 6 months after 2.0.0 (Moderate and above backported to the last 1.x minor); see
   `.github/SECURITY.md`.
+
+## [1.56.0] - 2026-11-22
+
+### Added
+
+- Migration aid for 2.0: the tag and action constants are readable on the 1.46 ports, with the same values:
+  `InvitationActionPolicyInterface::AUTHORIZER_TAG`, `INVITE`, `REINVITE`, `RESEND`, `REVOKE`, `RETURN_LINK` and
+  `InvitationGrantHandlerInterface::TAG`. 2.0 removes `InvitationActionAuthorizerInterface` and
+  `InvitationGrantInterface` with their constants and keeps these. Both pairs inherit the constants from one internal
+  interface each, so a class implementing the deprecated interface and the port together still compiles.
+
+### Changed
+
+- The docblock of `InvitationActionPolicyInterface` no longer sends hosts to the deprecated interface's constants.
 
 ## [1.55.1] - 2026-11-22
 

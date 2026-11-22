@@ -13,6 +13,8 @@
   - [Fixes that come with 2.0](#fixes-that-come-with-20)
   - [Other removals](#other-removals)
   - [1.x support](#1x-support)
+- [To 1.56.0](#to-1560)
+  - [Preparing for 2.0: the tag and action constants](#preparing-for-20-the-tag-and-action-constants)
 - [To 1.55.1](#to-1551)
 - [To 1.55.0](#to-1550)
   - [AuthKit rows loaded through your own entity manager](#authkit-rows-loaded-through-your-own-entity-manager)
@@ -182,7 +184,7 @@ migration is needed.
 
 ### Before you upgrade
 
-On the last 1.x (1.55), clear every deprecation of this bundle:
+On the last 1.x (1.56), clear every deprecation of this bundle:
 
 1. The 1.54 notices (see [To 1.54.0](#to-1540)):
    - > "nowo_auth_kit.doctrine.private_entity_manager" is not set: the AuthKit writes flush the application's entity
@@ -390,7 +392,27 @@ still receives `web_ui.layout_template` when you set it; without it, it receives
 ### 1.x support
 
 1.x receives security fixes for 6 months after 2.0.0: fixes rated Moderate and above are backported to the last 1.x
-minor (1.55); Low ones are fixed in 2.x only. See [.github/SECURITY.md](../.github/SECURITY.md).
+minor (1.56); Low ones are fixed in 2.x only. See [.github/SECURITY.md](../.github/SECURITY.md).
+
+## To 1.56.0
+
+From **1.55.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+### Preparing for 2.0: the tag and action constants
+
+Read the invitation hook constants on the ports: `InvitationActionPolicyInterface::INVITE` (`REINVITE`, `RESEND`,
+`REVOKE`, `RETURN_LINK`, `AUTHORIZER_TAG`) instead of `InvitationActionAuthorizerInterface::…`, and
+`InvitationGrantHandlerInterface::TAG` instead of `InvitationGrantInterface::TAG`, including in
+`#[AutoconfigureTag(…)]`. Same values. 2.0 removes the deprecated interfaces and their constants; no runtime notice can
+report a constant read, so search your code for them.
 
 ## To 1.55.1
 
