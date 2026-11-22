@@ -84,6 +84,7 @@ names are not checked for duplicates); the accept route stays. Routes remain opt
   revoke / return_link; returned link needs a non-null actor; `last_sent_by`; dead-link event once per invitation and
   hour; merge values compared as strings with a fail-closed scan (`TOO_MANY_OPEN`); social e-mail ASCII
   case-insensitive else NFC byte-equal; a throwing pre-accept listener refuses. Regression: `InvitationCpRegressionTest`.
+- **FR-INVH-011** (v1.56) `InvitationActionNames` / `InvitationGrantTag` (internal) declare the action names and the tags once; `InvitationActionPolicyInterface` and `InvitationGrantHandlerInterface` expose them with the same values as the deprecated interfaces, so hosts stop referencing the deprecated interfaces before 2.0.
 - **FR-INVH-008** SEC-004 CD fixes hold: role escalation via resend / re-invite (with merge key and returned link),
   roles re-check on acceptance, no secrets in events / logs.
 

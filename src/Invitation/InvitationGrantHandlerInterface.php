@@ -12,8 +12,11 @@ use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
  * inside the acceptance transaction after the account is persisted and the invitation claimed; throw
  * {@see InvitationRefusedException} to refuse the acceptance. A service implementing both interfaces is asked through
  * the deprecated one until 2.0.
+ *
+ * 1.56.0: the tag is a constant of this interface (`InvitationGrantHandlerInterface::TAG`, inherited from
+ * {@see InvitationGrantTag}, same value as on the deprecated interface). Use it here: 2.0 keeps it on this one.
  */
-interface InvitationGrantHandlerInterface
+interface InvitationGrantHandlerInterface extends InvitationGrantTag
 {
     public function grantTo(InvitationSnapshot $invitation, AuthUserRef $user): void;
 }

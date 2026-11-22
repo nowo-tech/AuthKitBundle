@@ -20,21 +20,12 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * invite, the invitation on resend, when the link is returned to the caller). Hosts whose payload carries grants
  * (e.g. `payload[merge_key]` = organization, an org role) must check the actor on them here.
  *
+ * The tag and the action names (`AUTHORIZER_TAG`, `INVITE`, …) are inherited from {@see InvitationActionNames}; read them
+ * on {@see InvitationActionPolicyInterface} (1.56.0), which 2.0 keeps.
+ *
  * @deprecated since 1.46.0, implement {@see InvitationActionPolicyInterface} (framework-free, REQ-ARCH-001 rule 3) instead; removed in 2.0.
  */
-interface InvitationActionAuthorizerInterface
+interface InvitationActionAuthorizerInterface extends InvitationActionNames
 {
-    public const AUTHORIZER_TAG = 'nowo_auth_kit.invitation_action_authorizer';
-
-    public const INVITE = 'invite';
-
-    public const REINVITE = 'reinvite';
-
-    public const RESEND = 'resend';
-
-    public const REVOKE = 'revoke';
-
-    public const RETURN_LINK = 'return_link';
-
     public function isGranted(?UserInterface $actor, string $action, Invitation|InvitationRequest $subject, ?InvitationRequest $request = null): bool;
 }

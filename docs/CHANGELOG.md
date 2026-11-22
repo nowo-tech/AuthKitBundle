@@ -119,6 +119,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Migration aid for 2.0: the tag and action constants are readable on the 1.46 ports, with the same values:
+  `InvitationActionPolicyInterface::AUTHORIZER_TAG`, `INVITE`, `REINVITE`, `RESEND`, `REVOKE`, `RETURN_LINK` and
+  `InvitationGrantHandlerInterface::TAG`. 2.0 removes `InvitationActionAuthorizerInterface` and
+  `InvitationGrantInterface` with their constants and keeps these. Both pairs inherit the constants from one internal
+  interface each, so a class implementing the deprecated interface and the port together still compiles.
+
+### Changed
+
+- The docblock of `InvitationActionPolicyInterface` no longer sends hosts to the deprecated interface's constants.
+
 ## [1.55.1] - 2026-11-22
 
 ### Fixed

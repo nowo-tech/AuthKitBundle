@@ -13,11 +13,12 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * {@see InvitationRefusedException} to refuse the acceptance (everything is rolled back, the invitee sees the
  * neutral "could not be accepted" page). Re-check here anything the inviter may no longer grant.
  *
+ * The tag is inherited from {@see InvitationGrantTag}; read it as `InvitationGrantHandlerInterface::TAG` (1.56.0), which
+ * 2.0 keeps.
+ *
  * @deprecated since 1.46.0, implement {@see InvitationGrantHandlerInterface} (framework-free, REQ-ARCH-001 rule 3) instead; removed in 2.0.
  */
-interface InvitationGrantInterface
+interface InvitationGrantInterface extends InvitationGrantTag
 {
-    public const TAG = 'nowo_auth_kit.invitation_grant';
-
     public function grant(InvitationSnapshot $invitation, UserInterface $user): void;
 }
