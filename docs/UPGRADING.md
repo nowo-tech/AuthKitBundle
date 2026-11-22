@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Preparing for 2.0: the tag and action constants](#preparing-for-20-the-tag-and-action-constants)
 - [To 1.55.1](#to-1551)
 - [To 1.55.0](#to-1550)
   - [AuthKit rows loaded through your own entity manager](#authkit-rows-loaded-through-your-own-entity-manager)
@@ -154,6 +155,18 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+### Preparing for 2.0: the tag and action constants
+
+Read the invitation hook constants on the ports: `InvitationActionPolicyInterface::INVITE` (`REINVITE`, `RESEND`,
+`REVOKE`, `RETURN_LINK`, `AUTHORIZER_TAG`) instead of `InvitationActionAuthorizerInterface::…`, and
+`InvitationGrantHandlerInterface::TAG` instead of `InvitationGrantInterface::TAG`, including in
+`#[AutoconfigureTag(…)]`. Same values. 2.0 removes the deprecated interfaces and their constants; no runtime notice can
+report a constant read, so search your code for them.
 
 ## To 1.55.1
 

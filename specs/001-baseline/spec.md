@@ -226,6 +226,8 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-PEM-001**: `AuthKitEntityManager` and `AuthKitManagerRegistry` give AuthKit stores a private entity manager, so the bundle never flushes the host's (REQ-ARCH-001 rule 6).
 - **FR-PEM-002**: `PrivateEntityManagerMiddleware`, `Driver`, `Connection` and `Subscriber` report commits, rollbacks and savepoints of the shared connection to the private manager.
 - **FR-PEM-003**: `PrivateEntityManagerPass` wires the mode and `EntityManagerOptionPass` validates `doctrine.entity_manager`.
+- **FR-PEM-004** (v1.54): `HostFlushReporter` reports, in host mode (`private_entity_manager` unset or false), the application's pending changes an AuthKit write flushes (one deprecation per class and unit of work; read-only, reset at every boundary).
+- **FR-PEM-005** (v1.55, Q-W2-1): `AuthKitEntities` re-resolves by id, in AuthKit's manager, an AuthKit row the application loaded through its own manager (`adopt()`) and refuses to save an existing row that manager does not hold (`assertSavable()`), with `AuthKitEntityNotFoundException` / `AuthKitEntityNotManagedException`.
 
 ### Transactions, locks and savepoints (v1.43-1.48)
 

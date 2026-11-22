@@ -15,9 +15,11 @@ use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
  * deny-only rule (every authorizer must grant). A service implementing both interfaces is asked through the deprecated
  * one until 2.0.
  *
- * Actions: the constants of {@see InvitationActionAuthorizerInterface}.
+ * 1.56.0: the tag and the action names are constants of this interface (`InvitationActionPolicyInterface::AUTHORIZER_TAG`,
+ * `INVITE`, `REINVITE`, `RESEND`, `REVOKE`, `RETURN_LINK`; inherited from {@see InvitationActionNames}, same values as
+ * on the deprecated interface). Use them here: 2.0 removes the deprecated interface and keeps them on this one.
  */
-interface InvitationActionPolicyInterface
+interface InvitationActionPolicyInterface extends InvitationActionNames
 {
     public function allows(?AuthUserRef $actor, string $action, InvitationSnapshot|InvitationRequest $subject, ?InvitationRequest $request = null): bool;
 }
