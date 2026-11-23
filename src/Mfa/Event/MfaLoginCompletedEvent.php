@@ -27,6 +27,7 @@ final class MfaLoginCompletedEvent extends MfaEvent
         string $profile,
         UserInterface $user,
         private readonly TokenInterface $token,
+        // @igor-ignore - Per-dispatch event built with new by MfaLoginCompleter for one login; never a shared service, so it cannot keep a request across worker requests.
         private readonly Request $request,
         public readonly string $firstFactor,
     ) {

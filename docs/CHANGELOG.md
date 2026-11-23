@@ -123,6 +123,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dev: Igor 0.11 (REQ-CS-008) — `MfaLoginCompletedEvent::$request` and `AccountEvent::$request` are per-dispatch events, never shared services; documented `@igor-ignore` (false positives). `igor-php/igor-php` accepts `^0.11.0` (supersedes #83).
+
 ## [2.2.0] - 2026-11-23
 
 ### Deprecated
