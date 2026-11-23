@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Tests\Stub\ClaimingResetStore;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
@@ -157,6 +158,53 @@ final class ResetPasswordControllerCoverageTest extends TestCase
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('hashed', $user->getPassword());
+    }
+
+    /** 2.2.0 (REQ-RUNTIME-003): another request used the link first; this one changed nothing and says "invalid link". */
+    public function testALinkUsedMeanwhileRedirectsToTheRequestPage(): void
+    {
+        $user = new TestUser();
+        $user->setPassword('old');
+        $tokenManager = new ClaimingResetStore(false, $user);
+
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->method('hashPassword')->willReturn('hashed');
+
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->with('nowo_auth_kit_reset_password_request')->willReturn('/reset-password');
+
+        $form = $this->createMock(FormInterface::class);
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('getData')->willReturn(['password' => 'secret12']);
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $session = new Session(new MockArraySessionStorage());
+        $session->set(ResetPasswordController::SESSION_TOKEN_KEY . 'default', 'valid');
+        $request = Request::create('/reset', 'POST');
+        $request->setSession($session);
+
+        $config          = ['password_reset' => ['mode' => 'enabled', 'token_in_session' => true]];
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, $config);
+        $controller      = new ResetPasswordController(
+            $this->createMock(Environment::class),
+            $formFactory,
+            new PasswordResetGate($profileRegistry),
+            $tokenManager,
+            new PasswordResetCompleter($this->createMock(EntityManagerInterface::class), $hasher, new PropertyAccessor(), $tokenManager, $profileRegistry),
+            new TokenStorage(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, $config),
+        );
+
+        $response = $controller->reset($request, null);
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/reset-password', $response->headers->get('Location'));
+        self::assertSame('old', $user->getPassword());
+        self::assertSame(['reset.password.flash_invalid_token'], $session->getFlashBag()->get('error'));
+        self::assertFalse($session->has(ResetPasswordController::SESSION_TOKEN_KEY . 'default'), 'the used token leaves the session');
     }
 
     private function buildController(

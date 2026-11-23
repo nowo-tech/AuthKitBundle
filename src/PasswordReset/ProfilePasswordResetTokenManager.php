@@ -17,7 +17,7 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
  *
  * @internal
  */
-final readonly class ProfilePasswordResetTokenManager implements PasswordResetTokenManagerInterface
+final readonly class ProfilePasswordResetTokenManager implements PasswordResetTokenManagerInterface, PasswordResetCredentialClaimInterface
 {
     public function __construct(
         private ProfileRegistry $profileRegistry,
@@ -44,6 +44,17 @@ final readonly class ProfilePasswordResetTokenManager implements PasswordResetTo
     public function clearForUser(object $user): void
     {
         $this->forUser($user)->clearForUser($user);
+    }
+
+    public function claimForUser(object $user): bool
+    {
+        $manager = $this->forUser($user);
+        if ($manager instanceof PasswordResetCredentialClaimInterface) {
+            return $manager->claimForUser($user);
+        }
+        $manager->clearForUser($user);
+
+        return true;
     }
 
     private function forUser(object $user): PasswordResetTokenManagerInterface

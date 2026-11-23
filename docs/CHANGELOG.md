@@ -122,6 +122,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- REQ-RUNTIME-003: two completions of one password reset link (or code) sent at the same moment could both store a
+  password; the last one won. The completion now claims the credential first, once, in the same unit as the new
+  password: on the user entity a conditional `UPDATE … WHERE <token_field> = <the value this request read>`, in the
+  `auth_kit_password_reset` table the `DELETE` of the user's rows (only one transaction deletes them). The request that
+  loses answers like an invalid link (the link page redirects to the request page with
+  `reset.password.flash_invalid_token`; the code page shows `reset.code.flash_invalid` again) and writes nothing.
+  Access impact: none was granted (both completions came from the holder of the link), but the person who used the link
+  first could see their new password replaced by a second, concurrent completion. New
+  `PasswordReset\PasswordResetCredentialClaimInterface` (implemented by the bundled stores) and
+  `PasswordResetLinkUsedException`; a host store that does not implement the interface keeps the 2.1 behaviour. No
+  schema change. Tests: `tests/Database/PasswordResetClaimRaceTest` (two sessions, MySQL 8.4 / MariaDB 11.4 /
+  PostgreSQL 16, both stores).
+
 ## [2.1.0] - 2026-11-23
 
 ### Added

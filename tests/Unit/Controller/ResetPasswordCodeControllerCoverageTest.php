@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Tests\Stub\ClaimingResetStore;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Nowo\AuthKitBundle\Tests\Unit\Support\AuthKitTestUrlGenerator;
@@ -184,6 +185,50 @@ final class ResetPasswordCodeControllerCoverageTest extends TestCase
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('hashed', $user->getPassword());
+    }
+
+    /** 2.2.0 (REQ-RUNTIME-003): another request used the code first; this one changed nothing and shows the form again. */
+    public function testACodeUsedMeanwhileShowsTheFormAgain(): void
+    {
+        $user = new TestUser();
+        $user->setPassword('old');
+        $tokenManager = new ClaimingResetStore(false, $user);
+
+        $hasher = $this->createMock(UserPasswordHasherInterface::class);
+        $hasher->method('hashPassword')->willReturn('hashed');
+
+        $code = $this->createMock(FormInterface::class);
+        $code->expects(self::once())->method('addError');
+        $form = $this->createMock(FormInterface::class);
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+        $form->method('get')->with('code')->willReturn($code);
+        $form->method('createView')->willReturn(new FormView());
+        $form->method('getData')->willReturn(['identifier' => 'user@example.com', 'code' => '123456', 'password' => 'secret12']);
+        $formFactory = $this->createMock(FormFactoryInterface::class);
+        $formFactory->method('create')->willReturn($form);
+
+        $twig = $this->createMock(Environment::class);
+        $twig->method('render')->willReturn('<html>again</html>');
+        $inner = $this->createMock(UrlGeneratorInterface::class);
+        $inner->method('generate')->willReturn('/x');
+
+        $request = Request::create('/complete', 'POST');
+        $request->setSession(new Session(new MockArraySessionStorage()));
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, ['password_reset' => ['mode' => 'enabled']]);
+        $controller      = new ResetPasswordCodeController(
+            $twig,
+            $formFactory,
+            new PasswordResetGate($profileRegistry),
+            $tokenManager,
+            new PasswordResetCompleter($this->createMock(EntityManagerInterface::class), $hasher, new PropertyAccessor(), $tokenManager, $profileRegistry),
+            new TokenStorage(),
+            AuthKitTestUrlGenerator::fromMock($inner),
+            ProfileRegistryFactory::requestResolver(TestUser::class, ['password_reset' => ['mode' => 'enabled']]),
+        );
+
+        self::assertSame('<html>again</html>', $controller->complete($request)->getContent());
+        self::assertSame('old', $user->getPassword());
     }
 
     public function testRedirectsWhenAuthenticated(): void
