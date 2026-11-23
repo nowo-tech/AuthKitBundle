@@ -305,6 +305,12 @@ jobs:
           AUTH_KIT_LOAD_DATABASE_URL: ${{ matrix.url }}
         run: vendor/bin/phpunit --no-coverage --fail-on-skipped tests/Database
 
+      - name: Identity / access-key column collations (REQ-SEC-006)
+        if: env.HEAVY == 'true'
+        env:
+          AUTH_KIT_LOAD_DATABASE_URL: ${{ matrix.url }}
+        run: vendor/bin/phpunit --no-coverage tests/Collation
+
   coverage:
     runs-on: ubuntu-latest
     # Light mode: skipped (a skipped non-matrix job reports its own name as skipped, accepted by branch protection).

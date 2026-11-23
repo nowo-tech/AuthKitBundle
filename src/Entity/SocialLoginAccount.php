@@ -14,11 +14,14 @@ use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
  * Linked social identity for an application user (tokens + provider subject).
  */
 #[ORM\Entity(repositoryClass: SocialLoginAccountRepository::class)]
-#[ORM\Table(name: 'auth_kit_social_account')]
+#[ORM\Table(name: self::TABLE)]
 // SEC-004 H2 (1.31): one link per provider subject AND user class, so profiles with different user classes never share it.
 #[ORM\UniqueConstraint(name: 'uniq_auth_kit_social_account_provider_subject_class', columns: ['provider', 'provider_user_id', 'user_class'])]
 class SocialLoginAccount
 {
+    /** Table name, before the configured prefix. */
+    public const TABLE = 'auth_kit_social_account';
+
     /** Length of the `provider_user_id` column (1.47.0). */
     public const PROVIDER_USER_ID_MAX_LENGTH = 255;
 

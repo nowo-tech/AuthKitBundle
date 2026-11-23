@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\EntityManagerOptionPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\MultiAccountPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
+use Nowo\AuthKitBundle\Doctrine\AuthKitExactKeyColumns;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
@@ -300,6 +301,15 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             $container->getDefinition(IdentityCollationListener::class)
                 ->addTag('doctrine.event_listener', ['event' => 'postGenerateSchema']);
         }
+
+        // REQ-SEC-006: the bundle's own declaration of its identity / access-key columns. Autoconfigured, so
+        // MigrationsKit tags it (nowo:migrations:check-key-collations) with no registration by the host; unmapped
+        // entities and a reset table no profile uses declare their columns inactive rather than omitting them.
+        $container->setDefinition(AuthKitExactKeyColumns::class, (new Definition(AuthKitExactKeyColumns::class, [
+            (string) $config['doctrine']['table_prefix'],
+            $registerMapping,
+            $this->profilesUseResetTable($profiles),
+        ]))->setAutoconfigured(true));
 
         $this->registerPasswordResetStorage($container, $profiles);
         $this->registerLoginTarget($container, $config, $profiles);

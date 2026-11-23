@@ -31,13 +31,16 @@ use function trim;
  * Users are referenced by their security identifier (the bundle does not know the host user entity).
  */
 #[ORM\Entity(repositoryClass: InvitationRepository::class)]
-#[ORM\Table(name: 'auth_kit_invitation')]
+#[ORM\Table(name: self::TABLE)]
 #[ORM\UniqueConstraint(name: 'uniq_auth_kit_invitation_public_id', columns: ['public_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_auth_kit_invitation_token', columns: ['token_hash'])]
 #[ORM\Index(name: 'idx_auth_kit_invitation_email', columns: ['profile', 'email', 'accepted_at', 'revoked_at'])]
 #[ORM\Index(name: 'idx_auth_kit_invitation_expires', columns: ['expires_at'])]
 class Invitation
 {
+    /** Table name, before the configured prefix. */
+    public const TABLE = 'auth_kit_invitation';
+
     public const MESSAGE_MAX_LENGTH = 500;
 
     public const EMAIL_MAX_LENGTH = 180;

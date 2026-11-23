@@ -121,6 +121,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- REQ-SEC-006: the bundle now declares its own identity / access-key columns, so the knowledge of which columns are
+  exact keys lives in the bundle that owns the tables instead of in every host.
+  `Nowo\AuthKitBundle\Doctrine\AuthKitExactKeyColumns` implements
+  `Nowo\MigrationsKitContracts\Collation\ExactKeyColumnsInterface` (new runtime dependency
+  `nowo-tech/migrations-kit-contracts` ^1.0: interfaces and value objects only, no dependency beyond PHP) and declares
+  twelve columns — `auth_kit_mfa.{user_type,user_id}`,
+  `auth_kit_social_account.{provider_user_id,user_id,user_identifier}`, `auth_kit_account_vault.user_identifier`,
+  `auth_kit_invitation.{email,invited_by}` and
+  `auth_kit_password_reset.{user_id,user_identifier,token_hash,code_hash}`. The bundle already gives them the
+  server's binary NO PAD collation when it builds the schema (1.46.0, 1.47.0); the declaration is what makes
+  `nowo:migrations:check-key-collations` *assert* it, so a table created before those listeners, restored from a dump
+  or imported by hand is reported instead of trusted — in three of these tables the column is part of a **unique**
+  key, where a folding collation lets one account's insert collide with a look-alike account's row. MigrationsKit
+  discovers the declaration by autoconfiguration, so a host registers **nothing** and can delete the
+  `nowo_migrations_kit.collation_check.ignore_columns` entries it kept for those columns (see UPGRADING). Table names
+  are resolved from `nowo_auth_kit.doctrine.table_prefix`, never literals; the columns are declared **inactive**
+  (reported as skipped with their condition, never as missing tables) when the entities are not mapped
+  (`doctrine.register_mapping`), and the reset table's also when no profile uses `password_reset.storage: table`.
+  Nothing is memoised (REQ-RUNTIME-002).
+  `profile`, `provider` and `user_class` are **not** declared although they belong to the same unique keys: each is a
+  name the application chooses in its own configuration, validated against a pattern and never submitted by a
+  visitor, so nobody can make two of them look alike. Neither are the state and bookkeeping columns, nor the
+  credential digests and public ids the bundle does not collate today (`auth_kit_invitation.token_hash`,
+  `auth_kit_account_vault.token_hash`, the trusted-device and recovery-code digests, the QR-login hashes): raising
+  those is a schema decision for its own release, and a declaration whose column was never collated would report a
+  failure on every host. A declaration is a claim about identity, and an untrue one is worse than none.
+- Tests: the bundle's own REQ-SEC-006 gate (`tests/Collation`, extending MigrationsKit's `ExactKeyColumnsTestCase`),
+  run on MySQL 8.4 and MariaDB 11.4 in the load matrix. The tables are created by the schema tool with the bundle's
+  own prefix and collation listeners under a non-empty table prefix, and the declared columns are read back from
+  `information_schema`. It stays out of `tests/Database`, which CI runs with `--fail-on-skipped` on servers where the
+  question does not arise.
+
+### Changed
+
+- `SocialLoginAccount::TABLE` and `Invitation::TABLE` now hold those entities' table names (the attribute uses them),
+  so the schema and the new declaration cannot drift apart. No behaviour change.
+
 ## [2.0.0] - 2026-11-22
 
 2.0 removes what 1.x announced through deprecation notices (REQ-BC-001, REQ-ARCH-001 rules 3 and 6): see UPGRADING.md,
