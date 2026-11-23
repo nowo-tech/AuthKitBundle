@@ -162,10 +162,12 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
         }
 
         $metadata = $this->entityManager->getMetadataFactory()->isTransient($user::class) ? null : $this->entityManager->getClassMetadata($user::class);
-        $idField  = $metadata !== null && !$metadata->isIdentifierComposite && $metadata->hasField($tokenField) && $metadata->hasField($expiresField)
-            ? $metadata->getSingleIdentifierFieldName()
-            : null;
-        $id = $metadata !== null && $idField !== null ? $metadata->getFieldValue($user, $idField) : null;
+        $idField  = null;
+        $id       = null;
+        if ($metadata !== null && !$metadata->isIdentifierComposite && $metadata->hasField($tokenField) && $metadata->hasField($expiresField)) {
+            $idField = $metadata->getSingleIdentifierFieldName();
+            $id      = $metadata->getFieldValue($user, $idField);
+        }
         if ($metadata === null || $idField === null || $id === null) {
             $this->clearForUser($user);
 
