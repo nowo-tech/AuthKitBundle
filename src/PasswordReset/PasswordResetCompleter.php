@@ -20,6 +20,8 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
+use function trigger_deprecation;
+
 /**
  * Applies a new password and clears the reset credential. The hash is stored through {@see UserWriterInterface}
  * (1.41; default: the password property + flush), then {@see PasswordResetCompletedEvent} is dispatched, and with a
@@ -62,6 +64,9 @@ final class PasswordResetCompleter
         // neither (the reset link stays usable), and never stores the password while the credential stays live.
         // 2.2.0 (REQ-RUNTIME-003): the credential is claimed first, once: of two completions of one link or code sent
         // at the same moment, only the one that used it up stores its password; the other one writes nothing.
+        if ($credential === null && $this->tokenManager instanceof PasswordResetCredentialClaimInterface) {
+            trigger_deprecation('nowo-tech/auth-kit-bundle', '2.2', 'Calling %s::complete() without the validated link token or code ($credential) is deprecated: the credential is cleared without the single-use claim, so two concurrent completions can both store a password. Pass the link token or code your request validated.', self::class);
+        }
         $unit = function () use ($profile, $user, $hashed, $credential): void {
             if ($credential !== null && $this->tokenManager instanceof PasswordResetCredentialClaimInterface) {
                 if (!$this->tokenManager->claimForUser($user, $credential)) {

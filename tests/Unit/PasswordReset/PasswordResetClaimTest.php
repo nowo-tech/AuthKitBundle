@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\PasswordReset\ProfilePasswordResetTokenManager;
 use Nowo\AuthKitBundle\Tests\Stub\ClaimingResetStore;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
+use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\PropertyAccess\PropertyAccessor;
@@ -67,8 +68,11 @@ final class PasswordResetClaimTest extends TestCase
         self::assertTrue((new ProfilePasswordResetTokenManager($profiles, $plain, new ClaimingResetStore(true)))->claimForUser($user, 'link-token'));
     }
 
+    /** Audit ZZ-A-I1: a call without the credential still works as in 2.1, and is deprecated. */
+    #[IgnoreDeprecations]
     public function testWithoutTheValidatedCredentialTheStoreClearsAsIn21(): void
     {
+        $this->expectUserDeprecationMessageMatches('/complete\(\) without the validated link token or code \(\$credential\) is deprecated/');
         $user  = new TestUser();
         $store = new ClaimingResetStore(false);
 

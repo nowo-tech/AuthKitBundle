@@ -43,6 +43,7 @@
         "symfony/asset": "^7.4 || ^8.0",
         "symfony/config": "^7.4 || ^8.0",
         "symfony/dependency-injection": "^7.4 || ^8.0",
+        "symfony/deprecation-contracts": "^3.5",
         "symfony/form": "^7.4 || ^8.0",
         "symfony/framework-bundle": "^7.4 || ^8.0",
         "symfony/http-client": "^7.4 || ^8.0",
@@ -111,7 +112,10 @@
     "autoload-dev": {
         "psr-4": {
             "Nowo\\AuthKitBundle\\Tests\\": "tests/"
-        }
+        },
+        "classmap": [
+            "tests/Integration/PasswordReset/Proxy/"
+        ]
     },
     "archive": {
         "exclude": [
