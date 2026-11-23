@@ -125,7 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 
 - Calling `PasswordResetCompleter::complete()` without the third argument (the link token or code the request
-  validated) triggers an `E_USER_DEPRECATED` (`trigger_deprecation`, package `nowo-tech/auth-kit-bundle`, 2.2) when
+  validated) triggers an `E_USER_DEPRECATED` (`trigger_deprecation()` from `symfony/deprecation-contracts`, which
+  Symfony's framework bundle already requires; package `nowo-tech/auth-kit-bundle`, 2.2) when
   the store supports the single-use claim: such a call clears the credential unguarded, as in 2.1. See UPGRADING.
 
 ### Fixed
