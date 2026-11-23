@@ -21,6 +21,7 @@ abstract class AccountEvent extends Event
     public function __construct(
         public readonly string $profile,
         public readonly string $account,
+        // @igor-ignore - Per-dispatch account switch event built with new for one request; never a shared service, so it cannot keep a request across worker requests.
         private readonly Request $request,
     ) {
     }
