@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.2.0](#to-220)
+  - [Password reset: one link stores one password (REQ-RUNTIME-003)](#password-reset-one-link-stores-one-password-req-runtime-003)
 - [To 2.1.0](#to-210)
   - [The bundle declares its own identity / access-key columns (REQ-SEC-006)](#the-bundle-declares-its-own-identity--access-key-columns-req-sec-006)
 - [To 2.0.0](#to-200)
@@ -169,6 +171,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.2.0
+
+From **2.1.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ### Password reset: one link stores one password (REQ-RUNTIME-003)
 
