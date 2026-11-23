@@ -68,7 +68,7 @@ final class PasswordResetClaimRaceTest extends LoadDatabaseTestCase
         $refused = false;
 
         try {
-            $this->completer()->complete($user, 'new-password-of-this-request');
+            $this->completer()->complete($user, 'new-password-of-this-request', $link);
         } catch (PasswordResetLinkUsedException) {
             $refused = true;
         }
@@ -109,12 +109,42 @@ final class PasswordResetClaimRaceTest extends LoadDatabaseTestCase
         self::assertSame('OK', $peer->execute(sprintf("UPDATE kernel_users SET password = '%s' WHERE email = '%s'", self::PEER_HASH, self::EMAIL)));
 
         try {
-            $this->completer()->complete($user, 'new-password-of-this-request');
+            $this->completer()->complete($user, 'new-password-of-this-request', $link);
             self::fail('The used link stored a second password.');
         } catch (PasswordResetLinkUsedException) {
         }
 
         self::assertSame(self::PEER_HASH, (string) $this->connection()->fetchOne(sprintf("SELECT password FROM kernel_users WHERE email = '%s'", self::EMAIL)));
+        $this->assertHealthy();
+    }
+
+    /**
+     * Audit L1: C1 and C2 both checked link A; C1 completes; a new reset request stores link B; C2's claim of A must
+     * not use up B: C2 is refused, B stays usable, the stored password is C1's.
+     */
+    #[DataProvider('storages')]
+    public function testAnOlderLinkNeverUsesUpTheCredentialOfANewerRequest(string $storage): void
+    {
+        $this->useStorage($storage);
+        $link = $this->userWithResetLink();
+        $user = $this->store()->resolveUserByLinkToken($link);
+        self::assertInstanceOf(KernelUser::class, $user, 'C2 checked link A');
+
+        $peer = $this->otherSession();
+        self::assertSame('OK', $peer->execute($this->peerClaim($storage)));
+        self::assertSame('OK', $peer->execute(sprintf("UPDATE kernel_users SET password = '%s' WHERE email = '%s'", self::PEER_HASH, self::EMAIL)));
+        $newer = $this->newerRequest($storage);
+
+        try {
+            $this->completer()->complete($user, 'new-password-of-this-request', $link);
+            self::fail('An older link used up the credential of a newer request.');
+        } catch (PasswordResetLinkUsedException) {
+        }
+
+        self::assertSame(self::PEER_HASH, (string) $this->connection()->fetchOne(sprintf("SELECT password FROM kernel_users WHERE email = '%s'", self::EMAIL)));
+        self::assertSame(1, $this->liveCredentials($storage), 'the newer credential stays');
+        $this->em->clear();
+        self::assertInstanceOf(KernelUser::class, $this->store()->resolveUserByLinkToken($newer), 'link B still resolves');
         $this->assertHealthy();
     }
 
@@ -126,7 +156,7 @@ final class PasswordResetClaimRaceTest extends LoadDatabaseTestCase
         $user = $this->store()->resolveUserByLinkToken($link);
         self::assertInstanceOf(KernelUser::class, $user);
 
-        $this->completer()->complete($user, 'new-password-of-this-request');
+        $this->completer()->complete($user, 'new-password-of-this-request', $link);
 
         self::assertTrue($this->hasher()->isPasswordValid($this->reload(), 'new-password-of-this-request'));
         self::assertSame(0, $this->liveCredentials($storage));
@@ -170,6 +200,29 @@ final class PasswordResetClaimRaceTest extends LoadDatabaseTestCase
         return $storage === 'table'
             ? sprintf('DELETE FROM %s', PasswordResetRequest::TABLE) // the only user's rows
             : sprintf("UPDATE kernel_users SET passwordResetToken = NULL, passwordResetExpiresAt = NULL WHERE email = '%s' AND passwordResetToken IS NOT NULL", self::EMAIL);
+    }
+
+    /**
+     * A new reset request of the same user, as another request sends it: its own kernel, manager and connection.
+     */
+    private function newerRequest(string $storage): string
+    {
+        $other = new DatabaseTestKernel($storage === 'table' ? 'test_table' : 'test', true);
+        $other->boot();
+        try {
+            $manager = $other->getContainer()->get('doctrine.orm.entity_manager');
+            self::assertInstanceOf(EntityManagerInterface::class, $manager);
+            $user = $manager->find(KernelUser::class, self::EMAIL);
+            self::assertInstanceOf(KernelUser::class, $user);
+            $store = $other->getContainer()->get('load.reset_store');
+            self::assertInstanceOf(PasswordResetTokenManagerInterface::class, $store);
+            $link = $store->createForUser($user)->linkToken();
+            self::assertIsString($link);
+
+            return $link;
+        } finally {
+            $other->shutdown();
+        }
     }
 
     private function liveCredentials(string $storage): int

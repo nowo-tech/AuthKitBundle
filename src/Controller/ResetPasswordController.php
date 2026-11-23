@@ -117,7 +117,7 @@ final class ResetPasswordController
 
             if ($user instanceof PasswordAuthenticatedUserInterface) {
                 try {
-                    $this->passwordResetCompleter->complete($user, $data['password']);
+                    $this->passwordResetCompleter->complete($user, $data['password'], $token);
                 } catch (PasswordResetLinkUsedException) {
                     // 2.2.0 (REQ-RUNTIME-003): another request used the link first; this one changed nothing.
                     if ($tokenInSession) {

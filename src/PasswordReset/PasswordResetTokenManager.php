@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Psr\Clock\ClockInterface;
+use SensitiveParameter;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -141,33 +142,39 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
 
     /**
      * 2.2.0 (REQ-RUNTIME-003): one conditional UPDATE of the user row, guarded on the stored value this request read
-     * (`token_field = :seen`). Of two completions racing for one credential, the second one waits on the row lock and
-     * then matches no row, on MySQL / MariaDB (a locking read sees the committed row) as on PostgreSQL (the row is
-     * evaluated again after the wait). The managed user takes the cleared values as its original data, so the flush
-     * that follows does not write them again. A user the manager does not hold, or a mapping AuthKit cannot address
-     * (fields not mapped, a composite id), is cleared as before (not guarded).
+     * (`token_field = :seen`), and only when that value is the credential this request validated (`$credential` proves
+     * it): a credential a newer reset request stored is never claimed. Of two completions racing for one credential,
+     * the second one waits on the row lock and then matches no row, on MySQL / MariaDB (a locking read sees the
+     * committed row) as on PostgreSQL (the row is evaluated again after the wait). The UPDATE addresses the row by id, so
+     * a user the manager does not hold (a host user directory) is bound the same way. A managed user takes the cleared
+     * values as its original data, so the flush that follows does not write them again. Only a user AuthKit cannot
+     * address (a class this manager does not map, the fields not mapped, a composite or missing id) is cleared as
+     * before, unguarded (docs/CONCURRENCY.md, residual risks).
      */
-    public function claimForUser(object $user): bool
+    public function claimForUser(object $user, #[SensitiveParameter] string $credential): bool
     {
         $profile      = $this->requireProfileForUser($user);
         $tokenField   = $profile->passwordReset['token_field'];
         $expiresField = $profile->passwordReset['token_expires_field'];
         $seen         = $this->propertyAccessor->getValue($user, $tokenField);
-        if (!is_string($seen) || $seen === '') {
+        if (!is_string($seen) || $seen === '' || !PasswordResetCredentials::proves($seen, $credential)) {
             return false;
         }
 
-        $metadata = $this->entityManager->getClassMetadata($user::class);
-        if (!$this->entityManager->contains($user) || $metadata->isIdentifierComposite
-            || !$metadata->hasField($tokenField) || !$metadata->hasField($expiresField)
-        ) {
+        $metadata = $this->entityManager->getMetadataFactory()->isTransient($user::class) ? null : $this->entityManager->getClassMetadata($user::class);
+        $idField  = null;
+        $id       = null;
+        if ($metadata !== null && !$metadata->isIdentifierComposite && $metadata->hasField($tokenField) && $metadata->hasField($expiresField)) {
+            $idField = $metadata->getSingleIdentifierFieldName();
+            $id      = $metadata->getFieldValue($user, $idField);
+        }
+        if ($metadata === null || $idField === null || $id === null) {
             $this->clearForUser($user);
 
             return true;
         }
 
-        $idField = $metadata->getSingleIdentifierFieldName();
-        $query   = $this->entityManager->createQuery(sprintf(
+        $query = $this->entityManager->createQuery(sprintf(
             'UPDATE %s u SET u.%s = NULL, u.%s = NULL WHERE u.%s = :id AND u.%s = :seen',
             $metadata->getName(),
             $tokenField,
@@ -175,7 +182,7 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             $idField,
             $tokenField,
         ))
-            ->setParameter('id', $metadata->getFieldValue($user, $idField), $metadata->getTypeOfField($idField))
+            ->setParameter('id', $id, $metadata->getTypeOfField($idField))
             ->setParameter('seen', $seen);
 
         $affected = (int) $this->transactions()->runWithAccounts(static fn (): mixed => $query->execute());
@@ -183,12 +190,15 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             return false;
         }
 
+        $managed    = $this->entityManager->contains($user);
         $unitOfWork = $this->entityManager->getUnitOfWork();
         foreach ([$tokenField, $expiresField] as $field) {
-            // @igor-ignore - Writes the entity's field (a per-request object), not the metadata service's state.
-            $metadata->setFieldValue($user, $field, null);
-            // @igor-ignore - The original data of this managed entity only, matching the row the UPDATE just wrote.
-            $unitOfWork->setOriginalEntityProperty(spl_object_id($user), $field, null);
+            // @igor-ignore - Writes the user's field (a per-request object), not a shared service's state.
+            $this->propertyAccessor->setValue($user, $field, null);
+            if ($managed) {
+                // @igor-ignore - The original data of this managed entity only, matching the row the UPDATE just wrote.
+                $unitOfWork->setOriginalEntityProperty(spl_object_id($user), $field, null);
+            }
         }
 
         return true;
