@@ -198,7 +198,7 @@ final class ResetPasswordControllerCoverageTest extends TestCase
             ProfileRegistryFactory::requestResolver(TestUser::class, $config),
         );
 
-        $response = $controller->reset($request, null);
+        $response = $controller->reset($request);
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/reset-password', $response->headers->get('Location'));

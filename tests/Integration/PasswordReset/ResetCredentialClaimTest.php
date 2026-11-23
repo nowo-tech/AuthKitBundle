@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\PasswordReset;
 
+use Doctrine\Persistence\Mapping\MappingException;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCredentialClaimInterface;
 use Nowo\AuthKitBundle\Tests\Integration\PasswordReset\Entity\ResetUser;
+use Nowo\AuthKitBundle\Tests\Integration\PasswordReset\Stub\UnmappedResetUser;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
+use function array_map;
 use function hash;
 
 /**
@@ -111,6 +115,65 @@ final class ResetCredentialClaimTest extends TestCase
 
         self::assertTrue($this->claims($h)->claimForUser($ada, 'link'), 'not addressable: cleared and accepted, as up to 2.1');
         self::assertNull($ada->getPasswordResetToken());
+    }
+
+    /**
+     * Audit ZZ-A-L1: two concurrent reset requests left two rows (A older, B newer). Completing with B also removes A,
+     * so A's link never becomes the newest again; a row stored after B is kept.
+     */
+    public function testATableClaimRemovesOlderRowsAndKeepsNewerOnes(): void
+    {
+        $h     = new ResetStorageHarness('table');
+        $ada   = $h->addUser('ada@example.com');
+        $older = (string) $h->manager->createForUser($ada)->linkToken();
+        $rowA  = $h->em->getConnection()->fetchAssociative('SELECT * FROM ' . $h->resetTable());
+        self::assertIsArray($rowA);
+        $h->clock->modify('+1 minute');
+        $link = (string) $h->manager->createForUser($ada)->linkToken();
+        // The concurrent request's row, as it was before the second request deleted it.
+        $h->em->getConnection()->insert($h->resetTable(), $rowA);
+        $h->clock->modify('+1 minute');
+        $rowC = $h->em->getConnection()->fetchAssociative('SELECT * FROM ' . $h->resetTable() . ' WHERE id = (SELECT MAX(id) FROM ' . $h->resetTable() . ')');
+        self::assertIsArray($rowC);
+        $rowC['id']         = (int) $rowC['id'] + 10;
+        $rowC['token_hash'] = hash('sha256', 'newer-link');
+        $rowC['code_hash']  = null;
+        $h->em->getConnection()->insert($h->resetTable(), $rowC);
+        self::assertSame(3, $this->live($h, 'table'));
+
+        self::assertTrue($this->claims($h)->claimForUser($ada, $link));
+        self::assertSame([(int) $rowC['id']], array_map('intval', $h->em->getConnection()->fetchFirstColumn('SELECT id FROM ' . $h->resetTable())), 'A is gone with B, the newer row stays');
+        self::assertFalse($this->claims($h)->claimForUser($ada, $older), 'A no longer works');
+    }
+
+    /** Audit ZZ-A-L2: a Doctrine proxy of the user (a classic `__CG__` proxy class) is claimed by id, not cleared unguarded. */
+    public function testAProxyOfTheUserIsClaimedById(): void
+    {
+        $h    = new ResetStorageHarness('user_entity');
+        $ada  = $h->addUser('ada@example.com');
+        $link = (string) $h->manager->createForUser($ada)->linkToken();
+        self::assertInstanceOf(ResetUser::class, $ada);
+        $proxy = new \NowoRegistryTestProxies\__CG__\Nowo\AuthKitBundle\Tests\Integration\PasswordReset\Entity\ResetUser('ada@example.com');
+        (new ReflectionProperty(ResetUser::class, 'id'))->setValue($proxy, $ada->getId());
+        $proxy->setPasswordResetToken($ada->getPasswordResetToken());
+
+        self::assertTrue($this->claims($h)->claimForUser($proxy, $link));
+        self::assertFalse($this->claims($h)->claimForUser($proxy, $link), 'claimed once: the guarded UPDATE ran, not the 2.1 clear');
+        self::assertSame(0, $this->live($h, 'user_entity'));
+    }
+
+    /**
+     * A user AuthKit's manager cannot map (here a subclass the mapping does not know) is not addressable: the claim takes
+     * the 2.1 path (clear and persist through that manager), which this manager refuses.
+     */
+    public function testAUserOfAClassTheManagerDoesNotMapTakesThe21Path(): void
+    {
+        $h   = new ResetStorageHarness('user_entity');
+        $ada = new UnmappedResetUser('ada@example.com');
+        $ada->setPasswordResetToken(hash('sha256', 'link'));
+
+        $this->expectException(MappingException::class);
+        $this->claims($h)->claimForUser($ada, 'link');
     }
 
     private function claims(ResetStorageHarness $h): PasswordResetCredentialClaimInterface

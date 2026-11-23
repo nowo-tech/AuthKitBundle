@@ -148,6 +148,35 @@ final class PasswordResetClaimRaceTest extends LoadDatabaseTestCase
         $this->assertHealthy();
     }
 
+    /**
+     * Audit ZZ-A-L1: two concurrent reset requests of one user left two rows in the reset table (A, then B). Completing
+     * with B removes A too: A's link and code never become the newest credential again.
+     */
+    public function testCompletingTheNewestTableRowRemovesAnOlderConcurrentOne(): void
+    {
+        $this->useStorage('table');
+        $older = $this->userWithResetLink();
+        $rowA  = $this->connection()->fetchAssociative('SELECT * FROM ' . PasswordResetRequest::TABLE);
+        self::assertIsArray($rowA);
+        $user = $this->em->find(KernelUser::class, self::EMAIL);
+        self::assertInstanceOf(KernelUser::class, $user);
+        $newer = $this->store()->createForUser($user)->linkToken();
+        self::assertIsString($newer);
+        // The other request's row, committed concurrently (its own transaction did not see B's delete), restored as it was.
+        $this->connection()->insert(PasswordResetRequest::TABLE, $rowA);
+        self::assertSame(2, $this->liveCredentials('table'));
+        $this->em->clear();
+        $resolved = $this->store()->resolveUserByLinkToken($newer);
+        self::assertInstanceOf(KernelUser::class, $resolved);
+
+        $this->completer()->complete($resolved, 'new-password-of-this-request', $newer);
+
+        self::assertSame(0, $this->liveCredentials('table'), 'the older concurrent row is gone too');
+        $this->em->clear();
+        self::assertNull($this->store()->resolveUserByLinkToken($older), 'the older link does not work again');
+        $this->assertHealthy();
+    }
+
     #[DataProvider('storages')]
     public function testOneCompletionUsesTheLinkUp(string $storage): void
     {

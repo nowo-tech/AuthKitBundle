@@ -122,6 +122,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+
+- Calling `PasswordResetCompleter::complete()` without the third argument (the link token or code the request
+  validated) triggers an `E_USER_DEPRECATED` (`trigger_deprecation()` from `symfony/deprecation-contracts`, which
+  Symfony's framework bundle already requires; package `nowo-tech/auth-kit-bundle`, 2.2) when
+  the store supports the single-use claim: such a call clears the credential unguarded, as in 2.1. See UPGRADING.
+
 ### Fixed
 
 - REQ-RUNTIME-003: two completions of one password reset link (or code) sent at the same moment could both store a
@@ -141,6 +148,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without the credential, keeps the 2.1 behaviour (see UPGRADING). No
   schema change. Tests: `tests/Database/PasswordResetClaimRaceTest` (two sessions, MySQL 8.4 / MariaDB 11.4 /
   PostgreSQL 16, both stores).
+- REQ-RUNTIME-003 (audit ZZ): with `password_reset.storage: table`, two concurrent reset requests could leave two rows;
+  completing with the newer link removed only its own row, so the older link or code became the newest again and
+  worked until it expired. The claim now also removes the user's rows older than the one it used (rows stored after
+  it are kept). With the credential on the user entity, a user passed as a classic Doctrine proxy (`__CG__` class) fell
+  back to the unguarded 2.1 clear; the store now resolves the proxy to its entity and claims it by id.
 - `password_reset.storage: table` on PostgreSQL with DBAL 3 (where the reset row's id comes from a sequence) failed
   every reset request with a NOT NULL violation on `auth_kit_password_reset.id`: the row was inserted without an id.
   An id the mapping generates before the insert is now written explicitly; identity columns are unchanged.

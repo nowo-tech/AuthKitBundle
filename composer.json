@@ -111,7 +111,10 @@
     "autoload-dev": {
         "psr-4": {
             "Nowo\\AuthKitBundle\\Tests\\": "tests/"
-        }
+        },
+        "classmap": [
+            "tests/Integration/PasswordReset/Proxy/"
+        ]
     },
     "archive": {
         "exclude": [

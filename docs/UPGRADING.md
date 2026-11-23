@@ -182,7 +182,9 @@ so two concurrent completions of one link store one password.
   `UPDATE` or `DELETE` whose affected-row count you check), and return false when nothing was cleared. A decorator
   should forward the call to the store it wraps.
 - **Your own controller calling `PasswordResetCompleter::complete($user, $password)`**: pass the link token or code
-  you validated as the third argument. Without it the credential is cleared as in 2.1, unguarded. Catch
+  you validated as the third argument. Without it the credential is cleared as in 2.1, unguarded, and since 2.2 the
+  call triggers a deprecation (`E_USER_DEPRECATED` from `trigger_deprecation('nowo-tech/auth-kit-bundle', '2.2', …)`,
+  visible in the Symfony profiler and in PHPUnit runs that fail on deprecations). Catch
   `PasswordResetLinkUsedException` (another request used the credential first; nothing was written) and answer as for an
   invalid link.
 

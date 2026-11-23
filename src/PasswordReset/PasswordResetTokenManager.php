@@ -7,7 +7,10 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Mapping\MappingException as ORMMappingException;
 use Doctrine\ORM\Query;
+use Doctrine\Persistence\Mapping\MappingException as PersistenceMappingException;
 use LogicException;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
@@ -161,14 +164,19 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             return false;
         }
 
-        $metadata = $this->entityManager->getMetadataFactory()->isTransient($user::class) ? null : $this->entityManager->getClassMetadata($user::class);
-        $idField  = null;
-        $id       = null;
-        if ($metadata !== null && !$metadata->isIdentifierComposite && $metadata->hasField($tokenField) && $metadata->hasField($expiresField)) {
+        // Audit ZZ-A-L2: getClassMetadata() resolves a Doctrine proxy class to its entity (isTransient() does not).
+        try {
+            $metadata = $this->entityManager->getClassMetadata($user::class);
+        } catch (PersistenceMappingException|ORMMappingException) {
+            $metadata = null;
+        }
+        $idField = null;
+        $id      = null;
+        if ($metadata instanceof ClassMetadata && !$metadata->isIdentifierComposite && $metadata->hasField($tokenField) && $metadata->hasField($expiresField)) {
             $idField = $metadata->getSingleIdentifierFieldName();
             $id      = $metadata->getFieldValue($user, $idField);
         }
-        if ($metadata === null || $idField === null || $id === null) {
+        if (!$metadata instanceof ClassMetadata || $idField === null || $id === null) {
             $this->clearForUser($user);
 
             return true;

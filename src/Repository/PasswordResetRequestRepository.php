@@ -17,8 +17,11 @@ use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestRow;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use SensitiveParameter;
 
+use function array_filter;
+use function array_values;
 use function in_array;
 use function is_string;
+use function max;
 
 /**
  * Reads and writes the `auth_kit_password_reset` rows (1.46.0, `password_reset.storage: table`) with DBAL statements
@@ -79,7 +82,11 @@ final readonly class PasswordResetRequestRepository
     /**
      * 2.2.0 (REQ-RUNTIME-003): deletes the user's rows that the plain link token or code proves (exact user match as in
      * {@see self::delete()}, then {@see PasswordResetCredentials::proves()} on the stored hashes), by primary key.
-     * Returns the number of deleted rows: 0 when another transaction deleted them first or no row is proved.
+     * Returns the number of proved rows deleted: 0 when another transaction deleted them first or no row is proved.
+     *
+     * Audit ZZ-A-L1: the user's rows older than the newest proved one (lower id, from two concurrent reset requests) are
+     * deleted with it, so an older link or code never becomes the newest again and works once more; rows stored after
+     * it (a newer request) are kept.
      *
      * @param list<string> $identifiers
      */
@@ -87,8 +94,10 @@ final readonly class PasswordResetRequestRepository
     {
         $connection = $this->connection();
         $ids        = [];
+        $all        = [];
         foreach ($this->candidates($connection, $this->table(), 'id, user_class, user_id, user_identifier, token_hash, code_hash', $userClass, $userId, $identifiers) as $row) {
-            $stored = (string) $row['token_hash'] . (is_string($row['code_hash']) ? '|' . $row['code_hash'] : '');
+            $all[]  = (int) $row['id'];
+            $stored = $row['token_hash'] . (is_string($row['code_hash']) ? '|' . $row['code_hash'] : '');
             if (PasswordResetCredentials::proves($stored, $credential)) {
                 $ids[] = (int) $row['id'];
             }
@@ -97,11 +106,22 @@ final readonly class PasswordResetRequestRepository
             return 0;
         }
 
-        return (int) $connection->executeStatement(
+        $deleted = (int) $connection->executeStatement(
             'DELETE FROM ' . $this->table() . ' WHERE id IN (:ids)',
             ['ids' => $ids],
             ['ids' => ArrayParameterType::INTEGER],
         );
+        $newest = max($ids);
+        $older  = array_values(array_filter($all, static fn (int $id): bool => $id < $newest && !in_array($id, $ids, true)));
+        if ($deleted > 0 && $older !== []) {
+            $connection->executeStatement(
+                'DELETE FROM ' . $this->table() . ' WHERE id IN (:ids)',
+                ['ids' => $older],
+                ['ids' => ArrayParameterType::INTEGER],
+            );
+        }
+
+        return $deleted;
     }
 
     /**
