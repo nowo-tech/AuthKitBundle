@@ -9,6 +9,8 @@ use Nowo\AuthKitBundle\Admin\AdminUserCreator;
 use Nowo\AuthKitBundle\Doctrine\PrivateEntityManagerSubscriber;
 use Nowo\AuthKitBundle\Invitation\InvitationAcceptor;
 use Nowo\AuthKitBundle\Invitation\InvitationManager;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
@@ -18,6 +20,7 @@ use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
 use function getenv;
@@ -48,6 +51,9 @@ final class DatabaseTestKernel extends InvitationsTestKernel
         'load.boundary'    => PrivateEntityManagerSubscriber::class,
         'load.social'      => SocialAccountLinker::class,
         'load.profiles'    => ProfileRegistry::class,
+        'load.reset'       => PasswordResetCompleter::class,
+        'load.reset_store' => PasswordResetTokenManagerInterface::class,
+        'load.hasher'      => UserPasswordHasherInterface::class,
     ];
 
     public static function databaseUrl(): ?string
@@ -86,6 +92,10 @@ final class DatabaseTestKernel extends InvitationsTestKernel
                 'registration_mode' => 'first_user_only',
                 'social_login'      => ['mode' => 'enabled', 'create_user_if_missing' => true],
             ]);
+        }
+        if ($this->environment === 'test_table') {
+            // 2.2.0: the reset credential in AuthKit's own table (password_reset.storage: table).
+            $container->loadFromExtension('nowo_auth_kit', ['password_reset' => ['storage' => 'table']]);
         }
         $container->register(SlowUserPersist::class)->addTag('doctrine.event_listener', ['event' => 'prePersist']);
         foreach (self::SERVICES as $id => $service) {

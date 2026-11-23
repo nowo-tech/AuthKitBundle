@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Form\ResetPasswordFormType;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetLinkUsedException;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
@@ -115,7 +116,19 @@ final class ResetPasswordController
             $data = $form->getData();
 
             if ($user instanceof PasswordAuthenticatedUserInterface) {
-                $this->passwordResetCompleter->complete($user, $data['password']);
+                try {
+                    $this->passwordResetCompleter->complete($user, $data['password']);
+                } catch (PasswordResetLinkUsedException) {
+                    // 2.2.0 (REQ-RUNTIME-003): another request used the link first; this one changed nothing.
+                    if ($tokenInSession) {
+                        $request->getSession()->remove($sessionKey);
+                    }
+                    $this->flashMessenger->flash($request, 'error', 'reset.password.flash_invalid_token');
+
+                    return new Response('', Response::HTTP_FOUND, [
+                        'Location' => $this->urlGenerator->generate($profile->routes['reset_request']['name']),
+                    ]);
+                }
             }
 
             if ($tokenInSession) {

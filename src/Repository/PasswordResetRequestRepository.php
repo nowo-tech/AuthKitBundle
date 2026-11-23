@@ -40,12 +40,17 @@ final readonly class PasswordResetRequestRepository
     {
         $connection = $this->connection();
         $table      = $this->table();
+        // 2.2.0: an id generated before the insert (a sequence: PostgreSQL with DBAL 3) is written explicitly; an identity
+        // column (MySQL, MariaDB, PostgreSQL with DBAL 4, SQLite) fills it itself.
+        $manager   = $this->entityManager();
+        $generator = $manager->getClassMetadata(PasswordResetRequest::class)->idGenerator;
+        $id        = $generator->isPostInsertGenerator() ? [] : ['id' => $generator->generateId($manager, null)];
         // 1.50.0 (Beacon spec 239): one unit of work of AuthKit's runner (a savepoint inside a transaction the
         // application opened); a failure leaves no transaction level open, even after a deadlock in a nested level.
-        AuthKitTransactionRunner::forConnection($connection)->run(function () use ($connection, $table, $row): void {
+        AuthKitTransactionRunner::forConnection($connection)->run(function () use ($connection, $table, $row, $id): void {
             $connection->executeStatement('DELETE FROM ' . $table . ' WHERE expires_at < :now', ['now' => $row->createdAt], ['now' => Types::DATETIME_IMMUTABLE]);
             $this->deleteOn($connection, $table, $row->userClass, $row->userId, [$row->userIdentifier]);
-            $connection->insert($table, [
+            $connection->insert($table, $id + [
                 'profile'         => $row->profile,
                 'user_class'      => $row->userClass,
                 'user_id'         => $row->userId,

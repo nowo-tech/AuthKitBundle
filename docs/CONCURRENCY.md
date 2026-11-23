@@ -30,7 +30,7 @@ the rows the failed unit touched are detached.
 | Invitation acceptance (`InvitationAcceptor`) | One unit (`runWithAccounts`), under the account lock when it creates an account | Conditional `UPDATE … WHERE accepted_at IS NULL` claim (`InvitationRepository::claim`), so an invitation is accepted once | 409 `CONFLICT_001`; a lost claim is the "invitation used" page |
 | Social sign-in, sign-up and linking (`SocialAccountLinker`) | One unit (`runWithAccounts`) | Named lock of the social identity, then of the user class (`first_user_only`), then of the account | 409 `CONFLICT_001`, or `CONFLICT_002` when the unit committed and the sign-in then met the conflict |
 | Administrator creation (`AdminUserCreator`, `nowo:auth-kit:create-admin`) | One unit (`runWithAccounts`) | Account lock, unique key plus catch (a duplicate result) | Console: the command fails with the transient failure; nothing is written |
-| Password reset (request, token, completion) | One unit each (`runWithAccounts`, `runOnConnection`, `forConnection` for the reset table) | The new password and the cleared reset credential are one unit (a failure keeps neither, the link stays usable); the credential columns are re-read from the database before a check | 409 `CONFLICT_001` |
+| Password reset (request, token, completion) | One unit each (`runWithAccounts`, `runOnConnection`, `forConnection` for the reset table) | The new password and the cleared reset credential are one unit (a failure keeps neither, the link stays usable); the credential columns are re-read from the database before a check. 2.2: the completion claims the credential first (`PasswordResetCredentialClaimInterface`: a conditional `UPDATE` on the stored value this request read, or the `DELETE` of the table rows), so one link stores one password | 409 `CONFLICT_001`; a lost claim is the "invalid link" answer (`PasswordResetLinkUsedException`), nothing written |
 | QR login (create, approve, deny, consume, expire) | One unit each (`QrLoginChallengeRepository::transactional`) | Challenge id inserted through `AuthKitRows::insert` (unique key plus catch: a new id is drawn); state changes re-read the row (`findFresh`) in the unit | 409 `CONFLICT_001`; `CONFLICT_002` when the challenge was consumed and the sign-in then met the conflict |
 | MFA (enrolment, verification, recovery codes, trusted devices, disabling) | One unit each (`MfaStore`) | `FOR UPDATE` on the credential row first; first enrolment through `AuthKitRows::insert` (the row another request wrote is read with a lock); attempt counters under `symfony/lock` | 409 `CONFLICT_001` |
 | Invitations (create, resend, revoke) | One unit each (`InvitationRepository::save`; 2.0: resend, re-invite and revoke through `saveWhileOpen()`, a conditional UPDATE guarded on the row still being open) | Rate limiter; random public id and token (unique keys); a racing acceptance wins (`NOT_OPEN`, nothing written) | 409 `CONFLICT_001` |
@@ -125,6 +125,9 @@ DBAL 3. No test may be skipped. These are required checks on `main`.
 - `AccountLocksTest`, `ConcurrentAccountsTest`, `FirstUserOnlyTest`: two sessions and two worker processes never create
   two accounts for one identifier, or two first accounts. A lock held too long is a transient failure.
 - `MfaCredentialRaceTest`: two first enrolments of one owner share one credential.
+- `PasswordResetClaimRaceTest` (2.2): two completions of one reset link, on the user entity and in the reset table: the
+  one that waits on the other's claim is refused when it commits and goes through when it rolls back; one that comes
+  after it is refused. One password is stored per link.
 - Unit tests (`StorageFailureSubscriberTest`) cover the mapping of deadlocks, lock waits and serialization failures,
   the 503 option, `CONFLICT_002` from the ledger and from `ConcurrencyConflict::$committed`, and the errors that are
   not mapped.
@@ -140,8 +143,13 @@ DBAL 3. No test may be skipped. These are required checks on `main`.
   login listener) turns a later conflict into `CONFLICT_002`. Again, the client reloads.
 - **No retry inside AuthKit.** A conflict is answered, not replayed. Hosts that want automatic replays wrap their own
   controllers with transaction-doctrine's `#[AsWriteUnit]` (AuthKit's routes are one attempt).
-- **Two completions of one reset link** sent at the same moment can both store a password (the last one wins). Both
-  came from the holder of the link; the credential is cleared by either one, so the link is not usable afterwards.
+- **A host reset store without the claim.** Since 2.2 two completions of one reset link store one password (the
+  claim). A host `PasswordResetTokenManagerInterface` that does not implement `PasswordResetCredentialClaimInterface`
+  keeps the 2.1 behaviour: both can store a password and the last one wins.
+- **Magic links** are Symfony's `login_link`: with `max_uses`, the use count lives in Symfony's expired-signature
+  storage (a cache), whose check and increment are not atomic, so two simultaneous uses of one link can both sign in
+  (the same person, holding the link). This is Symfony's behaviour; AuthKit keeps `max_uses: 1` and a short `lifetime`
+  as its documented defaults.
 - **Console commands** (`create-admin`, purges) fail with the transient failure instead of answering a code. They
   write nothing (create) or continue on the next run (purges).
 - **Known limits of the account locks** (PgBouncer transaction pooling, Galera, a failed release inside a host

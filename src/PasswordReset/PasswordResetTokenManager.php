@@ -21,12 +21,13 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 use function hash;
 use function is_string;
+use function spl_object_id;
 use function sprintf;
 
 /**
  * Stores hashed reset credentials on configurable user entity properties.
  */
-final class PasswordResetTokenManager implements PasswordResetTokenManagerInterface
+final class PasswordResetTokenManager implements PasswordResetTokenManagerInterface, PasswordResetCredentialClaimInterface
 {
     // 1.50.0: the EntityManagerRecovery argument is kept for compatibility (closed managers are replaced at the boundary).
     // @phpstan-ignore constructor.unusedParameter
@@ -136,6 +137,61 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
             $this->propertyAccessor->setValue($user, $expiresField, null);
             $this->entityManager->persist($user);
         });
+    }
+
+    /**
+     * 2.2.0 (REQ-RUNTIME-003): one conditional UPDATE of the user row, guarded on the stored value this request read
+     * (`token_field = :seen`). Of two completions racing for one credential, the second one waits on the row lock and
+     * then matches no row, on MySQL / MariaDB (a locking read sees the committed row) as on PostgreSQL (the row is
+     * evaluated again after the wait). The managed user takes the cleared values as its original data, so the flush
+     * that follows does not write them again. A user the manager does not hold, or a mapping AuthKit cannot address
+     * (fields not mapped, a composite id), is cleared as before (not guarded).
+     */
+    public function claimForUser(object $user): bool
+    {
+        $profile      = $this->requireProfileForUser($user);
+        $tokenField   = $profile->passwordReset['token_field'];
+        $expiresField = $profile->passwordReset['token_expires_field'];
+        $seen         = $this->propertyAccessor->getValue($user, $tokenField);
+        if (!is_string($seen) || $seen === '') {
+            return false;
+        }
+
+        $metadata = $this->entityManager->getClassMetadata($user::class);
+        if (!$this->entityManager->contains($user) || $metadata->isIdentifierComposite
+            || !$metadata->hasField($tokenField) || !$metadata->hasField($expiresField)
+        ) {
+            $this->clearForUser($user);
+
+            return true;
+        }
+
+        $idField = $metadata->getSingleIdentifierFieldName();
+        $query   = $this->entityManager->createQuery(sprintf(
+            'UPDATE %s u SET u.%s = NULL, u.%s = NULL WHERE u.%s = :id AND u.%s = :seen',
+            $metadata->getName(),
+            $tokenField,
+            $expiresField,
+            $idField,
+            $tokenField,
+        ))
+            ->setParameter('id', $metadata->getFieldValue($user, $idField), $metadata->getTypeOfField($idField))
+            ->setParameter('seen', $seen);
+
+        $affected = (int) $this->transactions()->runWithAccounts(static fn (): mixed => $query->execute());
+        if ($affected !== 1) {
+            return false;
+        }
+
+        $unitOfWork = $this->entityManager->getUnitOfWork();
+        foreach ([$tokenField, $expiresField] as $field) {
+            // @igor-ignore - Writes the entity's field (a per-request object), not the metadata service's state.
+            $metadata->setFieldValue($user, $field, null);
+            // @igor-ignore - The original data of this managed entity only, matching the row the UPDATE just wrote.
+            $unitOfWork->setOriginalEntityProperty(spl_object_id($user), $field, null);
+        }
+
+        return true;
     }
 
     /**

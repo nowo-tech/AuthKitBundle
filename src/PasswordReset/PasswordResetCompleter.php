@@ -46,6 +46,9 @@ final class PasswordResetCompleter
         $this->userWriter   = $userWriter ?? new UserStoreGate(new DoctrineUserWriter($entityManager, $propertyAccessor, $entityManagerRecovery, $this->transactions));
     }
 
+    /**
+     * @throws PasswordResetLinkUsedException when another request used up the credential first (2.2.0; nothing written)
+     */
     public function complete(PasswordAuthenticatedUserInterface $user, #[SensitiveParameter] string $plainPassword): void
     {
         $profile = $this->profileRegistry->resolveForObject($user) ?? $this->profileRegistry->getDefault();
@@ -53,10 +56,19 @@ final class PasswordResetCompleter
 
         // 1.50.0 (Beacon spec 239): the new password and the cleared credential are one unit of work: a failure keeps
         // neither (the reset link stays usable), and never stores the password while the credential stays live.
+        // 2.2.0 (REQ-RUNTIME-003): the credential is claimed first, once: of two completions of one link or code sent
+        // at the same moment, only the one that used it up stores its password; the other one writes nothing.
         $unit = function () use ($profile, $user, $hashed): void {
-            $this->userWriter->changePassword($profile, $user, $hashed);
-            // @igor-ignore - Not shared worker service state.
-            $this->tokenManager->clearForUser($user);
+            if ($this->tokenManager instanceof PasswordResetCredentialClaimInterface) {
+                if (!$this->tokenManager->claimForUser($user)) {
+                    throw new PasswordResetLinkUsedException();
+                }
+                $this->userWriter->changePassword($profile, $user, $hashed);
+            } else {
+                $this->userWriter->changePassword($profile, $user, $hashed);
+                // @igor-ignore - Not shared worker service state.
+                $this->tokenManager->clearForUser($user);
+            }
             $this->userWriter->save($profile, $user);
         };
         UserStoreGate::storesThroughDoctrine($this->userWriter) ? $this->transactions->runWithAccounts($unit) : $this->transactions->runOnConnection($unit);

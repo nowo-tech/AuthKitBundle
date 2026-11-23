@@ -32,7 +32,7 @@ use function sprintf;
  * cleared when the budget is spent. The user of a row is found again through {@see UserLookupInterface} (by id, or by
  * identifier when it has none), so the answer is the current user, never a cached one. Stateless.
  */
-final readonly class TablePasswordResetTokenManager implements PasswordResetTokenManagerInterface
+final readonly class TablePasswordResetTokenManager implements PasswordResetTokenManagerInterface, PasswordResetCredentialClaimInterface
 {
     public function __construct(
         private PasswordResetRequestRepository $requests,
@@ -148,6 +148,17 @@ final readonly class TablePasswordResetTokenManager implements PasswordResetToke
         $profile = $this->requireProfileForUser($user);
 
         $this->requests->delete(UserIds::className($user), UserIds::of($user, $this->propertyAccessor), [$this->identifierOf($profile, $user)]);
+    }
+
+    /**
+     * 2.2.0 (REQ-RUNTIME-003): the user's rows are deleted by id; only one transaction deletes them, the other one waits
+     * on the row locks and then deletes nothing (no credential left: refused).
+     */
+    public function claimForUser(object $user): bool
+    {
+        $profile = $this->requireProfileForUser($user);
+
+        return $this->requests->delete(UserIds::className($user), UserIds::of($user, $this->propertyAccessor), [$this->identifierOf($profile, $user)]) > 0;
     }
 
     /**

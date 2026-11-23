@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Form\ResetPasswordCodeFormType;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetLinkUsedException;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
@@ -105,7 +106,17 @@ final class ResetPasswordCodeController
             }
 
             if ($user instanceof PasswordAuthenticatedUserInterface) {
-                $this->passwordResetCompleter->complete($user, $data['password']);
+                try {
+                    $this->passwordResetCompleter->complete($user, $data['password']);
+                } catch (PasswordResetLinkUsedException) {
+                    // 2.2.0 (REQ-RUNTIME-003): another request used the code first; this one changed nothing.
+                    $form->get('code')->addError(new FormError(
+                        $this->translator?->trans('reset.code.flash_invalid', [], NowoAuthKitBundle::TRANSLATION_DOMAIN) ?? 'reset.code.flash_invalid',
+                        'reset.code.flash_invalid',
+                    ));
+
+                    return $this->renderPage($form->createView(), $profile);
+                }
             }
 
             $this->flashMessenger->flash($request, 'success', 'reset.password.flash_success');
