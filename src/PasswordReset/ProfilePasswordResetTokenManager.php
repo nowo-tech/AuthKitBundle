@@ -52,6 +52,7 @@ final readonly class ProfilePasswordResetTokenManager implements PasswordResetTo
         if ($manager instanceof PasswordResetCredentialClaimInterface) {
             return $manager->claimForUser($user);
         }
+        // @igor-ignore - Not shared worker service state: the store writes the user's reset credential row.
         $manager->clearForUser($user);
 
         return true;

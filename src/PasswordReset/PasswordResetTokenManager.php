@@ -185,7 +185,9 @@ final class PasswordResetTokenManager implements PasswordResetTokenManagerInterf
 
         $unitOfWork = $this->entityManager->getUnitOfWork();
         foreach ([$tokenField, $expiresField] as $field) {
+            // @igor-ignore - Writes the entity's field (a per-request object), not the metadata service's state.
             $metadata->setFieldValue($user, $field, null);
+            // @igor-ignore - The original data of this managed entity only, matching the row the UPDATE just wrote.
             $unitOfWork->setOriginalEntityProperty(spl_object_id($user), $field, null);
         }
 

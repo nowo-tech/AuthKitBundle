@@ -136,6 +136,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PasswordResetLinkUsedException`; a host store that does not implement the interface keeps the 2.1 behaviour. No
   schema change. Tests: `tests/Database/PasswordResetClaimRaceTest` (two sessions, MySQL 8.4 / MariaDB 11.4 /
   PostgreSQL 16, both stores).
+- `password_reset.storage: table` on PostgreSQL with DBAL 3 (where the reset row's id comes from a sequence) failed
+  every reset request with a NOT NULL violation on `auth_kit_password_reset.id`: the row was inserted without an id.
+  An id the mapping generates before the insert is now written explicitly; identity columns are unchanged.
 
 ## [2.1.0] - 2026-11-23
 
