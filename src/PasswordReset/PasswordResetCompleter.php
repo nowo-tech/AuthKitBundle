@@ -47,9 +47,13 @@ final class PasswordResetCompleter
     }
 
     /**
+     * @param string|null $credential 2.2.0: the plain link token or code this request validated; with a store that
+     *                                implements {@see PasswordResetCredentialClaimInterface} it is claimed once (null:
+     *                                the credential is cleared as in 2.1, unguarded)
+     *
      * @throws PasswordResetLinkUsedException when another request used up the credential first (2.2.0; nothing written)
      */
-    public function complete(PasswordAuthenticatedUserInterface $user, #[SensitiveParameter] string $plainPassword): void
+    public function complete(PasswordAuthenticatedUserInterface $user, #[SensitiveParameter] string $plainPassword, #[SensitiveParameter] ?string $credential = null): void
     {
         $profile = $this->profileRegistry->resolveForObject($user) ?? $this->profileRegistry->getDefault();
         $hashed  = $this->passwordHasher->hashPassword($user, $plainPassword);
@@ -58,9 +62,9 @@ final class PasswordResetCompleter
         // neither (the reset link stays usable), and never stores the password while the credential stays live.
         // 2.2.0 (REQ-RUNTIME-003): the credential is claimed first, once: of two completions of one link or code sent
         // at the same moment, only the one that used it up stores its password; the other one writes nothing.
-        $unit = function () use ($profile, $user, $hashed): void {
-            if ($this->tokenManager instanceof PasswordResetCredentialClaimInterface) {
-                if (!$this->tokenManager->claimForUser($user)) {
+        $unit = function () use ($profile, $user, $hashed, $credential): void {
+            if ($credential !== null && $this->tokenManager instanceof PasswordResetCredentialClaimInterface) {
+                if (!$this->tokenManager->claimForUser($user, $credential)) {
                     throw new PasswordResetLinkUsedException();
                 }
                 $this->userWriter->changePassword($profile, $user, $hashed);

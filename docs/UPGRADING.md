@@ -170,6 +170,22 @@
 
 ## Unreleased
 
+### Password reset: one link stores one password (REQ-RUNTIME-003)
+
+Nothing to change for the bundled pages and stores: a completion now claims the validated link token or code once,
+so two concurrent completions of one link store one password.
+
+- **Your own `PasswordResetTokenManagerInterface`** (or a decorator of AuthKit's) keeps the 2.1 race (two completions
+  can both store a password, the last one wins) unless it also implements
+  `Nowo\AuthKitBundle\PasswordReset\PasswordResetCredentialClaimInterface::claimForUser(object $user, string $credential): bool`:
+  clear only the credential `$credential` proves, with a statement that only one transaction can win (a conditional
+  `UPDATE` or `DELETE` whose affected-row count you check), and return false when nothing was cleared. A decorator
+  should forward the call to the store it wraps.
+- **Your own controller calling `PasswordResetCompleter::complete($user, $password)`**: pass the link token or code
+  you validated as the third argument. Without it the credential is cleared as in 2.1, unguarded. Catch
+  `PasswordResetLinkUsedException` (another request used the credential first; nothing was written) and answer as for an
+  invalid link.
+
 ## To 2.1.0
 
 From **2.0.0**:

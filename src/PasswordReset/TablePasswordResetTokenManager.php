@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\Repository\PasswordResetRequestRepository;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\User\UserIds;
 use Psr\Clock\ClockInterface;
+use SensitiveParameter;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -151,14 +152,15 @@ final readonly class TablePasswordResetTokenManager implements PasswordResetToke
     }
 
     /**
-     * 2.2.0 (REQ-RUNTIME-003): the user's rows are deleted by id; only one transaction deletes them, the other one waits
-     * on the row locks and then deletes nothing (no credential left: refused).
+     * 2.2.0 (REQ-RUNTIME-003): deletes, by id, only the user's rows that `$credential` proves (the row this request
+     * validated), so a row a newer reset request stored is never claimed by an older link. Only one transaction deletes
+     * a row; the other one waits on its lock and then deletes nothing (refused).
      */
-    public function claimForUser(object $user): bool
+    public function claimForUser(object $user, #[SensitiveParameter] string $credential): bool
     {
         $profile = $this->requireProfileForUser($user);
 
-        return $this->requests->delete(UserIds::className($user), UserIds::of($user, $this->propertyAccessor), [$this->identifierOf($profile, $user)]) > 0;
+        return $this->requests->deleteProved(UserIds::className($user), UserIds::of($user, $this->propertyAccessor), [$this->identifierOf($profile, $user)], $credential) > 0;
     }
 
     /**

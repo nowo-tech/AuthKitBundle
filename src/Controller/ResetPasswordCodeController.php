@@ -107,7 +107,7 @@ final class ResetPasswordCodeController
 
             if ($user instanceof PasswordAuthenticatedUserInterface) {
                 try {
-                    $this->passwordResetCompleter->complete($user, $data['password']);
+                    $this->passwordResetCompleter->complete($user, $data['password'], $data['code']);
                 } catch (PasswordResetLinkUsedException) {
                     // 2.2.0 (REQ-RUNTIME-003): another request used the code first; this one changed nothing.
                     $form->get('code')->addError(new FormError(

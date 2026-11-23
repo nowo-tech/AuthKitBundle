@@ -126,14 +126,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - REQ-RUNTIME-003: two completions of one password reset link (or code) sent at the same moment could both store a
   password; the last one won. The completion now claims the credential first, once, in the same unit as the new
-  password: on the user entity a conditional `UPDATE … WHERE <token_field> = <the value this request read>`, in the
-  `auth_kit_password_reset` table the `DELETE` of the user's rows (only one transaction deletes them). The request that
+  password, bound to the link token or code this request validated (`PasswordResetCompleter::complete()` takes it as a
+  new optional third argument; the bundled pages pass it): on the user entity a conditional
+  `UPDATE … WHERE id = :id AND <token_field> = <the value this request read>` when that value is the validated
+  credential, in the `auth_kit_password_reset` table the `DELETE` of the user's rows that credential proves (only one
+  transaction deletes them). A credential a newer reset request stored is never used up by an older link, and a user
+  the application's directory returns without AuthKit's manager holding it is claimed by id the same way. The request that
   loses answers like an invalid link (the link page redirects to the request page with
   `reset.password.flash_invalid_token`; the code page shows `reset.code.flash_invalid` again) and writes nothing.
   Access impact: none was granted (both completions came from the holder of the link), but the person who used the link
   first could see their new password replaced by a second, concurrent completion. New
   `PasswordReset\PasswordResetCredentialClaimInterface` (implemented by the bundled stores) and
-  `PasswordResetLinkUsedException`; a host store that does not implement the interface keeps the 2.1 behaviour. No
+  `PasswordResetLinkUsedException`; a host store that does not implement the interface, or a call of `complete()`
+  without the credential, keeps the 2.1 behaviour (see UPGRADING). No
   schema change. Tests: `tests/Database/PasswordResetClaimRaceTest` (two sessions, MySQL 8.4 / MariaDB 11.4 /
   PostgreSQL 16, both stores).
 - `password_reset.storage: table` on PostgreSQL with DBAL 3 (where the reset row's id comes from a sequence) failed

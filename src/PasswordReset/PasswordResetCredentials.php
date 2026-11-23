@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 use Nowo\AuthKitBundle\Enum\PasswordResetDeliveryMode;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
+use SensitiveParameter;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
 use function bin2hex;
@@ -53,6 +54,20 @@ final class PasswordResetCredentials
             PasswordResetDeliveryMode::Code => hash('sha256', $plain),
             PasswordResetDeliveryMode::Both => hash('sha256', explode(':', $plain, 2)[0]) . '|' . hash('sha256', explode(':', $plain, 2)[1]),
         };
+    }
+
+    /**
+     * 2.2.0: whether the plain link token or code proves the stored value (either part for `both`), in constant time.
+     */
+    public static function proves(string $stored, #[SensitiveParameter] string $credential): bool
+    {
+        $hash   = hash('sha256', $credential);
+        $proved = false;
+        foreach (explode('|', $stored, 2) as $part) {
+            $proved = hash_equals($part, $hash) || $proved;
+        }
+
+        return $proved;
     }
 
     /**

@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\PasswordReset;
 use Nowo\AuthKitBundle\DependencyInjection\Configuration;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use SensitiveParameter;
 
 /**
  * The reset credential store of each profile (1.46.0): {@see TablePasswordResetTokenManager} for the profiles with
@@ -46,11 +47,11 @@ final readonly class ProfilePasswordResetTokenManager implements PasswordResetTo
         $this->forUser($user)->clearForUser($user);
     }
 
-    public function claimForUser(object $user): bool
+    public function claimForUser(object $user, #[SensitiveParameter] string $credential): bool
     {
         $manager = $this->forUser($user);
         if ($manager instanceof PasswordResetCredentialClaimInterface) {
-            return $manager->claimForUser($user);
+            return $manager->claimForUser($user, $credential);
         }
         // @igor-ignore - Not shared worker service state: the store writes the user's reset credential row.
         $manager->clearForUser($user);

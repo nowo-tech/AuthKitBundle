@@ -12,8 +12,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
 use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
+use Nowo\AuthKitBundle\PasswordReset\PasswordResetCredentials;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetRequestRow;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
+use SensitiveParameter;
 
 use function in_array;
 use function is_string;
@@ -72,6 +74,34 @@ final readonly class PasswordResetRequestRepository
     public function delete(string $userClass, ?string $userId, array $identifiers): int
     {
         return $this->deleteOn($this->connection(), $this->table(), $userClass, $userId, $identifiers);
+    }
+
+    /**
+     * 2.2.0 (REQ-RUNTIME-003): deletes the user's rows that the plain link token or code proves (exact user match as in
+     * {@see self::delete()}, then {@see PasswordResetCredentials::proves()} on the stored hashes), by primary key.
+     * Returns the number of deleted rows: 0 when another transaction deleted them first or no row is proved.
+     *
+     * @param list<string> $identifiers
+     */
+    public function deleteProved(string $userClass, ?string $userId, array $identifiers, #[SensitiveParameter] string $credential): int
+    {
+        $connection = $this->connection();
+        $ids        = [];
+        foreach ($this->candidates($connection, $this->table(), 'id, user_class, user_id, user_identifier, token_hash, code_hash', $userClass, $userId, $identifiers) as $row) {
+            $stored = (string) $row['token_hash'] . (is_string($row['code_hash']) ? '|' . $row['code_hash'] : '');
+            if (PasswordResetCredentials::proves($stored, $credential)) {
+                $ids[] = (int) $row['id'];
+            }
+        }
+        if ($ids === []) {
+            return 0;
+        }
+
+        return (int) $connection->executeStatement(
+            'DELETE FROM ' . $this->table() . ' WHERE id IN (:ids)',
+            ['ids' => $ids],
+            ['ids' => ArrayParameterType::INTEGER],
+        );
     }
 
     /**

@@ -26,7 +26,7 @@ final class PasswordResetClaimTest extends TestCase
         $user  = new TestUser();
         $store = new ClaimingResetStore(true);
 
-        $this->completer($store)->complete($user, 'new-password');
+        $this->completer($store)->complete($user, 'new-password', 'link-token');
 
         self::assertSame('hashed', $user->getPassword());
         self::assertSame([[$user], []], [$store->claimed, $store->cleared]);
@@ -39,7 +39,7 @@ final class PasswordResetClaimTest extends TestCase
         $store = new ClaimingResetStore(false);
 
         try {
-            $this->completer($store)->complete($user, 'new-password');
+            $this->completer($store)->complete($user, 'new-password', 'link-token');
             self::fail('A used credential must be refused.');
         } catch (PasswordResetLinkUsedException $used) {
             self::assertSame('The password reset credential was already used.', $used->getMessage());
@@ -53,7 +53,7 @@ final class PasswordResetClaimTest extends TestCase
         $claiming = new ClaimingResetStore(false);
         $profiles = ProfileRegistryFactory::single(TestUser::class);
 
-        self::assertFalse((new ProfilePasswordResetTokenManager($profiles, $claiming, new ClaimingResetStore(true)))->claimForUser($user));
+        self::assertFalse((new ProfilePasswordResetTokenManager($profiles, $claiming, new ClaimingResetStore(true)))->claimForUser($user, 'link-token'));
         self::assertSame([$user], $claiming->claimed);
     }
 
@@ -64,7 +64,18 @@ final class PasswordResetClaimTest extends TestCase
         $plain->expects(self::once())->method('clearForUser')->with($user);
         $profiles = ProfileRegistryFactory::single(TestUser::class);
 
-        self::assertTrue((new ProfilePasswordResetTokenManager($profiles, $plain, new ClaimingResetStore(true)))->claimForUser($user));
+        self::assertTrue((new ProfilePasswordResetTokenManager($profiles, $plain, new ClaimingResetStore(true)))->claimForUser($user, 'link-token'));
+    }
+
+    public function testWithoutTheValidatedCredentialTheStoreClearsAsIn21(): void
+    {
+        $user  = new TestUser();
+        $store = new ClaimingResetStore(false);
+
+        $this->completer($store)->complete($user, 'new-password');
+
+        self::assertSame([[], [$user]], [$store->claimed, $store->cleared]);
+        self::assertSame('hashed', $user->getPassword());
     }
 
     private function completer(PasswordResetTokenManagerInterface $store): PasswordResetCompleter

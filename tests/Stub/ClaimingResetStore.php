@@ -47,7 +47,7 @@ final class ClaimingResetStore implements PasswordResetTokenManagerInterface, Pa
         $this->cleared[] = $user;
     }
 
-    public function claimForUser(object $user): bool
+    public function claimForUser(object $user, string $credential): bool
     {
         $this->claimed[] = $user;
 

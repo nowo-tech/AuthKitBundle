@@ -144,8 +144,12 @@ DBAL 3. No test may be skipped. These are required checks on `main`.
 - **No retry inside AuthKit.** A conflict is answered, not replayed. Hosts that want automatic replays wrap their own
   controllers with transaction-doctrine's `#[AsWriteUnit]` (AuthKit's routes are one attempt).
 - **A host reset store without the claim.** Since 2.2 two completions of one reset link store one password (the
-  claim). A host `PasswordResetTokenManagerInterface` that does not implement `PasswordResetCredentialClaimInterface`
-  keeps the 2.1 behaviour: both can store a password and the last one wins.
+  claim, bound to the validated link token or code). A host `PasswordResetTokenManagerInterface` (or decorator) that
+  does not implement `PasswordResetCredentialClaimInterface`, or a host call of `PasswordResetCompleter::complete()`
+  without the credential, keeps the 2.1 behaviour: both can store a password and the last one wins.
+- **A user AuthKit cannot address** in the user-entity store: a class the injected manager does not map, reset
+  fields that are not mapped columns, a composite or missing id. The claim then clears the credential as in 2.1,
+  unguarded. A user the manager does not hold (a host user directory's object) is still claimed by id.
 - **Magic links** are Symfony's `login_link`: with `max_uses`, the use count lives in Symfony's expired-signature
   storage (a cache), whose check and increment are not atomic, so two simultaneous uses of one link can both sign in
   (the same person, holding the link). This is Symfony's behaviour; AuthKit keeps `max_uses: 1` and a short `lifetime`
