@@ -11,6 +11,7 @@ use LogicException;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\TransactionContract\TransientStorageFailure;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -235,6 +236,28 @@ class HostExtensionsKernelTest extends WebTestCase
         $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
 
         self::assertResponseStatusCodeSame(404);
+        self::assertNull($this->tokens()->getToken());
+    }
+
+    /**
+     * 2.2.1 (REQ-RUNTIME-003 rules 6 and 8): a lock conflict in a host handler answers 409 with its conflict code, as
+     * on the built-in linker path, never the "failed" refusal; the sign-in it made is undone.
+     */
+    public function testHandlerLockConflictAnswers409WithItsConflictCodeAndUndoesTheSignIn(): void
+    {
+        $this->persistAda();
+        $this->handler()->signInFirst = true;
+        $this->handler()->throw       = new TransientStorageFailure(2);
+        $this->client->request('GET', '/test/pending');
+        $state = $this->startAuthorization();
+
+        $this->client->request('GET', '/login/social/google/check', ['code' => 'c', 'state' => $state]);
+
+        self::assertResponseStatusCodeSame(409);
+        $response = $this->client->getResponse();
+        self::assertSame('CONFLICT_001', $response->headers->get('X-Conflict-Code'));
+        self::assertSame('2', $response->headers->get('Retry-After'));
+        self::assertStringNotContainsString('failed|google|failed', (string) $response->getContent());
         self::assertNull($this->tokens()->getToken());
     }
 

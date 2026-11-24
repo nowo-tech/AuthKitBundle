@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-24 (2.2.0)  
+**Last audited**: 2026-11-24 (2.2.1, no new production sources)  
 **Units**: **468** (`399` PHP under `src/` + `69` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.

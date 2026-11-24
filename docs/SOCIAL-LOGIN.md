@@ -232,6 +232,11 @@ A callback that does not prove its state never reaches `handleFailure()`: forged
 `?error=` link, gets the default flash and redirect, and neither the pending OAuth state nor your pending entry is
 touched. `handleFailure()` runs for `Unavailable`, `ProviderDenied` and `Failed` after the state matched.
 
+When `handle()` throws, a sign-in it already made is undone. An HTTP exception keeps its status. Since 2.2.1 a lock
+conflict (a deadlock, a lock wait timeout, a serialization failure or an AuthKit named lock not obtained) is not turned
+into `Failed` either: it answers 409 with its conflict code, as the built-in flow does
+([CONCURRENCY.md](CONCURRENCY.md#conflict-answer-and-codes)). Anything else is `Failed`.
+
 What the handler takes over, because `handle()` replaces `SocialAccountLinker` and `Security::login()`:
 
 **Prefer `SocialAccountLinker::linkAndSignIn()` in the handler** (1.38; `linkOrCreate()` writes at once): it enforces the rules below and rolls the link and any password replacement back if the sign-in fails, including a `LoginSuccessEvent` listener failing. A `password_changed` listener runs after the commit, so its failure undoes nothing (1.39). After a failure every entity of the request is detached: fetch again if your handler goes on. If you do not

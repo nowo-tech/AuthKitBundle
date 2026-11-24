@@ -14,6 +14,7 @@ use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -50,6 +51,10 @@ use function str_starts_with;
  * AuthKit's pages are its routes (`nowo_auth_kit_*`) and any route served by an AuthKit controller (a profile may rename
  * its routes). The application's own routes are left alone. Stateless: the commit count at the start of the request
  * is kept on the request.
+ *
+ * 2.2.1 (REQ-RUNTIME-003 rule 6, request-level detection): the count is the one taken at the start of the **main**
+ * request. A sub-request (an AuthKit controller rendered as a fragment, `render(controller(…))`) reads the main
+ * request's count, so a commit made earlier in the page (by the host or another bundle) still answers `CONFLICT_002`.
  */
 final class StorageFailureSubscriber implements EventSubscriberInterface
 {
@@ -82,9 +87,14 @@ final class StorageFailureSubscriber implements EventSubscriberInterface
      * @param ConflictResponsePolicy|null $policy Status and Retry-After; null: 409 + Retry-After 1
      * @param CommitLedger|null $ledger The commits of the process (transaction-doctrine's commit tracking); null: only
      *                                  ConcurrencyConflict::$committed tells a CONFLICT_002
+     * @param RequestStack|null $requests 2.2.1: the main request's count for a sub-request; null: the sub-request's own
+     *                                    start (as up to 2.2.0)
      */
-    public function __construct(?ConflictResponsePolicy $policy = null, private readonly ?CommitLedger $ledger = null)
-    {
+    public function __construct(
+        ?ConflictResponsePolicy $policy = null,
+        private readonly ?CommitLedger $ledger = null,
+        private readonly ?RequestStack $requests = null,
+    ) {
         $this->classifier = new TransientFailureClassifier();
         $this->policy     = $policy ?? new ConflictResponsePolicy();
     }
@@ -101,14 +111,17 @@ final class StorageFailureSubscriber implements EventSubscriberInterface
     }
 
     /**
-     * Remembers the commit count when the request starts (a sub-request keeps the count of its own start).
+     * Remembers the commit count when the request starts. A sub-request takes the count of the main request's start
+     * (2.2.1), or of its own start when the main request has none.
      */
     public function onRequest(RequestEvent $event): void
     {
         $attributes = $event->getRequest()->attributes;
-        if ($this->ledger instanceof CommitLedger && !$attributes->has(self::COMMITS_ATTRIBUTE)) {
-            $attributes->set(self::COMMITS_ATTRIBUTE, $this->ledger->count());
+        if (!$this->ledger instanceof CommitLedger || $attributes->has(self::COMMITS_ATTRIBUTE)) {
+            return;
         }
+        $main = $event->isMainRequest() ? null : $this->requests?->getMainRequest()?->attributes->get(self::COMMITS_ATTRIBUTE);
+        $attributes->set(self::COMMITS_ATTRIBUTE, is_int($main) ? $main : $this->ledger->count());
     }
 
     public function onException(ExceptionEvent $event): void
