@@ -14,7 +14,8 @@ return (new Config())
     ->setParallelConfig(new ParallelConfig(2))
     ->setRiskyAllowed(true)
     ->setRules([
-        '@PSR12' => true,
+        '@PER-CS' => true,
+        '@PER-CS:risky' => true,
         '@Symfony' => true,
         '@Symfony:risky' => true,
         'declare_strict_types' => true,

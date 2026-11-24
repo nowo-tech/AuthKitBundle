@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-22 (feat/2.0, after 1.56.0)  
+**Last audited**: 2026-11-24 (2.2.0)  
 **Units**: **468** (`399` PHP under `src/` + `69` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
@@ -538,6 +538,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
+| `Doctrine/AuthKitExactKeyColumns.php` | production (REQ-SEC-006 declaration of the identity / access-key columns) | FR-EXACT-002 | Mapped |
 | `Doctrine/IdentityCollationListener.php` | production | FR-EXACT-002 | Mapped |
 | `Doctrine/PasswordResetCollationListener.php` | production | FR-EXACT-002 | Mapped |
 | `Security/ExactIdentifier.php` | production | FR-EXACT-001 | Mapped |
@@ -549,7 +550,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Doctrine/PasswordResetTableInvalidationListener.php` | production | FR-RESET-006 | Mapped |
 | `PasswordReset/Entity/PasswordResetRequest.php` | production | FR-RESET-005 | Mapped |
 | `PasswordReset/PasswordResetCompletedEvent.php` | production | FR-RESET-005 | Mapped |
+| `PasswordReset/PasswordResetCredentialClaimInterface.php` | production (2.2: claim of the reset credential, REQ-RUNTIME-003) | FR-RESET-005 | Mapped |
 | `PasswordReset/PasswordResetCredentials.php` | production | FR-RESET-005 | Mapped |
+| `PasswordReset/PasswordResetLinkUsedException.php` | production (2.2: a lost claim answers as an invalid link) | FR-RESET-005 | Mapped |
 | `PasswordReset/PasswordResetRequestRow.php` | production | FR-RESET-005 | Mapped |
 | `PasswordReset/ProfilePasswordResetTokenManager.php` | production | FR-RESET-005 | Mapped |
 | `PasswordReset/TablePasswordResetTokenManager.php` | production | FR-RESET-005 | Mapped |
@@ -699,10 +702,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 399 |
+| PHP under `src/` | 402 |
 | Resources (config/translations/views/public) | 69 |
-| **Total production sources** | **468** |
-| Audit command | `git ls-files src \| wc -l` → 468 |
+| **Total production sources** | **471** |
+| Audit command | `git ls-files src \| wc -l` → 471 |
 
 ## Coverage gate
 
