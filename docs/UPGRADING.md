@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.2.1](#to-221)
 - [To 2.2.0](#to-220)
   - [Password reset: one link stores one password (REQ-RUNTIME-003)](#password-reset-one-link-stores-one-password-req-runtime-003)
 - [To 2.1.0](#to-210)
@@ -171,6 +172,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.2.1
+
+From **2.2.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 No code change is needed for most hosts. A host social callback handler (`SocialCallbackStepInterface`) that throws a lock conflict now
 gets a 409 with the conflict code instead of `handleFailure(…, SocialCallbackFailure::Failed)`. The sign-in it made is
