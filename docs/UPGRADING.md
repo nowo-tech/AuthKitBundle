@@ -172,6 +172,10 @@
 
 ## Unreleased
 
+Nothing to change. A host social callback handler (`SocialCallbackStepInterface`) that throws a lock conflict now
+gets a 409 with the conflict code instead of `handleFailure(…, SocialCallbackFailure::Failed)`. The sign-in it made is
+still undone ([SOCIAL-LOGIN.md](SOCIAL-LOGIN.md)).
+
 ## To 2.2.0
 
 From **2.1.0**:

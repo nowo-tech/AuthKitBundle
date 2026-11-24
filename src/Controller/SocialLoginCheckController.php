@@ -24,6 +24,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
 use Nowo\TransactionContract\TransientStorageFailure;
+use Nowo\TransactionDoctrine\TransientFailureClassifier;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -158,8 +159,8 @@ final class SocialLoginCheckController
 
     /**
      * Runs the handler. Whatever it throws, a sign-in it already made does not survive (GY-L1, GY-L6). HTTP exceptions
-     * keep their status (the handler's own 403, 404, 429); anything else takes the failure path, logged by class because
-     * the message may hold provider data (GY-I1).
+     * keep their status (the handler's own 403, 404, 429) and lock conflicts answer 409 (2.2.1); anything else takes the
+     * failure path, logged by class because the message may hold provider data (GY-I1).
      */
     private function handled(Request $request, SocialCallbackHandlerInterface $handler, SocialCallbackContext $context, string $loginUrl): Response
     {
@@ -169,12 +170,29 @@ final class SocialLoginCheckController
             return $this->guarded($request, static fn (): Response => $handler->handle($request, $context));
         } catch (Throwable $exception) {
             $this->logger?->error('AuthKit social callback handler {handler} failed for provider {provider}.', ['handler' => $handler instanceof SocialCallbackStepGate ? $handler->step()::class : $handler::class, 'provider' => $context->provider, 'exception' => $exception::class]);
-            if ($exception instanceof HttpExceptionInterface) {
+            // 2.2.1 (REQ-RUNTIME-003 rules 6 and 8): a lock conflict (deadlock, lock wait, serialization failure, an
+            // AuthKit named lock not obtained) is never turned into a refusal: it goes on to StorageFailureSubscriber,
+            // which answers 409 with its conflict code, as on the built-in linker path.
+            if ($exception instanceof HttpExceptionInterface || $this->isLockConflict($exception)) {
                 throw $exception;
             }
 
             return $this->failed($request, $context->provider, $handler, SocialCallbackFailure::Failed, $loginUrl, 'social.error.failed');
         }
+    }
+
+    /**
+     * Whether the failure is a lock conflict StorageFailureSubscriber answers (2.2.1).
+     */
+    private function isLockConflict(Throwable $exception): bool
+    {
+        for ($current = $exception; $current instanceof Throwable; $current = $current->getPrevious()) {
+            if ($current instanceof TransientStorageFailure) {
+                return true;
+            }
+        }
+
+        return (new TransientFailureClassifier())->isTransient($exception);
     }
 
     /**

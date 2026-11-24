@@ -24,6 +24,19 @@ Every write runs on AuthKit's own runner (`Transaction\AuthKitTransactionRunner`
 commit. After a failure no transaction level stays open. The host's entity manager is never cleared or reset: only
 the rows the failed unit touched are detached.
 
+**Account writes and the application's entity manager.** AuthKit's own rows (invitations, QR challenges, MFA, reset
+table, social links, vault) go through its private entity manager. The accounts are the application's user entities,
+so the units that create or change an account (`runWithAccounts`: registration, invitation acceptance, social
+sign-up and linking, administrator creation, password reset) flush the application's manager **inside AuthKit's
+transaction**, through the Doctrine user writer (`User\Doctrine\DoctrineUserWriter`), the invitation acceptor and the
+user-entity reset store. That flush is what the host asked for when it lets AuthKit store its users through Doctrine;
+it commits or rolls back with AuthKit's unit, and after a failure the runner detaches only the rows the unit wrote.
+A host that binds its own user port (`UserWriterInterface`) keeps its manager out of registration, administrator
+creation, social sign-up and password reset: those units then run on the connection only (`runOnConnection`, no
+manager flushed). Invitation acceptance still flushes the application's manager inside its unit, because the
+invitation grants (`InvitationGrantHandlerInterface`) write the host's own rows there. Every other `flush()` in `src/` is the
+runner's own, inside a unit.
+
 | Path | Transaction | Concurrency control | Conflict answer |
 |------|-------------|---------------------|-----------------|
 | Registration (`UserRegistrar::register`) | One unit (`runWithAccounts`) | Named lock of the identifier (`AccountLock::forIdentifier`, folded identifier), an "already taken" check under it, the host's unique key plus catch (`DuplicateUserException` or `UniqueConstraintViolationException`: refused as a duplicate). With `first_user_only`, the lock of the user class | 409 `CONFLICT_001` on a lock wait or a deadlock; a duplicate is a refusal (redirect), never 409 |
@@ -31,8 +44,8 @@ the rows the failed unit touched are detached.
 | Social sign-in, sign-up and linking (`SocialAccountLinker`) | One unit (`runWithAccounts`) | Named lock of the social identity, then of the user class (`first_user_only`), then of the account | 409 `CONFLICT_001`, or `CONFLICT_002` when the unit committed and the sign-in then met the conflict |
 | Administrator creation (`AdminUserCreator`, `nowo:auth-kit:create-admin`) | One unit (`runWithAccounts`) | Account lock, unique key plus catch (a duplicate result) | Console: the command fails with the transient failure; nothing is written |
 | Password reset (request, token, completion) | One unit each (`runWithAccounts`, `runOnConnection`, `forConnection` for the reset table) | The new password and the cleared reset credential are one unit (a failure keeps neither, the link stays usable); the credential columns are re-read from the database before a check. 2.2: the completion claims the credential first (`PasswordResetCredentialClaimInterface`: a conditional `UPDATE` on the stored value this request read, or the `DELETE` of the table rows), so one link stores one password | 409 `CONFLICT_001`; a lost claim is the "invalid link" answer (`PasswordResetLinkUsedException`), nothing written |
-| QR login (create, approve, deny, consume, expire) | One unit each (`QrLoginChallengeRepository::transactional`) | Challenge id inserted through `AuthKitRows::insert` (unique key plus catch: a new id is drawn); state changes re-read the row (`findFresh`) in the unit | 409 `CONFLICT_001`; `CONFLICT_002` when the challenge was consumed and the sign-in then met the conflict |
-| MFA (enrolment, verification, recovery codes, trusted devices, disabling) | One unit each (`MfaStore`) | `FOR UPDATE` on the credential row first; first enrolment through `AuthKitRows::insert` (the row another request wrote is read with a lock); attempt counters under `symfony/lock` | 409 `CONFLICT_001` |
+| QR login (create, approve, deny, consume, expire) | One unit each (`QrLoginChallengeRepository::transactional`) | Challenge id inserted through `AuthKitRows::insert` (unique key plus catch: a new id is drawn); every state change is a conditional `UPDATE … WHERE status = :from` (`transitionStatus()`), so a challenge is approved, denied or consumed once (`QrLoginChallengeConflictException` for the loser); state is re-read (`findFresh`) in the unit | 409 `CONFLICT_001`; `CONFLICT_002` when the challenge was consumed and the sign-in then met the conflict |
+| MFA (enrolment, verification, recovery codes, trusted devices, disabling) | One unit each (`MfaStore`) | `FOR UPDATE` on the credential row first for every change of the factor; first enrolment through `AuthKitRows::insert` (the row another request wrote is read with a lock); single-use secrets by conditional `UPDATE`: a TOTP step (`claimStep`, `last_used_step < :step`), a recovery code (`useRecoveryCode`, `used_at IS NULL`), a trusted-device token rotation (`rotateDevice`, `token_hash = :seen`); attempt counters under `symfony/lock` | 409 `CONFLICT_001` |
 | Invitations (create, resend, revoke) | One unit each (`InvitationRepository::save`; 2.0: resend, re-invite and revoke through `saveWhileOpen()`, a conditional UPDATE guarded on the row still being open) | Rate limiter; random public id and token (unique keys); a racing acceptance wins (`NOT_OPEN`, nothing written) | 409 `CONFLICT_001` |
 | Several accounts (vault entries) | Single DBAL statements (`AccountVaultStore`) | Unique token hash; deletes by id | 409 `CONFLICT_001` |
 | Personal data erasure (`DoctrineInvitationPersonalData`) | One unit (`forConnection`) | Paged by id | Host's port caller |
@@ -53,16 +66,26 @@ route served by an AuthKit controller). A lock conflict is any of these, from Au
 | `CONFLICT_001` | Nothing of the request was committed | 409 (or 503, see below) | Yes (the failure's hint, else `retry_after`) | Send the request again |
 | `CONFLICT_002` | Part of the request was already committed: a commit was counted since the request started, or a host write unit gave up after a commit (`ConcurrencyConflict::$committed`) | 409 (or 503) | No | Reload, do not repeat |
 
-- **Pages** get an `HttpException` with the status, the header and a client-safe message (no SQL). The application's
+- **Every answer** carries the header `X-Conflict-Code: CONFLICT_001` or `CONFLICT_002` (2.0, platform convention),
+  so a page rendered by the application's error page still tells the client the code. `Retry-After` comes only with
+  `CONFLICT_001`.
+- **Pages** get an `HttpException` with the status, the headers and a client-safe message (no SQL). The application's
   error page renders it.
-- **JSON clients** (`Accept: application/json`) get `{"ok": false, "error": "unavailable", "code": "CONFLICT_001"}`.
-  The `ok` and `error` keys are the 1.50 ones; `code` was added in 1.53.0.
+- **JSON clients** (`Accept: application/json`) get `{"ok": false, "error": "unavailable", "code": "CONFLICT_001"}`
+  and the same headers. The `ok` and `error` keys are the 1.50 ones; `code` was added in 1.53.0. Clients key on `code`
+  or the header, never on `error`.
+- **Cross-origin clients.** AuthKit's routes are same-origin pages and their own JSON polls, so AuthKit sets no CORS
+  headers. A host that serves them cross-origin lists `X-Conflict-Code` and `Retry-After` in
+  `Access-Control-Expose-Headers` (for example `nelmio_cors` `expose_headers`).
+- **Host social callback handlers** (`SocialCallbackStepInterface`): since 2.2.1 a lock conflict thrown by `handle()`
+  gets the same answer, never the `Failed` refusal ([SOCIAL-LOGIN.md](SOCIAL-LOGIN.md)).
 - The codes are transaction-doctrine's `ConflictCode` (`CONFLICT_001` / `CONFLICT_002`), shared by every nowo-tech
   bundle.
 
 **How CONFLICT_002 is detected.** transaction-doctrine's commit tracking DBAL middleware counts every successful
-`COMMIT` and every autocommit write. The subscriber reads that count at `kernel.request` (priority 2048, before the
-firewall) and again when the conflict reaches it. If the count moved, something of this request is already durable.
+`COMMIT` and every autocommit write. The subscriber reads that count at `kernel.request` of the main request (priority
+2048, before the firewall) and again when the conflict reaches it. An AuthKit controller rendered as a sub-request (a
+fragment of a page) uses the main request's count (2.2.1), so a commit made earlier in the page counts too. If the count moved, something of this request is already durable.
 Two examples: a QR challenge consumed before the sign-in failed, or a registration committed before a listener of the
 sign-in deadlocked. AuthKit reuses the ledger of NowoTransactionDoctrineBundle (`commit_detection`) when the host
 registers it. Otherwise it registers the middleware itself (`conflict_response.commit_detection`, default true).
@@ -125,12 +148,21 @@ DBAL 3. No test may be skipped. These are required checks on `main`.
 - `AccountLocksTest`, `ConcurrentAccountsTest`, `FirstUserOnlyTest`: two sessions and two worker processes never create
   two accounts for one identifier, or two first accounts. A lock held too long is a transient failure.
 - `MfaCredentialRaceTest`: two first enrolments of one owner share one credential.
+- `MfaSingleUseRaceTest` (2.2.1): a TOTP step, a recovery code and a trusted-device token rotation presented by two
+  requests at once: the one that waits on the other's statement is refused when it commits and goes through when it
+  rolls back; one that comes after it is refused.
+- `QrLoginClaimRaceTest` (2.2.1): two consumes of one approved challenge sign in once; an approval racing a denial of
+  one pending challenge: only one applies, with the same held / committed cases.
+- `InvitationResendRaceTest`: a resend or a revoke racing an acceptance writes nothing (2.0, XX-I1).
+- `HostLoadedEntitiesTest`: AuthKit rows the application loaded through its own manager are written as the existing
+  row, and the application's pending changes stay pending.
 - `PasswordResetClaimRaceTest` (2.2): two completions of one reset link, on the user entity and in the reset table: the
   one that waits on the other's claim is refused when it commits and goes through when it rolls back; one that comes
   after it is refused. One password is stored per link.
 - Unit tests (`StorageFailureSubscriberTest`) cover the mapping of deadlocks, lock waits and serialization failures,
-  the 503 option, `CONFLICT_002` from the ledger and from `ConcurrencyConflict::$committed`, and the errors that are
-  not mapped.
+  the `X-Conflict-Code` and `Retry-After` headers, the 503 option, `CONFLICT_002` from the ledger (also for a
+  sub-request after a commit of the main request) and from `ConcurrencyConflict::$committed`, and the errors that are
+  not mapped. `HostExtensionsKernelTest` covers a host social handler's lock conflict (409, sign-in undone).
 
 ## Residual risks
 
@@ -154,6 +186,11 @@ DBAL 3. No test may be skipped. These are required checks on `main`.
   storage (a cache), whose check and increment are not atomic, so two simultaneous uses of one link can both sign in
   (the same person, holding the link). This is Symfony's behaviour; AuthKit keeps `max_uses: 1` and a short `lifetime`
   as its documented defaults.
+- **Social link after an accepted invitation.** When an invitation is accepted with a social provider, the account is
+  created and committed first; the social link is a second unit. If that second unit fails (a host lookup, or even a
+  lock conflict), it rolls back on its own and the accepted account still signs in; the failure is logged and the
+  provider can be linked at the next social sign-in. Nothing half-saved is reported: the acceptance is complete
+  without the link, and no unit stays open, so this is not a swallowed failure inside a unit (rule 8).
 - **Console commands** (`create-admin`, purges) fail with the transient failure instead of answering a code. They
   write nothing (create) or continue on the next run (purges).
 - **Known limits of the account locks** (PgBouncer transaction pooling, Galera, a failed release inside a host

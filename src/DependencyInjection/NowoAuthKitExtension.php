@@ -369,6 +369,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->getDefinition(StorageFailureSubscriber::class)->setArguments([
             $policy,
             new Reference(ConflictResponsePass::LEDGER, ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            new Reference('request_stack', ContainerInterface::NULL_ON_INVALID_REFERENCE),
         ]);
     }
 

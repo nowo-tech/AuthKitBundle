@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Event\RequestEvent;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -152,6 +153,58 @@ final class StorageFailureSubscriberTest extends TestCase
         self::assertSame(409, $response->getStatusCode());
         self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_002"}', $response->getContent());
         self::assertFalse($response->headers->has('Retry-After'));
+    }
+
+    /**
+     * 2.2.1 (REQ-RUNTIME-003 rule 6, request-level detection): an AuthKit controller rendered as a fragment of a page
+     * takes the count of the page's (main request's) start, so a commit made earlier in the page answers CONFLICT_002.
+     */
+    public function testASubRequestTakesTheMainRequestsCount(): void
+    {
+        $ledger     = new CommitLedger();
+        $requests   = new RequestStack();
+        $subscriber = new StorageFailureSubscriber(null, $ledger, $requests);
+        $kernel     = $this->createStub(HttpKernelInterface::class);
+        $main       = Request::create('/page');
+        $requests->push($main);
+        $subscriber->onRequest(new RequestEvent($kernel, $main, HttpKernelInterface::MAIN_REQUEST));
+        self::assertSame(0, $main->attributes->get(StorageFailureSubscriber::COMMITS_ATTRIBUTE));
+
+        // The page commits (the host or another bundle), then renders an AuthKit fragment that meets a lock conflict.
+        $ledger->record();
+        $fragment = Request::create('/_fragment');
+        $fragment->attributes->set('_route', 'nowo_auth_kit_login');
+        $fragment->headers->set('Accept', 'application/json');
+        $requests->push($fragment);
+        $subscriber->onRequest(new RequestEvent($kernel, $fragment, HttpKernelInterface::SUB_REQUEST));
+        self::assertSame(0, $fragment->attributes->get(StorageFailureSubscriber::COMMITS_ATTRIBUTE), 'the main request\'s count');
+
+        $event = new ExceptionEvent($kernel, $fragment, HttpKernelInterface::SUB_REQUEST, new TransientStorageFailure(1));
+        $subscriber->onException($event);
+        $response = $event->getResponse();
+        self::assertInstanceOf(JsonResponse::class, $response);
+        self::assertSame('{"ok":false,"error":"unavailable","code":"CONFLICT_002"}', $response->getContent());
+        self::assertSame('CONFLICT_002', $response->headers->get('X-Conflict-Code'));
+        self::assertFalse($response->headers->has('Retry-After'));
+    }
+
+    public function testASubRequestWithoutAMainCountTakesItsOwnStart(): void
+    {
+        $ledger     = new CommitLedger();
+        $requests   = new RequestStack();
+        $subscriber = new StorageFailureSubscriber(null, $ledger, $requests);
+        $kernel     = $this->createStub(HttpKernelInterface::class);
+        $requests->push(Request::create('/page'));
+        $ledger->record();
+        $fragment = Request::create('/_fragment');
+        $requests->push($fragment);
+        $subscriber->onRequest(new RequestEvent($kernel, $fragment, HttpKernelInterface::SUB_REQUEST));
+        self::assertSame(1, $fragment->attributes->get(StorageFailureSubscriber::COMMITS_ATTRIBUTE));
+
+        // Without a request stack (direct instantiation, 2.2.0 behaviour): its own start too.
+        $other = Request::create('/_fragment');
+        (new StorageFailureSubscriber(null, $ledger))->onRequest(new RequestEvent($kernel, $other, HttpKernelInterface::SUB_REQUEST));
+        self::assertSame(1, $other->attributes->get(StorageFailureSubscriber::COMMITS_ATTRIBUTE));
     }
 
     public function testWithoutALedgerOrASnapshotTheRequestIsRetrySafe(): void

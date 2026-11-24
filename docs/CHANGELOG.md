@@ -123,6 +123,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- REQ-RUNTIME-003 regrade:
+  - **Social callback handlers.** A lock conflict thrown by a host social callback handler (`SocialCallbackStepInterface::handle()`) answered the generic "failed" refusal, unlike the built-in flow. It now answers 409 with `X-Conflict-Code` and the conflict code, and the sign-in it made is still undone (rules 6 and 8). Contention only: no data loss, no access granted.
+  - **Request-level commit detection.** An AuthKit controller rendered as a sub-request (a fragment of a page) measured commits from its own start, so a commit made earlier in the page answered `CONFLICT_001` (retry) instead of `CONFLICT_002`. `StorageFailureSubscriber` now takes the main request's count (new optional `RequestStack` constructor argument, wired by the bundle).
+
+### Tests
+
+- Two-session race tests on MySQL 8.4, MariaDB 11.4 and PostgreSQL 16 for the remaining single-use writes:
+  - `QrLoginClaimRaceTest`: a QR challenge is consumed once, and an approval and a denial never both apply;
+  - `MfaSingleUseRaceTest`: a TOTP step, a recovery code and a trusted-device token are each used once.
+
 ### Changed
 
 - Dev: Igor 0.11 (REQ-CS-008) — `MfaLoginCompletedEvent::$request` and `AccountEvent::$request` are per-dispatch events, never shared services; documented `@igor-ignore` (false positives). `igor-php/igor-php` accepts `^0.11.0` (supersedes #83).

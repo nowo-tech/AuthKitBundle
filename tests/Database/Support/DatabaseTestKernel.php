@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Invitation\InvitationManager;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetCompleter;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetTokenManagerInterface;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
+use Nowo\AuthKitBundle\QrLogin\QrLoginChallengeManager;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
@@ -54,6 +55,7 @@ final class DatabaseTestKernel extends InvitationsTestKernel
         'load.reset'       => PasswordResetCompleter::class,
         'load.reset_store' => PasswordResetTokenManagerInterface::class,
         'load.hasher'      => UserPasswordHasherInterface::class,
+        'load.qr'          => QrLoginChallengeManager::class,
     ];
 
     public static function databaseUrl(): ?string
