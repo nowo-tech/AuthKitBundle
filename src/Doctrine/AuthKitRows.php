@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 
 use function bin2hex;
 use function random_bytes;
+use function reset;
 
 /**
  * 1.50.0 (Beacon spec 239): writes the row of a new AuthKit entity whose unique key another request may take at the same
@@ -74,5 +75,36 @@ final class AuthKitRows
         }
 
         return null;
+    }
+
+    /**
+     * 2.2.1: the id column of a row written through a DBAL `insert()` of an entity's table. An id generated before the
+     * insert (a sequence: PostgreSQL with DBAL 3) is asked now and written explicitly; an identity column (MySQL,
+     * MariaDB, PostgreSQL with DBAL 4, SQLite) fills it itself, so nothing is added.
+     *
+     * @param class-string $class
+     *
+     * @return array<string, mixed> `[]`, or `[<id column> => <next id>]`
+     */
+    public static function preInsertId(EntityManagerInterface $entityManager, string $class): array
+    {
+        $metadata  = $entityManager->getClassMetadata($class);
+        $generator = $metadata->idGenerator;
+        if ($generator->isPostInsertGenerator()) {
+            return [];
+        }
+
+        return [$metadata->getSingleIdentifierColumnName() => $generator->generateId($entityManager, null)];
+    }
+
+    /**
+     * 2.2.1: the id of the row just written with {@see self::preInsertId()}: the generated one, or the connection's last
+     * insert id for an identity column.
+     *
+     * @param array<string, mixed> $preInsertId
+     */
+    public static function insertedId(EntityManagerInterface $entityManager, array $preInsertId): int
+    {
+        return (int) ($preInsertId === [] ? $entityManager->getConnection()->lastInsertId() : reset($preInsertId));
     }
 }

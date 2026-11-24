@@ -12,6 +12,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
+use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
 
 use function array_map;
@@ -70,7 +71,9 @@ final readonly class AccountVaultStore
 
     public function insert(string $publicId, string $profile, string $userIdentifier, string $tokenHash, ?string $sealed, DateTimeImmutable $now, DateTimeImmutable $expiresAt): int
     {
-        $this->connection()->insert($this->table(), [
+        // 2.2.1: an id from a sequence (PostgreSQL with DBAL 3) is written explicitly and returned (no last insert id).
+        $id = AuthKitRows::preInsertId($this->entityManager(), AccountVaultEntry::class);
+        $this->connection()->insert($this->table(), $id + [
             'public_id'           => $publicId,
             'profile'             => $profile,
             'user_identifier'     => $userIdentifier,
@@ -85,7 +88,7 @@ final readonly class AccountVaultStore
             'expires_at'          => $expiresAt,
         ], ['rotated_at' => Types::DATETIME_IMMUTABLE, 'created_at' => Types::DATETIME_IMMUTABLE, 'last_used_at' => Types::DATETIME_IMMUTABLE, 'expires_at' => Types::DATETIME_IMMUTABLE]);
 
-        return (int) $this->connection()->lastInsertId();
+        return AuthKitRows::insertedId($this->entityManager(), $id);
     }
 
     /**

@@ -129,8 +129,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Social callback handlers.** A lock conflict thrown by a host social callback handler (`SocialCallbackStepInterface::handle()`) answered the generic "failed" refusal, unlike the built-in flow. It now answers 409 with `X-Conflict-Code` and the conflict code, and the sign-in it made is still undone (rules 6 and 8). Contention only: no data loss, no access granted.
   - **Request-level commit detection.** An AuthKit controller rendered as a sub-request (a fragment of a page) measured commits from its own start, so a commit made earlier in the page answered `CONFLICT_001` (retry) instead of `CONFLICT_002`. `StorageFailureSubscriber` now takes the main request's count (new optional `RequestStack` constructor argument, wired by the bundle).
 
+- **PostgreSQL with DBAL 3: MFA recovery codes, trusted devices and multi-account vault entries.** These rows are written through a DBAL `insert()`. On PostgreSQL with DBAL 3 their id column is fed by a sequence and has no default, so the insert failed with a not-null violation (a 500 when generating recovery codes, remembering a device or adding an account), and the vault read a last insert id the connection did not have. The id is now taken from the entity's generator first (`AuthKitRows::preInsertId()`, as the 2.2.0 reset table does). MySQL, MariaDB, SQLite and PostgreSQL with DBAL 4 (identity columns) are unchanged. Found by the new race tests on the "Load readiness (PostgreSQL 16, DBAL 3)" job.
+
 ### Tests
 
+- `SequenceIdInsertTest` (all servers, DBAL 3 and 4): recovery codes, trusted devices and vault entries are stored with ids.
 - Two-session race tests on MySQL 8.4, MariaDB 11.4 and PostgreSQL 16 for the remaining single-use writes:
   - `QrLoginClaimRaceTest`: a QR challenge is consumed once, and an approval and a denial never both apply;
   - `MfaSingleUseRaceTest`: a TOTP step, a recovery code and a trusted-device token are each used once.
