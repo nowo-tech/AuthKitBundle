@@ -237,11 +237,13 @@ final readonly class MfaStore
     {
         $id    = $this->id($credential);
         $table = $this->table(MfaRecoveryCode::class);
-        $this->transactional(function () use ($id, $table, $hashes, $now): void {
-            $this->write(static function (Connection $connection) use ($id, $table, $hashes, $now): void {
+        $em    = $this->entityManager();
+        $this->transactional(function () use ($id, $table, $hashes, $now, $em): void {
+            $this->write(static function (Connection $connection) use ($id, $table, $hashes, $now, $em): void {
                 $connection->executeStatement('DELETE FROM ' . $table . ' WHERE mfa_id = :id', ['id' => $id], ['id' => ParameterType::INTEGER]);
                 foreach ($hashes as $hash) {
-                    $connection->insert($table, ['mfa_id' => $id, 'code_hash' => $hash, 'created_at' => $now], ['mfa_id' => ParameterType::INTEGER, 'created_at' => Types::DATETIME_IMMUTABLE]);
+                    // 2.2.1: an id from a sequence (PostgreSQL with DBAL 3) is written explicitly.
+                    $connection->insert($table, AuthKitRows::preInsertId($em, MfaRecoveryCode::class) + ['mfa_id' => $id, 'code_hash' => $hash, 'created_at' => $now], ['mfa_id' => ParameterType::INTEGER, 'created_at' => Types::DATETIME_IMMUTABLE]);
                 }
             });
         });
@@ -280,7 +282,8 @@ final readonly class MfaStore
 
     private function storeDevice(MfaCredential $credential, string $publicId, string $tokenHash, string $label, ?string $deviceId, DateTimeImmutable $now, DateTimeImmutable $expiresAt): bool
     {
-        return (bool) $this->write(fn (Connection $connection): int|string => $connection->insert($this->table(MfaTrustedDevice::class), [
+        // 2.2.1: an id from a sequence (PostgreSQL with DBAL 3) is written explicitly.
+        return (bool) $this->write(fn (Connection $connection): int|string => $connection->insert($this->table(MfaTrustedDevice::class), AuthKitRows::preInsertId($this->entityManager(), MfaTrustedDevice::class) + [
             'public_id'    => $publicId,
             'mfa_id'       => $this->id($credential),
             'token_hash'   => $tokenHash,

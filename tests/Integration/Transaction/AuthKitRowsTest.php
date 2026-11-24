@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Tests\Integration\Transaction\Entity\LoadToken;
 use Nowo\AuthKitBundle\Tests\Support\SqliteManagerRegistry;
 use PHPUnit\Framework\TestCase;
 
+use function array_keys;
 use function dirname;
 use function str_starts_with;
 
@@ -69,6 +70,23 @@ final class AuthKitRowsTest extends TestCase
         self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM auth_kit_mfa'));
         self::assertTrue(str_starts_with((string) $token->id, 'gen-'));
         self::assertSame($token->id, $connection->fetchOne('SELECT id FROM load_token'));
+    }
+
+    /**
+     * 2.2.1: a DBAL insert of an entity's table writes an id generated before the insert (a sequence on PostgreSQL with
+     * DBAL 3, here a custom pre-insert generator) and leaves an identity column to the database.
+     */
+    public function testAPreInsertIdIsAskedOnlyForAGeneratorThatRunsBeforeTheInsert(): void
+    {
+        self::assertSame([], AuthKitRows::preInsertId($this->em, MfaCredential::class), 'identity column');
+        $id = AuthKitRows::preInsertId($this->em, LoadToken::class);
+        self::assertSame(['id'], array_keys($id));
+        self::assertTrue(str_starts_with((string) $id['id'], 'gen-'));
+
+        self::assertSame(42, AuthKitRows::insertedId($this->em, ['id' => 42]), 'the generated id');
+        $connection = $this->em->getConnection();
+        $connection->insert('auth_kit_mfa', ['profile' => 'default', 'user_type' => 'App\\User', 'user_id' => '8', 'created_at' => '2026-11-24 10:00:00', 'updated_at' => '2026-11-24 10:00:00']);
+        self::assertSame((int) $connection->fetchOne('SELECT MAX(id) FROM auth_kit_mfa'), AuthKitRows::insertedId($this->em, []), 'the last insert id');
     }
 
     public function testThePrivateManagerRecordsTheWrite(): void
