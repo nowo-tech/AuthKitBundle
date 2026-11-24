@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\EventSubscriber;
 
+use Nowo\TransactionContract\ConflictCode as ContractConflictCode;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\ConflictCode;
+use Nowo\TransactionDoctrine\ConflictCodeResolver;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\TransactionDoctrine\TransientFailureClassifier;
 use Nowo\TransactionDoctrine\WriteUnit\CommitLedger;
@@ -163,7 +165,7 @@ final class StorageFailureSubscriber implements EventSubscriberInterface
      */
     private function committed(Request $request, Throwable $error): bool
     {
-        if (ConflictCode::forFailure($error) === ConflictCode::Committed) {
+        if (ConflictCodeResolver::forFailure($error) === ContractConflictCode::Committed) {
             return true;
         }
         $before = $request->attributes->get(self::COMMITS_ATTRIBUTE);
