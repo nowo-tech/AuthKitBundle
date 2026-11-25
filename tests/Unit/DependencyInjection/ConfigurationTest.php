@@ -570,6 +570,9 @@ final class ConfigurationTest extends TestCase
         self::assertSame(['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512'], $config['oidc']['allowed_algorithms']);
         self::assertSame('cache.app', $config['oidc']['cache_pool']);
         self::assertSame(60, $config['oidc']['clock_skew']);
+        self::assertSame(30, $config['oidc']['discovery_failure_ttl']);
+        self::assertSame(20, $config['profiles']['default']['social_login']['start_rate_limit']);
+        self::assertSame(60, $config['profiles']['default']['social_login']['start_rate_window']);
 
         foreach ([['none'], ['HS256'], []] as $algorithms) {
             try {

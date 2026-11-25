@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcClient;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcException;
@@ -20,6 +21,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+
+use function is_int;
 
 /**
  * Starts the OAuth authorization-code redirect for a social provider.
@@ -36,6 +39,7 @@ final class SocialLoginStartController
         private readonly ?OidcClient $oidcClient = null,
         private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
         private readonly ?LoggerInterface $logger = null,
+        private readonly ?AuthKitAttemptLimiter $attemptLimiter = null,
     ) {
     }
 
@@ -44,6 +48,17 @@ final class SocialLoginStartController
     {
         $profile = $this->profileResolver->resolve($request);
         if (!$this->socialLoginGate->isEnabled($profile->name)) {
+            return new RedirectResponse($this->urlGenerator->generate($profile->routes['login']['name']));
+        }
+
+        // 2.3.0 (audit ZBP-L3): starts are bounded per client IP (an OpenID Connect start fetches the discovery document).
+        if ($this->attemptLimiter instanceof AuthKitAttemptLimiter && !$this->attemptLimiter->consume(
+            'social_start:' . $profile->name . ':' . ($request->getClientIp() ?? 'unknown'),
+            self::intSetting($profile->socialLogin['start_rate_limit'] ?? null, 20),
+            self::intSetting($profile->socialLogin['start_rate_window'] ?? null, 60),
+        )) {
+            $this->flashMessenger->flash($request, 'error', 'social.error.rate_limited');
+
             return new RedirectResponse($this->urlGenerator->generate($profile->routes['login']['name']));
         }
 
@@ -78,5 +93,10 @@ final class SocialLoginStartController
         $url          = $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier, $authorizationParams);
 
         return new RedirectResponse($url);
+    }
+
+    private static function intSetting(mixed $value, int $default): int
+    {
+        return is_int($value) ? $value : $default;
     }
 }

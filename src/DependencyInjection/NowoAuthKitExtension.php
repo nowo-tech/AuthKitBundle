@@ -258,7 +258,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.absolute_url.base_uri', $config['absolute_url']['base_uri']);
         $container->setParameter('nowo_auth_kit.http_client.timeout', (float) $config['http_client']['timeout']);
         $container->setParameter('nowo_auth_kit.http_client.max_duration', (float) $config['http_client']['max_duration']);
-        foreach (['allowed_algorithms', 'clock_skew', 'max_id_token_age', 'metadata_cache_ttl', 'jwks_cache_ttl', 'jwks_refresh_interval', 'max_response_bytes'] as $oidcKey) {
+        foreach (['allowed_algorithms', 'clock_skew', 'max_id_token_age', 'metadata_cache_ttl', 'jwks_cache_ttl', 'jwks_refresh_interval', 'max_response_bytes', 'discovery_failure_ttl'] as $oidcKey) {
             $container->setParameter('nowo_auth_kit.oidc.' . $oidcKey, $oidcKey === 'allowed_algorithms' ? array_values($config['oidc'][$oidcKey]) : $config['oidc'][$oidcKey]);
         }
         $container->setParameter('nowo_auth_kit.doctrine.table_prefix', $config['doctrine']['table_prefix']);

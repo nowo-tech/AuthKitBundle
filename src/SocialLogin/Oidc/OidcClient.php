@@ -24,6 +24,7 @@ use function is_string;
 use function json_decode;
 use function mb_substr;
 use function random_bytes;
+use function rtrim;
 use function str_contains;
 use function strlen;
 use function strtolower;
@@ -148,7 +149,7 @@ final class OidcClient
             $userinfo = $this->userinfo($metadata->userinfoEndpoint, $tokens['access_token'], $this->subject($claims));
         }
 
-        return [$tokens, $this->profile($claims, $userinfo, $settings->kind === OidcProviderSettings::KIND_APPLE ? $appleUser : null)];
+        return [$tokens, $this->profile($claims, $userinfo, $settings->kind === OidcProviderSettings::KIND_APPLE ? $appleUser : null, rtrim($settings->issuer, '/'))];
     }
 
     /**
@@ -246,7 +247,7 @@ final class OidcClient
      * @param array<string, mixed> $claims
      * @param array<string, mixed> $userinfo
      */
-    private function profile(array $claims, array $userinfo, ?string $appleUser): SocialUserProfile
+    private function profile(array $claims, array $userinfo, ?string $appleUser, string $issuer): SocialUserProfile
     {
         $emailSource = $this->text($claims, 'email') !== null ? $claims : $userinfo;
         $email       = $this->text($emailSource, 'email');
@@ -262,7 +263,7 @@ final class OidcClient
 
         unset($merged['nonce']);
 
-        return new SocialUserProfile($this->subject($claims), $email, $name, $merged, $verified);
+        return new SocialUserProfile($this->subject($claims), $email, $name, $merged, $verified, $issuer);
     }
 
     /**

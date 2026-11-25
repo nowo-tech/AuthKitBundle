@@ -49,6 +49,7 @@ social:
         invalid_state: No se pudo completar el inicio de sesión social (estado inválido).
         provider_denied: El inicio de sesión social se canceló o denegó.
         failed: Falló el inicio de sesión social. Inténtalo de nuevo.
+        rate_limited: 'Demasiados intentos de inicio de sesión. Espera un minuto e inténtalo de nuevo.'
     form_post:
         title: 'Iniciando sesión…'
         continue: 'Continuar'

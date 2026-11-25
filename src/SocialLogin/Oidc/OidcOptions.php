@@ -30,6 +30,7 @@ final readonly class OidcOptions
     public const DEFAULT_JWKS_CACHE_TTL        = 3600;
     public const DEFAULT_JWKS_REFRESH_INTERVAL = 60;
     public const DEFAULT_MAX_RESPONSE_BYTES    = 524288;
+    public const DEFAULT_DISCOVERY_FAILURE_TTL = 30;
 
     /** @var list<string> */
     public array $allowedAlgorithms;
@@ -49,6 +50,7 @@ final readonly class OidcOptions
         public int $maxResponseBytes = self::DEFAULT_MAX_RESPONSE_BYTES,
         public float $timeout = 10.0,
         public float $maxDuration = 20.0,
+        public int $discoveryFailureTtl = self::DEFAULT_DISCOVERY_FAILURE_TTL,
     ) {
         $unsupported = array_diff($allowedAlgorithms, self::SUPPORTED_ALGORITHMS);
         if ($allowedAlgorithms === [] || $unsupported !== []) {

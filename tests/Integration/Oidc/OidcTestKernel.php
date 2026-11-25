@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Oidc;
 
 use Nowo\AuthKitBundle\SocialLogin\Oidc\HostResolverInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialCredentialIssuerGuard;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\RecordingLogger;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\AuthKitTestKernel;
 use Nowo\AuthKitBundle\Tests\Support\Oidc\FakeIdp;
@@ -48,5 +49,6 @@ final class OidcTestKernel extends AuthKitTestKernel
         $container->register(FakeResolver::class)->setPublic(true);
         $container->setAlias(HostResolverInterface::class, FakeResolver::class)->setPublic(true);
         $container->register('logger', RecordingLogger::class)->setPublic(true);
+        $container->setAlias('test.issuer_guard', SocialCredentialIssuerGuard::class)->setPublic(true);
     }
 }

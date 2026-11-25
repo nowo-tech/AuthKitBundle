@@ -31,6 +31,7 @@ final class PublicIpCheckerTest extends TestCase
         yield 'v6 unspecified' => ['::', false];
         yield 'v4-mapped loopback' => ['::ffff:127.0.0.1', false];
         yield 'v4-mapped public' => ['::ffff:93.184.215.14', true];
+        yield 'v4-translated loopback' => ['::ffff:0:7f00:1', false];
         yield 'nat64' => ['64:ff9b::a00:1', false];
         yield '6to4' => ['2002:a00:1::1', false];
         yield 'teredo' => ['2001::1', false];

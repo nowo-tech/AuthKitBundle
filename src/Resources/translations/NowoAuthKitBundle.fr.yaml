@@ -118,6 +118,7 @@ social:
         invalid_state: La connexion sociale a échoué (état invalide).
         provider_denied: La connexion sociale a été annulée ou refusée.
         failed: Échec de la connexion sociale. Veuillez réessayer.
+        rate_limited: 'Trop de tentatives de connexion. Patientez une minute puis réessayez.'
     form_post:
         title: 'Connexion en cours…'
         continue: 'Continuer'

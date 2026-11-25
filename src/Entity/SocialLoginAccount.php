@@ -36,6 +36,14 @@ class SocialLoginAccount
     #[ORM\Column(name: 'provider_user_id', type: Types::STRING, length: 255)]
     private string $providerUserId = '';
 
+    /**
+     * OpenID Connect issuer the subject belongs to (2.3.0, audit ZBP-L1), without a trailing slash; null for the OAuth2
+     * providers and for every link made before 2.3.0. A provider key is one subject namespace only together with its
+     * issuer: a link signs in only while the credential still has the issuer it was made with.
+     */
+    #[ORM\Column(name: 'issuer', type: Types::STRING, length: 512, nullable: true)]
+    private ?string $issuer = null;
+
     /** Application user class FQCN. */
     #[ORM\Column(name: 'user_class', type: Types::STRING, length: 255)]
     private string $userClass = '';
@@ -104,6 +112,19 @@ class SocialLoginAccount
     public function getProviderUserId(): string
     {
         return $this->providerUserId;
+    }
+
+    public function getIssuer(): ?string
+    {
+        return $this->issuer;
+    }
+
+    public function setIssuer(?string $issuer): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->issuer = $issuer;
+
+        return $this;
     }
 
     public function setProviderUserId(string $providerUserId): self

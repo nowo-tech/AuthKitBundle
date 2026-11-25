@@ -48,6 +48,7 @@ final class PublicIpChecker
     /** @var list<array{0: string, 1: int}> */
     private const BLOCKED_V6 = [
         ['::', 96],          // unspecified, loopback and the deprecated IPv4-compatible block
+        ['::ffff:0:0:0', 96], // IPv4-translated (RFC 2765), audit ZBP-I1
         ['64:ff9b::', 96],   // NAT64
         ['64:ff9b:1::', 48], // local-use NAT64
         ['100::', 64],       // discard

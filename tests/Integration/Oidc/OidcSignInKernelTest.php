@@ -9,6 +9,7 @@ use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcProviderCatalog;
+use Nowo\AuthKitBundle\SocialLogin\SocialCredentialIssuerGuard;
 use Nowo\AuthKitBundle\SocialLogin\SocialFormPostRelay;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\RecordingLogger;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
@@ -50,9 +51,11 @@ final class OidcSignInKernelTest extends WebTestCase
     {
         $this->client = self::createClient();
         $this->client->disableReboot();
-        $pool = self::getContainer()->get(OidcTestKernel::POOL);
-        self::assertInstanceOf(CacheItemPoolInterface::class, $pool);
-        $pool->clear();
+        foreach ([OidcTestKernel::POOL, 'cache.app'] as $id) {
+            $pool = self::getContainer()->get($id);
+            self::assertInstanceOf(CacheItemPoolInterface::class, $pool);
+            $pool->clear();
+        }
 
         $em       = $this->em();
         $schema   = new SchemaTool($em);
@@ -218,6 +221,54 @@ final class OidcSignInKernelTest extends WebTestCase
         self::assertStringContainsString('Social login failed', (string) $this->client->getResponse()->getContent());
         self::assertTrue($this->logged('reason'), 'The failure is logged with its reason.');
         $this->assertNothingSecretLogged();
+    }
+
+    public function testALinkMadeUnderAnotherIssuerNeverSignsIn(): void
+    {
+        // ZBP-L1: the okta credential first points at idp.example.com; Ada links with sub "subject-1".
+        $idp        = $this->idp('https://idp.example.com');
+        $query      = $this->start('okta');
+        $idp->nonce = $query['nonce'];
+        $this->client->request('GET', '/login/social/okta/check', ['code' => 'code-1', 'state' => $query['state']]);
+        self::assertResponseRedirects('/home');
+        $link = $this->em()->getRepository(SocialLoginAccount::class)->findOneBy(['provider' => 'okta']);
+        self::assertInstanceOf(SocialLoginAccount::class, $link);
+        self::assertSame('https://idp.example.com', $link->getIssuer());
+        $this->client->request('GET', '/logout');
+        $this->em()->clear();
+
+        // The admin moves the key to another IdP: its "subject-1" is somebody else and must not get Ada's account.
+        $credential = $this->em()->getRepository(SocialLoginCredential::class)->findOneBy(['provider' => 'okta']);
+        self::assertInstanceOf(SocialLoginCredential::class, $credential);
+        $guard = self::getContainer()->get('test.issuer_guard');
+        self::assertInstanceOf(SocialCredentialIssuerGuard::class, $guard);
+        self::assertNotNull($guard->issuerChangeError($credential, 'https://other-idp.example.com'), 'The admin path is told first.');
+        $credential->setIssuer('https://other-idp.example.com');
+        $this->em()->flush();
+        $this->em()->clear();
+
+        // Same sub, even the same verified e-mail: the stale link is refused, never followed (it would sign in Ada).
+        $idp        = $this->idp('https://other-idp.example.com');
+        $query      = $this->start('okta');
+        $idp->nonce = $query['nonce'];
+        $this->client->request('GET', '/login/social/okta/check', ['code' => 'code-1', 'state' => $query['state']]);
+
+        self::assertResponseRedirects('/login');
+        self::assertNull($this->tokens()->getToken());
+        self::assertTrue($this->logged('RuntimeException'));
+    }
+
+    public function testStartsAreRateLimitedPerClient(): void
+    {
+        $this->idp('https://idp.example.com');
+        for ($i = 0; $i < 20; ++$i) {
+            $this->client->request('GET', '/login/social/okta');
+            self::assertStringStartsWith('https://idp.example.com/authorize?', (string) $this->client->getResponse()->headers->get('Location'));
+        }
+        $this->client->request('GET', '/login/social/okta');
+        self::assertResponseRedirects('/login');
+        $this->client->followRedirect();
+        self::assertStringContainsString('Too many sign-in attempts', (string) $this->client->getResponse()->getContent());
     }
 
     public function testAnUnverifiedEmailIsNeverLinked(): void

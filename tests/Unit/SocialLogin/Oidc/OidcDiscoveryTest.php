@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\SocialLogin\Oidc;
 
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcException;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcOptions;
 use Nowo\AuthKitBundle\Tests\Support\Oidc\FakeIdp;
 use Nowo\AuthKitBundle\Tests\Support\Oidc\OidcStack;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -89,7 +90,46 @@ final class OidcDiscoveryTest extends TestCase
                 self::assertSame(OidcException::REASON_DISCOVERY, $e->reason);
             }
         }
-        self::assertSame(2, count($idp->requests), 'A refused document is fetched again, never cached.');
+        self::assertSame(1, count($idp->requests), 'ZBP-L3: a refused document is remembered as a failure, not fetched again at once.');
+    }
+
+    public function testAFailedDiscoveryIsRetriedOnlyAfterTheFailureTtl(): void
+    {
+        $idp                  = new FakeIdp();
+        $idp->discoveryStatus = 503;
+        $stack                = new OidcStack($idp);
+
+        foreach ([1, 1] as $expected) {
+            try {
+                $stack->discovery->metadata('https://idp.example.com');
+                self::fail('Expected a refusal.');
+            } catch (OidcException $e) {
+                self::assertSame(OidcException::REASON_DISCOVERY, $e->reason);
+            }
+            self::assertCount($expected, $idp->requests);
+        }
+
+        // The provider is back; once the negative entry is gone the document is fetched and cached as usual.
+        $idp->discoveryStatus = 200;
+        $stack->cache->clear();
+        self::assertSame('https://idp.example.com', $stack->discovery->metadata('https://idp.example.com')->issuer);
+        self::assertCount(2, $idp->requests);
+    }
+
+    public function testAZeroFailureTtlRetriesAtOnce(): void
+    {
+        $idp                  = new FakeIdp();
+        $idp->discoveryStatus = 503;
+        $stack                = new OidcStack($idp, new OidcOptions(discoveryFailureTtl: 0));
+
+        for ($attempt = 1; $attempt <= 2; ++$attempt) {
+            try {
+                $stack->discovery->metadata('https://idp.example.com');
+                self::fail('Expected a refusal.');
+            } catch (OidcException) {
+            }
+        }
+        self::assertCount(2, $idp->requests);
     }
 
     public function testANon200AnswerIsRefused(): void

@@ -174,6 +174,12 @@ final class SocialAccountLinker
         // SEC-004 H2: only a link made for this profile's user class signs in here.
         $account = $this->accountRepository->findOneByProviderSubject($provider, $socialProfile->id, $profile->userClass);
         if ($account instanceof SocialLoginAccount) {
+            // 2.3.0 (audit ZBP-L1): the link was made under the issuer the credential had then. After the credential
+            // moved to another issuer (gitlab.com → a self-hosted GitLab, a swapped generic issuer), the same `sub` is
+            // somebody else: refuse, never sign in. The administrator unlinks or uses a new provider key.
+            if ($account->getIssuer() !== $socialProfile->issuer) {
+                throw new RuntimeException('This social link was made with another issuer of the provider; it no longer signs in.');
+            }
             $user = $this->loadUser($profile, $profile->userClass, $account->getUserId());
             $this->refreshAccountTokens($account, $socialProfile, $tokens);
             // Flushed by AuthKit's runner inside the unit of work (1.50.0).
@@ -225,6 +231,7 @@ final class SocialAccountLinker
         $account = (new SocialLoginAccount())
             ->setProvider($provider)
             ->setProviderUserId($socialProfile->id)
+            ->setIssuer($socialProfile->issuer)
             ->setUserClass($profile->userClass)
             ->setUserId($userId)
             ->setUserIdentifier($user->getUserIdentifier())
