@@ -162,7 +162,7 @@ nowo_auth_kit:
         jwks_cache_ttl: 3600        # s, 60..604800 — key sets
         jwks_refresh_interval: 60   # s, 0..3600 — min. time between refetches on an unknown kid (key rotation)
         max_response_bytes: 524288  # 4 KiB..5 MiB — any discovery / JWKS / token / userinfo answer
-        cache_pool: cache.app       # a Symfony\Contracts\Cache\CacheInterface pool (shared by workers)
+        cache_pool: cache.app       # a Symfony\Contracts\Cache\CacheInterface pool (shared by workers; symfony/cache comes with FrameworkBundle)
     http_client:                    # deadlines of every OAuth2 and OIDC request (unchanged)
         timeout: 10
         max_duration: 20

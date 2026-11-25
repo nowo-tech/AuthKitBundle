@@ -152,7 +152,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `/login/social/{provider}/check` accepts POST (form_post providers only; any other POST goes to the sign-in page).
 - `SocialLoginStateStore` keeps an optional nonce with the state.
-- Requires `symfony/cache-contracts` ^3.5 (already installed through FrameworkBundle).
 
 ## [2.2.1] - 2026-11-24
 

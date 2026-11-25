@@ -237,7 +237,6 @@ Things to do for a provider you enable:
 - A credential keyed `gitlab`, `linkedin`, `slack` or `apple` **without** its own authorize / token / userinfo URLs now
   signs in through OpenID Connect (before 2.3.0 it could not sign in at all). One **with** those URLs keeps the OAuth2
   path unchanged.
-- New hard dependency `symfony/cache-contracts` (already installed with FrameworkBundle).
 
 ## To 2.2.1
 
