@@ -21,6 +21,7 @@ use Nowo\AuthKitBundle\Port\Ports;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use Nowo\UserKitBundle\Sessions\Model\RevocationReason;
 use Nowo\UserKitBundle\Sessions\UserSessionManager;
 use Psr\Clock\ClockInterface;
@@ -67,6 +68,7 @@ final readonly class MfaManager
         private ?ContainerInterface $policies = null,
         private ?UserSessionManager $sessions = null,
         private LoggerInterface $logger = new NullLogger(),
+        private ?WebauthnManager $passkeys = null,
     ) {
     }
 
@@ -95,9 +97,21 @@ final readonly class MfaManager
         return $profile;
     }
 
+    /**
+     * Whether the user has TOTP on (the authenticator-app factor; see {@see self::hasSecondFactor()} for any factor).
+     */
     public function isEnabled(UserInterface $user): bool
     {
         return $this->credential($user)?->isEnabled() === true;
+    }
+
+    /**
+     * Whether the user has any second factor (2.4.0): TOTP, or a passkey when the profile sets `webauthn.mfa` (a passkey
+     * then satisfies a required second factor and is offered on the challenge page).
+     */
+    public function hasSecondFactor(UserInterface $user): bool
+    {
+        return $this->isEnabled($user) || $this->passkeys?->hasSecondFactor($user) === true;
     }
 
     public function status(UserInterface $user): ?MfaStatus
@@ -181,6 +195,10 @@ final readonly class MfaManager
             return false;
         }
         if ($this->requirement($user) !== MfaRequirement::Required) {
+            return false;
+        }
+        if ($this->passkeys?->hasSecondFactor($user) === true) {
+            // 2.4.0: a passkey is the required second factor.
             return false;
         }
         try {
@@ -386,7 +404,7 @@ final readonly class MfaManager
     }
 
     /**
-     * Deletes everything MFA knows about a user (account removal / personal data erasure).
+     * Deletes everything MFA knows about a user (account removal / personal data erasure), passkeys included (2.4.0).
      */
     public function forgetUser(UserInterface $user): void
     {
@@ -394,6 +412,8 @@ final readonly class MfaManager
         if ($credential instanceof MfaCredential) {
             $this->store->delete($credential);
         }
+        // 2.4.0 (audit ZBX-L3): the user's passkeys go too.
+        $this->passkeys?->forgetUser($user);
     }
 
     /**

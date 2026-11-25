@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\SocialLogin;
 
 use Doctrine\DBAL\Platforms\MySQL80Platform;
-use Doctrine\DBAL\Types\Type;
-use Doctrine\DBAL\Types\Types;
+use Doctrine\DBAL\Types\JsonType;
 use InvalidArgumentException;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
@@ -349,7 +348,8 @@ final class AuthorizationParamsTest extends TestCase
      */
     public function testEmptyMapIsStoredAsAJsonArray(): void
     {
-        $type     = Type::getType(Types::JSON);
+        // DBAL 4.6 deprecates Type::getType(): the type itself (the conversion is what this test pins).
+        $type     = new JsonType();
         $platform = new MySQL80Platform();
 
         self::assertSame('[]', $type->convertToDatabaseValue([], $platform));

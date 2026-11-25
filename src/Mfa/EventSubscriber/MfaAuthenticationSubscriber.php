@@ -125,7 +125,8 @@ final readonly class MfaAuthenticationSubscriber
 
     private function mode(ProfileSettings $profile, UserInterface $user, string $factor, ?Request $request): ?string
     {
-        if (!$this->manager->isEnabled($user)) {
+        // 2.4.0: TOTP or a passkey (webauthn.mfa).
+        if (!$this->manager->hasSecondFactor($user)) {
             return $this->manager->mustEnrolNow($user) ? MfaPendingToken::MODE_SETUP : null;
         }
         if ($factor === MfaFirstFactor::REMEMBER_ME) {
@@ -135,6 +136,11 @@ final readonly class MfaAuthenticationSubscriber
         } else {
             $rules = $profile->mfa['first_factors'] ?? [];
             $rule  = $rules[$factor] ?? $rules[MfaFirstFactor::DEFAULT] ?? MfaConfiguration::RULE_REQUIRED;
+            if ($factor === MfaFirstFactor::WEBAUTHN && !$profile->webauthnMfa()) {
+                // 2.4.0 (audit ZBX-L1): a passkey is exempt only where it counts as a second factor (webauthn.mfa).
+                // With webauthn.mfa: false the profile says it is not one, so the user's second factor is still asked.
+                $rule = MfaConfiguration::RULE_REQUIRED;
+            }
             if ($rule === MfaConfiguration::RULE_EXEMPT) {
                 return null;
             }

@@ -127,6 +127,8 @@ final class PageContractTest extends PageContractTestCase
         self::assertSame('18', $mark->attr('width'));
         self::assertSame('18', $mark->attr('height'));
         self::assertStringContainsString('nowo-auth-kit-providers__mark--on-white', (string) $mark->attr('class'));
+        // 2.4.0: Google's backdrop follows the theme (on_white: auto, dark theme drops it in CSS).
+        self::assertStringContainsString('nowo-auth-kit-providers__mark--on-white-auto', (string) $mark->attr('class'));
 
         $custom = $crawler->filter('[data-nowo-auth-kit-provider="my_idp"]');
         self::assertCount(1, $custom);

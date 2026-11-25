@@ -3,9 +3,24 @@
   <details>, no JS) and "trust this device". Variables: page (AuthPage with the MfaCodeFormType form), mfa_logout_route.
   1.51: OTP boxes on the code field with otp_input.mfa_code (1.52: OtpInputBundle's own widget, ^1.9; the recovery
   code stays a text field).
+  2.4.0: with a passkey second factor (webauthn_mfa: {form, options_url}) "Use a passkey" follows the form (block
+  nowo_auth_kit_webauthn_mfa); without TOTP (mfa_totp_enabled false) the code form is not shown.
   @NowoUiKit/page/auth through _auth_page.html.twig.
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
+
+{% block nowo_ui_auth_body %}
+    {%- if mfa_totp_enabled ?? true -%}{{ parent() }}{%- endif -%}
+{% endblock %}
+
+{% block nowo_ui_auth_after_form %}
+    {{- parent() -}}
+    {% block nowo_auth_kit_webauthn_mfa %}
+        {% if webauthn_mfa|default(null) %}
+            {{ include('@NowoAuthKitBundle/webauthn/_ceremony.html.twig', {ceremony: webauthn_mfa, mode: 'mfa', button: 'webauthn.mfa.button'}) }}
+        {% endif %}
+    {% endblock %}
+{% endblock %}
 
 {% block nowo_ui_auth_fields %}
     {{ form_errors(form) }}

@@ -224,6 +224,14 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-MFA-007**: `Totp` (RFC 6238) and `Base32` (RFC 4648) implement the authenticator-app format.
 - **FR-MFA-008**: Twig `MfaExtension`, `MfaCodeFormType`, the `mfa/*` templates, `form/mfa_otp_widget.html.twig` and the progressive-enhancement script `nowo-auth-kit-otp.js`.
 
+### Passkeys / WebAuthn (v2.4.0, opt-in `webauthn.mode: enabled`; [spec 008](../008-webauthn/spec.md))
+
+- **FR-WEBAUTHN-001**: `WebauthnManager` is the public API of the passkeys (list, registration options and verification, passwordless sign-in, second step, rename, remove); `WebauthnCeremonies` runs the ceremonies on web-auth/webauthn-lib with session-bound, single-use challenges (claimed once under the attempt limiter's lock), user verification required and exact origins; `WebauthnStore` (DBAL statements, detached `WebauthnCredentialRecord` values, conditional counter UPDATE); VOs `WebauthnPasskey`, `WebauthnRemoval`, `WebauthnFailure`, helper `Base64Url`. `WebauthnConfiguration` and `Resources/config/webauthn.yaml` register nothing while disabled.
+- **FR-WEBAUTHN-002**: Entity `WebauthnCredential` (exact-key columns, XML mapping) and the up / down SQL scripts per platform under `Resources/sql/webauthn/`.
+- **FR-WEBAUTHN-003**: Controllers `WebauthnLoginController` (passwordless options and assertion, first factor `webauthn`), `WebauthnMfaController` (second step of a pending sign-in) and `WebauthnAccountController` (account page, registration, rename, remove, recent sign-in, last-factor guard); forms `WebauthnCredentialFormType`, `WebauthnRenameFormType`; templates `webauthn/*` and the script `nowo-auth-kit-webauthn.js` (CSP nonce).
+- **FR-WEBAUTHN-004**: Events `WebauthnCredentialAddedEvent`, `WebauthnCredentialUsedEvent`, `WebauthnCredentialRemovedEvent` (base `WebauthnEvent`) and `WebauthnAuthenticationFailedEvent`, framework-free, after the write; `WebauthnSignedInSubscriber` records the full sign-in time.
+- **FR-WEBAUTHN-005**: UserKit eraser `WebauthnPersonalDataEraser` (`auth_kit_webauthn`) and export section `WebauthnPersonalDataExportProvider` (`passkeys`).
+
 ### Multi-account switcher (v1.34, opt-in `multi_account.enabled`)
 
 - **FR-MULTI-001**: `AccountVault` keeps several accounts signed in at once in one browser, each with its own session; `AccountState`, `SwitchOutcome`, `VaultEntry`, `VaultCookie` (opaque token per account, no identity inside), `VaultCrypto` (opaque tokens, HMAC lookups, sealed blob), `SessionHopper`, `AccountPresentation` and the presenter SPIs (`AccountPresenterInterface`, framework-free `AccountPresentationProviderInterface`, default `IdentifierAccountPresenter`), `AccountRemovalReason`, enrolment SPIs (`EnrolmentGateInterface`, `EnrolmentPolicyInterface`, `DefaultEnrolmentGate`). `MultiAccountConfiguration` and `Resources/config/multi_account.yaml` register nothing while disabled.
@@ -308,7 +316,6 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Explicit non-goals
 
-- **WebAuthn / passkeys** — design locked in [`docs/WEBAUTHN.md`](../../docs/WEBAUTHN.md); **not implemented** (no `src/` units yet).
 - Native **SAML 2.0** — enterprise SSO is OIDC-via-social only; SAML is roadmap.
 - Authorization voters beyond registration role assignment / host security.
 

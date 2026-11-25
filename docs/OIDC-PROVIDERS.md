@@ -173,7 +173,14 @@ Per profile, `social_login.start_rate_limit` (default 20, 0 disables) and `socia
 bound the sign-in starts per client IP through the attempt limiter (`attempt_limiter.cache_pool`): an OpenID Connect
 start fetches the discovery document, so an anonymous loop on the start URL could otherwise keep the workers busy
 with outbound requests while a provider is down. Over the limit, the visitor is sent back to the sign-in page with
-`social.error.rate_limited`.
+`social.error.rate_limited`. The key is the client IP as Symfony resolves it, so it is only as good as
+`framework.trusted_proxies` (audit ZBP-v-I3): behind a proxy that is not trusted every visitor shares the proxy's
+address (one busy kiosk can hold the others back for a window), and a proxy that is trusted but forwards a client's
+own `X-Forwarded-For` lets a client choose its key. The same holds for every AuthKit per-IP limiter.
+
+Until the first failed discovery of an issuer returns (at most `http_client.max_duration`, 20 s), parallel starts from
+different addresses each run their own fetch; only then does the negative cache answer them (audit ZBP-v-I4). The
+per-IP start limit and the request deadlines bound that window; there is no in-flight coalescing across workers.
 
 Per provider: `social_login.pkce`, `social_login.authorization_params` and `social_login.provider_marks` (per profile,
 keyed by provider) apply to OIDC providers as to the OAuth2 ones; the issuer and Apple's identifiers live on the
@@ -230,7 +237,14 @@ So do not move a provider key to another issuer while accounts are linked to it.
 `SocialCredentialIssuerGuard::issuerChangeError($credential, $newIssuer)` before saving and show its message: unlink
 the accounts first, or add the new issuer under a **new provider key**. Links made by OAuth2 providers (and every link
 made before 2.3.0) have no issuer: setting an issuer on such a credential (for example opting `google` into the generic
-provider) makes its old links stop signing in, and users link again.
+provider) makes its old links stop signing in, and users link again. There is no administrator path to re-stamp
+those links when the new OpenID Connect credential is the same identity provider as before (for example `google` or a
+Keycloak key opted into the generic provider): users link again (audit ZBP-v-I7).
+
+The guard compares the **effective** issuers (2.4.0, audit ZBP-v-I2): a `gitlab`, `apple`, `linkedin` or `slack`
+credential without an issuer and without custom endpoints uses its preset issuer, so writing that issuer explicitly
+(or a trailing slash) is not a change. It looks at the issuer only: repointing the OAuth2 URLs of a credential without
+an issuer is not reported. The sign-in itself stays authoritative and refuses any link made under another issuer.
 
 ### Every configured issuer is trusted with e-mail addresses
 

@@ -1,0 +1,83 @@
+{#
+  Passkeys of the signed-in user (2.4.0, nowo_auth_kit_webauthn_account) on the UiKit admin layout: the list (label,
+  added, last used, synced), rename and remove per passkey, and "Add a passkey" (label + browser ceremony) while the
+  account has fewer than webauthn_max. Without a recent full sign-in (webauthn.recent_sign_in) the page asks to sign in
+  again instead (webauthn_sign_in_again minutes, webauthn_logout_route).
+  Variables: webauthn_profile, webauthn_passkeys (list of Webauthn\WebauthnPasskey), webauthn_max, webauthn_signal
+  (rpId, userId, allAcceptedCredentialIds: handed to PublicKeyCredential.signalAllAcceptedCredentials()), and with a recent
+  sign-in webauthn_register_form (null at the limit), webauthn_register_options_url, webauthn_rename_forms and
+  webauthn_delete_forms (by public id). Override with web_ui.templates.webauthn_account or the Twig path
+  @NowoAuthKitBundle/webauthn/account.html.twig. Block nowo_auth_kit_webauthn_account_before: the host's account
+  navigation. The script carries a CSP nonce.
+#}
+{% extends nowo_ui_layout.admin %}
+{% set nowo_ui_bundle = 'NowoAuthKitBundle' %}
+{% set _b = 'NowoAuthKitBundle' %}
+
+{% block nowo_ui_document_title %}{{ 'webauthn.account.title'|trans({}, _b) }}{% endblock %}
+
+{% block nowo_ui_styles -%}
+    {{- parent() -}}
+{{ include('@NowoAuthKitBundle/_auth_kit_styles.html.twig') }}
+{%- endblock %}
+
+{% block nowo_ui_scripts -%}
+    {{- parent() -}}
+{{ include('@NowoAuthKitBundle/webauthn/_assets.html.twig') }}
+{%- endblock %}
+
+{% block nowo_ui_content %}
+    <div class="nowo-auth-kit-webauthn-account" data-testid="auth-kit-webauthn-account" data-nowo-auth-kit-webauthn-signal="{{ webauthn_signal|json_encode }}">{% block nowo_auth_kit_webauthn_account_before %}{% endblock %}
+
+        <h1 class="{{ nowo_ui_class('page_title', _b) }}">{{ 'webauthn.account.title'|trans({}, _b) }}</h1>
+        <p class="{{ nowo_ui_class('page_intro', _b) }}">{{ 'webauthn.account.intro'|trans({}, _b) }}</p>
+
+        <section class="{{ nowo_ui_class('card', _b) }}" aria-labelledby="webauthn-list-title">
+            <header class="{{ nowo_ui_class('card_header', _b) }}"><h2 id="webauthn-list-title" class="{{ nowo_ui_class('card_title', _b) }}">{{ 'webauthn.account.list'|trans({'%count%': webauthn_passkeys|length, '%max%': webauthn_max}, _b) }}</h2></header>
+            <div class="{{ nowo_ui_class('card_body', _b) }}">
+                {% if webauthn_passkeys is empty %}
+                    <p data-testid="auth-kit-webauthn-none">{{ 'webauthn.account.none'|trans({}, _b) }}</p>
+                {% else %}
+                    <ul class="nowo-auth-kit-webauthn__list" data-testid="auth-kit-webauthn-list">
+                        {% for passkey in webauthn_passkeys %}
+                            <li data-testid="auth-kit-webauthn-passkey" data-passkey="{{ passkey.publicId }}">
+                                <strong>{{ passkey.label }}</strong>
+                                <span class="{{ nowo_ui_class('muted', _b) }}">
+                                    {{ 'webauthn.account.added'|trans({'%date%': passkey.createdAt|date('Y-m-d')}, _b) }}
+                                    · {{ passkey.lastUsedAt ? 'webauthn.account.used'|trans({'%date%': passkey.lastUsedAt|date('Y-m-d')}, _b) : 'webauthn.account.never_used'|trans({}, _b) }}
+                                    {% if passkey.synced %}· {{ 'webauthn.account.synced'|trans({}, _b) }}{% endif %}
+                                </span>
+                                {% if webauthn_rename_forms is defined %}
+                                    {{ form_start(webauthn_rename_forms[passkey.publicId], {attr: {class: 'nowo-auth-kit-mfa__inline', 'data-testid': 'auth-kit-webauthn-rename'}}) }}
+                                        {{ form_row(webauthn_rename_forms[passkey.publicId].label) }}
+                                        {{ form_rest(webauthn_rename_forms[passkey.publicId]) }}
+                                        <button type="submit" class="{{ nowo_ui_class('btn_secondary', _b) }}">{{ 'webauthn.account.rename'|trans({}, _b) }}<span class="nowo-auth-kit-sr-only"> {{ passkey.label }}</span></button>
+                                    {{ form_end(webauthn_rename_forms[passkey.publicId]) }}
+                                    {{ form_start(webauthn_delete_forms[passkey.publicId], {attr: {class: 'nowo-auth-kit-mfa__inline', 'data-testid': 'auth-kit-webauthn-delete'}}) }}
+                                        {{ form_widget(webauthn_delete_forms[passkey.publicId]) }}
+                                        <button type="submit" class="{{ nowo_ui_class('btn_secondary', _b) }}">{{ 'webauthn.account.delete'|trans({}, _b) }}<span class="nowo-auth-kit-sr-only"> {{ passkey.label }}</span></button>
+                                    {{ form_end(webauthn_delete_forms[passkey.publicId]) }}
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="{{ nowo_ui_class('card', _b) }}" aria-labelledby="webauthn-add-title">
+            <header class="{{ nowo_ui_class('card_header', _b) }}"><h2 id="webauthn-add-title" class="{{ nowo_ui_class('card_title', _b) }}">{{ 'webauthn.account.add'|trans({}, _b) }}</h2></header>
+            <div class="{{ nowo_ui_class('card_body', _b) }}">
+                {% if webauthn_sign_in_again is defined %}
+                    <p role="status" data-testid="auth-kit-webauthn-sign-in-again">{{ 'webauthn.account.sign_in_again'|trans({'%minutes%': webauthn_sign_in_again}, _b) }}</p>
+                    <p><a href="{{ path(webauthn_logout_route, {_csrf_token: csrf_token('logout')}) }}">{{ 'mfa.account.sign_in_again_action'|trans({}, _b) }}</a></p>
+                {% elseif webauthn_register_form %}
+                    <p>{{ 'webauthn.account.add_help'|trans({}, _b) }}</p>
+                    {{ include('@NowoAuthKitBundle/webauthn/_ceremony.html.twig', {ceremony: {form: webauthn_register_form, options_url: webauthn_register_options_url}, mode: 'register', button: 'webauthn.account.add_button', fields: true}) }}
+                {% else %}
+                    <p role="status" data-testid="auth-kit-webauthn-limit">{{ 'webauthn.account.limit'|trans({'%max%': webauthn_max}, _b) }}</p>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+{% endblock %}

@@ -9,6 +9,7 @@
 - [Registration modes](#registration-modes)
 - [Invitations](#invitations)
 - [Two-factor authentication (MFA)](#two-factor-authentication-mfa)
+- [Passkeys (webauthn)](#passkeys-webauthn)
 - [Several accounts at once](#several-accounts-at-once)
 - [Field configuration](#field-configuration)
   - [Login](#login)
@@ -234,7 +235,7 @@ nowo_auth_kit:
         require_verified_email: true
         link_existing_account: reset_password  # 1.31+: reset_password | deny | keep
         pkce: {}                    # provider → bool; unset = on for google/github/microsoft, off for custom IdPs
-        provider_marks: {}          # 1.48: provider → false | 'asset/path.svg' | {path, package, on_white}
+        provider_marks: {}          # 1.48: provider → false | 'asset/path.svg' | {path, package, on_white: true|false|auto}
         authorization_params: {}    # 1.48: provider → map of extra authorize-request params (null removes one)
                                     #       google/microsoft send prompt=select_account unless you set prompt: ~
 
@@ -365,6 +366,25 @@ Requires DoctrineEncryptBundle (the secret is `#[Encrypted]`; `require_encryptio
 protection and, for the QR code, `endroid/qr-code`. Full reference, pages, events and security notes:
 [MFA.md](MFA.md). Host firewall layer: `/login/mfa` like the login page (`PUBLIC_ACCESS`), `/account/security/mfa`
 for `ROLE_USER`.
+
+## Passkeys (webauthn)
+
+Opt-in per profile (2.4.0, `webauthn.mode: disabled` by default). Needs symfony/lock (the build fails without a
+`lock.factory` while a profile enables it) and the AuthKit entities mapped. Copy-paste:
+
+```yaml
+nowo_auth_kit:
+    webauthn:
+        mode: enabled
+        rp_id: login.example.com    # the login host; expected origin https://login.example.com (never the Host header)
+        max_credentials: 10
+```
+
+Every key (`allowed_origins`, `timeout_ms`, `attestation`, `recent_sign_in`, `passwordless`, `mfa`, `hash_secret`,
+`rate_limit.{options,assert,register}`, `routes.*`), the table, the SQL scripts and the security checks:
+[WEBAUTHN.md](WEBAUTHN.md). With `mfa.enabled` a passkey is a second factor (`mfa.first_factors.webauthn`: `exempt` by
+default). Host firewall layer: `^/login/webauthn` like the login page (`PUBLIC_ACCESS`), `/account/webauthn` for
+signed-in users.
 
 ## Several accounts at once
 
@@ -578,7 +598,7 @@ When `social_login.mode` is `enabled` **and** at least one enabled `SocialLoginC
 
 `social_login.pkce` toggles PKCE (RFC 7636, `S256` only) per provider key. Built-in `google`, `github` and `microsoft` default to enabled (verifier stored in the session with the OAuth `state`, `code_challenge` on the authorize redirect, `code_verifier` on the token exchange); custom providers default to disabled. Example: `pkce: { github: false, my_idp: true }`.
 
-`social_login.provider_marks` (1.48) sets the brand mark of each provider button. Unset, the built-in `google`, `github` and `microsoft` buttons carry the official mark the bundle ships (Google's guidelines require its "G" on the button) and every other provider carries none. Per provider: `false` removes the mark, a string is an asset path, or a map `{path, package, on_white}`. Keys are case-insensitive. Provenance and the trademark position of each shipped mark: [BRAND-MARKS.md](BRAND-MARKS.md).
+`social_login.provider_marks` (1.48) sets the brand mark of each provider button. Unset, the built-in `google`, `github` and `microsoft` buttons carry the official mark the bundle ships (Google's guidelines require its "G" on the button) and every other provider carries none. Per provider: `false` removes the mark, a string is an asset path, or a map `{path, package, on_white}`. `on_white` is `true` (white backdrop), `false` (none) or, since 2.4.0, `auto`: the backdrop in the light theme only, the full-colour mark directly on the button in the dark theme (`data-theme="dark"` or `prefers-color-scheme: dark`, CSS only, never recoloured). Built-in defaults: `google` `auto` (2.4.0; was `true`), `github` and `microsoft` `true`. Keys are case-insensitive. Provenance and the trademark position of each shipped mark: [BRAND-MARKS.md](BRAND-MARKS.md).
 
 Since 1.48 the built-in `google` and `microsoft` providers send `prompt=select_account` by default (the provider asks which account to use); set `prompt: ~` for that provider to restore the previous behaviour.
 
@@ -940,7 +960,7 @@ attributes. Per profile:
 | Key | Purpose |
 | --- | --- |
 | `web_ui.layout_template` | layout override (default null = `nowo_ui_kit.layouts.guest`) |
-| `web_ui.templates.<page>` | per-page template (`login`, `register`, `reset_request`, `reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`, `qr_login_approve`, `mfa_challenge`, `mfa_setup`, `mfa_recovery_codes`, `accounts_chooser`, `invitation_accept`, `invitation_invalid`, `mfa_account`, `mfa_account_codes`) |
+| `web_ui.templates.<page>` | per-page template (`login`, `register`, `reset_request`, `reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`, `qr_login_approve`, `mfa_challenge`, `mfa_setup`, `mfa_recovery_codes`, `accounts_chooser`, `invitation_accept`, `invitation_invalid`, `mfa_account`, `mfa_account_codes`, 2.4.0: `webauthn_account`) |
 | `web_ui.form_themes` | form themes of the auth forms (default UiKit form theme + AuthKit PasswordToggle theme) |
 | `web_ui.brand` | brand line of the panel |
 | `web_ui.qr_login.stimulus_controller` | Stimulus identifier for the QR challenge (values + targets; the bundled poller is not loaded) |

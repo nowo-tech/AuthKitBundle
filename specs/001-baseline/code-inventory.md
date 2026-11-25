@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-25 (2.3.0, OpenID Connect providers: 20 PHP + 2 Resources)  
-**Units**: **493** (`422` PHP under `src/` + `71` Resources)
+**Last audited**: 2026-11-25 (2.4.0, passkeys: 23 PHP + 14 Resources)  
+**Units**: **530** (`445` PHP under `src/` + `85` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -725,18 +725,59 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `User/UserStoreInterface.php` | production | FR-USER-001 | Mapped |
 | `Port/Internal/UserWriterInterface.php` | production (2.0: internal adapter of the removed 1.x port) | FR-USER-001, FR-PORT-001 | Mapped |
 
+## Passkeys / WebAuthn (v2.4.0, [spec 008](../008-webauthn/spec.md))
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `DependencyInjection/WebauthnConfiguration.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Entity/WebauthnCredential.php` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/config/doctrine-xml/WebauthnCredential.orm.xml` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/config/webauthn.yaml` | production | FR-WEBAUTHN-001 | Mapped |
+| `Resources/public/js/nowo-auth-kit-webauthn.js` | production | FR-WEBAUTHN-003 | Mapped |
+| `Resources/sql/webauthn/mariadb.down.sql` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/sql/webauthn/mariadb.up.sql` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/sql/webauthn/mysql.down.sql` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/sql/webauthn/mysql.up.sql` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/sql/webauthn/postgresql.down.sql` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/sql/webauthn/postgresql.up.sql` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/sql/webauthn/sqlite.down.sql` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/sql/webauthn/sqlite.up.sql` | production | FR-WEBAUTHN-002 | Mapped |
+| `Resources/views/webauthn/_assets.html.twig` | production | FR-WEBAUTHN-003 | Mapped |
+| `Resources/views/webauthn/_ceremony.html.twig` | production | FR-WEBAUTHN-003 | Mapped |
+| `Resources/views/webauthn/account.html.twig` | production | FR-WEBAUTHN-003 | Mapped |
+| `Webauthn/Base64Url.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Webauthn/Controller/WebauthnAccountController.php` | production | FR-WEBAUTHN-003 | Mapped |
+| `Webauthn/Controller/WebauthnLoginController.php` | production | FR-WEBAUTHN-003 | Mapped |
+| `Webauthn/Controller/WebauthnMfaController.php` | production | FR-WEBAUTHN-003 | Mapped |
+| `Webauthn/Event/WebauthnAuthenticationFailedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
+| `Webauthn/Event/WebauthnCredentialAddedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
+| `Webauthn/Event/WebauthnCredentialRemovedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
+| `Webauthn/Event/WebauthnCredentialUsedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
+| `Webauthn/Event/WebauthnEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
+| `Webauthn/EventSubscriber/WebauthnSignedInSubscriber.php` | production | FR-WEBAUTHN-004 | Mapped |
+| `Webauthn/Form/WebauthnCredentialFormType.php` | production | FR-WEBAUTHN-003 | Mapped |
+| `Webauthn/Form/WebauthnRenameFormType.php` | production | FR-WEBAUTHN-003 | Mapped |
+| `Webauthn/PersonalData/WebauthnPersonalDataEraser.php` | production | FR-WEBAUTHN-005 | Mapped |
+| `Webauthn/PersonalData/WebauthnPersonalDataExportProvider.php` | production | FR-WEBAUTHN-005 | Mapped |
+| `Webauthn/WebauthnCeremonies.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Webauthn/WebauthnCredentialRecord.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Webauthn/WebauthnFailure.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Webauthn/WebauthnManager.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Webauthn/WebauthnPasskey.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Webauthn/WebauthnRemoval.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Webauthn/WebauthnStore.php` | production | FR-WEBAUTHN-001 | Mapped |
+
 ## Summary
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 422 |
-| Resources (config/translations/views/public) | 71 |
-| **Total production sources** | **493** |
-| Audit command | `git ls-files src \| wc -l` → 493 |
+| PHP under `src/` | 445 |
+| Resources (config/translations/views/public/sql) | 85 |
+| **Total production sources** | **530** |
+| Audit command | `git ls-files src \| wc -l` → 530 |
 
 ## Coverage gate
 
 - PHPUnit: `make test-coverage-100` (100% lines on `src/`, justified exclusions only).
 - Spec Kit: this inventory MUST stay in lockstep with `find src -type f` (PHP + Resources).
-- Non-goals without `src/` units yet: WebAuthn (`docs/WEBAUTHN.md` design-only).
 

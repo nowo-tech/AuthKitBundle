@@ -26,6 +26,9 @@ final class MfaFirstFactor
 
     public const DEFAULT = 'default';
 
+    /** 2.4.0: a passkey sign-in (`WebauthnLoginController`). */
+    public const WEBAUTHN = 'webauthn';
+
     /**
      * Marks the request before an AuthKit controller calls `Security::login()`.
      */

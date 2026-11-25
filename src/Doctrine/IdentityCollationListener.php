@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
+use Nowo\AuthKitBundle\Entity\WebauthnCredential;
 use Psr\Log\LoggerInterface;
 
 use function array_keys;
@@ -21,7 +22,9 @@ use function array_keys;
  * - social login (`auth_kit_social_account`): `provider_user_id` (the unique key of the provider subject), `user_id`,
  *   `user_identifier` (personal-data erasure);
  * - account switcher (`auth_kit_account_vault`): `user_identifier`;
- * - invitations (`auth_kit_invitation`): `email`, `invited_by`.
+ * - invitations (`auth_kit_invitation`): `email`, `invited_by`;
+ * - passkeys (`auth_kit_webauthn_credential`, 2.4.0): `user_type`, `user_id`, `credential_id_hash`, `user_handle`,
+ *   `public_id`.
  *
  * The default MySQL / MariaDB collations are case-, accent- and (PAD SPACE) trailing-space-insensitive, so `jose` =
  * `JOSÉ` = `jose `: a folding unique key lets one user's insert collide with (or a lookup return) a look-alike user's
@@ -45,6 +48,8 @@ final readonly class IdentityCollationListener
         SocialLoginAccount::class => ['providerUserId', 'userId', 'userIdentifier'],
         AccountVaultEntry::class  => ['userIdentifier'],
         Invitation::class         => ['email', 'invitedBy'],
+        // 2.4.0: the passkey's owner, its lookup digest, its opaque user handle and its public id.
+        WebauthnCredential::class => ['userType', 'userId', 'credentialIdHash', 'userHandle', 'publicId'],
     ];
 
     /**

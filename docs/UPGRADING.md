@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Passkeys (opt-in)](#passkeys-opt-in)
+  - [Google mark in the dark theme](#google-mark-in-the-dark-theme)
 - [To 2.3.0](#to-230)
   - [Schema: three nullable columns](#schema-three-nullable-columns)
   - [New providers](#new-providers)
@@ -177,6 +179,43 @@
 
 ## Unreleased
 
+### Passkeys (opt-in)
+
+Nothing changes until a profile sets `webauthn.mode: enabled`, but every host installs the new dependencies:
+`web-auth/webauthn-lib` ^5.3.17, `symfony/serializer` and `symfony/uid`, and through webauthn-lib the PHP extension
+`ext-openssl` plus `spomky-labs/cbor-php`, `web-auth/cose-lib`, `spomky-labs/pki-framework`,
+`phpdocumentor/reflection-docblock`, `symfony/property-info`, `symfony/property-access` and `symfony/clock`. The new entity `WebauthnCredential` is mapped with the other AuthKit entities,
+so `doctrine:migrations:diff` proposes the table `auth_kit_webauthn_credential` on every host with the mapping on
+(create it, it stays empty; or use the scripts under `src/Resources/sql/webauthn/`).
+
+To turn passkeys on:
+
+1. Keep (or add) `symfony/lock` with `framework.lock`; the build refuses passkeys without it.
+2. Create the table (migration or SQL script).
+3. `webauthn: { mode: enabled, rp_id: login.example.com }`: set `rp_id` explicitly to the host of the login page; it
+   cannot change later. The expected origin is then exactly `https://login.example.com` (never the `Host` header).
+   Use a parent domain (`example.com`) only when you control every sub-domain, and then list the exact login origins in
+   `allowed_origins`. Set `framework.trusted_hosts`.
+4. `access_control`: `^/login/webauthn` public like `/login`.
+5. With MFA: a passkey now counts as the second factor of a required user, and a passkey sign-in skips the second step
+   (`mfa.first_factors.webauthn: exempt`; set `required` to keep asking). With `webauthn.mfa: false` a passkey sign-in
+   is always followed by the user's second factor. Code that read `MfaManager::isEnabled()` as "has a second factor"
+   should call `hasSecondFactor()`. `MfaManager::forgetUser()` now also deletes the user's passkeys; hosts that delete
+   users without UserKit call it (or `WebauthnManager::forgetUser()`).
+
+The design keys `rp_name` and `user_verification` of the 1.12 draft do not exist: the RP name follows WebAuthn Level 3
+(the RP id), and user verification is always required. See [WEBAUTHN.md](WEBAUTHN.md#host-integration-beacon-and-others).
+
+### Google mark in the dark theme
+
+`social_login.provider_marks.<provider>.on_white` accepts `auto` next to `true` / `false`, and the built-in `google`
+mark now defaults to `auto`: its white backdrop stays in the light theme and goes in the dark theme
+(`data-theme="dark"`, or `prefers-color-scheme: dark` without `data-theme="light"`), where the full-colour "G" sits
+directly on the dark button as in Google's own dark button. Nothing changes in a light theme. To keep the white
+backdrop in both themes: `provider_marks: { google: { path: img/social/google.svg, package: nowo_auth_kit, on_white:
+true } }`. A host template that renders the mark itself adds `nowo-auth-kit-providers__mark--on-white-auto` when
+`mark.onWhiteAuto` is true (new `ProviderMark` property, default false).
+
 ## To 2.3.0
 
 From **2.2.x**:
@@ -235,7 +274,12 @@ Things to do for a provider you enable:
   you do not fully trust ([OIDC-PROVIDERS.md](OIDC-PROVIDERS.md#every-configured-issuer-is-trusted-with-e-mail-addresses));
 - **issuer changes**: a link signs in only under the issuer it was made with. In your admin screen, call
   `SocialCredentialIssuerGuard::issuerChangeError()` before saving a new issuer and show its message (unlink first, or
-  use a new provider key).
+  use a new provider key);
+- **host social handlers** (`SocialCallbackStepInterface`) that keep their own `(provider, sub)` links: store
+  `$context->socialProfile->issuer` with each link and refuse a sign-in under another issuer, as AuthKit's linker does
+  ([SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#callback-handlers); audit ZBP-v-I1);
+- **per-IP limits** (start limit included) key on the client IP as Symfony resolves it: check
+  `framework.trusted_proxies` behind a proxy or a load balancer (audit ZBP-v-I3).
 
 ### Behaviour that changes
 

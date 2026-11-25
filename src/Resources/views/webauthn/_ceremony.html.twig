@@ -1,0 +1,22 @@
+{#
+  A passkey ceremony (2.4.0): the CSRF-protected form whose hidden `credential` field the bundled
+  nowo-auth-kit-webauthn.js fills with the JSON of the browser's answer before submitting it. Root
+  [data-nowo-auth-kit-webauthn="login|mfa|register"] with data-options-url, data-conditional (login: conditional UI from
+  the login field, autocomplete="username webauthn") and data-label-<state> texts (unsupported, working, failed,
+  cancelled); the script sets data-nowo-auth-kit-webauthn-state and dispatches a bubbling `nowo-auth-kit:webauthn-state`
+  event ({detail: {mode, state}}). Variables: ceremony ({form, options_url}), mode, button (translation key),
+  conditional (bool), fields (bool: render the label field of a registration).
+#}
+{% set _b = 'NowoAuthKitBundle' %}
+<div class="nowo-auth-kit-webauthn" data-nowo-auth-kit-webauthn="{{ mode }}" data-options-url="{{ ceremony.options_url }}"
+    {%- if conditional|default(false) %} data-conditional="1"{% endif %}
+    {%- for _state in ['unsupported', 'working', 'failed', 'cancelled'] %} data-label-{{ _state }}="{{ ('webauthn.state.' ~ _state)|trans({}, _b) }}"{% endfor %}
+    data-testid="auth-kit-webauthn-{{ mode }}">
+    {{ form_start(ceremony.form, {attr: {class: 'nowo-auth-kit-webauthn__form'}}) }}
+        {% if fields|default(false) and ceremony.form.label is defined %}{{ form_row(ceremony.form.label) }}{% endif %}
+        {{ form_widget(ceremony.form) }}
+        <button type="{{ mode == 'register' ? 'submit' : 'button' }}" class="{{ nowo_ui_class(mode == 'register' ? 'btn_primary' : 'btn_secondary', _b) }} nowo-auth-kit-webauthn__button" data-nowo-auth-kit-webauthn-start>{{ button|trans({}, _b) }}</button>
+    {{ form_end(ceremony.form) }}
+    <p class="nowo-auth-kit-webauthn__status {{ nowo_ui_class('muted', _b) }}" role="status" aria-live="polite" data-nowo-auth-kit-webauthn-status></p>
+    <noscript><p class="{{ nowo_ui_class('muted', _b) }}">{{ 'webauthn.state.no_script'|trans({}, _b) }}</p></noscript>
+</div>

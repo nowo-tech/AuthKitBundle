@@ -26,11 +26,17 @@ final readonly class ProviderMark
      * @param string|null $package asset package holding the mark; null = the host's default package
      * @param bool $onWhite render the mark on a white backdrop with clear space around it (Google requires its "G"
      *                      on a white background, whatever the colour of the button)
+     * @param bool $onWhiteAuto 2.4.0 (`on_white: auto`): the white backdrop only in the light theme; in the dark theme
+     *                          (`data-theme="dark"`, or `prefers-color-scheme: dark` without an explicit light
+     *                          choice) the full-colour mark sits directly on the button (CSS only, never recoloured).
+     *                          Goes with `$onWhite: true` (the resolver sets both), so a template that only
+     *                          knows `onWhite` keeps the backdrop
      */
     public function __construct(
         public string $path,
         public ?string $package = null,
         public bool $onWhite = false,
+        public bool $onWhiteAuto = false,
     ) {
         if (trim($path) === '') {
             throw new InvalidArgumentException('A ProviderMark needs a non-empty asset path.');

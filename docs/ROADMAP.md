@@ -18,6 +18,8 @@ Planned direction for Auth Kit Bundle. Items are grouped by horizon and may chan
 - **Two-factor authentication** (1.34, opt-in): TOTP authenticator apps + recovery codes, trusted devices, required
   roles with a grace period, administrator reset — [MFA.md](MFA.md).
 - **Several accounts at once** (1.34, opt-in): account switcher with per-account sessions — [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md).
+- **Passkeys / WebAuthn** (2.4.0, opt-in): passwordless first factor with conditional UI and second factor next to
+  TOTP — [WEBAUTHN.md](WEBAUTHN.md).
 
 ## Short term
 
@@ -25,8 +27,11 @@ Planned direction for Auth Kit Bundle. Items are grouped by horizon and may chan
 
 ## Medium term
 
-- **WebAuthn / passkeys** as a second factor and as a passwordless first factor (design in [WEBAUTHN.md](WEBAUTHN.md);
-  deferred from the MFA v1 scope, owner decision D-M1 2026-11-03).
+- Social / OIDC: per-credential `link_by_email` and an allow-list of e-mail domains a provider may assert (hardening of
+  audit ZBP-L2: today `link_existing_account` is per profile and trusts every configured issuer with every address).
+
+- Passkeys: a passkey as the forced-enrolment choice of a required user (today the setup page enrols TOTP), and an
+  optional AAGUID allow-list with FIDO metadata for `attestation: direct`.
 - **E-mail codes** as a fallback second factor (through the host mailer, with the same rate limits as TOTP; D-M1).
 - Optional per-device remember-me revocation together with UserKit's planned per-device series.
 

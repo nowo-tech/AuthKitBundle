@@ -368,3 +368,40 @@ accounts:
         full: 'Non è possibile aggiungere altri account in questo browser. Esci prima da uno.'
         rate_limited: 'Troppi tentativi. Riprova tra qualche minuto.'
         signed_out: 'L’account è stato disconnesso.'
+webauthn:
+    login:
+        button: "Accedi con una passkey"
+    mfa:
+        button: "Usa una passkey"
+    state:
+        unsupported: "Questo browser non supporta le passkey."
+        working: "Segui le istruzioni del browser o del telefono…"
+        failed: "Impossibile usare la passkey. Riprova."
+        cancelled: "Annullato. Riprova quando sei pronto."
+        no_script: "Le passkey richiedono JavaScript."
+    flash:
+        failed: "Accesso con la passkey non riuscito. Riprova o usa un altro metodo."
+        register_failed: "Impossibile aggiungere la passkey. Riprova."
+        limit: "Hai già il numero massimo di passkey."
+        added: "La tua passkey è stata aggiunta."
+        renamed: "La passkey è stata rinominata."
+        unknown: "Questa passkey non esiste."
+        removed: "La passkey è stata rimossa."
+        last_factor: "Il tuo account richiede un secondo fattore: aggiungi un’altra passkey o attiva un’app di autenticazione prima di rimuovere questa."
+    account:
+        title: "Passkey"
+        intro: "Accedi con impronta, volto, blocco schermo o una chiave di sicurezza. Una passkey vale anche come secondo passaggio."
+        list: "Le tue passkey (%count% di %max%)"
+        none: "Non hai ancora passkey."
+        added: "Aggiunta il %date%"
+        used: "ultimo uso %date%"
+        never_used: "mai usata"
+        synced: "sincronizzata"
+        label: "Nome"
+        rename: "Rinomina"
+        delete: "Rimuovi"
+        add: "Aggiungi una passkey"
+        add_help: "Dagli un nome (ad esempio «Portatile di lavoro») e segui le istruzioni del browser. Puoi anche salvarla sul telefono scansionando il codice QR mostrato dal browser."
+        add_button: "Aggiungi una passkey"
+        limit: "Hai %max% passkey, il massimo. Rimuovine una per aggiungerne un’altra."
+        sign_in_again: "Per sicurezza, accedi di nuovo (negli ultimi %minutes% minuti) per modificare le tue passkey."

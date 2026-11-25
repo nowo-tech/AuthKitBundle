@@ -49,6 +49,11 @@ nowo_auth_kit:
         admin:
             routes: true
             access_roles: [ROLE_ADMIN]
+    # 2.4.0: passkeys (WebAuthn) — "Sign in with a passkey" with conditional UI on the login page, a passkey as the
+    # administrators' second factor, /{_locale}/account/webauthn to add, rename and remove them (at most 10).
+    webauthn:
+        mode: enabled
+        max_credentials: 10
     # Several accounts at once (1.34): avatar menu switcher on the home page, /{_locale}/accounts chooser. Needs UserKit
     # sessions (config/packages/nowo_user_kit.yaml).
     # 1.51.1: the MFA account page through a host template (extends @!NowoAuthKit/mfa/account.html.twig, admin layout).

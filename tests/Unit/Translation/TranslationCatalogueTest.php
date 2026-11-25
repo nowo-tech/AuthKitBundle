@@ -42,6 +42,8 @@ final class TranslationCatalogueTest extends TestCase
             'invitation.link.url',
             'mfa.account.status',
             'register.field.name',
+            'webauthn.account.label',
+            'webauthn.account.title',
         ],
         'es' => [
             'invitation.column.roles',
@@ -56,6 +58,7 @@ final class TranslationCatalogueTest extends TestCase
             'invitation.link.url',
         ],
         'nl' => [
+            'webauthn.account.title',
             'invitation.column.status',
             'invitation.filter.status',
             'invitation.link.url',

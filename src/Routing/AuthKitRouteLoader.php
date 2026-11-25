@@ -34,6 +34,9 @@ use Nowo\AuthKitBundle\Mfa\Controller\MfaAdminController;
 use Nowo\AuthKitBundle\Mfa\Controller\MfaChallengeController;
 use Nowo\AuthKitBundle\MultiAccount\Controller\AccountsController;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
+use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnAccountController;
+use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnLoginController;
+use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnMfaController;
 use ReflectionMethod;
 use Symfony\Component\Config\Loader\Loader;
 use Symfony\Component\Routing\Attribute\Route as RouteAttribute;
@@ -175,6 +178,26 @@ final class AuthKitRouteLoader extends Loader
             $this->addControllerRoute($collection, $accountRoutes['switch'], AccountsController::class, 'switch', $profileDefaults);
             $this->addControllerRoute($collection, $accountRoutes['sign_out'], AccountsController::class, 'signOut', $profileDefaults);
             $this->addControllerRoute($collection, $accountRoutes['sign_out_all'], AccountsController::class, 'signOutAll', $profileDefaults);
+        }
+
+        // Passkeys (2.4.0): opt-in, registered only with webauthn.mode: enabled; the sign-in routes with passwordless,
+        // the second-step routes with webauthn.mfa and mfa.enabled.
+        if (($profile['webauthn']['mode'] ?? 'disabled') === 'enabled') {
+            /** @var array<string, array{path: string, name: string}> $webauthnRoutes */
+            $webauthnRoutes = $profile['webauthn']['routes'];
+            if (($profile['webauthn']['passwordless'] ?? true) === true) {
+                $this->addControllerRoute($collection, $webauthnRoutes['login_options'], WebauthnLoginController::class, 'options', $profileDefaults);
+                $this->addControllerRoute($collection, $webauthnRoutes['login_assert'], WebauthnLoginController::class, 'assert', $profileDefaults);
+            }
+            if (($profile['webauthn']['mfa'] ?? true) === true && ($profile['mfa']['enabled'] ?? false) === true) {
+                $this->addControllerRoute($collection, $webauthnRoutes['mfa_options'], WebauthnMfaController::class, 'options', $profileDefaults);
+                $this->addControllerRoute($collection, $webauthnRoutes['mfa_assert'], WebauthnMfaController::class, 'assert', $profileDefaults);
+            }
+            $this->addControllerRoute($collection, $webauthnRoutes['account'], WebauthnAccountController::class, 'account', $profileDefaults);
+            $this->addControllerRoute($collection, $webauthnRoutes['register_options'], WebauthnAccountController::class, 'registerOptions', $profileDefaults);
+            $this->addControllerRoute($collection, $webauthnRoutes['register'], WebauthnAccountController::class, 'register', $profileDefaults);
+            $this->addControllerRoute($collection, $webauthnRoutes['rename'], WebauthnAccountController::class, 'rename', $profileDefaults);
+            $this->addControllerRoute($collection, $webauthnRoutes['delete'], WebauthnAccountController::class, 'delete', $profileDefaults);
         }
 
         // MFA (1.34): opt-in, registered only with mfa.enabled; the admin reset page only with mfa.admin.routes.

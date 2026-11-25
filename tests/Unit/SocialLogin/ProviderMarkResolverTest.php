@@ -10,6 +10,8 @@ use Nowo\AuthKitBundle\View\ProviderMark;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+use function strtolower;
+
 /**
  * 1.48: the brand mark of a provider button — the official artwork the bundle ships for a built-in provider, the
  * host's own `social_login.provider_marks` entry, or none.
@@ -37,6 +39,32 @@ final class ProviderMarkResolverTest extends TestCase
         self::assertSame(ProviderMarkResolver::ASSET_PACKAGE, $mark->package);
         // Google's "G" must appear on a white background whatever colour the host gives the button.
         self::assertTrue($mark->onWhite);
+        // 2.4.0: Google's backdrop is light-theme only (on_white: auto); the others keep it in both themes.
+        self::assertSame(strtolower($provider) === 'google', $mark->onWhiteAuto);
+    }
+
+    /**
+     * 2.4.0 `on_white: auto`: the backdrop in the light theme only. true / false keep their 1.48 meaning; an override
+     * without `on_white` keeps the provider's default (auto for google).
+     */
+    public function testOnWhiteAuto(): void
+    {
+        $resolver = new ProviderMarkResolver();
+        $auto     = $resolver->resolve('my_idp', ['my_idp' => ['path' => 'images/idp.svg', 'on_white' => 'auto']]);
+        self::assertInstanceOf(ProviderMark::class, $auto);
+        self::assertTrue($auto->onWhite);
+        self::assertTrue($auto->onWhiteAuto);
+
+        foreach ([true, false] as $value) {
+            $mark = $resolver->resolve('google', ['google' => ['path' => 'images/g.svg', 'on_white' => $value]]);
+            self::assertInstanceOf(ProviderMark::class, $mark);
+            self::assertSame($value, $mark->onWhite);
+            self::assertFalse($mark->onWhiteAuto, 'true / false stay as in 1.48.');
+        }
+        $github = $resolver->resolve('github', ['github' => ['path' => 'images/gh.svg']]);
+        self::assertInstanceOf(ProviderMark::class, $github);
+        self::assertFalse($github->onWhiteAuto);
+        self::assertFalse((new ProviderMark('x.svg'))->onWhiteAuto);
     }
 
     public function testUnknownProviderHasNoMarkAndAppleIsNotShipped(): void
@@ -92,6 +120,7 @@ final class ProviderMarkResolverTest extends TestCase
         $google = $resolver->resolve('google', ['google' => ['path' => 'images/g.svg', 'package' => ' ']]);
         self::assertInstanceOf(ProviderMark::class, $google);
         self::assertTrue($google->onWhite);
+        self::assertTrue($google->onWhiteAuto, 'A swapped Google file keeps the 2.4.0 default (auto).');
         self::assertNull($google->package, 'An empty package falls back to the host default package.');
 
         $custom = $resolver->resolve('my_idp', ['my_idp' => ['path' => 'images/idp.svg']]);

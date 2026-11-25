@@ -125,6 +125,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Passkeys / WebAuthn** (Beacon request 2026-11-25, spec 221 block D): the runtime of [WEBAUTHN.md](WEBAUTHN.md),
+  opt-in per profile (`webauthn.mode: enabled`). Ceremonies through `web-auth/webauthn-lib` ^5.3 (CBOR, COSE,
+  attestation, signature, origin and RP id checks); AuthKit adds session-bound single-use challenges (claimed once
+  under `symfony/lock`, valid `timeout_ms` + 30 s), user verification always required, exact origins
+  (`allowed_origins`, else the request origin), sign counter recorded by a conditional `UPDATE` (replay, parallel use
+  and cloned authenticators refused).
+- Passwordless first factor `webauthn`: **Sign in with a passkey** on the login page and conditional UI
+  (`autocomplete="username webauthn"` on the identifier field), so the browser offers the site's passkeys or a phone
+  through the hybrid transport's QR code. `mfa.first_factors.webauthn` defaults to `exempt`.
+- A passkey as a **second factor** next to TOTP (`webauthn.mfa`, with `mfa.enabled`): `MfaManager::hasSecondFactor()`,
+  a required user with a passkey is challenged instead of forced into TOTP enrolment, **Use a passkey** on the
+  challenge page (the code form only with TOTP on), one attempt of the pending sign-in per assertion, and a last-factor
+  guard on removal.
+- Account page `/account/webauthn` (`web_ui.templates.webauthn_account`): add (named), rename and remove passkeys,
+  `max_credentials` (default 10), changes only within `recent_sign_in` of a full sign-in, never while impersonating.
+- Table `auth_kit_webauthn_credential` (exact-key columns with the binary NO PAD collation, declared to
+  `nowo:migrations:check-key-collations`), up / down SQL scripts for MySQL, MariaDB, PostgreSQL and SQLite under
+  `src/Resources/sql/webauthn/`, and the demo migration.
+- Events `WebauthnCredentialAddedEvent`, `WebauthnCredentialUsedEvent`, `WebauthnCredentialRemovedEvent`,
+  `WebauthnAuthenticationFailedEvent` (framework-free, after the write).
+- Rate limits `webauthn.rate_limit.{options,assert,register}` on the ceremony routes.
+- UserKit eraser `auth_kit_webauthn` and export section `passkeys` (registered with the entities mapped, also while
+  no profile enables passkeys).
+- `public/js/nowo-auth-kit-webauthn.js` (hand-written, CSP nonce, no inline code) and the `webauthn.*` translations in
+  the seven locales.
+
+### Changed
+
+- `symfony/lock` is also required (build failure otherwise) while a profile enables passkeys, as for MFA.
+- New runtime dependencies: `web-auth/webauthn-lib` ^5.3, `symfony/serializer`, `symfony/uid`.
+- `MfaAuthenticationSubscriber` challenges a user with any second factor (`hasSecondFactor()`); `MfaManager::isEnabled()`
+  still means TOTP.
+- `SocialCredentialIssuerGuard` compares the effective issuers (audit ZBP-v-I2): a `gitlab`, `apple`, `linkedin` or
+  `slack` credential without an issuer and without custom endpoints uses its preset issuer, so writing it explicitly is
+  no longer reported as an issuer change (admin UX only; the sign-in was and stays authoritative).
+
+- Provider marks: `on_white` accepts `auto` (Beacon): the white backdrop in the light theme only; in the dark theme
+  (`data-theme="dark"`, or `prefers-color-scheme: dark` without an explicit light choice; CSS only) the full-colour
+  mark sits directly on the button, never recoloured. The built-in `google` mark defaults to `auto` (Google's dark
+  button draws the "G" straight on `#131314`); `true` / `false` unchanged. New `ProviderMark::$onWhiteAuto` and class
+  `nowo-auth-kit-providers__mark--on-white-auto`.
+
+### Security
+
+- Passkeys, pre-tag audit ZBX (code new in 2.4.0, never released): the expected origin is never taken from the
+  `Host` header; empty `allowed_origins` means exactly `https://<rp_id>` (M1). The `webauthn` first factor is exempt
+  from the second step only with `webauthn.mfa: true` (L1). The second step checks the user handle stored with the
+  passkey, so a rotated `hash_secret` locks nobody out (L2). `WebauthnManager::forgetUser()`, called by
+  `MfaManager::forgetUser()`, deletes a user's passkeys for hosts without UserKit (L3). `allowed_origins` accepts
+  `http://` only for localhost, an explicit empty `hash_secret` is refused, web-auth/webauthn-lib floor ^5.3.17.
+
+### Fixed
+
+- 2.3.0 audit follow-ups ZBP-v-I1..I7 (Infos, no behaviour change at sign-in): SOCIAL-LOGIN.md and UPGRADING tell host
+  social handlers with their own links to store and compare the issuer (I1); OIDC-PROVIDERS, SECURITY and UPGRADING
+  say that per-IP limits are only as good as `framework.trusted_proxies` (I3) and that the negative discovery cache
+  starts after the first failure (I4); CONCURRENCY lists the negative discovery entry and the start counter (I5); the
+  OIDC log test asserts that AuthKit log contexts are scalar-only (I6); unit tests pin the legacy-link / OIDC-profile
+  and OIDC-link / OAuth2-profile refusals, OIDC-PROVIDERS documents the missing re-stamp path, and ROADMAP lists
+  per-credential `link_by_email` / allowed e-mail domains (I7).
+
 ## [2.3.0] - 2026-11-25
 
 ### Added

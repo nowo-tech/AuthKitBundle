@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Mfa\EventSubscriber;
 
 use LogicException;
+use Nowo\AuthKitBundle\DependencyInjection\WebauthnConfiguration;
 use Nowo\AuthKitBundle\Mfa\MfaLoginCompleter;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\MfaTrustedDevices;
@@ -135,6 +136,12 @@ final readonly class MfaContainmentSubscriber implements EventSubscriberInterfac
             $profile->routes['logout']['name'],
             ...(is_array($profile->mfa['allowed_routes'] ?? null) ? $profile->mfa['allowed_routes'] : []),
         ];
+        if ($profile->webauthnMfa()) {
+            // 2.4.0: the passkey second step.
+            foreach (WebauthnConfiguration::MFA_ROUTES as $key) {
+                $names[] = (string) $profile->webauthn['routes'][$key]['name'];
+            }
+        }
         foreach ($names as $name) {
             if ($route === $name || $route === $name . $this->unlocalizedSuffix) {
                 return true;

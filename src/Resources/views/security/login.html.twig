@@ -6,8 +6,19 @@
   with provider, label, href and an optional brand mark; one button on its own is block
   nowo_auth_kit_provider_link, with _link in scope). With
   multi_account (1.34) the accounts of this browser come first (accounts_switcher, masked identifiers).
+  2.4.0 (webauthn.passwordless): "Sign in with a passkey" after the form (block nowo_auth_kit_webauthn_login,
+  webauthn_login: {form, options_url}); the identifier field carries autocomplete="username webauthn" (conditional UI).
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
+
+{% block nowo_ui_auth_after_form %}
+    {{- parent() -}}
+    {% block nowo_auth_kit_webauthn_login %}
+        {% if webauthn_login|default(null) %}
+            {{ include('@NowoAuthKitBundle/webauthn/_ceremony.html.twig', {ceremony: webauthn_login, mode: 'login', button: 'webauthn.login.button', conditional: true}) }}
+        {% endif %}
+    {% endblock %}
+{% endblock %}
 
 {% block nowo_auth_kit_footer_before %}
     {%- if accounts_switcher|default(null) -%}
@@ -31,7 +42,7 @@
                                     <a class="{{ nowo_ui_class('btn_secondary', page.bundle) }} nowo-auth-kit-providers__button" href="{{ _link.href }}"{% if _link.provider|default(null) %} data-nowo-auth-kit-provider="{{ _link.provider }}"{% endif %}>
                                         {%- if _link.mark|default(null) -%}
                                             {#- Decorative: the accessible name stays the button text. The mark is an image, so host CSS cannot recolour it, and `object-fit: contain` in a square box keeps its aspect ratio (brand guidelines). -#}
-                                            <img class="nowo-auth-kit-providers__mark{{ _link.mark.onWhite ? ' nowo-auth-kit-providers__mark--on-white' : '' }}" src="{{ asset(_link.mark.path, _link.mark.package) }}" width="18" height="18" alt="" aria-hidden="true">
+                                            <img class="nowo-auth-kit-providers__mark{{ _link.mark.onWhite ? ' nowo-auth-kit-providers__mark--on-white' : '' }}{{ _link.mark.onWhiteAuto|default(false) ? ' nowo-auth-kit-providers__mark--on-white-auto' : '' }}" src="{{ asset(_link.mark.path, _link.mark.package) }}" width="18" height="18" alt="" aria-hidden="true">
                                         {%- endif -%}
                                         <span class="nowo-auth-kit-providers__label">{{ _link.label|nowo_ui_trans }}</span>
                                     </a>

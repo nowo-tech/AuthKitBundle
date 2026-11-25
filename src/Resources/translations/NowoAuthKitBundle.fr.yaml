@@ -368,3 +368,40 @@ accounts:
         full: 'Impossible d’ajouter d’autres comptes dans ce navigateur. Déconnectez-en un d’abord.'
         rate_limited: 'Trop de tentatives. Réessayez dans quelques minutes.'
         signed_out: 'Le compte a été déconnecté.'
+webauthn:
+    login:
+        button: "Se connecter avec une clé d’accès"
+    mfa:
+        button: "Utiliser une clé d’accès"
+    state:
+        unsupported: "Ce navigateur ne prend pas en charge les clés d’accès."
+        working: "Suivez les instructions de votre navigateur ou téléphone…"
+        failed: "La clé d’accès n’a pas pu être utilisée. Réessayez."
+        cancelled: "Annulé. Réessayez quand vous êtes prêt."
+        no_script: "Les clés d’accès nécessitent JavaScript."
+    flash:
+        failed: "La connexion avec la clé d’accès a échoué. Réessayez ou utilisez une autre méthode."
+        register_failed: "La clé d’accès n’a pas pu être ajoutée. Réessayez."
+        limit: "Vous avez déjà le nombre maximal de clés d’accès."
+        added: "Votre clé d’accès a été ajoutée."
+        renamed: "La clé d’accès a été renommée."
+        unknown: "Cette clé d’accès n’existe pas."
+        removed: "La clé d’accès a été supprimée."
+        last_factor: "Votre compte exige un second facteur : ajoutez une autre clé d’accès ou activez une application d’authentification avant de supprimer celle-ci."
+    account:
+        title: "Clés d’accès"
+        intro: "Connectez-vous avec votre empreinte, votre visage, le verrouillage de l’écran ou une clé de sécurité. Une clé d’accès sert aussi de seconde étape."
+        list: "Vos clés d’accès (%count% sur %max%)"
+        none: "Vous n’avez pas encore de clé d’accès."
+        added: "Ajoutée le %date%"
+        used: "dernière utilisation le %date%"
+        never_used: "jamais utilisée"
+        synced: "synchronisée"
+        label: "Nom"
+        rename: "Renommer"
+        delete: "Supprimer"
+        add: "Ajouter une clé d’accès"
+        add_help: "Donnez-lui un nom (par exemple « Portable du travail »), puis suivez les instructions du navigateur. Vous pouvez aussi l’enregistrer sur votre téléphone en scannant le code QR affiché par le navigateur."
+        add_button: "Ajouter une clé d’accès"
+        limit: "Vous avez %max% clés d’accès, le maximum. Supprimez-en une pour en ajouter une autre."
+        sign_in_again: "Pour votre sécurité, reconnectez-vous (dans les %minutes% dernières minutes) pour modifier vos clés d’accès."

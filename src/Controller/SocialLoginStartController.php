@@ -54,8 +54,8 @@ final class SocialLoginStartController
         // 2.3.0 (audit ZBP-L3): starts are bounded per client IP (an OpenID Connect start fetches the discovery document).
         if ($this->attemptLimiter instanceof AuthKitAttemptLimiter && !$this->attemptLimiter->consume(
             'social_start:' . $profile->name . ':' . ($request->getClientIp() ?? 'unknown'),
-            self::intSetting($profile->socialLogin['start_rate_limit'] ?? null, 20),
-            self::intSetting($profile->socialLogin['start_rate_window'] ?? null, 60),
+            $this->intSetting($profile->socialLogin['start_rate_limit'] ?? null, 20),
+            $this->intSetting($profile->socialLogin['start_rate_window'] ?? null, 60),
         )) {
             $this->flashMessenger->flash($request, 'error', 'social.error.rate_limited');
 
@@ -95,7 +95,7 @@ final class SocialLoginStartController
         return new RedirectResponse($url);
     }
 
-    private static function intSetting(mixed $value, int $default): int
+    private function intSetting(mixed $value, int $default): int
     {
         return is_int($value) ? $value : $default;
     }

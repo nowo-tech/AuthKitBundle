@@ -368,3 +368,40 @@ accounts:
         full: 'In diesem Browser können keine weiteren Konten hinzugefügt werden. Melden Sie zuerst eines ab.'
         rate_limited: 'Zu viele Versuche. Versuchen Sie es in einigen Minuten erneut.'
         signed_out: 'Das Konto wurde abgemeldet.'
+webauthn:
+    login:
+        button: "Mit einem Passkey anmelden"
+    mfa:
+        button: "Passkey verwenden"
+    state:
+        unsupported: "Dieser Browser unterstützt keine Passkeys."
+        working: "Folgen Sie den Anweisungen Ihres Browsers oder Telefons…"
+        failed: "Der Passkey konnte nicht verwendet werden. Versuchen Sie es erneut."
+        cancelled: "Abgebrochen. Versuchen Sie es erneut, wenn Sie bereit sind."
+        no_script: "Passkeys benötigen JavaScript."
+    flash:
+        failed: "Die Anmeldung mit dem Passkey ist fehlgeschlagen. Versuchen Sie es erneut oder nutzen Sie eine andere Methode."
+        register_failed: "Der Passkey konnte nicht hinzugefügt werden. Versuchen Sie es erneut."
+        limit: "Sie haben bereits die maximale Anzahl an Passkeys."
+        added: "Ihr Passkey wurde hinzugefügt."
+        renamed: "Der Passkey wurde umbenannt."
+        unknown: "Dieser Passkey existiert nicht."
+        removed: "Der Passkey wurde entfernt."
+        last_factor: "Ihr Konto benötigt einen zweiten Faktor: Fügen Sie einen weiteren Passkey hinzu oder aktivieren Sie eine Authenticator-App, bevor Sie diesen entfernen."
+    account:
+        title: "Passkeys"
+        intro: "Melden Sie sich mit Fingerabdruck, Gesicht, Bildschirmsperre oder einem Sicherheitsschlüssel an. Ein Passkey dient auch als zweiter Schritt."
+        list: "Ihre Passkeys (%count% von %max%)"
+        none: "Sie haben noch keine Passkeys."
+        added: "Hinzugefügt am %date%"
+        used: "zuletzt verwendet am %date%"
+        never_used: "nie verwendet"
+        synced: "synchronisiert"
+        label: "Name"
+        rename: "Umbenennen"
+        delete: "Entfernen"
+        add: "Passkey hinzufügen"
+        add_help: "Geben Sie ihm einen Namen (z. B. „Arbeitslaptop“) und folgen Sie den Anweisungen des Browsers. Sie können ihn auch auf Ihrem Telefon speichern, indem Sie den vom Browser angezeigten QR-Code scannen."
+        add_button: "Passkey hinzufügen"
+        limit: "Sie haben %max% Passkeys, das Maximum. Entfernen Sie einen, um einen weiteren hinzuzufügen."
+        sign_in_again: "Melden Sie sich aus Sicherheitsgründen erneut an (innerhalb der letzten %minutes% Minuten), um Ihre Passkeys zu ändern."

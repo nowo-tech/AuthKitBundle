@@ -14,6 +14,7 @@ use Nowo\AuthKitBundle\MultiAccount\Twig\AccountSwitcherView;
 use Nowo\AuthKitBundle\MultiAccount\Twig\MultiAccountExtension;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetGate;
+use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
@@ -23,6 +24,8 @@ use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\AuthKitBundle\View\ProviderLink;
+use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnLoginController;
+use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use Nowo\UiKitBundle\View\Label;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -58,6 +61,7 @@ final class LoginController
         private readonly ?MultiAccountExtension $accounts = null,
         private readonly FeatureAvailability $availability = new FeatureAvailability(),
         private readonly ProviderMarkResolver $marks = new ProviderMarkResolver(),
+        private readonly ?WebauthnManager $passkeys = null,
     ) {
     }
 
@@ -159,7 +163,7 @@ final class LoginController
             'qr_login_start_route'   => $profile->routes['qr_login_start']['name'],
             'social_links'           => array_map(static fn (SocialLoginCredential $c): ProviderLink => $providerLink($c, 'social.continue_with'), $socialProviders),
             'sso_links'              => array_map(static fn (SocialLoginCredential $c): ProviderLink => $providerLink($c, 'sso.continue_with'), $ssoProviders),
-        ]));
+        ] + $this->passkeySignIn($profile)));
 
         $response = new Response($content);
         if ($accounts instanceof AccountSwitcherView && !$accounts->isEmpty()) {
@@ -169,5 +173,26 @@ final class LoginController
         }
 
         return $response;
+    }
+
+    /**
+     * 2.4.0 (`webauthn.passwordless`): the passkey form and options URL of the login page (`webauthn_login`), and the
+     * script flag. Empty when passkeys do not sign in on this profile.
+     *
+     * @return array<string, mixed>
+     */
+    private function passkeySignIn(ProfileSettings $profile): array
+    {
+        if (!$this->passkeys instanceof WebauthnManager || !$profile->webauthnPasswordless()) {
+            return [];
+        }
+
+        return [
+            'nowo_auth_kit_webauthn_assets' => true,
+            'webauthn_login'                => [
+                'form'        => WebauthnLoginController::form($this->formFactory, $profile, $this->urlGenerator)->createView(),
+                'options_url' => $this->urlGenerator->generate((string) $profile->webauthn['routes']['login_options']['name']),
+            ],
+        ];
     }
 }

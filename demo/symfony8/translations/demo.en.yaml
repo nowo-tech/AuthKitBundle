@@ -11,6 +11,7 @@ demo:
         magic: Magic login
         register: Register
         mfa: Two-step verification
+        passkeys: Passkeys
         invitations: Invitations
         sessions: Sessions
         section_demo: Demo

@@ -52,6 +52,7 @@ final class AuthPageFactory
         'accounts_chooser'    => ['accounts.chooser.heading', 'accounts.chooser.title', 'accounts.chooser.intro', null],
         'mfa_account'         => ['mfa.account.title', 'mfa.account.title', 'mfa.account.intro', null],
         'mfa_account_codes'   => ['mfa.recovery.heading', 'mfa.recovery.title', 'mfa.recovery.intro', null],
+        'webauthn_account'    => ['webauthn.account.title', 'webauthn.account.title', 'webauthn.account.intro', null],
     ];
 
     /**

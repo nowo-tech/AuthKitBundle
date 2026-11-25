@@ -368,3 +368,40 @@ accounts:
         full: 'Er kunnen geen accounts meer worden toegevoegd in deze browser. Log er eerst een uit.'
         rate_limited: 'Te veel pogingen. Probeer het over een paar minuten opnieuw.'
         signed_out: 'Het account is uitgelogd.'
+webauthn:
+    login:
+        button: "Inloggen met een passkey"
+    mfa:
+        button: "Een passkey gebruiken"
+    state:
+        unsupported: "Deze browser ondersteunt geen passkeys."
+        working: "Volg de instructies van je browser of telefoon…"
+        failed: "De passkey kon niet worden gebruikt. Probeer het opnieuw."
+        cancelled: "Geannuleerd. Probeer het opnieuw wanneer je klaar bent."
+        no_script: "Passkeys hebben JavaScript nodig."
+    flash:
+        failed: "Inloggen met de passkey is mislukt. Probeer het opnieuw of gebruik een andere methode."
+        register_failed: "De passkey kon niet worden toegevoegd. Probeer het opnieuw."
+        limit: "Je hebt al het maximale aantal passkeys."
+        added: "Je passkey is toegevoegd."
+        renamed: "De passkey is hernoemd."
+        unknown: "Die passkey bestaat niet."
+        removed: "De passkey is verwijderd."
+        last_factor: "Je account heeft een tweede factor nodig: voeg nog een passkey toe of zet een authenticator-app aan voordat je deze verwijdert."
+    account:
+        title: "Passkeys"
+        intro: "Log in met je vingerafdruk, gezicht, schermvergrendeling of een beveiligingssleutel. Een passkey werkt ook als tweede stap."
+        list: "Je passkeys (%count% van %max%)"
+        none: "Je hebt nog geen passkeys."
+        added: "Toegevoegd op %date%"
+        used: "laatst gebruikt op %date%"
+        never_used: "nooit gebruikt"
+        synced: "gesynchroniseerd"
+        label: "Naam"
+        rename: "Hernoemen"
+        delete: "Verwijderen"
+        add: "Een passkey toevoegen"
+        add_help: "Geef hem een naam (bijvoorbeeld \"Werklaptop\") en volg de instructies van je browser. Je kunt hem ook op je telefoon opslaan door de QR-code te scannen die je browser toont."
+        add_button: "Een passkey toevoegen"
+        limit: "Je hebt %max% passkeys, het maximum. Verwijder er een om een andere toe te voegen."
+        sign_in_again: "Log voor je veiligheid opnieuw in (binnen de laatste %minutes% minuten) om je passkeys te wijzigen."

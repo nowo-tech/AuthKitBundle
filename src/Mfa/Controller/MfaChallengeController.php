@@ -17,6 +17,8 @@ use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
+use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnMfaController;
+use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
@@ -52,6 +54,7 @@ final class MfaChallengeController
         private readonly AuthKitUrlGenerator $urls,
         private readonly RequestProfileResolver $profileResolver,
         private readonly AuthKitAttemptLimiter $limiter,
+        private readonly ?WebauthnManager $passkeys = null,
     ) {
     }
 
@@ -102,7 +105,7 @@ final class MfaChallengeController
 
         return $this->render($profile, 'mfa_challenge', $form, $error, [
             'mfa_logout_route' => $profile->routes['logout']['name'],
-        ]);
+        ] + $this->passkeyStep($profile, $user));
     }
 
     #[Route(path: '/login/mfa/setup', name: 'nowo_auth_kit_mfa_setup', methods: ['GET', 'POST'])]
@@ -166,6 +169,28 @@ final class MfaChallengeController
             'mfa_enrolment'    => $this->enrolment->view($user, $secret),
             'mfa_logout_route' => $profile->routes['logout']['name'],
         ]);
+    }
+
+    /**
+     * 2.4.0: the passkey form of the challenge page when the user has a passkey that counts as a second factor
+     * (`webauthn_mfa`: form and options URL; `mfa_totp_enabled`: whether the code form applies).
+     *
+     * @return array<string, mixed>
+     */
+    private function passkeyStep(ProfileSettings $profile, UserInterface $user): array
+    {
+        if (!$this->passkeys instanceof WebauthnManager || !$this->passkeys->hasSecondFactor($user)) {
+            return [];
+        }
+
+        return [
+            'mfa_totp_enabled'              => $this->manager->isEnabled($user),
+            'nowo_auth_kit_webauthn_assets' => true,
+            'webauthn_mfa'                  => [
+                'form'        => WebauthnMfaController::form($this->formFactory, $profile, $this->urls)->createView(),
+                'options_url' => $this->urls->generate((string) $profile->webauthn['routes']['mfa_options']['name']),
+            ],
+        ];
     }
 
     /**

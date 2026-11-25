@@ -366,3 +366,40 @@ accounts:
         full: 'No se pueden añadir más cuentas en este navegador. Cierra la sesión de alguna primero.'
         rate_limited: 'Demasiados intentos. Vuelve a probar en unos minutos.'
         signed_out: 'Se ha cerrado la sesión de la cuenta.'
+webauthn:
+    login:
+        button: "Iniciar sesión con una llave de acceso"
+    mfa:
+        button: "Usar una llave de acceso"
+    state:
+        unsupported: "Este navegador no puede usar llaves de acceso."
+        working: "Sigue las instrucciones de tu navegador o teléfono…"
+        failed: "No se pudo usar la llave de acceso. Inténtalo de nuevo."
+        cancelled: "Cancelado. Inténtalo de nuevo cuando quieras."
+        no_script: "Las llaves de acceso necesitan JavaScript."
+    flash:
+        failed: "No se pudo iniciar sesión con la llave de acceso. Inténtalo de nuevo o usa otro método."
+        register_failed: "No se pudo añadir la llave de acceso. Inténtalo de nuevo."
+        limit: "Ya tienes el número máximo de llaves de acceso."
+        added: "Se ha añadido tu llave de acceso."
+        renamed: "Se ha cambiado el nombre de la llave de acceso."
+        unknown: "Esa llave de acceso no existe."
+        removed: "Se ha eliminado la llave de acceso."
+        last_factor: "Tu cuenta necesita un segundo factor: añade otra llave de acceso o activa una app de autenticación antes de eliminar esta."
+    account:
+        title: "Llaves de acceso"
+        intro: "Inicia sesión con tu huella, tu cara, el bloqueo de pantalla o una llave de seguridad. Una llave de acceso también sirve como segundo paso."
+        list: "Tus llaves de acceso (%count% de %max%)"
+        none: "Todavía no tienes llaves de acceso."
+        added: "Añadida el %date%"
+        used: "último uso %date%"
+        never_used: "nunca usada"
+        synced: "sincronizada"
+        label: "Nombre"
+        rename: "Cambiar nombre"
+        delete: "Eliminar"
+        add: "Añadir una llave de acceso"
+        add_help: "Ponle un nombre (por ejemplo «Portátil del trabajo») y sigue las instrucciones del navegador. También puedes guardarla en tu teléfono escaneando el código QR que muestra el navegador."
+        add_button: "Añadir una llave de acceso"
+        limit: "Tienes %max% llaves de acceso, el máximo. Elimina una para añadir otra."
+        sign_in_again: "Por seguridad, vuelve a iniciar sesión (en los últimos %minutes% minutos) para cambiar tus llaves de acceso."

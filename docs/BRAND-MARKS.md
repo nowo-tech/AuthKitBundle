@@ -115,14 +115,19 @@ nowo_auth_kit:
                     google:                           # full form
                         path: 'images/google-g.svg'
                         package: ~                    # ~ = the host's default asset package
-                        on_white: true                # white backdrop + clear space
+                        on_white: auto                # 2.4.0: true | false | auto (backdrop in the light theme only)
 ```
 
 - Keys are provider keys, matched case-insensitively.
 - `false` (or an empty `path`) removes the mark, including a built-in one.
 - A bare string is the asset path.
-- `on_white` is not required when replacing a built-in mark: it keeps that provider's default (on for the three built-in
-  ones), so swapping only the file keeps a compliant Google button.
+- `on_white` is not required when replacing a built-in mark: it keeps that provider's default (`auto` for `google`
+  since 2.4.0, `true` for `github` and `microsoft`), so swapping only the file keeps a compliant Google button.
+- `on_white: auto` (2.4.0): the white backdrop in the light theme, none in the dark theme, where the full-colour mark
+  sits directly on the dark button. This is how Google's own dark button draws it (the full-colour "G" straight on
+  `#131314`, stroke `#8E918F`, no white container: `branding_guideline_sample_dk_sq_sl.svg`). CSS only: dark is
+  `data-theme="dark"` on `<html>`, or `prefers-color-scheme: dark` when the page has no explicit `data-theme="light"`
+  (the UiKit theme mechanism). The mark itself is never recoloured. `true` / `false` keep their 1.48 meaning.
 
 ## How the markup respects the guidelines
 
@@ -130,7 +135,8 @@ nowo_auth_kit:
   inside it. It sits in a fixed square box with `object-fit: contain`, so it keeps its aspect ratio whatever the box.
 - **Clear space** — `gap` between mark and label, plus the padding of the white backdrop around the mark.
 - **On white** — `--on-white` gives the mark a white, slightly rounded backdrop, so Google's "G" is on white however
-  the host themes the button.
+  the host themes the button. With `--on-white-auto` (2.4.0, `on_white: auto`) the backdrop goes transparent in the
+  dark theme; the padding (clear space) stays.
 - **Accessible label intact** — the mark is decorative: `alt=""` and `aria-hidden="true"`. The accessible name of the
   button stays the translated label (*Continue with Google* / *Continuar con Google*), so a screen reader announces one
   link, not an image.
