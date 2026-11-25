@@ -118,6 +118,7 @@ final class Configuration implements ConfigurationInterface
         'accounts_chooser'    => '@NowoAuthKitBundle/security/accounts_chooser.html.twig',
         'mfa_account'         => '@NowoAuthKitBundle/mfa/account.html.twig',
         'mfa_account_codes'   => '@NowoAuthKitBundle/mfa/account_codes.html.twig',
+        'webauthn_account'    => '@NowoAuthKitBundle/webauthn/account.html.twig',
     ];
 
     /**
@@ -188,6 +189,7 @@ final class Configuration implements ConfigurationInterface
         'invitations',
         'mfa',
         'multi_account',
+        'webauthn',
         'routes',
         'firewall',
         'login_success_route',
@@ -574,6 +576,7 @@ final class Configuration implements ConfigurationInterface
                             ->append(InvitationsConfiguration::createNode())
                             ->append(MfaConfiguration::createNode())
                             ->append(MultiAccountConfiguration::createNode())
+                            ->append(WebauthnConfiguration::createNode())
                             ->append($this->createRoutesNode())
                             ->scalarNode('firewall')
                                 ->info('Symfony firewall name where form_login should point (documented for security.yaml).')

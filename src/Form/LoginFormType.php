@@ -47,12 +47,17 @@ final class LoginFormType extends AbstractType
                 default    => TextType::class,
             };
 
-            $this->addWithDefaults($builder, $field['name'], $type, [
+            $fieldOptions = [
                 'label'       => 'login.field.' . ($field['security_name'] === '_username' ? 'identifier' : ltrim($field['name'], '_')),
                 'required'    => $field['required'],
                 'help'        => false,
                 'placeholder' => false,
-            ]);
+            ];
+            if ($field['security_name'] === '_username' && $profile->webauthnPasswordless()) {
+                // 2.4.0: conditional UI — the browser offers the passkeys of this site (or the phone QR) from this field.
+                $fieldOptions['attr'] = ['autocomplete' => 'username webauthn'];
+            }
+            $this->addWithDefaults($builder, $field['name'], $type, $fieldOptions);
         }
     }
 

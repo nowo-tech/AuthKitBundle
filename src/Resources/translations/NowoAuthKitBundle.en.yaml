@@ -366,3 +366,40 @@ accounts:
         full: 'No more accounts can be added in this browser. Sign one out first.'
         rate_limited: 'Too many attempts. Try again in a few minutes.'
         signed_out: 'The account was signed out.'
+webauthn:
+    login:
+        button: "Sign in with a passkey"
+    mfa:
+        button: "Use a passkey"
+    state:
+        unsupported: "This browser cannot use passkeys."
+        working: "Follow the instructions of your browser or phone…"
+        failed: "The passkey could not be used. Try again."
+        cancelled: "Cancelled. Try again when you are ready."
+        no_script: "Passkeys need JavaScript."
+    flash:
+        failed: "The passkey sign-in failed. Try again or use another method."
+        register_failed: "The passkey could not be added. Try again."
+        limit: "You already have the maximum number of passkeys."
+        added: "Your passkey was added."
+        renamed: "The passkey was renamed."
+        unknown: "That passkey does not exist."
+        removed: "The passkey was removed."
+        last_factor: "Your account needs a second factor: add another passkey or turn on an authenticator app before removing this one."
+    account:
+        title: "Passkeys"
+        intro: "Sign in with your fingerprint, face, screen lock or a security key. A passkey also works as your second step."
+        list: "Your passkeys (%count% of %max%)"
+        none: "You have no passkeys yet."
+        added: "Added %date%"
+        used: "last used %date%"
+        never_used: "never used"
+        synced: "synced"
+        label: "Name"
+        rename: "Rename"
+        delete: "Remove"
+        add: "Add a passkey"
+        add_help: "Give it a name (for example \"Work laptop\"), then follow the instructions of your browser. You can also save it on your phone by scanning the QR code your browser shows."
+        add_button: "Add a passkey"
+        limit: "You have %max% passkeys, the maximum. Remove one to add another."
+        sign_in_again: "For your security, sign in again (within the last %minutes% minutes) to change your passkeys."

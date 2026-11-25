@@ -29,7 +29,7 @@ final class MfaConfiguration
     /** Remember-me only: every remember-me sign-in is challenged (unless the device is trusted). */
     public const RULE_CHALLENGE = 'challenge';
 
-    /** First-factor key => default rule (D-M9: every factor but QR login requires the second step). */
+    /** First-factor key => default rule (D-M9: every factor but QR login requires the second step; 2.4.0: a passkey sign-in is exempt too). */
     public const FIRST_FACTORS = [
         'form_login'   => self::RULE_REQUIRED,
         'login_link'   => self::RULE_REQUIRED,
@@ -37,7 +37,9 @@ final class MfaConfiguration
         'social'       => self::RULE_REQUIRED,
         'registration' => self::RULE_REQUIRED,
         'invitation'   => self::RULE_REQUIRED,
-        'default'      => self::RULE_REQUIRED,
+        // 2.4.0: a passkey with user verification is already two factors (possession + PIN / biometrics).
+        'webauthn' => self::RULE_EXEMPT,
+        'default'  => self::RULE_REQUIRED,
     ];
 
     /** Route key => [default path, default name, admin route]. */

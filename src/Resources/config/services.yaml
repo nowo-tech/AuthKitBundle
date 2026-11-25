@@ -41,6 +41,8 @@ services:
             - '../../MultiAccount/'
             - '../../NowoAuthKitBundle.php'
             - '../../PersonalData/'
+            # 2.4.0: webauthn.yaml registers the passkey services only with webauthn.mode: enabled.
+            - '../../Webauthn/'
             # 1.44: registered by NowoAuthKitExtension::registerLoginTarget() from the login_target / session_expired config.
             - '../../Security/LoginTarget/'
             - '../../Security/SessionExpired/'

@@ -368,3 +368,40 @@ accounts:
         full: 'Não é possível adicionar mais contas neste navegador. Termine a sessão de uma primeiro.'
         rate_limited: 'Demasiadas tentativas. Tente novamente dentro de alguns minutos.'
         signed_out: 'A sessão da conta foi terminada.'
+webauthn:
+    login:
+        button: "Entrar com uma chave de acesso"
+    mfa:
+        button: "Usar uma chave de acesso"
+    state:
+        unsupported: "Este navegador não suporta chaves de acesso."
+        working: "Siga as instruções do navegador ou do telemóvel…"
+        failed: "Não foi possível usar a chave de acesso. Tente novamente."
+        cancelled: "Cancelado. Tente novamente quando estiver pronto."
+        no_script: "As chaves de acesso precisam de JavaScript."
+    flash:
+        failed: "O início de sessão com a chave de acesso falhou. Tente novamente ou use outro método."
+        register_failed: "Não foi possível adicionar a chave de acesso. Tente novamente."
+        limit: "Já tem o número máximo de chaves de acesso."
+        added: "A sua chave de acesso foi adicionada."
+        renamed: "A chave de acesso foi renomeada."
+        unknown: "Essa chave de acesso não existe."
+        removed: "A chave de acesso foi removida."
+        last_factor: "A sua conta precisa de um segundo fator: adicione outra chave de acesso ou ative uma app de autenticação antes de remover esta."
+    account:
+        title: "Chaves de acesso"
+        intro: "Entre com a impressão digital, o rosto, o bloqueio do ecrã ou uma chave de segurança. Uma chave de acesso também serve de segundo passo."
+        list: "As suas chaves de acesso (%count% de %max%)"
+        none: "Ainda não tem chaves de acesso."
+        added: "Adicionada a %date%"
+        used: "último uso a %date%"
+        never_used: "nunca usada"
+        synced: "sincronizada"
+        label: "Nome"
+        rename: "Renomear"
+        delete: "Remover"
+        add: "Adicionar uma chave de acesso"
+        add_help: "Dê-lhe um nome (por exemplo «Portátil do trabalho») e siga as instruções do navegador. Também a pode guardar no telemóvel lendo o código QR que o navegador mostra."
+        add_button: "Adicionar uma chave de acesso"
+        limit: "Tem %max% chaves de acesso, o máximo. Remova uma para adicionar outra."
+        sign_in_again: "Por segurança, volte a iniciar sessão (nos últimos %minutes% minutos) para alterar as suas chaves de acesso."

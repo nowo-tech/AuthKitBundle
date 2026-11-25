@@ -125,7 +125,8 @@ final readonly class MfaAuthenticationSubscriber
 
     private function mode(ProfileSettings $profile, UserInterface $user, string $factor, ?Request $request): ?string
     {
-        if (!$this->manager->isEnabled($user)) {
+        // 2.4.0: TOTP or a passkey (webauthn.mfa).
+        if (!$this->manager->hasSecondFactor($user)) {
             return $this->manager->mustEnrolNow($user) ? MfaPendingToken::MODE_SETUP : null;
         }
         if ($factor === MfaFirstFactor::REMEMBER_ME) {

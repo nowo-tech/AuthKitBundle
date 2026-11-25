@@ -1,0 +1,38 @@
+# Passkeys / WebAuthn (2.4.0). Loaded only when a profile sets webauthn.mode: enabled
+# (NowoAuthKitExtension::registerWebauthn()). The personal-data eraser and export section are registered with the
+# other erasers (registerPersonalDataErasers), also while this file is not loaded.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: false
+        public: false
+
+    Nowo\AuthKitBundle\Mfa\MfaOwnerResolver: ~
+    Nowo\AuthKitBundle\Webauthn\WebauthnStore: ~
+    Nowo\AuthKitBundle\Webauthn\WebauthnCeremonies: ~
+
+    Nowo\AuthKitBundle\Webauthn\WebauthnManager:
+        public: true
+        arguments:
+            $locks: '@?lock.factory'
+            $dispatcher: '@?event_dispatcher'
+            $logger: '@?logger'
+
+    Nowo\AuthKitBundle\Webauthn\EventSubscriber\WebauthnSignedInSubscriber:
+        tags: [kernel.event_subscriber]
+
+    Nowo\AuthKitBundle\Webauthn\Form\WebauthnCredentialFormType:
+        tags: [form.type]
+
+    Nowo\AuthKitBundle\Webauthn\Form\WebauthnRenameFormType:
+        tags: [form.type]
+
+    Nowo\AuthKitBundle\Webauthn\Controller\WebauthnLoginController:
+        public: true
+        tags: [controller.service_arguments]
+
+    Nowo\AuthKitBundle\Webauthn\Controller\WebauthnAccountController:
+        public: true
+        arguments:
+            $mfa: '@?Nowo\AuthKitBundle\Mfa\MfaManager'
+        tags: [controller.service_arguments]

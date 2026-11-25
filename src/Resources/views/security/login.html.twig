@@ -6,8 +6,19 @@
   with provider, label, href and an optional brand mark; one button on its own is block
   nowo_auth_kit_provider_link, with _link in scope). With
   multi_account (1.34) the accounts of this browser come first (accounts_switcher, masked identifiers).
+  2.4.0 (webauthn.passwordless): "Sign in with a passkey" after the form (block nowo_auth_kit_webauthn_login,
+  webauthn_login: {form, options_url}); the identifier field carries autocomplete="username webauthn" (conditional UI).
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
+
+{% block nowo_ui_auth_after_form %}
+    {{- parent() -}}
+    {% block nowo_auth_kit_webauthn_login %}
+        {% if webauthn_login|default(null) %}
+            {{ include('@NowoAuthKitBundle/webauthn/_ceremony.html.twig', {ceremony: webauthn_login, mode: 'login', button: 'webauthn.login.button', conditional: true}) }}
+        {% endif %}
+    {% endblock %}
+{% endblock %}
 
 {% block nowo_auth_kit_footer_before %}
     {%- if accounts_switcher|default(null) -%}

@@ -3,3 +3,4 @@
 {% if nowo_auth_kit_slide_to_confirm_assets|default(false) %}{{ include('@NowoAuthKitBundle/_slide_to_confirm_assets.html.twig', {part: 'scripts'}) }}{% endif %}
 {{ include('@NowoAuthKitBundle/_device_intelligence_assets.html.twig') }}
 {{ include('@NowoAuthKitBundle/_otp_input_assets.html.twig') }}
+{% if nowo_auth_kit_webauthn_assets|default(false) %}{{ include('@NowoAuthKitBundle/webauthn/_assets.html.twig') }}{% endif %}

@@ -37,6 +37,7 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $invitations `invitations` node (1.32; empty = disabled)
      * @param array<string, mixed> $mfa `mfa` node (1.34; empty = disabled)
      * @param array<string, mixed> $multiAccount `multi_account` node (1.34; empty = disabled)
+     * @param array<string, mixed> $webauthn `webauthn` node (2.4.0; empty = disabled)
      */
     public function __construct(
         public string $name,
@@ -67,7 +68,32 @@ final readonly class ProfileSettings
         public array $invitations = [],
         public array $mfa = [],
         public array $multiAccount = [],
+        public array $webauthn = [],
     ) {
+    }
+
+    /**
+     * Whether `webauthn.mode` is `enabled` (2.4.0).
+     */
+    public function webauthnEnabled(): bool
+    {
+        return ($this->webauthn['mode'] ?? 'disabled') === 'enabled';
+    }
+
+    /**
+     * Whether a passkey signs in on its own (`webauthn.passwordless`, 2.4.0).
+     */
+    public function webauthnPasswordless(): bool
+    {
+        return $this->webauthnEnabled() && ($this->webauthn['passwordless'] ?? true) === true;
+    }
+
+    /**
+     * Whether a passkey is a second factor (`webauthn.mfa` with `mfa.enabled`, 2.4.0).
+     */
+    public function webauthnMfa(): bool
+    {
+        return $this->webauthnEnabled() && $this->mfaEnabled() && ($this->webauthn['mfa'] ?? true) === true;
     }
 
     /**
@@ -230,6 +256,7 @@ final readonly class ProfileSettings
             invitations: $config['invitations'] ?? [],
             mfa: $config['mfa'] ?? [],
             multiAccount: $config['multi_account'] ?? [],
+            webauthn: $config['webauthn'] ?? [],
         );
     }
 }

@@ -86,6 +86,10 @@ use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
+use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnMfaController;
+use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataEraser;
+use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataExportProvider;
+use Nowo\AuthKitBundle\Webauthn\WebauthnStore;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExportProviderInterface;
@@ -326,6 +330,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $this->registerInvitations($container, $profiles);
         $this->registerMfa($container, $profiles, $loader, is_array($bundles) ? $bundles : null);
         $this->registerMultiAccount($container, $profiles, $loader);
+        $this->registerWebauthn($container, $profiles, $loader);
         $this->registerPersonalDataPorts($container, $config['personal_data']);
         $this->registerPersonalDataErasers($container, $registerMapping, $config['personal_data']['enabled'] === true);
         $container->registerForAutoconfiguration(SocialCallbackStepInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
@@ -672,11 +677,22 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         if (!$container->hasDefinition(AccountSwitcherPersonalDataEraser::class)) {
             $erasers[DormantAccountSwitcherPersonalDataEraser::class] = ['$store' => $support(AccountVaultStore::class)];
         }
+        // 2.4.0: passkeys are erased whether or not a profile enables them today (a missing table is nothing to erase).
+        $erasers[WebauthnPersonalDataEraser::class] = [
+            '$store'      => $support(WebauthnStore::class),
+            '$owners'     => $support(MfaOwnerResolver::class),
+            '$dispatcher' => new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+        ];
         foreach ($erasers as $eraser => $arguments) {
             $container->register($eraser)
                 ->setAutowired(true)
                 ->setArguments($arguments)
                 ->addTag('nowo_user_kit.personal_data.eraser', ['priority' => SocialAccountPersonalDataEraser::PRIORITY]);
+        }
+        if (interface_exists(PersonalDataExportProviderInterface::class)) {
+            $container->register(WebauthnPersonalDataExportProvider::class)
+                ->setArguments(['$store' => $support(WebauthnStore::class), '$owners' => $support(MfaOwnerResolver::class)])
+                ->addTag('nowo_user_kit.personal_data.export_provider', ['priority' => WebauthnPersonalDataExportProvider::PRIORITY]);
         }
         // 1.45: the invitations eraser and export sections, unless the host erases / exports these tables itself.
         if (!$personalData) {
@@ -805,6 +821,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                     $routes['mfa.' . $routeKey] = $route;
                 }
             }
+            if (($profile['webauthn']['mode'] ?? WebauthnConfiguration::MODE_DISABLED) === WebauthnConfiguration::MODE_ENABLED) {
+                foreach ($profile['webauthn']['routes'] as $routeKey => $route) {
+                    $routes['webauthn.' . $routeKey] = $route;
+                }
+            }
 
             foreach ($routes as $routeKey => $route) {
                 $routeName = $route['name'];
@@ -902,7 +923,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
     /**
      * doctrine.register_mapping: true / false / "auto" (mapped only when a profile enables social login, QR login,
-     * invitations, MFA, multi-account or the reset table).
+     * invitations, MFA, multi-account, passkeys or the reset table).
      *
      * @param array<string, array<string, mixed>> $profiles
      */
@@ -915,7 +936,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         if ($registerMapping === false && $needed) {
-            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode and invitations.mode to be "disabled", mfa.enabled / multi_account.enabled false and password_reset.storage "user_entity" in every profile (their entities would not be mapped).');
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode, invitations.mode and webauthn.mode to be "disabled", mfa.enabled / multi_account.enabled false and password_reset.storage "user_entity" in every profile (their entities would not be mapped).');
         }
 
         return (bool) $registerMapping;
@@ -944,6 +965,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 if (is_array($settings) && ($settings['enabled'] ?? false) === true) {
                     return true;
                 }
+            }
+            if (is_array($profile['webauthn'] ?? null) && ($profile['webauthn']['mode'] ?? null) === WebauthnConfiguration::MODE_ENABLED) {
+                return true;
             }
         }
 
@@ -1189,6 +1213,35 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         if (!interface_exists(PersonalDataEraserInterface::class)) {
             $container->removeDefinition(MfaPersonalDataEraser::class); // @codeCoverageIgnore
             $container->removeDefinition(MfaPersonalDataExportProvider::class); // @codeCoverageIgnore
+        }
+    }
+
+    /**
+     * Passkeys (2.4.0): with at least one `webauthn.mode: enabled` profile, loads `webauthn.yaml`, and the second-step
+     * controller when a profile also has `mfa.enabled` with `webauthn.mfa`. Nothing is registered otherwise.
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function registerWebauthn(ContainerBuilder $container, array $profiles, YamlFileLoader $loader): void
+    {
+        $enabled = false;
+        $mfa     = false;
+        foreach ($profiles as $profile) {
+            if (($profile['webauthn']['mode'] ?? WebauthnConfiguration::MODE_DISABLED) !== WebauthnConfiguration::MODE_ENABLED) {
+                continue;
+            }
+            $enabled = true;
+            $mfa     = $mfa || (($profile['webauthn']['mfa'] ?? true) === true && ($profile['mfa']['enabled'] ?? false) === true);
+        }
+        if (!$enabled) {
+            return;
+        }
+        $loader->load('webauthn.yaml');
+        if ($mfa) {
+            $container->register(WebauthnMfaController::class)
+                ->setAutowired(true)
+                ->setPublic(true)
+                ->addTag('controller.service_arguments');
         }
     }
 

@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\Entity\AccountVaultEntry;
 use Nowo\AuthKitBundle\Entity\Invitation;
 use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
+use Nowo\AuthKitBundle\Entity\WebauthnCredential;
 use Nowo\AuthKitBundle\PasswordReset\Entity\PasswordResetRequest;
 use Nowo\MigrationsKitContracts\Collation\ExactKeyColumn;
 use Nowo\MigrationsKitContracts\Collation\ExactKeyColumnsInterface;
@@ -29,7 +30,8 @@ use Nowo\MigrationsKitContracts\Collation\ExactKeyColumnsInterface;
  * registers **nothing** and can delete the `nowo_migrations_kit.collation_check.ignore_columns` entries it kept for
  * these columns.
  *
- * Declared: the MFA owner (`user_type`, `user_id`), the social link's provider subject and owner
+ * Declared: the MFA owner (`user_type`, `user_id`), the passkey's owner, lookup digest, user handle and public id
+ * (2.4.0: `user_type`, `user_id`, `credential_id_hash`, `user_handle`, `public_id`, collated from the first release), the social link's provider subject and owner
  * (`provider_user_id`, `user_id`, `user_identifier`), the account switcher's owner (`user_identifier`), the
  * invitation's addressee and author (`email`, `invited_by`) and the password reset's owner and credential digests
  * (`user_id`, `user_identifier`, `token_hash`, `code_hash` — a reset link is redeemed by matching the digest, so a
@@ -99,6 +101,7 @@ final readonly class AuthKitExactKeyColumns implements ExactKeyColumnsInterface
         $vault      = $this->tablePrefix . AccountVaultEntry::TABLE;
         $invitation = $this->tablePrefix . Invitation::TABLE;
         $reset      = $this->tablePrefix . PasswordResetRequest::TABLE;
+        $passkey    = $this->tablePrefix . WebauthnCredential::TABLE;
 
         return [
             new ExactKeyColumn($mfa, 'user_type', self::OWNER, 'MFA owner (class half), part of the unique key of the credential', $mapped, $this->mappingEnabled),
@@ -109,6 +112,11 @@ final readonly class AuthKitExactKeyColumns implements ExactKeyColumnsInterface
             new ExactKeyColumn($vault, 'user_identifier', self::OWNER, 'owner of an account-switcher entry', $mapped, $this->mappingEnabled),
             new ExactKeyColumn($invitation, 'email', self::OWNER, 'addressee of the invitation: who may accept it', $mapped, $this->mappingEnabled),
             new ExactKeyColumn($invitation, 'invited_by', self::OWNER, 'author of the invitation', $mapped, $this->mappingEnabled),
+            new ExactKeyColumn($passkey, 'user_type', self::OWNER, 'passkey owner (class half)', $mapped, $this->mappingEnabled),
+            new ExactKeyColumn($passkey, 'user_id', self::OWNER, 'passkey owner (id half)', $mapped, $this->mappingEnabled),
+            new ExactKeyColumn($passkey, 'credential_id_hash', self::OWNER, 'digest a passkey is found by: the unique key of the credential', $mapped, $this->mappingEnabled),
+            new ExactKeyColumn($passkey, 'user_handle', self::OWNER, 'opaque WebAuthn user handle checked against the assertion', $mapped, $this->mappingEnabled),
+            new ExactKeyColumn($passkey, 'public_id', self::OWNER, 'public id a passkey is renamed / removed by', $mapped, $this->mappingEnabled),
             new ExactKeyColumn($reset, 'user_id', self::OWNER, 'owner of the reset request', $resetWhen, $resetOn),
             new ExactKeyColumn($reset, 'user_identifier', self::OWNER, 'owner identifier of the reset request', $resetWhen, $resetOn),
             new ExactKeyColumn($reset, 'token_hash', self::OWNER, 'digest a reset link is redeemed by', $resetWhen, $resetOn),

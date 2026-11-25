@@ -42,6 +42,8 @@ composer.lock
 # Heavy / binary / logs
 *.log
 *.sql
+# 2.4.0: the shipped passkey table scripts
+!/src/Resources/sql/webauthn/*.sql
 *.sql.gz
 
 # Secrets

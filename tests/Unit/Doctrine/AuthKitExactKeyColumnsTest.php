@@ -16,7 +16,7 @@ use function array_map;
  */
 final class AuthKitExactKeyColumnsTest extends TestCase
 {
-    public function testItDeclaresTheIdentityColumnsOfTheFiveTables(): void
+    public function testItDeclaresTheIdentityColumnsOfTheSixTables(): void
     {
         $columns = (new AuthKitExactKeyColumns('', true, true))->exactKeyColumns();
 
@@ -29,6 +29,11 @@ final class AuthKitExactKeyColumnsTest extends TestCase
             'auth_kit_account_vault.user_identifier',
             'auth_kit_invitation.email',
             'auth_kit_invitation.invited_by',
+            'auth_kit_webauthn_credential.user_type',
+            'auth_kit_webauthn_credential.user_id',
+            'auth_kit_webauthn_credential.credential_id_hash',
+            'auth_kit_webauthn_credential.user_handle',
+            'auth_kit_webauthn_credential.public_id',
             'auth_kit_password_reset.user_id',
             'auth_kit_password_reset.user_identifier',
             'auth_kit_password_reset.token_hash',
@@ -54,7 +59,7 @@ final class AuthKitExactKeyColumnsTest extends TestCase
     {
         $columns = (new AuthKitExactKeyColumns('', false, true))->exactKeyColumns();
 
-        self::assertCount(12, $columns);
+        self::assertCount(17, $columns);
         foreach ($columns as $column) {
             self::assertFalse($column->active, $column->describe());
             self::assertSame(AuthKitExactKeyColumns::MAPPING_CONDITION, $column->condition, $column->describe());

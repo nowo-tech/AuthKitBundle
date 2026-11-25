@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Passkeys (opt-in)](#passkeys-opt-in)
 - [To 2.3.0](#to-230)
   - [Schema: three nullable columns](#schema-three-nullable-columns)
   - [New providers](#new-providers)
@@ -176,6 +177,26 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### Passkeys (opt-in)
+
+Nothing changes until a profile sets `webauthn.mode: enabled`. Composer installs `web-auth/webauthn-lib` ^5.3,
+`symfony/serializer` and `symfony/uid`. The new entity `WebauthnCredential` is mapped with the other AuthKit entities,
+so `doctrine:migrations:diff` proposes the table `auth_kit_webauthn_credential` on every host with the mapping on
+(create it, it stays empty; or use the scripts under `src/Resources/sql/webauthn/`).
+
+To turn passkeys on:
+
+1. Keep (or add) `symfony/lock` with `framework.lock`; the build refuses passkeys without it.
+2. Create the table (migration or SQL script).
+3. `webauthn: { mode: enabled, rp_id: example.com }`; set `rp_id` explicitly, it cannot change later.
+4. `access_control`: `^/login/webauthn` public like `/login`.
+5. With MFA: a passkey now counts as the second factor of a required user, and a passkey sign-in skips the second step
+   (`mfa.first_factors.webauthn: exempt`; set `required` to keep asking). Code that read `MfaManager::isEnabled()` as
+   "has a second factor" should call `hasSecondFactor()`.
+
+The design keys `rp_name` and `user_verification` of the 1.12 draft do not exist: the RP name follows WebAuthn Level 3
+(the RP id), and user verification is always required. See [WEBAUTHN.md](WEBAUTHN.md#host-integration-beacon-and-others).
 
 ## To 2.3.0
 

@@ -57,6 +57,11 @@ bundled opt-in layout for the second one (warning panel, numbered grid, actions 
 `nowo_auth_kit_mfa_codes_heading`, `h1` to `h3`; default `h1`, or `h2` with a `before` block). `mfa/account.html.twig` has the
 block `nowo_auth_kit_mfa_account_before` (1.38).
 
+Passkey account page (2.4.0, `web_ui.templates.webauthn_account`; admin layout, no `AuthPage`, responses
+`no-store`): `webauthn/account.html.twig`, block `nowo_auth_kit_webauthn_account_before`. The passkey forms of the
+login page (block `nowo_auth_kit_webauthn_login`), the challenge page (block `nowo_auth_kit_webauthn_mfa`) and the
+account page share `webauthn/_ceremony.html.twig`. See [WEBAUTHN.md](WEBAUTHN.md#templates-and-the-script).
+
 MFA pages on the admin layout (1.34, `nowo_ui_kit.layouts.admin`; override with the Twig path): `mfa/account.html.twig`
 (enrolment, disable, new codes, trusted devices; `mfa/_code_form.html.twig`), `mfa/account_codes.html.twig`,
 `mfa/admin_reset.html.twig` (`account_codes` has the blocks `nowo_auth_kit_mfa_codes_actions` and `nowo_auth_kit_mfa_codes_done`, 1.40); account card partial `mfa/_account.html.twig`. See [MFA.md](MFA.md). Account switcher
@@ -185,8 +190,8 @@ translated in the bundle's `NowoAuthKitBundle` catalogues (7 locales).
 
 `_auth_page.html.twig` stacks `nowo-auth-kit.css` (UiKit tokens; layout of the bundle's own markup), the
 PasswordToggle stylesheet (bundle registered) and SlideToConfirm CSS on `nowo_ui_styles`; SlideToConfirm,
-Device Intelligence and OTP input scripts on `nowo_ui_scripts` — every `<script>` (external and inline) carries the
-request `csp_nonce`. Only local asset packages, never a CDN.
+Device Intelligence, OTP input and (2.4.0) passkey scripts on `nowo_ui_scripts` — every `<script>` (external and
+inline) carries the request `csp_nonce`. Only local asset packages, never a CDN.
 
 ## Theme exception (`theme.bundles.NowoAuthKitBundle`)
 

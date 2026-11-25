@@ -9,6 +9,7 @@
 - [Registration modes](#registration-modes)
 - [Invitations](#invitations)
 - [Two-factor authentication (MFA)](#two-factor-authentication-mfa)
+- [Passkeys (webauthn)](#passkeys-webauthn)
 - [Several accounts at once](#several-accounts-at-once)
 - [Field configuration](#field-configuration)
   - [Login](#login)
@@ -365,6 +366,25 @@ Requires DoctrineEncryptBundle (the secret is `#[Encrypted]`; `require_encryptio
 protection and, for the QR code, `endroid/qr-code`. Full reference, pages, events and security notes:
 [MFA.md](MFA.md). Host firewall layer: `/login/mfa` like the login page (`PUBLIC_ACCESS`), `/account/security/mfa`
 for `ROLE_USER`.
+
+## Passkeys (webauthn)
+
+Opt-in per profile (2.4.0, `webauthn.mode: disabled` by default). Needs symfony/lock (the build fails without a
+`lock.factory` while a profile enables it) and the AuthKit entities mapped. Copy-paste:
+
+```yaml
+nowo_auth_kit:
+    webauthn:
+        mode: enabled
+        rp_id: example.com          # set it explicitly in production: changing it orphans every passkey
+        max_credentials: 10
+```
+
+Every key (`allowed_origins`, `timeout_ms`, `attestation`, `recent_sign_in`, `passwordless`, `mfa`, `hash_secret`,
+`rate_limit.{options,assert,register}`, `routes.*`), the table, the SQL scripts and the security checks:
+[WEBAUTHN.md](WEBAUTHN.md). With `mfa.enabled` a passkey is a second factor (`mfa.first_factors.webauthn`: `exempt` by
+default). Host firewall layer: `^/login/webauthn` like the login page (`PUBLIC_ACCESS`), `/account/webauthn` for
+signed-in users.
 
 ## Several accounts at once
 
@@ -940,7 +960,7 @@ attributes. Per profile:
 | Key | Purpose |
 | --- | --- |
 | `web_ui.layout_template` | layout override (default null = `nowo_ui_kit.layouts.guest`) |
-| `web_ui.templates.<page>` | per-page template (`login`, `register`, `reset_request`, `reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`, `qr_login_approve`, `mfa_challenge`, `mfa_setup`, `mfa_recovery_codes`, `accounts_chooser`, `invitation_accept`, `invitation_invalid`, `mfa_account`, `mfa_account_codes`) |
+| `web_ui.templates.<page>` | per-page template (`login`, `register`, `reset_request`, `reset_password`, `reset_password_code`, `magic_login_request`, `magic_login_confirm`, `qr_login_show`, `qr_login_approve`, `mfa_challenge`, `mfa_setup`, `mfa_recovery_codes`, `accounts_chooser`, `invitation_accept`, `invitation_invalid`, `mfa_account`, `mfa_account_codes`, 2.4.0: `webauthn_account`) |
 | `web_ui.form_themes` | form themes of the auth forms (default UiKit form theme + AuthKit PasswordToggle theme) |
 | `web_ui.brand` | brand line of the panel |
 | `web_ui.qr_login.stimulus_controller` | Stimulus identifier for the QR challenge (values + targets; the bundled poller is not loaded) |

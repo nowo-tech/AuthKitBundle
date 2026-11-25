@@ -15,6 +15,7 @@ WebAuthn and e-mail codes are on the [roadmap](ROADMAP.md).
 - [Required MFA and grace period](#required-mfa-and-grace-period)
 - [Trusted devices](#trusted-devices)
 - [Recovery codes](#recovery-codes)
+- [Passkeys as the second factor (2.4.0)](#passkeys-as-the-second-factor-240)
 - [Pages and the account card](#pages-and-the-account-card)
   - [Code on OTP boxes (1.51)](#code-on-otp-boxes-151)
 - [Administrator reset](#administrator-reset)
@@ -114,6 +115,7 @@ Routes: `challenge` `/login/mfa`, `setup` `/login/mfa/setup`, `account` `/accoun
 | `registration` | `required` | Auto-login after sign-up |
 | `invitation` | `required` | Auto-login after accepting an invitation |
 | `qr` | `exempt` | QR login: the approving phone session already passed MFA |
+| `webauthn` | `exempt` | 2.4.0: passkey sign-in, user verification required (the passkey is already two factors) |
 | `default` | `required` | Any other authenticator (host `Security::login()` calls…) |
 
 `exempt` never skips the forced enrolment of a required user.
@@ -159,6 +161,14 @@ Ten codes of ten Crockford Base32 characters (`ABCDE-12345`), shown **once** aft
 a download link (built in the page, no request). Only their HMAC is stored; each works once (conditional `UPDATE`).
 Input ignores case, dashes and spaces and maps `O`→`0`, `I`/`L`→`1`. Regenerating replaces all of them and needs a
 current code.
+
+## Passkeys as the second factor (2.4.0)
+
+With `webauthn.mode: enabled` and `webauthn.mfa: true` (default) a passkey is a second factor:
+`MfaManager::hasSecondFactor()` is true with TOTP **or** a passkey, a required user with a passkey is challenged (never
+forced into TOTP enrolment), and the challenge page offers **Use a passkey** (and shows the code form only with TOTP
+on). The last passkey of a required user without TOTP cannot be removed. `MfaChallengePassedEvent::$method` is
+`webauthn`. Details: [WEBAUTHN.md](WEBAUTHN.md#passkeys-and-mfa).
 
 ## Pages and the account card
 

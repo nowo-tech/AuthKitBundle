@@ -1,0 +1,4 @@
+{#- Passkey script (2.4.0), loaded on pages with a ceremony (nowo_auth_kit_webauthn_assets). CSP nonce from the
+    request attribute `csp_nonce`, like every AuthKit script. -#}
+{% set _csp_nonce = app is defined and app and app.request ? app.request.attributes.get('csp_nonce')|default('') : '' %}
+<script src="{{ asset('js/nowo-auth-kit-webauthn.js', 'nowo_auth_kit') }}" defer{% if _csp_nonce %} nonce="{{ _csp_nonce }}"{% endif %}></script>
