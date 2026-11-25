@@ -139,6 +139,8 @@ final class SocialLoginControllerTest extends TestCase
         );
 
         self::assertSame('/login', $controller->check(new Request(), 'google')->headers->get('Location'));
+        // 2.3.0: a provider POST with no relay wired (or social login off) goes to the sign-in page, untouched.
+        self::assertSame('/login', $controller->check(Request::create('/login/social/apple/check', 'POST', ['code' => 'c']), 'apple')->headers->get('Location'));
     }
 
     public function testStartRedirectsToProvider(): void
@@ -605,7 +607,7 @@ final class SocialLoginControllerTest extends TestCase
 
         self::assertArrayNotHasKey('code_challenge', $query);
         self::assertArrayNotHasKey('code_challenge_method', $query);
-        self::assertSame(['code_verifier' => null], $stateStore->consumePending('google', is_string($query['state'] ?? null) ? $query['state'] : ''));
+        self::assertSame(['code_verifier' => null, 'nonce' => null], $stateStore->consumePending('google', is_string($query['state'] ?? null) ? $query['state'] : ''));
     }
 
     public function testCheckSendsStoredCodeVerifierToTokenEndpoint(): void

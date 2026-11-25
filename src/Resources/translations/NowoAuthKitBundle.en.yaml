@@ -49,6 +49,9 @@ social:
         invalid_state: Social login could not be completed (invalid state).
         provider_denied: Social login was cancelled or denied.
         failed: Social login failed. Please try again.
+    form_post:
+        title: 'Signing you in…'
+        continue: 'Continue'
 sso:
     heading: Sign in with your organization
     continue_with: 'Continue with %provider%'

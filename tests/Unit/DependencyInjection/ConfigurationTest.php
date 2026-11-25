@@ -563,4 +563,21 @@ final class ConfigurationTest extends TestCase
 
         self::assertSame($value, $config['profiles']['default']['password_reset'][$key]);
     }
+
+    public function testOidcDefaultsAndAlgorithmAllowList(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [['profiles' => ['default' => ['user_class' => TestUser::class]]]]);
+        self::assertSame(['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512'], $config['oidc']['allowed_algorithms']);
+        self::assertSame('cache.app', $config['oidc']['cache_pool']);
+        self::assertSame(60, $config['oidc']['clock_skew']);
+
+        foreach ([['none'], ['HS256'], []] as $algorithms) {
+            try {
+                (new Processor())->processConfiguration(new Configuration(), [['profiles' => ['default' => ['user_class' => TestUser::class]], 'oidc' => ['allowed_algorithms' => $algorithms]]]);
+                self::fail('Expected the configuration to be refused.');
+            } catch (InvalidConfigurationException $e) {
+                self::assertStringContainsString('allowed_algorithms', $e->getMessage());
+            }
+        }
+    }
 }

@@ -118,6 +118,9 @@ social:
         invalid_state: La connexion sociale a échoué (état invalide).
         provider_denied: La connexion sociale a été annulée ou refusée.
         failed: Échec de la connexion sociale. Veuillez réessayer.
+    form_post:
+        title: 'Connexion en cours…'
+        continue: 'Continuer'
 
 sso:
     heading: Connexion avec votre organisation

@@ -27,6 +27,12 @@ services:
             # 1.48.0: presentation VOs of the provider buttons (built per render, never services).
             - '../../View/ProviderLink.php'
             - '../../View/ProviderMark.php'
+            # 2.3.0: OIDC value objects, exception and static helpers (built per call, never services).
+            - '../../SocialLogin/Oidc/Base64Url.php'
+            - '../../SocialLogin/Oidc/OidcCredentialRules.php'
+            - '../../SocialLogin/Oidc/OidcException.php'
+            - '../../SocialLogin/Oidc/OidcProviderMetadata.php'
+            - '../../SocialLogin/Oidc/OidcProviderSettings.php'
             - '../../Form/'
             - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
@@ -156,6 +162,24 @@ services:
             $timeout: '%nowo_auth_kit.http_client.timeout%'
             $maxDuration: '%nowo_auth_kit.http_client.max_duration%'
 
+    # 2.3.0: OpenID Connect providers (nowo_auth_kit.oidc). Every OIDC fetch goes through OidcHttpClient (SSRF guard);
+    # discovery documents and key sets live in the cache pool `oidc.cache_pool` (set by the extension), never in a
+    # service property (REQ-RUNTIME-002).
+    Nowo\AuthKitBundle\SocialLogin\Oidc\OidcOptions:
+        arguments:
+            $allowedAlgorithms: '%nowo_auth_kit.oidc.allowed_algorithms%'
+            $clockSkew: '%nowo_auth_kit.oidc.clock_skew%'
+            $maxIdTokenAge: '%nowo_auth_kit.oidc.max_id_token_age%'
+            $metadataCacheTtl: '%nowo_auth_kit.oidc.metadata_cache_ttl%'
+            $jwksCacheTtl: '%nowo_auth_kit.oidc.jwks_cache_ttl%'
+            $jwksRefreshInterval: '%nowo_auth_kit.oidc.jwks_refresh_interval%'
+            $maxResponseBytes: '%nowo_auth_kit.oidc.max_response_bytes%'
+            $timeout: '%nowo_auth_kit.http_client.timeout%'
+            $maxDuration: '%nowo_auth_kit.http_client.max_duration%'
+
+    Nowo\AuthKitBundle\SocialLogin\Oidc\HostResolverInterface:
+        alias: Nowo\AuthKitBundle\SocialLogin\Oidc\DnsHostResolver
+
     Nowo\AuthKitBundle\Profile\ProfileRegistry:
         arguments:
             $profiles: '%nowo_auth_kit.profiles%'
@@ -252,6 +276,13 @@ services:
         tags: [controller.service_arguments]
         arguments:
             $callbackHandlers: !tagged_iterator nowo_auth_kit.social_callback_handler
+            $logger: '@?logger'
+
+    Nowo\AuthKitBundle\Controller\SocialLoginStartController:
+        autoconfigure: false
+        public: true
+        tags: [controller.service_arguments]
+        arguments:
             $logger: '@?logger'
 
     # 1.42: tagged nowo_auth_kit.social_callback_handler by the extension when a profile sets

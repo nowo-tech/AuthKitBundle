@@ -41,6 +41,7 @@
         "nowo-tech/ui-kit-bundle": "^2.26",
         "psr/clock": "^1.0",
         "symfony/asset": "^7.4 || ^8.0",
+        "symfony/cache-contracts": "^3.5",
         "symfony/config": "^7.4 || ^8.0",
         "symfony/dependency-injection": "^7.4 || ^8.0",
         "symfony/form": "^7.4 || ^8.0",

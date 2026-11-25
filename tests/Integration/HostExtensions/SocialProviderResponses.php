@@ -10,6 +10,8 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 
 use function json_encode;
 use function str_contains;
+use function strpos;
+use function substr;
 
 use const JSON_THROW_ON_ERROR;
 
@@ -38,6 +40,17 @@ final class SocialProviderResponses
         if ($this->whileAnswering instanceof Closure) {
             ($this->whileAnswering)();
             $this->whileAnswering = null;
+        }
+        // 2.3.0: an OpenID Connect issuer's discovery document (the invitation tests start an OIDC authorization).
+        if (str_contains($url, '/.well-known/openid-configuration')) {
+            $issuer = substr($url, 0, (int) strpos($url, '/.well-known/'));
+
+            return new MockResponse(json_encode([
+                'issuer'                 => $issuer,
+                'authorization_endpoint' => $issuer . '/authorize',
+                'token_endpoint'         => $issuer . '/token',
+                'jwks_uri'               => $issuer . '/jwks',
+            ], JSON_THROW_ON_ERROR));
         }
         if (str_contains($url, 'token')) {
             return $this->failTokenExchange

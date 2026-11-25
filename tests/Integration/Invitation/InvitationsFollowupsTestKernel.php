@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Invitation;
 
 use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\HostResolverInterface;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\SocialProviderResponses;
+use Nowo\AuthKitBundle\Tests\Support\Oidc\FakeResolver;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
@@ -37,11 +39,12 @@ final class InvitationsFollowupsTestKernel extends InvitationsHostApiTestKernel
         parent::configureContainer($container, $loader);
         $container->loadFromExtension('framework', [
             'http_client' => ['mock_response_factory' => SocialProviderResponses::class],
-            'cache'       => ['pools' => [self::POOL => ['adapter' => 'cache.adapter.filesystem']]],
+            'cache'       => ['pools' => [self::POOL => ['adapter' => 'cache.adapter.filesystem'], 'test.oidc_cache' => ['adapter' => 'cache.adapter.array']]],
         ]);
         $container->loadFromExtension('twig', ['paths' => ['%kernel.project_dir%/tests/Integration/Invitation/templates/followups' => 'InvitationFollowups']]);
         $container->loadFromExtension('nowo_auth_kit', [
             'attempt_limiter' => ['cache_pool' => self::POOL],
+            'oidc'            => ['cache_pool' => 'test.oidc_cache'],
             'social_login'    => ['mode' => 'enabled'],
             'web_ui'          => ['templates' => ['invitation_accept' => '@InvitationFollowups/invitation_accept.html.twig']],
             'invitations'     => [
@@ -52,6 +55,9 @@ final class InvitationsFollowupsTestKernel extends InvitationsHostApiTestKernel
             ],
         ]);
         $container->register(SocialProviderResponses::class)->setPublic(true);
+        // 2.3.0: OIDC host names resolve through the fake resolver (no DNS in the tests).
+        $container->register(FakeResolver::class)->setPublic(true);
+        $container->setAlias(HostResolverInterface::class, FakeResolver::class)->setPublic(true);
         $container->register(ToggleUserLookup::class)->setDecoratedService(UserLookupInterface::class)->setArguments([new Reference('.inner')])->setPublic(true);
     }
 }

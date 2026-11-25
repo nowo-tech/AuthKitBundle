@@ -118,6 +118,9 @@ social:
         invalid_state: Não foi possível concluir o início de sessão social (estado inválido).
         provider_denied: Início de sessão social cancelado ou negado.
         failed: Falha no início de sessão social. Tente novamente.
+    form_post:
+        title: 'A iniciar sessão…'
+        continue: 'Continuar'
 
 sso:
     heading: Iniciar sessão com a sua organização

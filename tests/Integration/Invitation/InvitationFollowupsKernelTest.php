@@ -33,6 +33,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\SocialProviderResponses;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\Oidc\FakeResolver;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Clock\ClockInterface;
@@ -506,6 +507,40 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         $this->client->loginUser($this->user('admin@example.com'));
         $this->client->request('POST', '/invitation/social/google', $values);
         self::assertSelectorExists('[data-nowo-auth-kit-invitation="signed_in"]');
+    }
+
+    public function testAnOpenIdConnectStartFromTheAcceptPageGoesThroughDiscovery(): void
+    {
+        $this->persistOidcCredential();
+        $this->open($this->inviteLink('new.person@example.com'));
+        $crawler = $this->client->request('GET', '/invitation');
+        $this->client->submit($crawler->filter('[data-testid="auth-kit-invitation-social-okta"]')->form());
+
+        self::assertResponseStatusCodeSame(303);
+        $location = (string) $this->client->getResponse()->headers->get('Location');
+        self::assertStringStartsWith('https://idp.example.com/authorize?', $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+        self::assertIsString($query['nonce'] ?? null, '2.3.0: the nonce is sent and kept with the state.');
+    }
+
+    public function testAnOpenIdConnectProviderThatCannotBeReachedLeavesTheInvitationOpen(): void
+    {
+        $this->persistOidcCredential();
+        $resolver                             = $this->service(FakeResolver::class);
+        $resolver->answers['idp.example.com'] = ['10.0.0.1'];
+        $this->open($this->inviteLink('new.person@example.com'));
+        $crawler = $this->client->request('GET', '/invitation');
+        $this->client->submit($crawler->filter('[data-testid="auth-kit-invitation-social-okta"]')->form());
+
+        self::assertSelectorExists('[data-nowo-auth-kit-invitation="unavailable"]');
+        self::assertNull($this->invitation('new.person@example.com')->getAcceptedAt());
+    }
+
+    private function persistOidcCredential(): void
+    {
+        $this->entityManager()->persist((new SocialLoginCredential())->setProvider('okta')->setLabel('Okta')->setEnabled(true)->setClientId('id-placeholder')->setClientSecret('secret-placeholder')->setIssuer('https://idp.example.com'));
+        $this->entityManager()->flush();
+        $this->entityManager()->clear();
     }
 
     public function testTheSocialStartIsRateLimited(): void

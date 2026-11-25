@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcOptions;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
@@ -24,9 +25,11 @@ use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 
+use function array_diff;
 use function array_intersect;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
 use function array_values;
 use function class_exists;
 use function implode;
@@ -299,6 +302,58 @@ final class Configuration implements ConfigurationInterface
                         ->then(static function (array $http): never {
                             throw new InvalidArgumentException(sprintf('Invalid "nowo_auth_kit.http_client": max_duration (%s) must be greater than or equal to timeout (%s).', $http['max_duration'], $http['timeout']));
                         })
+                    ->end()
+                ->end()
+                ->arrayNode('oidc')
+                    ->info('OpenID Connect providers (2.3.0: generic issuer, gitlab, apple, linkedin, slack): ID token checks and the limits of the discovery / JWKS / token / userinfo fetches (always HTTPS to public addresses, no redirects).')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->arrayNode('allowed_algorithms')
+                            ->info('ID token signature algorithms accepted. A non-empty subset of RS256, RS384, RS512, ES256, ES384, ES512; "none" and HS* are never accepted.')
+                            ->scalarPrototype()->end()
+                            ->defaultValue(OidcOptions::SUPPORTED_ALGORITHMS)
+                            ->validate()
+                                ->ifTrue(static fn (array $algorithms): bool => $algorithms === [] || array_diff($algorithms, OidcOptions::SUPPORTED_ALGORITHMS) !== [])
+                                ->then(static function (array $algorithms): never {
+                                    throw new InvalidArgumentException(sprintf('Invalid "nowo_auth_kit.oidc.allowed_algorithms": a non-empty subset of %s ("none" and HS* are never accepted); got [%s].', implode(', ', OidcOptions::SUPPORTED_ALGORITHMS), implode(', ', array_map('strval', $algorithms))));
+                                })
+                            ->end()
+                        ->end()
+                        ->integerNode('clock_skew')
+                            ->info('Leeway in seconds for exp / iat / nbf.')
+                            ->defaultValue(OidcOptions::DEFAULT_CLOCK_SKEW)
+                            ->min(0)->max(300)
+                        ->end()
+                        ->integerNode('max_id_token_age')
+                            ->info('Oldest accepted ID token issue time (iat), in seconds.')
+                            ->defaultValue(OidcOptions::DEFAULT_MAX_ID_TOKEN_AGE)
+                            ->min(60)->max(86400)
+                        ->end()
+                        ->integerNode('metadata_cache_ttl')
+                            ->info('Seconds a discovery document stays in the cache pool.')
+                            ->defaultValue(OidcOptions::DEFAULT_METADATA_CACHE_TTL)
+                            ->min(60)->max(604800)
+                        ->end()
+                        ->integerNode('jwks_cache_ttl')
+                            ->info('Seconds a key set (JWKS) stays in the cache pool.')
+                            ->defaultValue(OidcOptions::DEFAULT_JWKS_CACHE_TTL)
+                            ->min(60)->max(604800)
+                        ->end()
+                        ->integerNode('jwks_refresh_interval')
+                            ->info('Minimum seconds between two refetches of a key set triggered by an unknown key id (key rotation).')
+                            ->defaultValue(OidcOptions::DEFAULT_JWKS_REFRESH_INTERVAL)
+                            ->min(0)->max(3600)
+                        ->end()
+                        ->integerNode('max_response_bytes')
+                            ->info('Largest discovery / JWKS / token / userinfo response accepted, in bytes (enforced while downloading).')
+                            ->defaultValue(OidcOptions::DEFAULT_MAX_RESPONSE_BYTES)
+                            ->min(4096)->max(5242880)
+                        ->end()
+                        ->scalarNode('cache_pool')
+                            ->info('Cache pool service (Symfony\\Contracts\\Cache\\CacheInterface) holding discovery documents and key sets. Shared between workers and processes; never a service property.')
+                            ->defaultValue('cache.app')
+                            ->cannotBeEmpty()
+                        ->end()
                     ->end()
                 ->end()
                 ->arrayNode('doctrine')

@@ -17,9 +17,12 @@ use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcClient;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcException;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialFormPostRelay;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
@@ -38,6 +41,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Throwable;
 
 use function get_debug_type;
+use function is_string;
 use function sprintf;
 
 /**
@@ -63,17 +67,30 @@ final class SocialLoginCheckController
         private readonly ?LoggerInterface $logger = null,
         private readonly ?SocialHandlerSignInRollback $signInRollback = null,
         private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
+        private readonly ?OidcClient $oidcClient = null,
+        private readonly ?SocialFormPostRelay $formPostRelay = null,
     ) {
     }
 
-    #[Route(path: '/login/social/{provider}/check', name: 'nowo_auth_kit_social_login_check', requirements: ['provider' => '[a-z0-9_\\-]+'], methods: ['GET'])]
+    /**
+     * GET for the providers that redirect back; POST (2.3.0) for `response_mode=form_post` (Sign in with Apple): the
+     * provider's cross-site POST is relayed first ({@see SocialFormPostRelay}), the relayed same-site POST is checked.
+     */
+    #[Route(path: '/login/social/{provider}/check', name: 'nowo_auth_kit_social_login_check', requirements: ['provider' => '[a-z0-9_\\-]+'], methods: ['GET', 'POST'])]
     public function check(Request $request, string $provider): Response
     {
         $profile  = $this->profileResolver->resolve($request);
         $loginUrl = $this->urlGenerator->generate($profile->routes['login']['name']);
-        $handler  = $this->handlerFor($request, $provider, $profile);
-        $state    = (string) $request->query->get('state', '');
-        $code     = (string) $request->query->get('code', '');
+        $posted   = $request->isMethod('POST');
+        if ($posted && !SocialFormPostRelay::isRelayed($request)) {
+            // No session, no flash, no handler here: the visitor's session cookie did not come with this request.
+            return $this->relayFormPost($request, $provider, $profile, $loginUrl);
+        }
+
+        $params  = $posted ? $request->request : $request->query;
+        $handler = $this->handlerFor($request, $provider, $profile);
+        $state   = (string) $params->get('state', '');
+        $code    = (string) $params->get('code', '');
 
         $credential = $this->socialLoginGate->isEnabled($profile->name) ? $this->credentials->findOneByProvider($provider) : null;
         if (!$credential instanceof SocialLoginCredential || !$credential->isEnabled()) {
@@ -81,10 +98,14 @@ final class SocialLoginCheckController
                 ? $this->failed($request, $provider, $handler, SocialCallbackFailure::Unavailable, $loginUrl)
                 : new RedirectResponse($loginUrl);
         }
+        // Only a form_post provider calls back with a POST; any other POST is not a callback.
+        if ($posted && !$this->usesFormPost($credential)) {
+            return new RedirectResponse($loginUrl);
+        }
 
         // A denied/failed authorization comes back with `error` and no `code` (RFC 6749 §4.1.2.1):
         // handle it before the code/state check so users see the provider_denied message.
-        if ($request->query->has('error')) {
+        if ($params->has('error')) {
             // Burn a matching pending state so it cannot be replayed with a code later. Only that proves the request
             // belongs to this session's authorization: anything else is a link anyone can craft (GY-L2).
             return $this->burnsState($provider, $state) && $handler instanceof SocialCallbackHandlerInterface
@@ -108,8 +129,14 @@ final class SocialLoginCheckController
                 ['provider' => $provider],
                 UrlGeneratorInterface::ABSOLUTE_URL,
             );
-            $tokens = $this->oauth2Client->exchangeCode($credential, $code, $redirectUri, $pending['code_verifier']);
-            $social = $this->oauth2Client->fetchUserProfile($credential, $tokens['access_token']);
+            if ($this->oidcClient instanceof OidcClient && $this->oidcClient->supports($credential)) {
+                // 2.3.0: code exchange, ID token verification (signature, iss, aud/azp, exp/iat, nonce), userinfo.
+                $appleUser         = $params->get('user');
+                [$tokens, $social] = $this->oidcClient->authenticate($credential, $code, $redirectUri, $pending['code_verifier'], $pending['nonce'], is_string($appleUser) ? $appleUser : null);
+            } else {
+                $tokens = $this->oauth2Client->exchangeCode($credential, $code, $redirectUri, $pending['code_verifier']);
+                $social = $this->oauth2Client->fetchUserProfile($credential, $tokens['access_token']);
+            }
             if (!$handler instanceof SocialCallbackHandlerInterface) {
                 MfaFirstFactor::mark($request, 'social');
                 // A failed sign-in keeps nothing: no link, no replaced password, no session (GY-L9, GY-L10).
@@ -120,7 +147,11 @@ final class SocialLoginCheckController
             // refusal; nothing was linked or signed in (the unit was rolled back).
             throw $failure;
         } catch (RuntimeException $exception) {
-            $this->logger?->warning('AuthKit social callback failed for provider {provider}.', ['provider' => $provider, 'exception' => $exception::class]);
+            $context = ['provider' => $provider, 'exception' => $exception::class];
+            if ($exception instanceof OidcException) {
+                $context['reason'] = $exception->reason;
+            }
+            $this->logger?->warning('AuthKit social callback failed for provider {provider}.', $context);
 
             return $handler instanceof SocialCallbackHandlerInterface
                 ? $this->failed($request, $provider, $handler, SocialCallbackFailure::Failed, $loginUrl, 'social.error.failed')
@@ -134,6 +165,28 @@ final class SocialLoginCheckController
         $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
         return new RedirectResponse($this->urlGenerator->generate($target));
+    }
+
+    /**
+     * The provider's own cross-site POST: answered with the relay page when the provider is a form_post one, else sent
+     * to the sign-in page. Nothing here reads or writes the session (2.3.0).
+     */
+    private function relayFormPost(Request $request, string $provider, ProfileSettings $profile, string $loginUrl): Response
+    {
+        $relay      = $this->formPostRelay;
+        $credential = $relay instanceof SocialFormPostRelay && $this->socialLoginGate->isEnabled($profile->name)
+            ? $this->credentials->findOneByProvider($provider)
+            : null;
+        if (!$relay instanceof SocialFormPostRelay || !$credential instanceof SocialLoginCredential || !$credential->isEnabled() || !$this->usesFormPost($credential)) {
+            return new RedirectResponse($loginUrl);
+        }
+
+        return $relay->relay($request, $this->urlGenerator->generate($profile->routes['social_login_check']['name'], ['provider' => $provider]));
+    }
+
+    private function usesFormPost(SocialLoginCredential $credential): bool
+    {
+        return $this->oidcClient instanceof OidcClient && $this->oidcClient->usesFormPost($credential);
     }
 
     /**

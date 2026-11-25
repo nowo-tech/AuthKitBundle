@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcCredentialRules;
 use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
 
 use function in_array;
@@ -32,7 +33,7 @@ class SocialLoginCredential
     #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null; // @phpstan-ignore property.unusedType (Doctrine assigns via reflection)
 
-    /** Provider key (google, github, microsoft, or custom slug). */
+    /** Provider key (google, github, microsoft, gitlab, apple, linkedin, slack, or custom slug). */
     #[ORM\Column(type: Types::STRING, length: 64)]
     private string $provider = '';
 
@@ -89,6 +90,22 @@ class SocialLoginCredential
 
     #[ORM\Column(name: 'userinfo_url', type: Types::STRING, length: 512, nullable: true)]
     private ?string $userinfoUrl = null;
+
+    /**
+     * OpenID Connect issuer (2.3.0): the generic provider's issuer (discovery at `<issuer>/.well-known/openid-configuration`),
+     * or a self-hosted GitLab's base URL. Null for the OAuth2 providers and for the presets that use their own issuer.
+     */
+    #[ORM\Column(name: 'issuer', type: Types::STRING, length: 512, nullable: true)]
+    private ?string $issuer = null;
+
+    /**
+     * Per-provider settings that are not secrets (2.3.0): Apple's `team_id` and `key_id`. Validated by
+     * {@see OidcCredentialRules::settingsError()}.
+     *
+     * @var array<string, string|null>|null
+     */
+    #[ORM\Column(name: 'provider_settings', type: Types::JSON, nullable: true)]
+    private ?array $providerSettings = null;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
@@ -286,6 +303,61 @@ class SocialLoginCredential
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->userinfoUrl = $userinfoUrl;
+        $this->touch();
+
+        return $this;
+    }
+
+    public function getIssuer(): ?string
+    {
+        return $this->issuer;
+    }
+
+    /**
+     * @throws InvalidArgumentException when the issuer is not a public HTTPS URL without query, fragment or credentials
+     */
+    public function setIssuer(?string $issuer): self
+    {
+        $issuer = $issuer === null ? null : trim($issuer);
+        if ($issuer === '') {
+            $issuer = null;
+        }
+        if ($issuer !== null && ($error = OidcCredentialRules::issuerError($issuer)) !== null) {
+            throw new InvalidArgumentException($error);
+        }
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->issuer = $issuer;
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    public function getProviderSettings(): array
+    {
+        return $this->providerSettings ?? [];
+    }
+
+    /**
+     * @param array<string, string|null> $settings `team_id` and `key_id` (Apple); a null value clears one
+     *
+     * @throws InvalidArgumentException for an unknown key or a malformed identifier
+     */
+    public function setProviderSettings(array $settings): self
+    {
+        if (($error = OidcCredentialRules::settingsError($settings)) !== null) {
+            throw new InvalidArgumentException($error);
+        }
+        $clean = [];
+        foreach ($settings as $key => $value) {
+            if ($value !== null) {
+                $clean[$key] = $value;
+            }
+        }
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->providerSettings = $clean === [] ? null : $clean;
         $this->touch();
 
         return $this;

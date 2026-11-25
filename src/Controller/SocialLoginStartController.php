@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Controller;
 
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
+use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcClient;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcException;
 use Nowo\AuthKitBundle\SocialLogin\Pkce;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -29,6 +33,9 @@ final class SocialLoginStartController
         private readonly SocialLoginStateStore $stateStore,
         private readonly AuthKitUrlGenerator $urlGenerator,
         private readonly RequestProfileResolver $profileResolver,
+        private readonly ?OidcClient $oidcClient = null,
+        private readonly AuthKitFlashMessenger $flashMessenger = new AuthKitFlashMessenger(),
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -54,9 +61,21 @@ final class SocialLoginStartController
         $pkceOverrides = $profile->socialLogin['pkce'] ?? [];
         /** @var array<string, mixed> $authorizationParams */
         $authorizationParams = $profile->socialLogin['authorization_params'] ?? [];
-        $codeVerifier        = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
-        $state               = $this->stateStore->issue($provider, $codeVerifier);
-        $url                 = $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier, $authorizationParams);
+        // 2.3.0: OpenID Connect providers (generic issuer, GitLab, Apple, LinkedIn, Slack) start through discovery.
+        if ($this->oidcClient instanceof OidcClient && $this->oidcClient->supports($credential)) {
+            try {
+                return new RedirectResponse($this->oidcClient->begin($credential, $provider, $redirectUri, $this->stateStore, $pkceOverrides, $authorizationParams)['url']);
+            } catch (OidcException $exception) {
+                // Logged by class and reason only: the message never carries a secret, but the reason is enough.
+                $this->logger?->warning('AuthKit social sign-in could not start for provider {provider} ({reason}).', ['provider' => $provider, 'reason' => $exception->reason, 'exception' => $exception::class]);
+                $this->flashMessenger->flash($request, 'error', 'social.error.failed');
+
+                return new RedirectResponse($this->urlGenerator->generate($profile->routes['login']['name']));
+            }
+        }
+        $codeVerifier = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
+        $state        = $this->stateStore->issue($provider, $codeVerifier);
+        $url          = $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier, $authorizationParams);
 
         return new RedirectResponse($url);
     }
