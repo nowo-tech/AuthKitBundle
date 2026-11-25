@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Database;
 
 use DateTimeImmutable;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Entity\WebauthnCredential;
 use Nowo\AuthKitBundle\Mfa\MfaOwner;
 use Nowo\AuthKitBundle\Tests\Database\Support\LoadDatabaseTestCase;
@@ -69,7 +70,7 @@ final class WebauthnDatabaseTest extends LoadDatabaseTestCase
         self::assertFalse($this->store()->insert('p2', 'default', new MfaOwner(KernelUser::class, 'bob@example.com'), 'cred-ada', 'h', 'k', 0, [], null, null, null, 'Key', new DateTimeImmutable()));
         $this->passkey('ADA@example.com', 'cred-upper');
         // A trailing space is not a usable owner id: written directly, as a row from before REQ-SEC-006 would be.
-        $this->connection()->insert(WebauthnCredential::TABLE, ['public_id' => 'p-space', 'profile' => 'default', 'user_type' => KernelUser::class, 'user_id' => 'ada@example.com ', 'credential_id_hash' => WebauthnStore::credentialIdHash('cred-space'), 'credential_id' => 'x', 'user_handle' => 'h', 'public_key' => 'k', 'sign_count' => 0, 'transports' => '[]', 'label' => 'Key', 'created_at' => '2026-11-25 10:00:00']);
+        $this->connection()->insert(WebauthnCredential::TABLE, AuthKitRows::preInsertId($this->em, WebauthnCredential::class) + ['public_id' => 'p-space', 'profile' => 'default', 'user_type' => KernelUser::class, 'user_id' => 'ada@example.com ', 'credential_id_hash' => WebauthnStore::credentialIdHash('cred-space'), 'credential_id' => 'x', 'user_handle' => 'h', 'public_key' => 'k', 'sign_count' => 0, 'transports' => '[]', 'label' => 'Key', 'created_at' => '2026-11-25 10:00:00']);
         self::assertCount(1, $this->store()->credentialsOf('default', new MfaOwner(KernelUser::class, 'ada@example.com')));
         self::assertSame(1, $this->rows(sprintf("SELECT COUNT(*) FROM %s WHERE user_id = 'ada@example.com'", WebauthnCredential::TABLE)), 'the collation itself is exact');
         self::assertNull($this->store()->findByCredentialId('other', 'cred-ada'));

@@ -9,6 +9,7 @@ use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Platforms\SQLitePlatform;
+use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use RuntimeException;
@@ -20,6 +21,9 @@ use function dirname;
 use function explode;
 use function file_get_contents;
 use function implode;
+use function in_array;
+use function method_exists;
+use function preg_match;
 use function preg_replace;
 use function str_contains;
 use function trim;
@@ -70,8 +74,23 @@ final class WebauthnSqlScript
      */
     public static function differences(EntityManagerInterface $em): string
     {
-        $sql = (new SchemaTool($em))->getUpdateSchemaSql($em->getMetadataFactory()->getAllMetadata());
+        $sql = array_values(array_filter(
+            (new SchemaTool($em))->getUpdateSchemaSql($em->getMetadataFactory()->getAllMetadata()),
+            static fn (string $statement): bool => str_contains($statement, 'webauthn'),
+        ));
+        if (method_exists(Type::class, 'requiresSQLCommentHint')) {
+            // DBAL 3 only: its `(DC2Type:…)` column comments (and, on PostgreSQL, the type restatement that comes with
+            // them) are bookkeeping of DBAL 3, not a schema difference; DBAL 4 has none.
+            $commented = [];
+            foreach ($sql as $statement) {
+                if (preg_match('/COMMENT ON COLUMN \S+\.(\w+) IS \'\(DC2Type:/', $statement, $match) === 1) {
+                    $commented[] = $match[1];
+                }
+            }
+            $sql = array_filter($sql, static fn (string $statement): bool => !str_contains($statement, 'DC2Type')
+                && !(preg_match('/ALTER (\w+) TYPE /', $statement, $match) === 1 && in_array($match[1], $commented, true)));
+        }
 
-        return implode("\n", array_filter($sql, static fn (string $statement): bool => str_contains($statement, 'webauthn')));
+        return implode("\n", $sql);
     }
 }

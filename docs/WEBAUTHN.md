@@ -144,7 +144,10 @@ mapped table (checked against the ORM schema on every platform in CI):
 | PostgreSQL | `src/Resources/sql/webauthn/postgresql.up.sql` | `src/Resources/sql/webauthn/postgresql.down.sql` |
 | SQLite | `src/Resources/sql/webauthn/sqlite.up.sql` | `src/Resources/sql/webauthn/sqlite.down.sql` |
 
-With a table prefix, replace `auth_kit_` in the table and index names. A Doctrine Migrations class can run them:
+With a table prefix, replace `auth_kit_` in the table and index names. The scripts are the DBAL 4 schema; on DBAL 3
+`doctrine:migrations:diff` then only proposes DBAL 3's own `(DC2Type:datetime_immutable)` column comments, which are
+harmless either way. The PostgreSQL identity column also creates the sequence `auth_kit_webauthn_credential_id_seq`
+that DBAL 3 hosts draw ids from. A Doctrine Migrations class can run them:
 
 ```php
 public function up(Schema $schema): void
