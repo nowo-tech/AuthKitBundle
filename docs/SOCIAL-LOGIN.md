@@ -226,6 +226,12 @@ final class InvitationSocialHandler implements SocialCallbackStepInterface
 }
 ```
 
+A handler that keeps its **own** `(provider, sub)` link table instead of AuthKit's linker must also store the issuer
+of each link (`$context->socialProfile->issuer`, null for OAuth2 providers) and refuse a sign-in whose issuer differs
+from the stored one, as `SocialAccountLinker` does since 2.3.0 (audit ZBP-L1 / ZBP-v-I1): a `sub` is unique only
+within its issuer, and the same provider key moved to another issuer would otherwise sign the old link in as somebody
+else.
+
 What AuthKit still does before `handle()`: the social gate and credential check, the provider `error` answer, the
 single-use OAuth `state` bound to the session, PKCE, the code exchange and the profile fetch. A handler cannot skip
 them and never reads `code` or `state`.

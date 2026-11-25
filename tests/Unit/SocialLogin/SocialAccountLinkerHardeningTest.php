@@ -66,6 +66,39 @@ final class SocialAccountLinkerHardeningTest extends TestCase
         );
     }
 
+    /**
+     * 2.3.0 (audit ZBP-L1, pinned by ZBP-v-I7): a link signs in only under the issuer it was made with, exactly (`!==`):
+     * a legacy OAuth2 link (no issuer) is refused for an OpenID Connect profile, and an OIDC link for an OAuth2 profile.
+     *
+     * @return iterable<string, array{string|null, string|null}>
+     */
+    public static function issuerMismatches(): iterable
+    {
+        yield 'legacy link, OIDC profile' => [null, 'https://gitlab.com'];
+        yield 'OIDC link, OAuth2 profile' => ['https://gitlab.com', null];
+        yield 'OIDC link, another issuer' => ['https://gitlab.com', 'https://git.example.org'];
+    }
+
+    #[DataProvider('issuerMismatches')]
+    public function testALinkMadeUnderAnotherIssuerIsRefused(?string $linked, ?string $asserted): void
+    {
+        $link     = (new SocialLoginAccount())->setProvider('gitlab')->setProviderUserId('1234')->setUserClass(TestUser::class)->setUserId('1')->setIssuer($linked);
+        $accounts = $this->createMock(SocialLoginAccountRepository::class);
+        $accounts->method('findOneByProviderSubject')->willReturn($link);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->expects(self::never())->method('find');
+        $em->expects(self::never())->method('persist');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('another issuer');
+        $this->linker($em, $accounts)->linkOrCreate(
+            $this->profile(TestUser::class),
+            'gitlab',
+            new SocialUserProfile('1234', 'x@example.com', null, [], true, $asserted),
+            ['access_token' => 'a', 'refresh_token' => null, 'expires_in' => null],
+        );
+    }
+
     /** H2: a stored link whose user row is of another class is refused even when the id exists. */
     public function testALinkedRowOfAnotherClassIsRefused(): void
     {

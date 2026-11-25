@@ -27,6 +27,9 @@ Planned direction for Auth Kit Bundle. Items are grouped by horizon and may chan
 
 ## Medium term
 
+- Social / OIDC: per-credential `link_by_email` and an allow-list of e-mail domains a provider may assert (hardening of
+  audit ZBP-L2: today `link_existing_account` is per profile and trusts every configured issuer with every address).
+
 - Passkeys: a passkey as the forced-enrolment choice of a required user (today the setup page enrols TOTP), and an
   optional AAGUID allow-list with FIDO metadata for `attestation: direct`.
 - **E-mail codes** as a fallback second factor (through the host mailer, with the same rate limits as TOTP; D-M1).

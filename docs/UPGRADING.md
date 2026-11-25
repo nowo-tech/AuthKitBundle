@@ -256,7 +256,12 @@ Things to do for a provider you enable:
   you do not fully trust ([OIDC-PROVIDERS.md](OIDC-PROVIDERS.md#every-configured-issuer-is-trusted-with-e-mail-addresses));
 - **issuer changes**: a link signs in only under the issuer it was made with. In your admin screen, call
   `SocialCredentialIssuerGuard::issuerChangeError()` before saving a new issuer and show its message (unlink first, or
-  use a new provider key).
+  use a new provider key);
+- **host social handlers** (`SocialCallbackStepInterface`) that keep their own `(provider, sub)` links: store
+  `$context->socialProfile->issuer` with each link and refuse a sign-in under another issuer, as AuthKit's linker does
+  ([SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#callback-handlers); audit ZBP-v-I1);
+- **per-IP limits** (start limit included) key on the client IP as Symfony resolves it: check
+  `framework.trusted_proxies` behind a proxy or a load balancer (audit ZBP-v-I3).
 
 ### Behaviour that changes
 

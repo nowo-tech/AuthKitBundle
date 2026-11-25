@@ -27,6 +27,7 @@ use function is_scalar;
 use function json_encode;
 use function parse_str;
 use function parse_url;
+use function sprintf;
 use function str_contains;
 use function str_repeat;
 use function time;
@@ -378,6 +379,11 @@ final class OidcSignInKernelTest extends WebTestCase
             if (!str_contains($message, 'AuthKit')) {
                 continue; // the framework's and Doctrine's own debug log of the test kernel, not AuthKit's
             }
+            // ZBP-v-I6: AuthKit's own log contexts are scalar-only, so the check below sees every value (an
+            // `'exception' => $e` would carry a token past it).
+            array_walk_recursive($context, static function (mixed $value, int|string $key) use ($message): void {
+                self::assertTrue($value === null || is_scalar($value), sprintf('AuthKit log context "%s" of "%s" must be scalar.', $key, $message));
+            });
             $text = $message . self::flatten($context);
             foreach (['secret-placeholder', 'at-placeholder', 'BEGIN PRIVATE KEY', 'code-1', 'eyJ'] as $secret) {
                 self::assertStringNotContainsString($secret, $text);

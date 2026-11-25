@@ -159,6 +159,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New runtime dependencies: `web-auth/webauthn-lib` ^5.3, `symfony/serializer`, `symfony/uid`.
 - `MfaAuthenticationSubscriber` challenges a user with any second factor (`hasSecondFactor()`); `MfaManager::isEnabled()`
   still means TOTP.
+- `SocialCredentialIssuerGuard` compares the effective issuers (audit ZBP-v-I2): a `gitlab`, `apple`, `linkedin` or
+  `slack` credential without an issuer and without custom endpoints uses its preset issuer, so writing it explicitly is
+  no longer reported as an issuer change (admin UX only; the sign-in was and stays authoritative).
+
+### Fixed
+
+- 2.3.0 audit follow-ups ZBP-v-I1..I7 (Infos, no behaviour change at sign-in): SOCIAL-LOGIN.md and UPGRADING tell host
+  social handlers with their own links to store and compare the issuer (I1); OIDC-PROVIDERS, SECURITY and UPGRADING
+  say that per-IP limits are only as good as `framework.trusted_proxies` (I3) and that the negative discovery cache
+  starts after the first failure (I4); CONCURRENCY lists the negative discovery entry and the start counter (I5); the
+  OIDC log test asserts that AuthKit log contexts are scalar-only (I6); unit tests pin the legacy-link / OIDC-profile
+  and OIDC-link / OAuth2-profile refusals, OIDC-PROVIDERS documents the missing re-stamp path, and ROADMAP lists
+  per-credential `link_by_email` / allowed e-mail domains (I7).
 
 ## [2.3.0] - 2026-11-25
 
