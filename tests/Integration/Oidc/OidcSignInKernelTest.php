@@ -22,10 +22,11 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
+use function array_walk_recursive;
+use function is_scalar;
 use function json_encode;
 use function parse_str;
 use function parse_url;
-use function serialize;
 use function str_contains;
 use function str_repeat;
 use function time;
@@ -362,8 +363,8 @@ final class OidcSignInKernelTest extends WebTestCase
 
     private function logged(string $needle): bool
     {
-        foreach ($this->logger()->records as [, $context]) {
-            if (str_contains(serialize($context), $needle)) {
+        foreach ($this->logger()->records as [$message, $context]) {
+            if (str_contains($message, 'AuthKit') && str_contains(self::flatten($context), $needle)) {
                 return true;
             }
         }
@@ -377,11 +378,26 @@ final class OidcSignInKernelTest extends WebTestCase
             if (!str_contains($message, 'AuthKit')) {
                 continue; // the framework's and Doctrine's own debug log of the test kernel, not AuthKit's
             }
-            $text = $message . serialize($context);
+            $text = $message . self::flatten($context);
             foreach (['secret-placeholder', 'at-placeholder', 'BEGIN PRIVATE KEY', 'code-1', 'eyJ'] as $secret) {
                 self::assertStringNotContainsString($secret, $text);
             }
         }
+    }
+
+    /**
+     * The keys and scalar values of a log context (other loggers put objects there, e.g. symfony/lock keys, which do not serialize).
+     *
+     * @param array<array-key, mixed> $context
+     */
+    private static function flatten(array $context): string
+    {
+        $text = '';
+        array_walk_recursive($context, static function (mixed $value, int|string $key) use (&$text): void {
+            $text .= ' ' . $key . '=' . (is_scalar($value) ? $value : '');
+        });
+
+        return $text;
     }
 
     private function logger(): RecordingLogger
