@@ -132,6 +132,8 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-SOCIAL-006** (2.3.0): Discovery documents and JWKS in the `oidc.cache_pool` cache pool with TTLs; unknown `kid` refetches at most every `oidc.jwks_refresh_interval`; no service state (REQ-RUNTIME-002). Configuration `nowo_auth_kit.oidc` validated at build time (`OidcOptions`).
 - **FR-SOCIAL-007** (2.3.0): `AppleClientSecret` signs the ES256 client-secret JWT (iss team, sub client id, aud Apple, 5 min) with the P-256 `.p8` key stored as the encrypted client secret; any other key is refused without echoing it.
 - **FR-SOCIAL-008** (2.3.0): form_post callbacks (Apple): `SocialLoginCheckController` accepts POST; a POST without the relay marker (or with `Sec-Fetch-Site` other than same-origin) is answered by `SocialFormPostRelay` (template `security/social_form_post.html.twig`, `SocialFormPostRelayType`, `js/nowo-auth-kit-form-post.js`) without reading or writing the session, re-posting only `code`, `state`, `error`, `user`; a POST for a non-form_post provider goes to the login page.
+- **FR-SOCIAL-009** (2.3.0, audit ZBP-L1): a link records its issuer (`SocialLoginAccount::issuer`, null for OAuth2 and pre-2.3 links); `SocialAccountLinker` refuses an existing link whose issuer differs from the profile's (`SocialUserProfile::issuer`). `SocialCredentialIssuerGuard` tells admin screens that the issuer is locked while accounts are linked.
+- **FR-SOCIAL-010** (2.3.0, audit ZBP-L3): `OidcDiscovery` remembers a failed discovery per issuer for `oidc.discovery_failure_ttl`; `SocialLoginStartController` limits starts per client IP (`social_login.start_rate_limit` / `start_rate_window`, `AuthKitAttemptLimiter`).
 
 ### Profiles & locale
 
@@ -297,7 +299,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**492/492** units under `src/` as of 2026-11-25: 421 PHP + 71 Resources).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**493/493** units under `src/` as of 2026-11-25: 422 PHP + 71 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
 - **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, OIDC-PROVIDERS, SSO, INVITATIONS, SECURITY.

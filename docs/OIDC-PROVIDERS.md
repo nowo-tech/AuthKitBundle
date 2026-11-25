@@ -162,11 +162,18 @@ nowo_auth_kit:
         jwks_cache_ttl: 3600        # s, 60..604800 — key sets
         jwks_refresh_interval: 60   # s, 0..3600 — min. time between refetches on an unknown kid (key rotation)
         max_response_bytes: 524288  # 4 KiB..5 MiB — any discovery / JWKS / token / userinfo answer
+        discovery_failure_ttl: 30   # s, 0..300 — a failed discovery is not retried meanwhile (negative cache, per issuer)
         cache_pool: cache.app       # a Symfony\Contracts\Cache\CacheInterface pool (shared by workers; symfony/cache comes with FrameworkBundle)
     http_client:                    # deadlines of every OAuth2 and OIDC request (unchanged)
         timeout: 10
         max_duration: 20
 ```
+
+Per profile, `social_login.start_rate_limit` (default 20, 0 disables) and `social_login.start_rate_window` (60 s)
+bound the sign-in starts per client IP through the attempt limiter (`attempt_limiter.cache_pool`): an OpenID Connect
+start fetches the discovery document, so an anonymous loop on the start URL could otherwise keep the workers busy
+with outbound requests while a provider is down. Over the limit, the visitor is sent back to the sign-in page with
+`social.error.rate_limited`.
 
 Per provider: `social_login.pkce`, `social_login.authorization_params` and `social_login.provider_marks` (per profile,
 keyed by provider) apply to OIDC providers as to the OAuth2 ones; the issuer and Apple's identifiers live on the
@@ -200,11 +207,44 @@ IPv4-mapped / NAT64 / 6to4 / Teredo encodings, ULA … are refused); the connect
 DNS rebinding); **no redirect** is followed; `http_client.timeout` / `max_duration` apply; the size cap is enforced
 while downloading. `HostResolverInterface` (default `DnsHostResolver`) can be replaced.
 
+**Outbound proxy.** When the application's `http_client` goes through a proxy (`HTTPS_PROXY`, or a `proxy` default
+option), the proxy resolves the host itself: the address checks still run on AuthKit's side, but the pinning to the
+checked address does not apply, and anything the proxy can reach is reachable. Give the proxy an egress policy that
+refuses private ranges, or let the OIDC requests bypass it (`NO_PROXY`).
+
 ## Account linking
 
 Unchanged from the OAuth2 providers: the same `SocialAccountLinker` with `create_user_if_missing`,
 `link_existing_account`, `require_verified_email` (the e-mail and its `email_verified` come together from the ID token,
 or from userinfo when the token has no e-mail) and `registration_mode: first_user_only` semantics.
+
+### A provider key and its issuer are one subject namespace
+
+A `sub` is only unique within its issuer: user `1234` on gitlab.com and user `1234` on a self-hosted GitLab are two
+people (GitLab ids are small sequential integers, so this collision is realistic). Every link made by an OpenID Connect
+provider records the issuer (`auth_kit_social_account.issuer`), and an existing link signs in **only while the
+credential still has that issuer**. After an issuer change, the old links are refused (the sign-in fails, nobody is
+signed in), whatever the new provider asserts.
+
+So do not move a provider key to another issuer while accounts are linked to it. Administration screens should ask
+`SocialCredentialIssuerGuard::issuerChangeError($credential, $newIssuer)` before saving and show its message: unlink
+the accounts first, or add the new issuer under a **new provider key**. Links made by OAuth2 providers (and every link
+made before 2.3.0) have no issuer: setting an issuer on such a credential (for example opting `google` into the generic
+provider) makes its old links stop signing in, and users link again.
+
+### Every configured issuer is trusted with e-mail addresses
+
+With `link_existing_account: reset_password` or `keep`, an issuer that asserts `email` with `email_verified: true` signs
+in as the local account with that address, **administrators included**. That is what e-mail linking means, and it
+holds for every provider; with the generic provider it is one credential away. An issuer run by somebody you do not
+fully trust (a customer's own IdP in a B2B application, a test Keycloak, a self-hosted GitLab where anyone can register
+and set an unchecked e-mail) can therefore take over any account whose address it can assert.
+
+- Use `link_existing_account: deny` on profiles that offer such issuers: their users then link from their account
+  page, or sign up, and never take over an existing account by e-mail;
+- keep `require_verified_email: true` (the default);
+- keep administrators on a profile without those issuers, or with MFA;
+- for a self-hosted GitLab, require e-mail confirmation on the instance.
 
 ## Brand marks
 
@@ -214,5 +254,10 @@ buttons render without a mark otherwise.
 
 ## FrankenPHP worker mode
 
-No OIDC service keeps state between requests: settings are resolved per call, discovery documents and key sets live in
-the cache pool (`oidc.cache_pool`), the nonce and PKCE verifier in the session with the state.
+No OIDC service keeps state between requests: settings are resolved per call, discovery documents, key sets and the
+negative entries of failed discoveries live in the cache pool (`oidc.cache_pool`), the nonce and PKCE verifier in the
+session with the state.
+
+Symfony's `CurlHttpClient` keeps every `resolve` pin in the DNS cache of its shared handle, so in a long-lived worker a
+later request of the application to the same host name reuses the address AuthKit checked. That is not a security
+issue (the address is a checked, public one), but it can delay a DNS change of that host until the worker restarts.

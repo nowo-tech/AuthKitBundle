@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-25 (2.3.0, OpenID Connect providers: 19 PHP + 2 Resources)  
-**Units**: **492** (`421` PHP under `src/` + `71` Resources)
+**Last audited**: 2026-11-25 (2.3.0, OpenID Connect providers: 20 PHP + 2 Resources)  
+**Units**: **493** (`422` PHP under `src/` + `71` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -160,6 +160,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | --- | --- | --- | --- |
 | `Form/SocialFormPostRelayType.php` | production | FR-SOCIAL-008 | Mapped |
 | `SocialLogin/SocialFormPostRelay.php` | production | FR-SOCIAL-008 | Mapped |
+| `SocialLogin/SocialCredentialIssuerGuard.php` | production | FR-SOCIAL-009 | Mapped |
 | `SocialLogin/Oidc/AppleClientSecret.php` | production | FR-SOCIAL-007 | Mapped |
 | `SocialLogin/Oidc/Base64Url.php` | production | FR-SOCIAL-004 | Mapped |
 | `SocialLogin/Oidc/DnsHostResolver.php` | production | FR-SOCIAL-005 | Mapped |
@@ -728,10 +729,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 421 |
+| PHP under `src/` | 422 |
 | Resources (config/translations/views/public) | 71 |
-| **Total production sources** | **492** |
-| Audit command | `git ls-files src \| wc -l` → 492 |
+| **Total production sources** | **493** |
+| Audit command | `git ls-files src \| wc -l` → 493 |
 
 ## Coverage gate
 

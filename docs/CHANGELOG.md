@@ -146,6 +146,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same-site POST without touching the session (`SocialFormPostRelay`, `js/nowo-auth-kit-form-post.js`), so SameSite
   session cookies keep working; the first-authorization name is used for the display name only.
 - `auth_kit_social_credential.issuer` and `.provider_settings` (nullable), validated on write and on read.
+- Audit ZBP-L1: `auth_kit_social_account.issuer` (nullable): a link records the issuer it was made under and signs in
+  only while the credential keeps that issuer (a provider key moved to another IdP never hands its links to that IdP's
+  subjects). `SocialCredentialIssuerGuard::issuerChangeError()` for admin screens: the issuer is locked while accounts
+  are linked.
+- Audit ZBP-L3: failed discoveries are negatively cached per issuer (`oidc.discovery_failure_ttl`, 30 s) and sign-in
+  starts are rate-limited per client IP (`social_login.start_rate_limit` 20 / `start_rate_window` 60 s; flash
+  `social.error.rate_limited`, 7 locales).
+- Audit ZBP-L2: OIDC-PROVIDERS / SECURITY / UPGRADING warn that any configured issuer can assert a verified e-mail and,
+  with `link_existing_account` other than `deny`, take over that local account; outbound-proxy and worker DNS-pin notes.
+- Audit ZBP-I1: the IPv4-translated block `::ffff:0:0:0/96` is refused too.
 - Configuration `nowo_auth_kit.oidc` (validated). Translations `social.form_post.*` (7 locales).
 
 ### Changed

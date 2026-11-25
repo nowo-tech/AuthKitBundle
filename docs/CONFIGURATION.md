@@ -624,10 +624,12 @@ nowo_auth_kit:
         jwks_cache_ttl: 3600        # 60..604800 s
         jwks_refresh_interval: 60   # 0..3600 s
         max_response_bytes: 524288  # 4096..5242880
+        discovery_failure_ttl: 30   # 0..300 s, negative cache of a failed discovery
         cache_pool: cache.app
 ```
 
-The `http_client` deadlines above apply to every OIDC request too.
+The `http_client` deadlines above apply to every OIDC request too. Per profile, `social_login.start_rate_limit`
+(default 20, 0 disables) and `social_login.start_rate_window` (60 s) bound the sign-in starts per client IP.
 
 ## Doctrine table prefix
 
