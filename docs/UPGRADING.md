@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.4.0](#to-240)
   - [Passkeys (opt-in)](#passkeys-opt-in)
   - [Google mark in the dark theme](#google-mark-in-the-dark-theme)
 - [To 2.3.0](#to-230)
@@ -178,6 +179,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.4.0
+
+From **2.3.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ### Passkeys (opt-in)
 
