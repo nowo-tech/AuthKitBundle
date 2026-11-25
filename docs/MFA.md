@@ -3,7 +3,8 @@
 Native second factor since **1.34**, opt-in per profile (`mfa.enabled: false` by default: no service, route, entity
 mapping with `doctrine.register_mapping: auto`, cookie or listener). Authenticator apps (TOTP, RFC 6238) with
 one-time recovery codes, "trust this device", required roles with a grace period, and an administrator reset.
-WebAuthn and e-mail codes are on the [roadmap](ROADMAP.md).
+Since 2.4.0 a passkey is a second factor too ([WEBAUTHN.md](WEBAUTHN.md)); e-mail codes are on the
+[roadmap](ROADMAP.md).
 
 ## Table of contents
 
@@ -276,7 +277,8 @@ Since **1.36**, with UserKit installed and `nowo_user_kit.personal_data.enabled:
   live trusted devices (`expires_at` in the future) are listed.
 
 The MFA tables reference the user by owner type and id without a foreign key (any user class); hosts that delete user
-rows physically keep this eraser in their deletion flow (or call `MfaManager::forgetUser()`).
+rows physically keep this eraser in their deletion flow (or call `MfaManager::forgetUser()`, which since 2.4.0 also
+deletes the user's passkeys).
 
 Since 1.37 erasure no longer depends on the feature being on today: with UserKit installed and the entities mapped, a
 host with no MFA or switcher profile gets dormant erasers with the same keys (`auth_kit_mfa`,

@@ -181,8 +181,10 @@
 
 ### Passkeys (opt-in)
 
-Nothing changes until a profile sets `webauthn.mode: enabled`. Composer installs `web-auth/webauthn-lib` ^5.3,
-`symfony/serializer` and `symfony/uid`. The new entity `WebauthnCredential` is mapped with the other AuthKit entities,
+Nothing changes until a profile sets `webauthn.mode: enabled`, but every host installs the new dependencies:
+`web-auth/webauthn-lib` ^5.3.17, `symfony/serializer` and `symfony/uid`, and through webauthn-lib the PHP extension
+`ext-openssl` plus `spomky-labs/cbor-php`, `web-auth/cose-lib`, `spomky-labs/pki-framework`,
+`phpdocumentor/reflection-docblock`, `symfony/property-info`, `symfony/property-access` and `symfony/clock`. The new entity `WebauthnCredential` is mapped with the other AuthKit entities,
 so `doctrine:migrations:diff` proposes the table `auth_kit_webauthn_credential` on every host with the mapping on
 (create it, it stays empty; or use the scripts under `src/Resources/sql/webauthn/`).
 
@@ -190,11 +192,16 @@ To turn passkeys on:
 
 1. Keep (or add) `symfony/lock` with `framework.lock`; the build refuses passkeys without it.
 2. Create the table (migration or SQL script).
-3. `webauthn: { mode: enabled, rp_id: example.com }`; set `rp_id` explicitly, it cannot change later.
+3. `webauthn: { mode: enabled, rp_id: login.example.com }`: set `rp_id` explicitly to the host of the login page; it
+   cannot change later. The expected origin is then exactly `https://login.example.com` (never the `Host` header).
+   Use a parent domain (`example.com`) only when you control every sub-domain, and then list the exact login origins in
+   `allowed_origins`. Set `framework.trusted_hosts`.
 4. `access_control`: `^/login/webauthn` public like `/login`.
 5. With MFA: a passkey now counts as the second factor of a required user, and a passkey sign-in skips the second step
-   (`mfa.first_factors.webauthn: exempt`; set `required` to keep asking). Code that read `MfaManager::isEnabled()` as
-   "has a second factor" should call `hasSecondFactor()`.
+   (`mfa.first_factors.webauthn: exempt`; set `required` to keep asking). With `webauthn.mfa: false` a passkey sign-in
+   is always followed by the user's second factor. Code that read `MfaManager::isEnabled()` as "has a second factor"
+   should call `hasSecondFactor()`. `MfaManager::forgetUser()` now also deletes the user's passkeys; hosts that delete
+   users without UserKit call it (or `WebauthnManager::forgetUser()`).
 
 The design keys `rp_name` and `user_verification` of the 1.12 draft do not exist: the RP name follows WebAuthn Level 3
 (the RP id), and user verification is always required. See [WEBAUTHN.md](WEBAUTHN.md#host-integration-beacon-and-others).

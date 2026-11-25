@@ -404,7 +404,7 @@ final readonly class MfaManager
     }
 
     /**
-     * Deletes everything MFA knows about a user (account removal / personal data erasure).
+     * Deletes everything MFA knows about a user (account removal / personal data erasure), passkeys included (2.4.0).
      */
     public function forgetUser(UserInterface $user): void
     {
@@ -412,6 +412,8 @@ final readonly class MfaManager
         if ($credential instanceof MfaCredential) {
             $this->store->delete($credential);
         }
+        // 2.4.0 (audit ZBX-L3): the user's passkeys go too.
+        $this->passkeys?->forgetUser($user);
     }
 
     /**

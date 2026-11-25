@@ -47,7 +47,7 @@ final class SocialCredentialIssuerGuard
      */
     public function issuerChangeError(SocialLoginCredential $credential, ?string $newIssuer): ?string
     {
-        if (self::effective($credential, $credential->getIssuer()) === self::effective($credential, $newIssuer)) {
+        if ($this->effective($credential, $credential->getIssuer()) === $this->effective($credential, $newIssuer)) {
             return null;
         }
         if ($credential->getProvider() === '' || $this->accounts->count(['provider' => $credential->getProvider()]) === 0) {
@@ -62,7 +62,7 @@ final class SocialCredentialIssuerGuard
      * `linkedin` / `slack` credential without an issuer and without custom endpoints, its preset issuer
      * ({@see OidcProviderCatalog}). An explicit preset issuer and no issuer are then the same identity provider.
      */
-    private static function effective(SocialLoginCredential $credential, ?string $issuer): ?string
+    private function effective(SocialLoginCredential $credential, ?string $issuer): ?string
     {
         $issuer = $issuer === null ? '' : rtrim(trim($issuer), '/');
         if ($issuer !== '') {

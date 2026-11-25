@@ -57,7 +57,7 @@ nowo_auth_kit:
             webauthn:
                 mode: enabled              # disabled (default) | enabled
                 rp_id: null                # registrable domain, e.g. example.com; null = request host
-                allowed_origins: []        # exact scheme://host[:port]; empty = the request origin
+                allowed_origins: []        # exact https://host[:port]; empty = exactly https://<rp_id> (never the Host header)
                 timeout_ms: 60000          # browser timeout; the server challenge lives 30 s longer
                 attestation: none          # none | direct
                 max_credentials: 10        # passkeys per account (Beacon: 10)
@@ -73,17 +73,23 @@ nowo_auth_kit:
 ```
 
 - `rp_id` is fixed for the life of the passkeys: changing it (or the host when it is null) makes every registered
-  passkey unusable. Set it explicitly in production. A sub-domain may use its parent domain (`login.example.com` with
-  `rp_id: example.com`).
-- `allowed_origins`: list every origin that serves the login page when it is not the request's own (several
-  front-ends of one RP id). Matching is exact (scheme, host, port); sub-domains are refused.
+  passkey unusable. Set it explicitly in production, to the host that serves the login page (`login.example.com`).
+  A parent domain (`example.com` for `login.example.com`) lets the passkeys work on other sub-domains too, but every
+  sub-domain can then ask the user's passkeys for an assertion: use it only when you control every sub-domain, and
+  then list the origins in `allowed_origins`.
+- `allowed_origins`: the exact origins (`https://host[:port]`) a ceremony may come from; sub-domains are refused.
+  Empty means exactly `https://<rp_id>` (audit ZBX-M1): the expected origin is **never** taken from the request's
+  `Host` header, which a client can forge, so an attacker's sub-domain under a parent `rp_id` cannot make its own
+  origin "expected". The only exception is `rp_id: localhost` served on localhost (development: http and any port).
+  `http://` entries are accepted for `localhost` / `127.0.0.1` only. Configure `framework.trusted_hosts` as well.
 - `attestation: none` accepts whatever statement the browser returns and verifies it (a security key may keep a
   packed self attestation). `direct` asks for an attestation statement and refuses `none`; there are no trust anchors,
   so it proves a genuine statement, not an approved model.
 - User verification is **always required** (no option): a passkey is then two factors on its own.
-- `hash_secret`: the WebAuthn user handle given to authenticators is `HMAC-SHA-256(hash_secret, profile|owner)`. It
-  is never an e-mail or an id. Changing the secret only affects passkeys registered afterwards (each row stores its
-  handle).
+- `hash_secret`: the WebAuthn user handle given to new passkeys is `HMAC-SHA-256(hash_secret, profile|owner)`. It is
+  never an e-mail or an id. Each row stores the handle it was registered with, and every ceremony checks that stored
+  handle (audit ZBX-L2), so rotating the secret (or `%kernel.secret%`) keeps every registered passkey working, for the
+  sign-in and for the second step. An explicit empty secret is refused.
 - The per-IP limits are only as good as `framework.trusted_proxies`: behind a proxy that is not trusted every client
   shares one address, and a spoofable `X-Forwarded-For` lets a client pick its own.
 
@@ -168,7 +174,7 @@ The demo has its own migration (`demo/symfony8/migrations/Version20261125000000.
 |-------|-----|
 | Challenge | 32 random bytes per ceremony, kept server-side in the user's session (one per profile and ceremony), valid `timeout_ms` + 30 s |
 | Single use | taken out of the session before the answer is verified, and claimed once in the attempt limiter's store under its per-key lock, so two parallel requests of one session cannot both use it |
-| Origin | exact match against `allowed_origins` (or the request origin); sub-domains refused |
+| Origin | exact match against `allowed_origins`, else exactly `https://<rp_id>` (never the `Host` header); sub-domains refused |
 | RP id | the `rpIdHash` of the authenticator data must match `rp_id` |
 | User verification | required on every ceremony (`UV` flag), user presence too |
 | Signature | COSE ES256, EdDSA (Ed25519) or RS256, by the library |
@@ -177,6 +183,10 @@ The demo has its own migration (`demo/symfony8/migrations/Version20261125000000.
 | Attestation | every statement the browser returns is verified; `direct` refuses `none` |
 | Limits | `rate_limit.*`, `max_credentials` (under a per-owner lock), the MFA pending attempts (`mfa.max_attempts`) for the second step |
 | Recent sign-in | adding, renaming and removing need a full sign-in within `recent_sign_in` (remember-me and impersonation refused) |
+
+One challenge is pending per profile and ceremony in a session: asking for new options (a second tab, the button
+after the conditional UI started) replaces the previous challenge, and the older ceremony then fails with
+`reason: challenge` (audit ZBX-I3; the user tries again).
 
 **Deny by default.** An unknown credential, another profile's credential and another account's credential fail the
 same way: the browser gets the same redirect and the same flash for every failure of a sign-in. Accounts cannot be
@@ -189,7 +199,9 @@ the `WebauthnAuthenticationFailedEvent` with `reason: counter` is the signal for
 ## Passkeys and MFA
 
 - First factor `webauthn` (`mfa.first_factors.webauthn`) defaults to **exempt**: a passkey with user verification is
-  already possession plus knowledge or inherence. Set it to `required` to ask for a second step anyway.
+  already possession plus knowledge or inherence. Set it to `required` to ask for a second step anyway. The exemption
+  applies only with `webauthn.mfa: true` (audit ZBX-L1): with `webauthn.mfa: false` the profile says a passkey is not a
+  second factor, so a passkey sign-in of a user with TOTP is always challenged.
 - `MfaManager::hasSecondFactor($user)`: TOTP on, or at least one passkey with `webauthn.mfa`. A required user with a
   passkey is challenged, never forced into TOTP enrolment; `isEnabled()` still means TOTP only.
 - The challenge page shows the code form only when TOTP is on, and **Use a passkey** when the user has one. A passkey
@@ -264,6 +276,11 @@ With UserKit installed and the entities mapped (also while no profile enables pa
   erasure started (same rule as MFA);
 - export section `passkeys`: profile, label, dates, transports, synced, AAGUID per passkey.
 
+Passkey rows reference the user by owner type and id without a foreign key. A host that deletes users without
+UserKit's erasure calls `WebauthnManager::forgetUser($user)` (or `MfaManager::forgetUser($user)`, which calls it since
+2.4.0) in its deletion flow (audit ZBX-L3): a passkey left behind would sign in a later account that gets the same id
+(an e-mail natural key, a reused auto-increment id).
+
 ## Worker mode and concurrency
 
 - Every service is stateless (`readonly`); the library's serializer and validators are built per call; reads return
@@ -285,14 +302,18 @@ With UserKit installed and the entities mapped (also while no profile enables pa
 
 ## Host integration (Beacon and others)
 
-1. `composer update nowo-tech/auth-kit-bundle` (2.4.0 adds `web-auth/webauthn-lib` ^5.3, `symfony/serializer`,
-   `symfony/uid`), keep `symfony/lock`.
+1. `composer update nowo-tech/auth-kit-bundle` (2.4.0 adds `web-auth/webauthn-lib` ^5.3.17, `symfony/serializer`,
+   `symfony/uid`; see UPGRADING for the transitive packages), keep `symfony/lock`.
 2. Create the table: `doctrine:migrations:diff`, or one of the [SQL scripts](#sql-scripts).
-3. Enable `webauthn.mode: enabled` with an explicit `rp_id` (and `allowed_origins` when several front-ends share it),
-   `max_credentials: 10`.
+3. Enable `webauthn.mode: enabled` with an explicit `rp_id` equal to the login host (for example `login.example.com`;
+   the default origin is then `https://login.example.com`), `max_credentials: 10`. With a parent-domain `rp_id`, set
+   `allowed_origins` to the exact login origins. Set `framework.trusted_hosts`.
 4. Access control: `^/login/webauthn` public like `/login`; `/account/webauthn` for signed-in users.
 5. Link **Account → Security → Passkeys** to `nowo_auth_kit_webauthn_account` (or render your own page with
    `WebauthnManager::passkeys()` and the routes above, extending `webauthn/account.html.twig`).
 6. MFA policies (`mfa.policy`) need no change: a passkey counts through `MfaManager::hasSecondFactor()`. A host that
    removes passkeys itself passes `keepOne: true` when the user would be left without a required factor.
 7. Audit: listen to the four events; `WebauthnAuthenticationFailedEvent` with `reason: counter` may be a cloned key.
+   Notify the user on `WebauthnCredentialAddedEvent` and `WebauthnCredentialRemovedEvent` (Beacon: NotifyKit): the
+   bundle does not mail, and a hijacked fresh session could otherwise bind a passkey silently (audit ZBX-I7).
+8. Account deletion without UserKit: call `WebauthnManager::forgetUser()` (ZBX-L3).

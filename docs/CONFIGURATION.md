@@ -376,7 +376,7 @@ Opt-in per profile (2.4.0, `webauthn.mode: disabled` by default). Needs symfony/
 nowo_auth_kit:
     webauthn:
         mode: enabled
-        rp_id: example.com          # set it explicitly in production: changing it orphans every passkey
+        rp_id: login.example.com    # the login host; expected origin https://login.example.com (never the Host header)
         max_credentials: 10
 ```
 

@@ -55,6 +55,7 @@ use function json_decode;
 use function json_encode;
 use function random_bytes;
 use function strlen;
+use function strval;
 
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
@@ -164,8 +165,9 @@ final readonly class WebauthnCeremonies
     }
 
     /**
-     * The parsed assertion of a sign-in or second step, with the session's request options (the challenge is consumed
-     * before anything else is looked at, so every outcome costs the same challenge).
+     * The parsed assertion of a sign-in or second step, with the session's request options. The body is parsed first
+     * (a malformed body leaves the challenge in place: it is session-bound and the routes are rate limited), then the
+     * challenge is consumed before the credential is looked up, so every lookup outcome costs the same challenge.
      *
      * @throws WebauthnFailure
      *
@@ -361,12 +363,28 @@ final readonly class WebauthnCeremonies
         $factory = new CeremonyStepManagerFactory();
         $factory->setAlgorithmManager($this->algorithms());
         $factory->setAttestationStatementSupportManager($this->attestationSupports());
-        $origins = $profile->webauthn['allowed_origins'] ?? [];
-        $origins = is_array($origins) && $origins !== [] ? array_values($origins) : [$request->getSchemeAndHttpHost()];
-        /* @var list<string> $origins */
-        $factory->setAllowedOrigins($origins);
+        $factory->setAllowedOrigins($this->allowedOrigins($profile, $request));
 
         return $factory;
+    }
+
+    /**
+     * The exact origins a ceremony may come from (audit ZBX-M1): `webauthn.allowed_origins`, else exactly
+     * `https://<rp id>`. Never the request's `Host`: with a parent-domain RP id, a forged `Host` naming an attacker's
+     * sub-domain would otherwise make that sub-domain's origin "expected" and its assertion valid. The only exception
+     * is a `localhost` RP id served on localhost (development, where browsers allow plain http and any port).
+     *
+     * @return list<string>
+     */
+    public function allowedOrigins(ProfileSettings $profile, Request $request): array
+    {
+        $origins = $profile->webauthn['allowed_origins'] ?? [];
+        if (is_array($origins) && $origins !== []) {
+            return array_values(array_map(strval(...), $origins));
+        }
+        $rpId = $this->rpId($profile, $request);
+
+        return $rpId === 'localhost' && $request->getHost() === 'localhost' ? [$request->getSchemeAndHttpHost()] : ['https://' . $rpId];
     }
 
     private function algorithms(): Manager

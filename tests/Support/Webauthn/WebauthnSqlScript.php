@@ -88,7 +88,7 @@ final class WebauthnSqlScript
                 }
             }
             $sql = array_filter($sql, static fn (string $statement): bool => !str_contains($statement, 'DC2Type')
-                && !(preg_match('/ALTER (\w+) TYPE /', $statement, $match) === 1 && in_array($match[1], $commented, true)));
+                && (preg_match('/ALTER (\w+) TYPE /', $statement, $match) !== 1 || !in_array($match[1], $commented, true)));
         }
 
         return implode("\n", $sql);

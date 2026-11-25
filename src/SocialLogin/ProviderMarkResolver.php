@@ -70,7 +70,7 @@ final class ProviderMarkResolver
 
         $path = self::BUILT_IN[$key] ?? null;
 
-        return $path === null ? null : self::mark($path, self::ASSET_PACKAGE, self::BUILT_IN_ON_WHITE[$key]);
+        return $path === null ? null : $this->mark($path, self::ASSET_PACKAGE, self::BUILT_IN_ON_WHITE[$key]);
     }
 
     /**
@@ -87,14 +87,10 @@ final class ProviderMarkResolver
         $package = $mark['package'] ?? null;
         $onWhite = $mark['on_white'] ?? null;
 
-        return self::mark(
-            $path,
-            is_string($package) && trim($package) !== '' ? $package : null,
-            is_bool($onWhite) || $onWhite === self::ON_WHITE_AUTO ? $onWhite : (self::BUILT_IN_ON_WHITE[$provider] ?? false),
-        );
+        return $this->mark($path, is_string($package) && trim($package) !== '' ? $package : null, is_bool($onWhite) || $onWhite === self::ON_WHITE_AUTO ? $onWhite : (self::BUILT_IN_ON_WHITE[$provider] ?? false));
     }
 
-    private static function mark(string $path, ?string $package, bool|string $onWhite): ProviderMark
+    private function mark(string $path, ?string $package, bool|string $onWhite): ProviderMark
     {
         $auto = $onWhite === self::ON_WHITE_AUTO;
 

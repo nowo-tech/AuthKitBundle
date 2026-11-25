@@ -169,6 +169,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   button draws the "G" straight on `#131314`); `true` / `false` unchanged. New `ProviderMark::$onWhiteAuto` and class
   `nowo-auth-kit-providers__mark--on-white-auto`.
 
+### Security
+
+- Passkeys, pre-tag audit ZBX (code new in 2.4.0, never released): the expected origin is never taken from the
+  `Host` header; empty `allowed_origins` means exactly `https://<rp_id>` (M1). The `webauthn` first factor is exempt
+  from the second step only with `webauthn.mfa: true` (L1). The second step checks the user handle stored with the
+  passkey, so a rotated `hash_secret` locks nobody out (L2). `WebauthnManager::forgetUser()`, called by
+  `MfaManager::forgetUser()`, deletes a user's passkeys for hosts without UserKit (L3). `allowed_origins` accepts
+  `http://` only for localhost, an explicit empty `hash_secret` is refused, web-auth/webauthn-lib floor ^5.3.17.
+
 ### Fixed
 
 - 2.3.0 audit follow-ups ZBP-v-I1..I7 (Infos, no behaviour change at sign-in): SOCIAL-LOGIN.md and UPGRADING tell host

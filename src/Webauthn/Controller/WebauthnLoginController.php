@@ -90,7 +90,7 @@ final class WebauthnLoginController
 
             return new RedirectResponse($login, Response::HTTP_SEE_OTHER);
         }
-        MfaFirstFactor::mark($request, 'webauthn');
+        MfaFirstFactor::mark($request, MfaFirstFactor::WEBAUTHN);
         $response = $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall);
 
         return $response ?? new RedirectResponse($profile->loginSuccessRoute !== null ? $this->urls->generate($profile->loginSuccessRoute) : '/', Response::HTTP_SEE_OTHER);

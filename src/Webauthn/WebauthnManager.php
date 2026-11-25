@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Webauthn;
 
 use DateTimeImmutable;
+use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\MfaOwner;
 use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
 use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
@@ -300,6 +301,30 @@ final readonly class WebauthnManager
     }
 
     /**
+     * Deletes every passkey of the user, in every profile (audit ZBX-L3): call it when the account is deleted without
+     * UserKit's erasure (which runs {@see PersonalData\WebauthnPersonalDataEraser}); {@see MfaManager::forgetUser()}
+     * calls it. Passkey rows reference the user by owner id without a foreign key: a passkey left behind would sign in
+     * a later account that gets the same id. One {@see WebauthnCredentialRemovedEvent} (`reason: erasure`) per passkey.
+     * Returns how many were deleted.
+     */
+    public function forgetUser(UserInterface $user): int
+    {
+        $owner = $this->owners->personalDataOwner($user);
+        if (!$owner instanceof MfaOwner) {
+            return 0;
+        }
+        $deleted = 0;
+        foreach ($this->store->allOf($owner->type, $owner->id) as $record) {
+            if ($this->store->delete($record)) {
+                ++$deleted;
+                $this->dispatch(new WebauthnCredentialRemovedEvent($record->profile, $record->userType, $record->userId, $record->publicId, $record->label, WebauthnCredentialRemovedEvent::REASON_ERASURE));
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
      * A label as stored: control characters removed, white space trimmed, at most {@see self::LABEL_MAX_LENGTH}
      * characters; "Passkey" when nothing is left.
      */
@@ -330,7 +355,9 @@ final readonly class WebauthnManager
 
                 throw new WebauthnFailure(WebauthnFailure::UNKNOWN_CREDENTIAL);
             }
-            $expected = $owner instanceof MfaOwner ? $this->userHandle($profile, $owner) : null;
+            // The handle stored with the passkey (audit ZBX-L2): the row is already bound to the pending owner above, and
+            // a rotated webauthn.hash_secret must not lock out the passkeys registered before it.
+            $expected = $owner instanceof MfaOwner ? (string) Base64Url::decode($record->userHandle) : null;
             $checked  = $this->ceremonies->verifyAssertion($profile, $request, $record, $response, $options, $expected);
             if (!$this->store->recordUse($record, $checked['counter'], $checked['backup'], $this->now())) {
                 throw new WebauthnFailure(WebauthnFailure::COUNTER, 'The sign counter was already moved (parallel use, replay or clone).');

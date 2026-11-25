@@ -94,6 +94,8 @@ final class WebauthnConfigurationTest extends TestCase
         yield 'origin with a path' => [['allowed_origins' => ['https://example.com/login']]];
         yield 'origin without scheme' => [['allowed_origins' => ['example.com']]];
         yield 'origin not a string' => [['allowed_origins' => [['x']]]];
+        yield 'plain http origin' => [['allowed_origins' => ['http://example.com']]];
+        yield 'empty hash secret' => [['hash_secret' => '']];
         yield 'route path without slash' => [['routes' => ['account' => ['path' => 'account']]]];
         yield 'route path with two slashes' => [['routes' => ['account' => ['path' => '//evil.example']]]];
         yield 'unknown mode' => [['mode' => 'on']];
