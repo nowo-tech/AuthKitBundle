@@ -365,7 +365,7 @@ final class OidcSignInKernelTest extends WebTestCase
     private function logged(string $needle): bool
     {
         foreach ($this->logger()->records as [$message, $context]) {
-            if (str_contains($message, 'AuthKit') && str_contains(self::flatten($context), $needle)) {
+            if (str_contains($message, 'AuthKit') && str_contains($this->flatten($context), $needle)) {
                 return true;
             }
         }
@@ -384,7 +384,7 @@ final class OidcSignInKernelTest extends WebTestCase
             array_walk_recursive($context, static function (mixed $value, int|string $key) use ($message): void {
                 self::assertTrue($value === null || is_scalar($value), sprintf('AuthKit log context "%s" of "%s" must be scalar.', $key, $message));
             });
-            $text = $message . self::flatten($context);
+            $text = $message . $this->flatten($context);
             foreach (['secret-placeholder', 'at-placeholder', 'BEGIN PRIVATE KEY', 'code-1', 'eyJ'] as $secret) {
                 self::assertStringNotContainsString($secret, $text);
             }
@@ -396,7 +396,7 @@ final class OidcSignInKernelTest extends WebTestCase
      *
      * @param array<array-key, mixed> $context
      */
-    private static function flatten(array $context): string
+    private function flatten(array $context): string
     {
         $text = '';
         array_walk_recursive($context, static function (mixed $value, int|string $key) use (&$text): void {

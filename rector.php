@@ -30,6 +30,13 @@ return RectorConfig::configure()
             __DIR__ . '/tests/Unit/MagicLogin/MagicLoginRequestHandlerTest.php',
             // TokenInterface::eraseCredentials() on Symfony 7.4.
             __DIR__ . '/src/Mfa/Security/MfaPendingToken.php',
+            // UserInterface::eraseCredentials() of test users on Symfony 7.4 (audit ZBX-I9: never remove it while
+            // composer.json allows ^7.4).
+            __DIR__ . '/tests/Integration/LookAlike/LookAlikeIdentityTest.php',
+            __DIR__ . '/tests/Integration/Webauthn/WebauthnMfaKernelTest.php',
+            __DIR__ . '/tests/Unit/PersonalData/UserKitPersonalDataAdaptersTest.php',
+            __DIR__ . '/tests/Unit/Port/AuthUserRefsTest.php',
+            __DIR__ . '/tests/Unit/Port/PortGatesTest.php',
         ],
     ])
     // Machine-wide cap: at most 2 worker processes; generous timeout for slow (WSL2 / CI) hosts.
