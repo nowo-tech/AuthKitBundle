@@ -36,7 +36,6 @@ use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Nowo\AuthKitBundle\View\ProviderLink;
-use Nowo\AuthKitBundle\View\ProviderMark;
 use Nowo\FormKitBundle\Form\CsrfOnlyFormFactory;
 use Nowo\FormKitBundle\Form\FormTypeMap;
 use Nowo\FormKitBundle\Form\Type\CsrfOnlyType;
@@ -98,7 +97,7 @@ final class AuthPageFixtures
             'social_login_enabled'   => $withProviders,
             // 1.48: the built-in providers carry the mark the bundle ships (google), a custom provider none (my_idp).
             'social_links' => $withProviders ? [
-                new ProviderLink('google', new Label('social.continue_with', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => 'Google']), '/connect/google', new ProviderMark('img/social/google.svg', ProviderMarkResolver::ASSET_PACKAGE, true)),
+                new ProviderLink('google', new Label('social.continue_with', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => 'Google']), '/connect/google', (new ProviderMarkResolver())->resolve('google')),
                 new ProviderLink('my_idp', new Label('social.continue_with', NowoAuthKitBundle::TRANSLATION_DOMAIN, ['%provider%' => 'My IdP']), '/connect/my_idp'),
             ] : [],
             'sso_login_enabled' => $withProviders,

@@ -4,6 +4,7 @@
 
 - [Unreleased](#unreleased)
   - [Passkeys (opt-in)](#passkeys-opt-in)
+  - [Google mark in the dark theme](#google-mark-in-the-dark-theme)
 - [To 2.3.0](#to-230)
   - [Schema: three nullable columns](#schema-three-nullable-columns)
   - [New providers](#new-providers)
@@ -197,6 +198,16 @@ To turn passkeys on:
 
 The design keys `rp_name` and `user_verification` of the 1.12 draft do not exist: the RP name follows WebAuthn Level 3
 (the RP id), and user verification is always required. See [WEBAUTHN.md](WEBAUTHN.md#host-integration-beacon-and-others).
+
+### Google mark in the dark theme
+
+`social_login.provider_marks.<provider>.on_white` accepts `auto` next to `true` / `false`, and the built-in `google`
+mark now defaults to `auto`: its white backdrop stays in the light theme and goes in the dark theme
+(`data-theme="dark"`, or `prefers-color-scheme: dark` without `data-theme="light"`), where the full-colour "G" sits
+directly on the dark button as in Google's own dark button. Nothing changes in a light theme. To keep the white
+backdrop in both themes: `provider_marks: { google: { path: img/social/google.svg, package: nowo_auth_kit, on_white:
+true } }`. A host template that renders the mark itself adds `nowo-auth-kit-providers__mark--on-white-auto` when
+`mark.onWhiteAuto` is true (new `ProviderMark` property, default false).
 
 ## To 2.3.0
 

@@ -94,6 +94,21 @@
   background-color: #fff;
 }
 
+/*
+ * 2.4.0, on_white: auto (Google's default): the white backdrop in the light theme only. In the dark theme the
+ * full-colour mark sits directly on the dark button, as Google's dark sign-in button draws it; the clear space stays,
+ * the mark is never recoloured. Dark = data-theme="dark", or the OS preference without an explicit light choice.
+ */
+:root[data-theme='dark'] .nowo-auth-kit-providers__mark--on-white-auto {
+  background-color: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .nowo-auth-kit-providers__mark--on-white-auto {
+    background-color: transparent;
+  }
+}
+
 /* QR challenge (desktop) */
 .nowo-auth-kit-qr {
   display: grid;

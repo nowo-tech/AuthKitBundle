@@ -472,6 +472,26 @@ final class ConfigurationTest extends TestCase
         ], $config['profiles']['default']['social_login']['provider_marks']);
     }
 
+    public function testSocialLoginProviderMarkOnWhiteAcceptsAuto(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['provider_marks' => ['google' => ['path' => 'images/g.svg', 'on_white' => 'auto']]],
+            ]],
+        ]]);
+        self::assertSame('auto', $config['profiles']['default']['social_login']['provider_marks']['google']['on_white']);
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('true, false or "auto"');
+        (new Processor())->processConfiguration(new Configuration(), [[
+            'profiles' => ['default' => [
+                'user_class'   => TestUser::class,
+                'social_login' => ['provider_marks' => ['google' => ['path' => 'images/g.svg', 'on_white' => 'dark']]],
+            ]],
+        ]]);
+    }
+
     public function testSocialLoginProviderMarkRejectsAnUnusableEntry(): void
     {
         $this->expectException(InvalidArgumentException::class);

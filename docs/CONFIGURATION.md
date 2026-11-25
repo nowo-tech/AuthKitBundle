@@ -235,7 +235,7 @@ nowo_auth_kit:
         require_verified_email: true
         link_existing_account: reset_password  # 1.31+: reset_password | deny | keep
         pkce: {}                    # provider → bool; unset = on for google/github/microsoft, off for custom IdPs
-        provider_marks: {}          # 1.48: provider → false | 'asset/path.svg' | {path, package, on_white}
+        provider_marks: {}          # 1.48: provider → false | 'asset/path.svg' | {path, package, on_white: true|false|auto}
         authorization_params: {}    # 1.48: provider → map of extra authorize-request params (null removes one)
                                     #       google/microsoft send prompt=select_account unless you set prompt: ~
 
@@ -598,7 +598,7 @@ When `social_login.mode` is `enabled` **and** at least one enabled `SocialLoginC
 
 `social_login.pkce` toggles PKCE (RFC 7636, `S256` only) per provider key. Built-in `google`, `github` and `microsoft` default to enabled (verifier stored in the session with the OAuth `state`, `code_challenge` on the authorize redirect, `code_verifier` on the token exchange); custom providers default to disabled. Example: `pkce: { github: false, my_idp: true }`.
 
-`social_login.provider_marks` (1.48) sets the brand mark of each provider button. Unset, the built-in `google`, `github` and `microsoft` buttons carry the official mark the bundle ships (Google's guidelines require its "G" on the button) and every other provider carries none. Per provider: `false` removes the mark, a string is an asset path, or a map `{path, package, on_white}`. Keys are case-insensitive. Provenance and the trademark position of each shipped mark: [BRAND-MARKS.md](BRAND-MARKS.md).
+`social_login.provider_marks` (1.48) sets the brand mark of each provider button. Unset, the built-in `google`, `github` and `microsoft` buttons carry the official mark the bundle ships (Google's guidelines require its "G" on the button) and every other provider carries none. Per provider: `false` removes the mark, a string is an asset path, or a map `{path, package, on_white}`. `on_white` is `true` (white backdrop), `false` (none) or, since 2.4.0, `auto`: the backdrop in the light theme only, the full-colour mark directly on the button in the dark theme (`data-theme="dark"` or `prefers-color-scheme: dark`, CSS only, never recoloured). Built-in defaults: `google` `auto` (2.4.0; was `true`), `github` and `microsoft` `true`. Keys are case-insensitive. Provenance and the trademark position of each shipped mark: [BRAND-MARKS.md](BRAND-MARKS.md).
 
 Since 1.48 the built-in `google` and `microsoft` providers send `prompt=select_account` by default (the provider asks which account to use); set `prompt: ~` for that provider to restore the previous behaviour.
 

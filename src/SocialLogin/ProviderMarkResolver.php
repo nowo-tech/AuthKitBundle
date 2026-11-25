@@ -6,7 +6,6 @@ namespace Nowo\AuthKitBundle\SocialLogin;
 
 use Nowo\AuthKitBundle\View\ProviderMark;
 
-use function array_key_exists;
 use function is_array;
 use function is_bool;
 use function is_string;
@@ -39,6 +38,21 @@ final class ProviderMarkResolver
         'microsoft' => 'img/social/microsoft.svg',
     ];
 
+    /** `on_white` value meaning "white backdrop in the light theme only" (2.4.0). */
+    public const ON_WHITE_AUTO = 'auto';
+
+    /**
+     * Default `on_white` of the built-in marks (2.4.0): Google's guidelines draw the full-colour "G" straight on the dark
+     * button (#131314) in the dark theme and on white in the light one, so `auto`; the others keep the white backdrop.
+     *
+     * @var array<string, bool|string>
+     */
+    private const BUILT_IN_ON_WHITE = [
+        'google'    => self::ON_WHITE_AUTO,
+        'github'    => true,
+        'microsoft' => true,
+    ];
+
     /**
      * @param array<string, mixed> $marks `social_login.provider_marks`, keyed by provider (case-insensitive)
      */
@@ -56,7 +70,7 @@ final class ProviderMarkResolver
 
         $path = self::BUILT_IN[$key] ?? null;
 
-        return $path === null ? null : new ProviderMark($path, self::ASSET_PACKAGE, true);
+        return $path === null ? null : self::mark($path, self::ASSET_PACKAGE, self::BUILT_IN_ON_WHITE[$key]);
     }
 
     /**
@@ -73,10 +87,17 @@ final class ProviderMarkResolver
         $package = $mark['package'] ?? null;
         $onWhite = $mark['on_white'] ?? null;
 
-        return new ProviderMark(
+        return self::mark(
             $path,
             is_string($package) && trim($package) !== '' ? $package : null,
-            is_bool($onWhite) ? $onWhite : array_key_exists($provider, self::BUILT_IN),
+            is_bool($onWhite) || $onWhite === self::ON_WHITE_AUTO ? $onWhite : (self::BUILT_IN_ON_WHITE[$provider] ?? false),
         );
+    }
+
+    private static function mark(string $path, ?string $package, bool|string $onWhite): ProviderMark
+    {
+        $auto = $onWhite === self::ON_WHITE_AUTO;
+
+        return new ProviderMark($path, $package, $auto || $onWhite === true, $auto);
     }
 }

@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcOptions;
+use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
 use Symfony\Component\Config\Definition\Builder\NodeDefinition;
@@ -1396,9 +1397,13 @@ final class Configuration implements ConfigurationInterface
                                 ->info('Asset package holding the mark. null: the host\'s default package.')
                                 ->defaultNull()
                             ->end()
-                            ->booleanNode('on_white')
-                                ->info('Render the mark on a white backdrop with clear space (Google requires its "G" on white). Not set: as the bundle ships it for a built-in provider, off for any other.')
+                            ->scalarNode('on_white')
+                                ->info('true: the mark on a white backdrop with clear space; false: none; "auto" (2.4.0): the backdrop in the light theme only, the full-colour mark directly on the button in the dark theme (CSS, data-theme / prefers-color-scheme). Not set: as the bundle ships it for a built-in provider (google "auto", github / microsoft true), off for any other.')
                                 ->defaultNull()
+                                ->validate()
+                                    ->ifTrue(static fn (mixed $value): bool => !is_bool($value) && $value !== ProviderMarkResolver::ON_WHITE_AUTO)
+                                    ->thenInvalid('provider_marks.*.on_white must be true, false or "auto", got %s.')
+                                ->end()
                             ->end()
                         ->end()
                     ->end()

@@ -163,6 +163,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `slack` credential without an issuer and without custom endpoints uses its preset issuer, so writing it explicitly is
   no longer reported as an issuer change (admin UX only; the sign-in was and stays authoritative).
 
+- Provider marks: `on_white` accepts `auto` (Beacon): the white backdrop in the light theme only; in the dark theme
+  (`data-theme="dark"`, or `prefers-color-scheme: dark` without an explicit light choice; CSS only) the full-colour
+  mark sits directly on the button, never recoloured. The built-in `google` mark defaults to `auto` (Google's dark
+  button draws the "G" straight on `#131314`); `true` / `false` unchanged. New `ProviderMark::$onWhiteAuto` and class
+  `nowo-auth-kit-providers__mark--on-white-auto`.
+
 ### Fixed
 
 - 2.3.0 audit follow-ups ZBP-v-I1..I7 (Infos, no behaviour change at sign-in): SOCIAL-LOGIN.md and UPGRADING tell host
