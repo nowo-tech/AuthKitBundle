@@ -1,6 +1,7 @@
 # Social login (OAuth)
 
-AuthKit can expose **Continue with …** buttons on the login page. Provider **client id / client secret** and per-user **access/refresh tokens** are stored in Doctrine tables owned by the bundle.
+AuthKit can expose **Continue with …** buttons on the login page. OpenID Connect providers (generic issuer, GitLab,
+Apple, LinkedIn, Slack; 2.3.0) are described in [OIDC-PROVIDERS.md](OIDC-PROVIDERS.md). Provider **client id / client secret** and per-user **access/refresh tokens** are stored in Doctrine tables owned by the bundle.
 
 ## Table of contents
 
@@ -18,7 +19,7 @@ AuthKit can expose **Continue with …** buttons on the login page. Provider **c
 
 | Entity | Table | Purpose |
 |--------|-------|---------|
-| `SocialLoginCredential` | `auth_kit_social_credential` | OAuth app credentials per provider (`google`, `github`, `microsoft`, or custom) |
+| `SocialLoginCredential` | `auth_kit_social_credential` | OAuth app credentials per provider (`google`, `github`, `microsoft`, `gitlab`, `apple`, `linkedin`, `slack`, or custom; OIDC `issuer` and `provider_settings` since 2.3.0) |
 | `SocialLoginAccount` | `auth_kit_social_account` | Linked local user + tokens + provider subject |
 
 Run migrations / `doctrine:schema:update` after enabling the feature so both tables exist.
@@ -176,7 +177,7 @@ $em->persist($credential);
 $em->flush();
 ```
 
-Built-in endpoint defaults exist for `google`, `github`, and `microsoft`. Custom providers must set the three URLs on the credential.
+Built-in endpoint defaults exist for `google`, `github`, and `microsoft`. Custom OAuth2 providers must set the three URLs on the credential; OpenID Connect providers set an issuer instead (or use the `gitlab`, `apple`, `linkedin`, `slack` presets), see [OIDC-PROVIDERS.md](OIDC-PROVIDERS.md).
 
 For **organization / enterprise OIDC** IdPs, set `enterpriseSso: true` so the login page lists them under the SSO heading instead of consumer social buttons. See [SSO.md](SSO.md).
 
@@ -185,7 +186,8 @@ For **organization / enterprise OIDC** IdPs, set `enterpriseSso: true` so the lo
 Public routes (also locale-prefixed when `locale.in_path` is `always`/`both`):
 
 - `GET /login/social/{provider}` → start
-- `GET /login/social/{provider}/check` → callback
+- `GET /login/social/{provider}/check` → callback (`POST` too since 2.3.0, for `response_mode=form_post` providers:
+  Sign in with Apple; see [OIDC-PROVIDERS.md](OIDC-PROVIDERS.md#sign-in-with-apple))
 
 Add matching `access_control` entries (`PUBLIC_ACCESS`), same pattern as magic login / password reset. The OAuth redirect URI registered at the IdP must match the **absolute** check URL (including locale prefix if you use one). With `absolute_url.base_uri` (1.24+) that URL is `{base_uri}` + check path for start and code exchange alike, independent of the request `Host` — register exactly that.
 

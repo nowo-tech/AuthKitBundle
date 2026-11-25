@@ -30,6 +30,8 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcClient;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcException;
 use Nowo\AuthKitBundle\SocialLogin\Pkce;
 use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
@@ -138,6 +140,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         private readonly ?OAuth2Client $oauth2Client = null,
         private readonly ?SocialLoginStateStore $stateStore = null,
         private readonly ProviderMarkResolver $marks = new ProviderMarkResolver(),
+        private readonly ?OidcClient $oidcClient = null,
     ) {
     }
 
@@ -323,8 +326,18 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         $pkceOverrides = $profile->socialLogin['pkce'] ?? [];
         /** @var array<string, mixed> $authorizationParams */
         $authorizationParams = $profile->socialLogin['authorization_params'] ?? [];
-        $codeVerifier        = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
-        $state               = $this->stateStore->issue($provider, $codeVerifier);
+        if ($this->oidcClient instanceof OidcClient && $this->oidcClient->supports($credential)) {
+            // 2.3.0: OpenID Connect providers (discovery, nonce). A provider that cannot be reached is a failure here.
+            try {
+                ['state' => $state, 'url' => $location] = $this->oidcClient->begin($credential, $provider, $redirectUri, $this->stateStore, $pkceOverrides, $authorizationParams);
+            } catch (OidcException) {
+                return $this->notice($profile, 'unavailable');
+            }
+        } else {
+            $codeVerifier = $this->oauth2Client->usesPkce($credential, $pkceOverrides) ? Pkce::generateVerifier() : null;
+            $state        = $this->stateStore->issue($provider, $codeVerifier);
+            $location     = $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier, $authorizationParams);
+        }
         $session->set(self::SOCIAL_SESSION_KEY, [
             'profile'  => $profile->name,
             'provider' => $provider,
@@ -333,7 +346,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
             'hash'     => $tokenHash,
         ]);
 
-        return $this->private(new Response('', Response::HTTP_SEE_OTHER, ['Location' => $this->oauth2Client->buildAuthorizeUrl($credential, $redirectUri, $state, $codeVerifier, $authorizationParams)]));
+        return $this->private(new Response('', Response::HTTP_SEE_OTHER, ['Location' => $location]));
     }
 
     /**

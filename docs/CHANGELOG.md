@@ -124,6 +124,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **OpenID Connect providers** (Beacon D-20261124-08): a generic provider from an issuer with discovery
+  (`SocialLoginCredential::setIssuer()`; Okta, Keycloak, Auth0, a customer's Entra tenant, …) and four presets:
+  `gitlab` (gitlab.com or a self-hosted base URL), `apple` (Sign in with Apple), `linkedin` (OpenID Connect) and
+  `slack` (Sign in with Slack). Same buttons, routes, state and account-linking rules as the OAuth2 providers.
+  See [OIDC-PROVIDERS.md](OIDC-PROVIDERS.md).
+- ID token verification (`IdTokenValidator`): JWS signature with the issuer's JWKS only, `alg` allow-list
+  (`oidc.allowed_algorithms`, RS*/ES*; `none` and HS* never accepted), `iss` exact, `aud` / `azp`, `exp` / `iat` /
+  `nbf` with `oidc.clock_skew`, `oidc.max_id_token_age`, `nonce` (stored with the state, compared in constant time),
+  userinfo `sub` must match. PKCE S256 when the provider advertises it (or `social_login.pkce` says so).
+- SSRF guard for every OIDC request (`OidcHttpClient`): HTTPS only, every resolved address public (private, loopback,
+  CGNAT, link-local / metadata, multicast, reserved and IPv4-in-IPv6 encodings refused), connection pinned to the
+  checked address, no redirects, `http_client` deadlines, `oidc.max_response_bytes` enforced while downloading.
+- Discovery documents and key sets cached in `oidc.cache_pool` (default `cache.app`) for `oidc.metadata_cache_ttl` /
+  `oidc.jwks_cache_ttl`; an unknown key id refetches the set at most every `oidc.jwks_refresh_interval` seconds.
+  No service state (FrankenPHP worker mode, REQ-RUNTIME-002).
+- Sign in with Apple: ES256 client secret generated per token request from the `.p8` key stored (encrypted) as the
+  client secret, `team_id` / `key_id` in the new `provider_settings`; `response_mode=form_post` callbacks relayed to a
+  same-site POST without touching the session (`SocialFormPostRelay`, `js/nowo-auth-kit-form-post.js`), so SameSite
+  session cookies keep working; the first-authorization name is used for the display name only.
+- `auth_kit_social_credential.issuer` and `.provider_settings` (nullable), validated on write and on read.
+- Audit ZBP-L1: `auth_kit_social_account.issuer` (nullable): a link records the issuer it was made under and signs in
+  only while the credential keeps that issuer (a provider key moved to another IdP never hands its links to that IdP's
+  subjects). `SocialCredentialIssuerGuard::issuerChangeError()` for admin screens: the issuer is locked while accounts
+  are linked.
+- Audit ZBP-L3: failed discoveries are negatively cached per issuer (`oidc.discovery_failure_ttl`, 30 s) and sign-in
+  starts are rate-limited per client IP (`social_login.start_rate_limit` 20 / `start_rate_window` 60 s; flash
+  `social.error.rate_limited`, 7 locales).
+- Audit ZBP-L2: OIDC-PROVIDERS / SECURITY / UPGRADING warn that any configured issuer can assert a verified e-mail and,
+  with `link_existing_account` other than `deny`, take over that local account; outbound-proxy and worker DNS-pin notes.
+- Audit ZBP-I1: the IPv4-translated block `::ffff:0:0:0/96` is refused too.
+- Configuration `nowo_auth_kit.oidc` (validated). Translations `social.form_post.*` (7 locales).
+
+### Changed
+
+- `/login/social/{provider}/check` accepts POST (form_post providers only; any other POST goes to the sign-in page).
+- `SocialLoginStateStore` keeps an optional nonce with the state.
+
 ## [2.2.1] - 2026-11-24
 
 ### Fixed

@@ -1,0 +1,25 @@
+{#
+  2.3.0 — relay of a response_mode=form_post social callback (Sign in with Apple), rendered by
+  SocialLogin\SocialFormPostRelay. A standalone document on purpose: it must not start a session (no layout, no flash
+  messages, no app.session), because the provider's cross-site POST arrives without the visitor's session cookie.
+  `form` holds the provider's fields as hidden inputs plus the Continue button; js/nowo-auth-kit-form-post.js submits
+  it at once (CSP-safe: no inline code), the button is there when scripts are off or blocked.
+#}
+<!DOCTYPE html>
+<html lang="{{ app is defined and app and app.request ? app.request.locale : 'en' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ 'social.form_post.title'|trans({}, 'NowoAuthKitBundle') }}</title>
+    {% set _csp_nonce = app is defined and app and app.request ? app.request.attributes.get('csp_nonce')|default('') : '' %}
+    <script src="{{ asset('js/nowo-auth-kit-form-post.js', 'nowo_auth_kit') }}" defer{% if _csp_nonce %} nonce="{{ _csp_nonce }}"{% endif %}></script>
+</head>
+<body>
+    <p>{{ 'social.form_post.title'|trans({}, 'NowoAuthKitBundle') }}</p>
+    {{ form_start(form, {attr: {'data-nowo-auth-kit-form-post': '1'}}) }}
+    {{ form_widget(form) }}
+    {{ form_end(form) }}
+</body>
+</html>

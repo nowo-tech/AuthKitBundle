@@ -3,6 +3,10 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.3.0](#to-230)
+  - [Schema: three nullable columns](#schema-three-nullable-columns)
+  - [New providers](#new-providers)
+  - [Behaviour that changes](#behaviour-that-changes)
 - [To 2.2.1](#to-221)
 - [To 2.2.0](#to-220)
   - [Password reset: one link stores one password (REQ-RUNTIME-003)](#password-reset-one-link-stores-one-password-req-runtime-003)
@@ -172,6 +176,81 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.3.0
+
+From **2.2.x**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+Minor release: OpenID Connect providers (generic issuer with discovery, GitLab, Sign in with Apple, LinkedIn, Slack).
+Nothing changes for the existing `google`, `github`, `microsoft` and custom OAuth2 credentials. The 2.2.1 note on host
+social handlers still applies: clean-up and audit work belongs in a `finally` block inside `handle()`, not in
+`handleFailure()`.
+
+### Schema: three nullable columns
+
+`auth_kit_social_credential` gains `issuer` (`VARCHAR(512) NULL`) and `provider_settings` (`JSON NULL`);
+`auth_kit_social_account` gains `issuer` (`VARCHAR(512) NULL`, the issuer a link was made under). All are nullable and
+need no data migration (existing links keep `NULL`, which is what the OAuth2 providers record), so the migration
+Doctrine generates is safe on a non-empty table:
+
+```bash
+php bin/console doctrine:migrations:diff   # then review and migrate
+```
+
+```sql
+-- MySQL / MariaDB
+ALTER TABLE auth_kit_social_credential ADD issuer VARCHAR(512) DEFAULT NULL, ADD provider_settings JSON DEFAULT NULL;
+ALTER TABLE auth_kit_social_account ADD issuer VARCHAR(512) DEFAULT NULL;
+-- PostgreSQL
+ALTER TABLE auth_kit_social_credential ADD issuer VARCHAR(512) DEFAULT NULL;
+ALTER TABLE auth_kit_social_credential ADD provider_settings JSON DEFAULT NULL;
+ALTER TABLE auth_kit_social_account ADD issuer VARCHAR(512) DEFAULT NULL;
+```
+
+Use your table prefix (`doctrine.table_prefix`) when you set one. Until the columns exist every page that reads the
+credential table fails, as for any new mapped column: migrate before switching traffic.
+
+### New providers
+
+- **Generic OIDC**: any provider key plus `setIssuer('https://…')`.
+- **`gitlab`** (gitlab.com, or `setIssuer()` with a self-hosted base URL), **`apple`** (client secret = the `.p8` PEM,
+  `setProviderSettings(['team_id' => …, 'key_id' => …])`), **`linkedin`**, **`slack`**.
+
+Setup steps, redirect URIs and every check: [OIDC-PROVIDERS.md](OIDC-PROVIDERS.md). New root configuration
+`nowo_auth_kit.oidc` (defaults are fine): [CONFIGURATION.md](CONFIGURATION.md#openid-connect-providers-oidc).
+
+Things to do for a provider you enable:
+
+- register `https://<your host>/login/social/<provider>/check` at the provider;
+- **Apple**: the callback is a POST; if a firewall, a WAF or `access_control` limits the check route to GET, allow POST
+  there, and allow `/bundles/nowoauthkit/js/nowo-auth-kit-form-post.js` in a strict CSP (`'self'` already covers it).
+  Run `assets:install` so the script is published;
+- give the button a mark with `social_login.provider_marks.<provider>` if you want one (none ship for these providers);
+- **trust**: every configured issuer can assert a verified e-mail and, with `link_existing_account` other than `deny`,
+  sign in as the local account with that address, administrators included. Use `deny` on profiles that offer issuers
+  you do not fully trust ([OIDC-PROVIDERS.md](OIDC-PROVIDERS.md#every-configured-issuer-is-trusted-with-e-mail-addresses));
+- **issuer changes**: a link signs in only under the issuer it was made with. In your admin screen, call
+  `SocialCredentialIssuerGuard::issuerChangeError()` before saving a new issuer and show its message (unlink first, or
+  use a new provider key).
+
+### Behaviour that changes
+
+- `GET|POST /login/social/{provider}/check`: the route now accepts POST. A POST for a provider that does not use
+  `response_mode=form_post` is sent to the sign-in page without being processed.
+- `GET /login/social/{provider}` is rate-limited per client IP: `social_login.start_rate_limit` (default **20**,
+  0 disables) per `social_login.start_rate_window` (60 s), through the attempt limiter. Over it, the visitor is sent back
+  to the sign-in page with `social.error.rate_limited`. Raise it (or set 0) if many users share one IP (NAT, kiosk).
+- A failed OIDC discovery is remembered for `oidc.discovery_failure_ttl` seconds (30) and not retried meanwhile.
+- `SocialLoginStateStore::issue()` takes an optional third argument (the nonce) and `consumePending()` returns
+  `['code_verifier' => …, 'nonce' => …]`. Only code that calls the store directly (tests, host start controllers) sees
+  the extra key.
+- A credential keyed `gitlab`, `linkedin`, `slack` or `apple` **without** its own authorize / token / userinfo URLs now
+  signs in through OpenID Connect (before 2.3.0 it could not sign in at all). One **with** those URLs keeps the OAuth2
+  path unchanged.
 
 ## To 2.2.1
 

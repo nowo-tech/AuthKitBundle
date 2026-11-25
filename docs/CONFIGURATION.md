@@ -22,6 +22,7 @@
 - [Magic login (passwordless)](#magic-login-passwordless)
 - [Social login (OAuth)](#social-login-oauth)
   - [HTTP timeouts (social login)](#http-timeouts-social-login)
+- [OpenID Connect providers (oidc)](#openid-connect-providers-oidc)
 - [Doctrine table prefix](#doctrine-table-prefix)
 - [Doctrine mapping of the bundle entities](#doctrine-mapping-of-the-bundle-entities)
 - [Routes of disabled features](#routes-of-disabled-features)
@@ -606,6 +607,29 @@ Root-level keys (shared by every profile). On expiry Symfony HttpClient throws a
 | FrankenPHP `max_wait_time` | 30 s | Caps the wait for a free PHP thread (504 instead of an endless queue) |
 
 When you raise `max_duration`, raise the PHP and HTTP write deadlines in the same change (see [DEMO-FRANKENPHP.md](DEMO-FRANKENPHP.md#timeouts)).
+
+## OpenID Connect providers (oidc)
+
+Since 2.3.0. Root-level keys (shared by every profile) for the generic OpenID Connect provider and the `gitlab`,
+`apple`, `linkedin`, `slack` presets: ID token checks, cache and fetch limits. Setup per provider, redirect URIs and
+what is checked: [OIDC-PROVIDERS.md](OIDC-PROVIDERS.md).
+
+```yaml
+nowo_auth_kit:
+    oidc:
+        allowed_algorithms: [RS256, RS384, RS512, ES256, ES384, ES512]  # non-empty subset; none / HS* never accepted
+        clock_skew: 60              # 0..300 s
+        max_id_token_age: 600       # 60..86400 s
+        metadata_cache_ttl: 3600    # 60..604800 s
+        jwks_cache_ttl: 3600        # 60..604800 s
+        jwks_refresh_interval: 60   # 0..3600 s
+        max_response_bytes: 524288  # 4096..5242880
+        discovery_failure_ttl: 30   # 0..300 s, negative cache of a failed discovery
+        cache_pool: cache.app
+```
+
+The `http_client` deadlines above apply to every OIDC request too. Per profile, `social_login.start_rate_limit`
+(default 20, 0 disables) and `social_login.start_rate_window` (60 s) bound the sign-in starts per client IP.
 
 ## Doctrine table prefix
 

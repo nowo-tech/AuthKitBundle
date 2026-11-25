@@ -118,6 +118,10 @@ social:
         invalid_state: Sociale login kon niet worden voltooid (ongeldige status).
         provider_denied: Sociale login geannuleerd of geweigerd.
         failed: Sociale login mislukt. Probeer het opnieuw.
+        rate_limited: 'Te veel aanmeldpogingen. Wacht een minuut en probeer het opnieuw.'
+    form_post:
+        title: 'Bezig met aanmelden…'
+        continue: 'Doorgaan'
 
 sso:
     heading: Inloggen met je organisatie

@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-24 (2.2.1, no new production sources)  
-**Units**: **468** (`399` PHP under `src/` + `69` Resources)
+**Last audited**: 2026-11-25 (2.3.0, OpenID Connect providers: 20 PHP + 2 Resources)  
+**Units**: **493** (`422` PHP under `src/` + `71` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -153,6 +153,33 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `SocialLogin/SocialLoginStateStore.php` | production | FR-SOCIAL-001 | Mapped |
 | `SocialLogin/SocialUserProfile.php` | production | FR-SOCIAL-001 | Mapped |
 | `SocialLogin/Pkce.php` | production | FR-SOCIAL-001 | Mapped |
+
+## OpenID Connect providers (v2.3.0)
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Form/SocialFormPostRelayType.php` | production | FR-SOCIAL-008 | Mapped |
+| `SocialLogin/SocialFormPostRelay.php` | production | FR-SOCIAL-008 | Mapped |
+| `SocialLogin/SocialCredentialIssuerGuard.php` | production | FR-SOCIAL-009 | Mapped |
+| `SocialLogin/Oidc/AppleClientSecret.php` | production | FR-SOCIAL-007 | Mapped |
+| `SocialLogin/Oidc/Base64Url.php` | production | FR-SOCIAL-004 | Mapped |
+| `SocialLogin/Oidc/DnsHostResolver.php` | production | FR-SOCIAL-005 | Mapped |
+| `SocialLogin/Oidc/HostResolverInterface.php` | production | FR-SOCIAL-005 | Mapped |
+| `SocialLogin/Oidc/IdTokenValidator.php` | production | FR-SOCIAL-004 | Mapped |
+| `SocialLogin/Oidc/JwkConverter.php` | production | FR-SOCIAL-004, FR-SOCIAL-007 | Mapped |
+| `SocialLogin/Oidc/JwksProvider.php` | production | FR-SOCIAL-004, FR-SOCIAL-006 | Mapped |
+| `SocialLogin/Oidc/OidcClient.php` | production | FR-SOCIAL-002, FR-SOCIAL-003 | Mapped |
+| `SocialLogin/Oidc/OidcCredentialRules.php` | production | FR-SOCIAL-002 | Mapped |
+| `SocialLogin/Oidc/OidcDiscovery.php` | production | FR-SOCIAL-002, FR-SOCIAL-006 | Mapped |
+| `SocialLogin/Oidc/OidcException.php` | production | FR-SOCIAL-004 | Mapped |
+| `SocialLogin/Oidc/OidcHttpClient.php` | production | FR-SOCIAL-005 | Mapped |
+| `SocialLogin/Oidc/OidcOptions.php` | production | FR-SOCIAL-004, FR-SOCIAL-006 | Mapped |
+| `SocialLogin/Oidc/OidcProviderCatalog.php` | production | FR-SOCIAL-002, FR-SOCIAL-003 | Mapped |
+| `SocialLogin/Oidc/OidcProviderMetadata.php` | production | FR-SOCIAL-002 | Mapped |
+| `SocialLogin/Oidc/OidcProviderSettings.php` | production | FR-SOCIAL-002, FR-SOCIAL-003 | Mapped |
+| `SocialLogin/Oidc/PublicIpChecker.php` | production | FR-SOCIAL-005 | Mapped |
+| `Resources/public/js/nowo-auth-kit-form-post.js` | production | FR-SOCIAL-008 | Mapped |
+| `Resources/views/security/social_form_post.html.twig` | production | FR-SOCIAL-008 | Mapped |
 
 ## Profiles & locale
 
@@ -702,10 +729,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 402 |
-| Resources (config/translations/views/public) | 69 |
-| **Total production sources** | **471** |
-| Audit command | `git ls-files src \| wc -l` → 471 |
+| PHP under `src/` | 422 |
+| Resources (config/translations/views/public) | 71 |
+| **Total production sources** | **493** |
+| Audit command | `git ls-files src \| wc -l` → 493 |
 
 ## Coverage gate
 

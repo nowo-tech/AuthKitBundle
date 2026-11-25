@@ -80,6 +80,8 @@ use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetGuard;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
 use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetVoterInterface;
 use Nowo\AuthKitBundle\Security\SessionExpired\SessionExpiredResponder;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\JwksProvider;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcDiscovery;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
@@ -256,6 +258,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter('nowo_auth_kit.absolute_url.base_uri', $config['absolute_url']['base_uri']);
         $container->setParameter('nowo_auth_kit.http_client.timeout', (float) $config['http_client']['timeout']);
         $container->setParameter('nowo_auth_kit.http_client.max_duration', (float) $config['http_client']['max_duration']);
+        foreach (['allowed_algorithms', 'clock_skew', 'max_id_token_age', 'metadata_cache_ttl', 'jwks_cache_ttl', 'jwks_refresh_interval', 'max_response_bytes', 'discovery_failure_ttl'] as $oidcKey) {
+            $container->setParameter('nowo_auth_kit.oidc.' . $oidcKey, $oidcKey === 'allowed_algorithms' ? array_values($config['oidc'][$oidcKey]) : $config['oidc'][$oidcKey]);
+        }
         $container->setParameter('nowo_auth_kit.doctrine.table_prefix', $config['doctrine']['table_prefix']);
         $container->setParameter('nowo_auth_kit.locale.unlocalized_route_suffix', $config['locale']['unlocalized_route_suffix']);
         $container->setParameter('nowo_auth_kit.locale.localized_logout_redirect', $config['locale']['localized_logout_redirect']);
@@ -279,6 +284,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $container->setParameter(AuthKitPortsPass::SERVICES_PARAMETER, []);
         // 1.42: the pool of the rate-limit / lockout counters (default cache.app, as before).
         $container->getDefinition(AuthKitAttemptLimiter::class)->setArgument('$cache', new Reference((string) $config['attempt_limiter']['cache_pool']));
+        // 2.3.0: the pool of the OIDC discovery documents and key sets (default cache.app).
+        foreach ([OidcDiscovery::class, JwksProvider::class] as $oidcCacheUser) {
+            $container->getDefinition($oidcCacheUser)->setArgument('$cache', new Reference((string) $config['oidc']['cache_pool']));
+        }
         // 1.42: the accept page owns the OAuth callback of a social acceptance only where a profile opts in.
         foreach ($profiles as $profile) {
             if (($profile['invitations']['mode'] ?? InvitationsConfiguration::MODE_DISABLED) === InvitationsConfiguration::MODE_ENABLED && ($profile['invitations']['social']['accept_page'] ?? false) === true) {

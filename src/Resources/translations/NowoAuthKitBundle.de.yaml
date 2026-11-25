@@ -118,6 +118,10 @@ social:
         invalid_state: Social Login konnte nicht abgeschlossen werden (ungültiger Status).
         provider_denied: Social Login wurde abgebrochen oder abgelehnt.
         failed: Social Login fehlgeschlagen. Bitte erneut versuchen.
+        rate_limited: 'Zu viele Anmeldeversuche. Bitte warte eine Minute und versuche es erneut.'
+    form_post:
+        title: 'Anmeldung läuft…'
+        continue: 'Weiter'
 
 sso:
     heading: Mit Ihrer Organisation anmelden

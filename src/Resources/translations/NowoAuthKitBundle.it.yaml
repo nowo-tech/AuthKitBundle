@@ -118,6 +118,10 @@ social:
         invalid_state: Accesso social non completato (stato non valido).
         provider_denied: Accesso social annullato o negato.
         failed: Accesso social non riuscito. Riprova.
+        rate_limited: 'Troppi tentativi di accesso. Attendi un minuto e riprova.'
+    form_post:
+        title: 'Accesso in corso…'
+        continue: 'Continua'
 
 sso:
     heading: Accedi con la tua organizzazione
