@@ -146,11 +146,21 @@
             state(error && (error.name === 'NotAllowedError' || error.name === 'AbortError') ? 'cancelled' : 'failed');
         }
 
-        function startConditional() {
-            if (typeof PublicKeyCredential.isConditionalMediationAvailable !== 'function') {
-                return;
+        function conditionalAvailable() {
+            if (typeof PublicKeyCredential.getClientCapabilities === 'function') {
+                return PublicKeyCredential.getClientCapabilities().then(function (capabilities) {
+                    return capabilities.conditionalGet === true;
+                });
             }
-            PublicKeyCredential.isConditionalMediationAvailable().then(function (available) {
+            if (typeof PublicKeyCredential.isConditionalMediationAvailable === 'function') {
+                return PublicKeyCredential.isConditionalMediationAvailable();
+            }
+
+            return Promise.resolve(false);
+        }
+
+        function startConditional() {
+            conditionalAvailable().then(function (available) {
                 if (!available) {
                     return;
                 }
@@ -207,8 +217,35 @@
         }
     }
 
+    /*
+     * Account page: tell the password manager which passkeys the server still accepts (Signal API), so a passkey
+     * removed here disappears from the user's vault too. Passive: never breaks the page, warns only.
+     */
+    function signal(root) {
+        if (!window.PublicKeyCredential || typeof PublicKeyCredential.signalAllAcceptedCredentials !== 'function') {
+            return;
+        }
+        try {
+            var data = JSON.parse(root.getAttribute('data-nowo-auth-kit-webauthn-signal') || '{}');
+            var valid = /^[A-Za-z0-9_-]+$/;
+            var ids = (data.allAcceptedCredentialIds || []).filter(function (id) {
+                return valid.test(id) && id.length % 4 !== 1;
+            });
+            if (!data.rpId || !valid.test(data.userId || '')) {
+                return;
+            }
+            PublicKeyCredential.signalAllAcceptedCredentials({ rpId: data.rpId, userId: data.userId, allAcceptedCredentialIds: ids })
+                .catch(function (error) {
+                    console.warn('AuthKit: passkey list sync failed', error);
+                });
+        } catch (error) {
+            console.warn('AuthKit: passkey list sync failed', error);
+        }
+    }
+
     function init() {
         document.querySelectorAll('[data-nowo-auth-kit-webauthn]').forEach(bind);
+        document.querySelectorAll('[data-nowo-auth-kit-webauthn-signal]').forEach(signal);
     }
 
     if (document.readyState === 'loading') {

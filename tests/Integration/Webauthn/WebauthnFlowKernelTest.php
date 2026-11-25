@@ -41,6 +41,12 @@ final class WebauthnFlowKernelTest extends WebauthnKernelTestCase
         $page = $this->registerPasskey($authenticator, '  Work  laptop  ');
         self::assertStringContainsString('Work laptop', $page->filter('[data-testid="auth-kit-webauthn-list"]')->text());
         self::assertSame('Work  laptop', $this->em()->getRepository(WebauthnCredential::class)->findAll()[0]->getLabel());
+        // Signal API data (MWG passkey-management): the server's accepted passkeys of this user, base64url.
+        $signal = json_decode((string) $page->filter('[data-nowo-auth-kit-webauthn-signal]')->attr('data-nowo-auth-kit-webauthn-signal'), true);
+        self::assertIsArray($signal);
+        self::assertSame('localhost', $signal['rpId']);
+        self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]{43}$/', $signal['userId']);
+        self::assertSame([$this->em()->getRepository(WebauthnCredential::class)->findAll()[0]->getCredentialId()], $signal['allAcceptedCredentialIds']);
         self::assertCount(1, $this->eventsOf(WebauthnCredentialAddedEvent::class));
         $added = $this->eventsOf(WebauthnCredentialAddedEvent::class)[0];
         self::assertSame('member@example.com', $added->userId);

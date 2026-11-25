@@ -73,6 +73,7 @@ final class WebauthnAccountController
             'webauthn_passkeys'             => $passkeys,
             'webauthn_max'                  => (int) ($profile->webauthn['max_credentials'] ?? 10),
             'nowo_auth_kit_webauthn_assets' => true,
+            'webauthn_signal'               => $this->passkeys->acceptedCredentials($user, $request),
         ];
         if (!$this->isRecent($request, $profile)) {
             $variables += ['webauthn_sign_in_again' => (int) ceil($this->recentWindow($profile) / 60), 'webauthn_logout_route' => $profile->routes['logout']['name']];

@@ -209,7 +209,9 @@ AuthKit only sees an ordinary assertion.
 
 `/account/webauthn` (template key `webauthn_account`, UiKit admin layout): the list (name, added, last used, synced),
 rename and remove per passkey, and **Add a passkey** with a name field while the account has fewer than
-`max_credentials`. Without a recent sign-in the page asks to sign in again instead.
+`max_credentials`. Without a recent sign-in the page asks to sign in again instead. On load the script hands the
+passkeys the server still accepts to the browser's Signal API (`PublicKeyCredential.signalAllAcceptedCredentials()`,
+where available; failures only warn), so a passkey removed here also leaves the user's password manager.
 
 ## Templates and the script
 
@@ -227,7 +229,10 @@ attribute `csp_nonce` as its `nonce`, like every AuthKit script. Roots
 `[data-nowo-auth-kit-webauthn="login|mfa|register"]` get `data-nowo-auth-kit-webauthn-state` (`idle`, `working`,
 `unsupported`, `failed`, `cancelled`) and dispatch a bubbling `nowo-auth-kit:webauthn-state` event
 (`{detail: {mode, state}}`). It uses `PublicKeyCredential.parse*OptionsFromJSON()` and `toJSON()` where the browser has
-them, and an equivalent fallback otherwise. Without JavaScript the forms say that passkeys need it.
+them, and an equivalent fallback otherwise; the conditional UI starts only when `PublicKeyCredential.getClientCapabilities()` (or
+`isConditionalMediationAvailable()`) reports it. Without JavaScript the forms say that passkeys need it. Front-end
+checked against Chrome Modern Web Guidance (`passkeys`, `passkey-authentication`, `passkey-registration`,
+`passkey-management`).
 
 ## Events
 

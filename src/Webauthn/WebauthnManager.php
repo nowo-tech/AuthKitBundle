@@ -101,6 +101,27 @@ final readonly class WebauthnManager
     }
 
     /**
+     * What the account page hands to the browser's Signal API (`PublicKeyCredential.signalAllAcceptedCredentials()`,
+     * Chrome Modern Web Guidance "passkey-management"): the RP id, the user handle and the credential ids the server
+     * still accepts, all unpadded base64url, so a password manager drops the passkeys removed here. The signed-in
+     * user's own data only.
+     *
+     * @throws WebauthnFailure `user`
+     *
+     * @return array{rpId: string, userId: string, allAcceptedCredentialIds: list<string>}
+     */
+    public function acceptedCredentials(UserInterface $user, Request $request): array
+    {
+        [$profile, $owner] = $this->context($user);
+
+        return [
+            'rpId'                     => $this->ceremonies->rpId($profile, $request),
+            'userId'                   => Base64Url::encode($this->userHandle($profile, $owner)),
+            'allAcceptedCredentialIds' => array_map(static fn (WebauthnCredentialRecord $record): string => $record->credentialId, $this->store->credentialsOf($profile->name, $owner)),
+        ];
+    }
+
+    /**
      * Creation options for a new passkey of the signed-in user (JSON for `navigator.credentials.create()`).
      *
      * @throws WebauthnFailure `limit`, `rate_limited` or `user`
