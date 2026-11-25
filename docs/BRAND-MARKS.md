@@ -94,11 +94,13 @@ in one line (below), and the button then renders as text only.
 **No Apple mark is shipped.** Apple's guidelines for third parties are explicit: "You may not use the Apple Logo or any
 other Apple-owned graphic symbol, logo, or icon on or in connection with web sites, products, packaging, manuals,
 promotional/advertising materials, or for any other purpose except pursuant to an express written trademark license from
-Apple". The bundle has no such licence, so it ships no Apple artwork — and `apple` is not a built-in provider here in
-any case. A host that configures an `apple` provider obtains the asset under its own Apple Developer agreement and
+Apple". The bundle has no such licence, so it ships no Apple artwork, although `apple` is a built-in OpenID Connect preset
+since 2.3.0 ([OIDC-PROVIDERS.md](OIDC-PROVIDERS.md#sign-in-with-apple)). A host that configures an `apple` provider obtains the asset under its own Apple Developer agreement and
 points `provider_marks.apple` at it; until then that button renders as text only.
 
-The same holds for every other provider: no entry, no mark.
+The same holds for every other provider, the 2.3.0 presets `gitlab`, `linkedin` and `slack` included: no entry, no
+mark. Their owners publish brand guidelines and artwork for "Sign in with" buttons; the host downloads them under those
+terms and points `provider_marks.<provider>` at them.
 
 ## Replacing or removing a mark
 

@@ -40,6 +40,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 **Given** `social_login.mode: enabled` and stored `SocialLoginCredential` rows, **When** user hits start/check for a provider, **Then** `OAuth2Client` + `SocialAccountLinker` authenticate/link the local user. Credentials with `enterpriseSso: true` render under organization SSO (see `docs/SSO.md`).
 
+### US-06b — OpenID Connect providers (P1, v2.3.0)
+
+**Given** a credential for a generic issuer, `gitlab` (gitlab.com or self-hosted), `apple`, `linkedin` or `slack`, **when** the visitor signs in, **then** the bundle discovers the provider, verifies the ID token (signature from the issuer JWKS, alg allow-list, iss, aud/azp, exp/iat/nbf, nonce) and links / signs in with the existing rules; any failed check, private-address endpoint or forged token signs nobody in and shows `social.error.failed`. **Given** Apple's cross-site form_post callback, **then** it is relayed to a same-site POST without touching the session, and the first-sign-in name becomes the display name.
+
 ### US-07 — Auth embed (P2)
 
 **Given** embed mode dropdown/panel, **When** Twig renders `auth_embed()`, **Then** `AuthEmbedContextFactory` builds login/register partials for host chrome.
@@ -121,6 +125,13 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 ### Social / enterprise SSO
 
 - **FR-SOCIAL-001**: `SocialLoginGate`, `OAuth2Client`, endpoint catalog + URL validator, state store, account linker, profile DTO, credential/account entities + repos, start/check controllers, `SocialLoginMode` enum. Enterprise SSO reuses the same pipeline with `enterpriseSso` on credentials (no separate SAML stack). Authorization-code requests use PKCE S256 (`Pkce`). Token / userinfo calls are bounded by `http_client.timeout` / `http_client.max_duration` (REQ-RUNTIME-001).
+- **FR-SOCIAL-002** (2.3.0): OpenID Connect providers. `OidcProviderCatalog` decides per credential: presets `gitlab` (issuer `https://gitlab.com` or the credential's self-hosted base URL), `apple`, `linkedin`, `slack` (fixed issuers), any other key with `issuer` = generic provider; preset keys with their own OAuth2 URLs and keys without issuer stay on `OAuth2Client`. `OidcDiscovery` reads `<issuer>/.well-known/openid-configuration`, requires the document's `issuer` to be the configured one (trailing slash tolerated) and every endpoint to be a public HTTPS URL. Issuer and provider settings (`team_id`, `key_id`) are validated by `OidcCredentialRules` on write (entity setters) and on read.
+- **FR-SOCIAL-003** (2.3.0): `OidcClient::begin()` issues state + nonce (unless the preset says the provider does not echo it: LinkedIn) + PKCE S256 (override, preset, else discovery `S256`), merges `authorization_params` under the reserved protocol parameters, adds `response_mode=form_post` for Apple. `authenticate()` exchanges the code (`client_secret_post` or `client_secret_basic` per preset / discovery), requires `access_token` and `id_token`, verifies the ID token, fetches userinfo when the provider has one (same `sub` required) and builds `SocialUserProfile` (e-mail and `email_verified` from one source; Apple's unsigned `user` field only for the display name). Account linking is `SocialAccountLinker`, unchanged.
+- **FR-SOCIAL-004** (2.3.0): `IdTokenValidator`: compact JWS, `alg` on `oidc.allowed_algorithms` (RS*/ES*, never none/HS*), no `crit`, key only from the issuer JWKS and fitting kty/crv/use/alg/key_ops (RSA ≥ 2048, no private members, `JwkConverter`), `iss` exact, `aud`/`azp`, `exp`/`iat`/`nbf` with skew and max age, nonce in constant time, non-empty `sub`. Failures are `OidcException` (RuntimeException, `reason` code, no secret in the message) and take the social failure path.
+- **FR-SOCIAL-005** (2.3.0): `OidcHttpClient` SSRF guard for every OIDC request: HTTPS, every resolved address public (`PublicIpChecker`, `HostResolverInterface`/`DnsHostResolver`), connection pinned to the checked address, `max_redirects: 0`, `http_client` deadlines, `oidc.max_response_bytes` enforced in `on_progress` and after download, JSON objects only.
+- **FR-SOCIAL-006** (2.3.0): Discovery documents and JWKS in the `oidc.cache_pool` cache pool with TTLs; unknown `kid` refetches at most every `oidc.jwks_refresh_interval`; no service state (REQ-RUNTIME-002). Configuration `nowo_auth_kit.oidc` validated at build time (`OidcOptions`).
+- **FR-SOCIAL-007** (2.3.0): `AppleClientSecret` signs the ES256 client-secret JWT (iss team, sub client id, aud Apple, 5 min) with the P-256 `.p8` key stored as the encrypted client secret; any other key is refused without echoing it.
+- **FR-SOCIAL-008** (2.3.0): form_post callbacks (Apple): `SocialLoginCheckController` accepts POST; a POST without the relay marker (or with `Sec-Fetch-Site` other than same-origin) is answered by `SocialFormPostRelay` (template `security/social_form_post.html.twig`, `SocialFormPostRelayType`, `js/nowo-auth-kit-form-post.js`) without reading or writing the session, re-posting only `code`, `state`, `error`, `user`; a POST for a non-form_post provider goes to the login page.
 
 ### Profiles & locale
 
@@ -286,10 +297,10 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Success Criteria
 
-- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**463/463** units under `src/` as of 2026-11-17: 392 PHP + 71 Resources).
+- **SC-001**: All production files in [`code-inventory.md`](code-inventory.md) mapped (**492/492** units under `src/` as of 2026-11-25: 421 PHP + 71 Resources).
 - **SC-002**: 100% PHPUnit line coverage on `src/` (project standard / `make test-coverage-100`).
 - **SC-003**: Config keys match [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md).
-- **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, SSO, INVITATIONS, SECURITY.
+- **SC-004**: Product docs exist for each shipped surface: USAGE, CONFIGURATION, PASSWORD-RESET, MAGIC-LOGIN, QR-LOGIN, SOCIAL-LOGIN, OIDC-PROVIDERS, SSO, INVITATIONS, SECURITY.
 
 ---
 
