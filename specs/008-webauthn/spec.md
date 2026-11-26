@@ -44,7 +44,8 @@ TOTP enrolment.
 ### US-04 — Rename and remove (P2)
 
 **Given** a recent sign-in, **When** the user renames or removes a passkey, **Then** it changes
-(`WebauthnCredentialRemovedEvent`); another account's passkey answers "unknown"; the last passkey of a required user
+(`WebauthnCredentialRenamedEvent` since 2.5.0, with the old and new label and none for the same label;
+`WebauthnCredentialRemovedEvent`); another account's passkey answers "unknown"; the last passkey of a required user
 without TOTP stays (last-factor guard).
 
 ### US-05 — Personal data (P2)

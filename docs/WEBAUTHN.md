@@ -266,6 +266,7 @@ All framework-free (profile, owner type and id, passkey public id), dispatched a
 |-------|------|
 | `Webauthn\Event\WebauthnCredentialAddedEvent` | a passkey was registered (`label`, `synced`) |
 | `Webauthn\Event\WebauthnCredentialUsedEvent` | a passkey signed in (`context: login`) or passed a second step (`context: mfa`) |
+| `Webauthn\Event\WebauthnCredentialRenamedEvent` | renamed by its owner (2.5.0: `oldLabel`, `newLabel`; not for the same label) |
 | `Webauthn\Event\WebauthnCredentialRemovedEvent` | removed by its owner (`reason: user`) or by a personal-data erasure (`reason: erasure`) |
 | `Webauthn\Event\WebauthnAuthenticationFailedEvent` | a refused ceremony (`context`: `login`, `mfa`, `register`; `reason`: `malformed`, `challenge`, `unknown_credential`, `invalid`, `counter`, `duplicate`, `limit`, `rate_limited`, `user`) |
 
@@ -326,7 +327,7 @@ nothing to erase.
    `WebauthnManager::passkeys()` and the routes above, extending `webauthn/account.html.twig`).
 6. MFA policies (`mfa.policy`) need no change: a passkey counts through `MfaManager::hasSecondFactor()`. A host that
    removes passkeys itself passes `keepOne: true` when the user would be left without a required factor.
-7. Audit: listen to the four events; `WebauthnAuthenticationFailedEvent` with `reason: counter` may be a cloned key.
+7. Audit: listen to the five events (`WebauthnCredentialRenamedEvent` since 2.5.0); `WebauthnAuthenticationFailedEvent` with `reason: counter` may be a cloned key.
    Notify the user on `WebauthnCredentialAddedEvent` and `WebauthnCredentialRemovedEvent` (Beacon: NotifyKit): the
    bundle does not mail, and a hijacked fresh session could otherwise bind a passkey silently (audit ZBX-I7).
 8. Account deletion without UserKit: call `WebauthnErasure::forgetUser()` (any mode, 2.4.1), `MfaManager::forgetUser()` or

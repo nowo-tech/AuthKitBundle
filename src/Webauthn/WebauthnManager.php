@@ -15,7 +15,9 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnAuthenticationFailedEvent;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialAddedEvent;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRemovedEvent;
+use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRenamedEvent;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialUsedEvent;
+use Nowo\TransactionContract\TransientStorageFailure;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -44,15 +46,19 @@ use function trim;
  * WebAuthn user handle is an HMAC of it (`webauthn.hash_secret`), never personal data.
  *
  * Deny by default: an unknown credential, another profile's credential and another user's credential fail in the same
- * way ({@see WebauthnFailure}; the controllers answer every failure with one generic message). Registration and
- * removal run under a per-owner lock (symfony/lock), so `webauthn.max_credentials` and the last-factor guard hold under
- * parallel requests; the sign counter moves by a conditional UPDATE ({@see WebauthnStore::recordUse()}).
+ * way ({@see WebauthnFailure}; the controllers answer every failure with one generic message). Registration, removal
+ * and (since 2.5.0) renaming run under a per-owner lock (symfony/lock), so `webauthn.max_credentials`, the last-factor
+ * guard and the label a rename replaced hold under parallel requests; the sign counter moves by a conditional UPDATE
+ * ({@see WebauthnStore::recordUse()}).
  *
  * Stateless (worker safe): every call resolves the profile, the owner and the passkeys again; events follow the write.
  */
 final readonly class WebauthnManager
 {
     public const LABEL_MAX_LENGTH = 100;
+
+    /** Compare-and-set attempts of a rename before it answers a conflict (2.5.0, audit ZCH-M1). */
+    public const RENAME_ATTEMPTS = 3;
 
     /** Seconds a per-owner lock survives if the process dies before releasing it. */
     private const LOCK_TTL = 10.0;
@@ -263,14 +269,46 @@ final readonly class WebauthnManager
     }
 
     /**
-     * Renames one of the user's passkeys; false when it is unknown (or another account's: the same answer).
+     * Renames one of the user's passkeys; false when it is unknown (or another account's: the same answer). True without
+     * a write when the cleaned label is the current one. Under the per-owner lock, and the UPDATE only matches the label
+     * it read ({@see WebauthnStore::rename()}): a rename that lost a race to a write outside the lock reads the row again
+     * and decides on it (REQ-RUNTIME-003). The re-read is a locking read inside an open transaction, so it sees the
+     * latest committed row also under REPEATABLE READ (audit ZCH-M1); after {@see self::RENAME_ATTEMPTS} attempts the
+     * rename gives up with a {@see TransientStorageFailure} (409 `CONFLICT_001` on AuthKit's pages) instead of looping
+     * while it holds the owner lock. A {@see WebauthnCredentialRenamedEvent} follows the write.
+     *
+     * @throws TransientStorageFailure when the label kept changing under the rename
      */
     public function rename(UserInterface $user, string $publicId, string $label): bool
     {
         [$profile, $owner] = $this->context($user);
-        $record            = $this->store->findForOwner($profile->name, $owner, $publicId);
+        $label             = self::label($label);
+        $renamed           = $this->locked($profile, $owner, function () use ($profile, $owner, $publicId, $label): bool|WebauthnCredentialRecord {
+            $record = $this->store->findForOwner($profile->name, $owner, $publicId);
+            for ($attempt = 1; $record instanceof WebauthnCredentialRecord && $record->label !== $label; ++$attempt) {
+                if ($this->store->rename($record, $label)) {
+                    return $record;
+                }
+                if ($attempt >= self::RENAME_ATTEMPTS) {
+                    // Bounded work under the owner lock (REQ-RUNTIME-003 rules 6 and 9): a conflict, never a hang.
+                    $this->logger->warning('Passkey rename gave up: the label kept changing under it.', ['profile' => $profile->name, 'passkey' => $record->publicId]);
 
-        return $record instanceof WebauthnCredentialRecord && $this->store->rename($record, self::label($label));
+                    throw new TransientStorageFailure(1);
+                }
+                // Another writer changed (or removed) the row since it was read, or it already holds the new label:
+                // decide again on the latest committed row (a locking read inside an open transaction).
+                $record = $this->store->findForOwner($profile->name, $owner, $publicId, true);
+            }
+
+            return $record instanceof WebauthnCredentialRecord;
+        });
+        if (!$renamed instanceof WebauthnCredentialRecord) {
+            return $renamed;
+        }
+        $this->dispatch(new WebauthnCredentialRenamedEvent($profile->name, $owner->type, $owner->id, $renamed->publicId, $renamed->label, $label));
+        $this->logger->info('Passkey renamed.', ['profile' => $profile->name, 'owner' => $owner->key(), 'passkey' => $renamed->publicId]);
+
+        return true;
     }
 
     /**
@@ -313,12 +351,14 @@ final readonly class WebauthnManager
     }
 
     /**
-     * A label as stored: control characters removed, white space trimmed, at most {@see self::LABEL_MAX_LENGTH}
-     * characters; "Passkey" when nothing is left.
+     * A label as stored: control and format characters, line and paragraph separators, private-use and unassigned code
+     * points and the invisible "letters" (Hangul fillers U+115F, U+1160, U+3164, U+FFA0, Braille blank U+2800; audit
+     * ZCH-L1) replaced by a space, white space trimmed, at most {@see self::LABEL_MAX_LENGTH} characters; "Passkey"
+     * when nothing is left.
      */
     public static function label(string $label): string
     {
-        $clean = trim((string) preg_replace('/[\p{Cc}\p{Cf}]+/u', ' ', $label));
+        $clean = trim((string) preg_replace('/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cn}\x{115F}\x{1160}\x{2800}\x{3164}\x{FFA0}]+/u', ' ', $label));
         $clean = trim(mb_substr($clean, 0, self::LABEL_MAX_LENGTH, 'UTF-8'));
 
         return $clean !== '' ? $clean : 'Passkey';

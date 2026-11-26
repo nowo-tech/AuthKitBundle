@@ -9,6 +9,9 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
+use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -92,11 +95,13 @@ final readonly class WebauthnStore
     }
 
     /**
-     * The owner's passkey with this public id, or null (unknown, or another owner's: the same answer).
+     * The owner's passkey with this public id, or null (unknown, or another owner's: the same answer). `$forUpdate`
+     * (2.5.0): inside an open transaction on MySQL, MariaDB or PostgreSQL, a locking read (`FOR UPDATE`), which sees the latest committed row also under
+     * REPEATABLE READ (InnoDB answers a plain read from the transaction's snapshot); outside one, a plain read.
      */
-    public function findForOwner(string $profile, MfaOwner $owner, string $publicId): ?WebauthnCredentialRecord
+    public function findForOwner(string $profile, MfaOwner $owner, string $publicId, bool $forUpdate = false): ?WebauthnCredentialRecord
     {
-        foreach ($this->select('public_id = :public', ['public' => $publicId]) as $record) {
+        foreach ($this->select('public_id = :public', ['public' => $publicId], $forUpdate) as $record) {
             if ($record->publicId === $publicId && $record->profile === $profile && $record->userType === $owner->type && $record->userId === $owner->id) {
                 return $record;
             }
@@ -160,11 +165,17 @@ final readonly class WebauthnStore
         )) === 1;
     }
 
+    /**
+     * Sets the label of a passkey whose label is still the one read (`$record->label`, since 2.5.0): false when the row
+     * is gone or another writer changed its label in between, so the caller knows which label it replaced.
+     *
+     * @internal use {@see WebauthnManager::rename()} (lock, bounded retry, event); a low-level write (audit ZCH-I3)
+     */
     public function rename(WebauthnCredentialRecord $record, string $label): bool
     {
         return $this->write(fn (Connection $connection): int|string => $connection->executeStatement(
-            'UPDATE ' . $this->table() . ' SET label = :label WHERE id = :id',
-            ['label' => $label, 'id' => $record->id],
+            'UPDATE ' . $this->table() . ' SET label = :label WHERE id = :id AND label = :old',
+            ['label' => $label, 'id' => $record->id, 'old' => $record->label],
             ['id' => ParameterType::INTEGER],
         )) === 1;
     }
@@ -199,10 +210,11 @@ final readonly class WebauthnStore
      *
      * @return list<WebauthnCredentialRecord>
      */
-    private function select(string $where, array $params): array
+    private function select(string $where, array $params, bool $forUpdate = false): array
     {
         $connection = $this->entityManager()->getConnection();
-        $rows       = $connection->fetchAllAssociative('SELECT ' . self::COLUMNS . ' FROM ' . $this->table() . ' WHERE ' . $where . ' ORDER BY id ASC', $params);
+        $lock       = $forUpdate && $connection->isTransactionActive() && $this->locksRows($connection->getDatabasePlatform()) ? ' FOR UPDATE' : '';
+        $rows       = $connection->fetchAllAssociative('SELECT ' . self::COLUMNS . ' FROM ' . $this->table() . ' WHERE ' . $where . ' ORDER BY id ASC' . $lock, $params);
 
         return array_map(static function (array $row) use ($connection): WebauthnCredentialRecord {
             /** @var DateTimeImmutable $created */
@@ -230,6 +242,15 @@ final readonly class WebauthnStore
                 $used,
             );
         }, $rows);
+    }
+
+    /**
+     * Whether `SELECT … FOR UPDATE` takes row locks on the platform (MySQL, MariaDB, PostgreSQL). SQLite locks the whole
+     * database per write transaction and has no such clause: a plain read there.
+     */
+    private function locksRows(AbstractPlatform $platform): bool
+    {
+        return $platform instanceof AbstractMySQLPlatform || $platform instanceof PostgreSQLPlatform;
     }
 
     /**

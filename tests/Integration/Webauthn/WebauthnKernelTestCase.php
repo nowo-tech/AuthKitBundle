@@ -28,7 +28,7 @@ abstract class WebauthnKernelTestCase extends MfaKernelTestCase
         parent::setUp();
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        foreach (['WebauthnCredentialAddedEvent', 'WebauthnCredentialUsedEvent', 'WebauthnCredentialRemovedEvent', 'WebauthnAuthenticationFailedEvent'] as $event) {
+        foreach (['WebauthnCredentialAddedEvent', 'WebauthnCredentialUsedEvent', 'WebauthnCredentialRenamedEvent', 'WebauthnCredentialRemovedEvent', 'WebauthnAuthenticationFailedEvent'] as $event) {
             $dispatcher->addListener('Nowo\\AuthKitBundle\\Webauthn\\Event\\' . $event, function (object $e): void {
                 $this->events[] = $e;
             });

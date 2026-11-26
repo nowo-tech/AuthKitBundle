@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Webauthn;
 
+use Closure;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\AuthKitBundle\Entity\WebauthnCredential;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
 use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
@@ -15,17 +19,22 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\Webauthn\RacingManagerRegistry;
 use Nowo\AuthKitBundle\Tests\Support\Webauthn\SoftwareAuthenticator;
 use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnLoginController;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnAuthenticationFailedEvent;
+use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRenamedEvent;
 use Nowo\AuthKitBundle\Webauthn\WebauthnCeremonies;
 use Nowo\AuthKitBundle\Webauthn\WebauthnFailure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use Nowo\AuthKitBundle\Webauthn\WebauthnRemoval;
 use Nowo\AuthKitBundle\Webauthn\WebauthnStore;
+use Nowo\TransactionContract\TransientStorageFailure;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\ServiceLocator;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -41,7 +50,7 @@ use function str_repeat;
 /**
  * Edge paths of the passkey services (2.4.0): a session that changed user between options and registration, the
  * passkey limit reached by a parallel registration, a parallel use of the same challenge, a user who no longer exists,
- * remember-me sessions, a hand-built manager without locks, a firewall without a programmatic sign-in.
+ * remember-me sessions, a hand-built manager without locks, a rename racing another writer (2.5.0), a firewall without a programmatic sign-in.
  */
 final class WebauthnEdgeKernelTest extends WebauthnKernelTestCase
 {
@@ -166,8 +175,79 @@ final class WebauthnEdgeKernelTest extends WebauthnKernelTestCase
             $this->clock(),
             $this->limiter(),
         );
+        self::assertTrue($manager->rename($this->user('member@example.com'), $id, 'B'));
         self::assertSame(WebauthnRemoval::LastFactor, $manager->remove($this->user('member@example.com'), $id, true));
         self::assertSame(WebauthnRemoval::Removed, $manager->remove($this->user('member@example.com'), $id));
+        self::assertFalse($manager->rename($this->user('member@example.com'), $id, 'C'));
+    }
+
+    /**
+     * @return iterable<string, array{string|null, bool, list<array{string, string}>, string|null, bool}>
+     */
+    public static function racingRenames(): iterable
+    {
+        // [the peer's write between the read and the UPDATE, the answer, the events (old, new), the stored label, in a
+        // transaction]
+        yield 'the peer renamed it: the rename replaces the peer\'s label' => ['Peer', true, [['Peer', 'Mine']], 'Mine', false];
+        yield 'the same inside a transaction (locking re-read)' => ['Peer', true, [['Peer', 'Mine']], 'Mine', true];
+        yield 'the peer already set the same label: nothing to write' => ['Mine', true, [], 'Mine', false];
+        yield 'the peer removed it: unknown' => [null, false, [], null, false];
+    }
+
+    /**
+     * 2.5.0 (REQ-RUNTIME-003): a write outside the lock between the read and the conditional UPDATE; the event reports
+     * the label the rename really replaced. The real-database variants (REPEATABLE READ transaction, audit ZCH-M1) are
+     * in tests/Database/WebauthnDatabaseTest.php.
+     *
+     * @param list<array{string, string}> $events
+     */
+    #[Test]
+    #[DataProvider('racingRenames')]
+    public function aRenameRacingAnotherWriterReportsTheLabelItReplaced(?string $peerLabel, bool $answer, array $events, ?string $stored, bool $inTransaction): void
+    {
+        $id      = $this->racedPasskey();
+        $manager = $this->racingManager(static function (Connection $connection, string $table) use ($id, $peerLabel): void {
+            $peerLabel === null
+                ? $connection->executeStatement('DELETE FROM ' . $table . ' WHERE public_id = ?', [$id])
+                : $connection->executeStatement('UPDATE ' . $table . ' SET label = ? WHERE public_id = ?', [$peerLabel, $id]);
+        });
+
+        $connection = $this->racingEm()->getConnection();
+        if ($inTransaction) {
+            $connection->beginTransaction();
+        }
+        self::assertSame($answer, $manager->rename($this->user('member@example.com'), $id, 'Mine'));
+        if ($inTransaction) {
+            $connection->commit();
+        }
+        self::assertSame($events, array_map(static fn (WebauthnCredentialRenamedEvent $e): array => [$e->oldLabel, $e->newLabel], $this->eventsOf(WebauthnCredentialRenamedEvent::class)));
+        $passkeys = $this->passkeys()->passkeys($this->user('member@example.com'));
+        self::assertSame($stored, $passkeys[0]->label ?? null);
+    }
+
+    /**
+     * 2.5.0 (audit ZCH-M1): a label that changes under every attempt ends with a conflict after
+     * {@see WebauthnManager::RENAME_ATTEMPTS} attempts (409 CONFLICT_001 on the page), not with a loop under the owner
+     * lock; nothing is renamed by the rename and no event is dispatched.
+     */
+    #[Test]
+    public function aRenameGivesUpAfterBoundedAttempts(): void
+    {
+        $id      = $this->racedPasskey();
+        $writes  = 0;
+        $manager = $this->racingManager(static function (Connection $connection, string $table) use ($id, &$writes): void {
+            $connection->executeStatement('UPDATE ' . $table . ' SET label = ? WHERE public_id = ?', ['Peer ' . ++$writes, $id]);
+        }, 4);
+
+        try {
+            $manager->rename($this->user('member@example.com'), $id, 'Mine');
+            self::fail('The rename gives up.');
+        } catch (TransientStorageFailure $failure) {
+            self::assertSame(1, $failure->retryAfterSeconds());
+        }
+        self::assertSame(WebauthnManager::RENAME_ATTEMPTS, $writes);
+        self::assertSame([], $this->eventsOf(WebauthnCredentialRenamedEvent::class));
+        self::assertSame('Peer 3', $this->passkeys()->passkeys($this->user('member@example.com'))[0]->label);
     }
 
     #[Test]
@@ -193,6 +273,47 @@ final class WebauthnEdgeKernelTest extends WebauthnKernelTestCase
         $stack->pop();
         self::assertSame('/login', $response->headers->get('Location'));
         self::assertSame([], $this->eventsOf(WebauthnAuthenticationFailedEvent::class), 'Nothing was attempted.');
+    }
+
+    private function racedPasskey(): string
+    {
+        $this->registerWith($this->user('member@example.com'), 'A');
+
+        return $this->passkeys()->passkeys($this->user('member@example.com'))[0]->publicId;
+    }
+
+    private function racingEm(): EntityManagerInterface
+    {
+        $em = $this->doctrine()->getManagerForClass(WebauthnCredential::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        return $em;
+    }
+
+    /**
+     * A hand-built manager (no lock) whose store lets `$peer` write before its first UPDATE (and every later one with
+     * `$every` = 4).
+     *
+     * @param Closure(Connection, string): void $peer
+     */
+    private function racingManager(Closure $peer, int $every = 0): WebauthnManager
+    {
+        $em         = $this->racingEm();
+        $table      = $em->getClassMetadata(WebauthnCredential::class)->getTableName();
+        $dispatcher = $this->service('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+
+        return new WebauthnManager(
+            $this->service(ProfileRegistry::class),
+            new WebauthnStore(new RacingManagerRegistry($em, 3, static fn (EntityManagerInterface $em) => $peer($em->getConnection(), $table), $every)),
+            $this->ceremonies(),
+            new MfaOwnerResolver($this->doctrine()),
+            $this->service(UserLookupInterface::class),
+            $this->clock(),
+            $this->limiter(),
+            null,
+            $dispatcher,
+        );
     }
 
     private function registerWith(KernelUser $user, string $label): void
