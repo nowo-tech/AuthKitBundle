@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.4.1](#to-241)
 - [To 2.4.0](#to-240)
   - [Passkeys (opt-in)](#passkeys-opt-in)
   - [Google mark in the dark theme](#google-mark-in-the-dark-theme)
@@ -179,6 +180,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.4.1
+
+From **2.4.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 From **2.4.0** (a patch: no schema change, nothing required).
 
