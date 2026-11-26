@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.5.0](#to-250)
+  - [To 2.5.0](#to-250-1)
 - [To 2.4.1](#to-241)
 - [To 2.4.0](#to-240)
   - [Passkeys (opt-in)](#passkeys-opt-in)
@@ -180,6 +182,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.5.0
+
+From **2.4.1**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ### To 2.5.0
 
