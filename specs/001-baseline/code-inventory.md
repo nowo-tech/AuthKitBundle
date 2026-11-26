@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-25 (2.4.0, passkeys: 23 PHP + 14 Resources)  
-**Units**: **530** (`445` PHP under `src/` + `85` Resources)
+**Last audited**: 2026-11-26 (2.4.1: + `Webauthn/WebauthnErasure.php`; 2.4.0, passkeys: 23 PHP + 14 Resources)  
+**Units**: **531** (`446` PHP under `src/` + `85` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -761,6 +761,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Webauthn/PersonalData/WebauthnPersonalDataExportProvider.php` | production | FR-WEBAUTHN-005 | Mapped |
 | `Webauthn/WebauthnCeremonies.php` | production | FR-WEBAUTHN-001 | Mapped |
 | `Webauthn/WebauthnCredentialRecord.php` | production | FR-WEBAUTHN-001 | Mapped |
+| `Webauthn/WebauthnErasure.php` | production | FR-WEBAUTHN-005 | Mapped |
 | `Webauthn/WebauthnFailure.php` | production | FR-WEBAUTHN-001 | Mapped |
 | `Webauthn/WebauthnManager.php` | production | FR-WEBAUTHN-001 | Mapped |
 | `Webauthn/WebauthnPasskey.php` | production | FR-WEBAUTHN-001 | Mapped |
@@ -771,10 +772,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 445 |
+| PHP under `src/` | 446 |
 | Resources (config/translations/views/public/sql) | 85 |
-| **Total production sources** | **530** |
-| Audit command | `git ls-files src \| wc -l` → 530 |
+| **Total production sources** | **531** |
+| Audit command | `git ls-files src \| wc -l` → 531 |
 
 ## Coverage gate
 

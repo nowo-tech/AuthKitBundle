@@ -9,3 +9,4 @@
 - [x] T007 Tests: unit, kernel, strict limits, worker, real databases; 100 % coverage; PHPStan / CS / Rector / Igor / Twig
 - [x] T008 Docs (WEBAUTHN, CONFIGURATION, MFA, TEMPLATES, CONCURRENCY, FRANKENPHP-WORKER-AUDIT, README, CHANGELOG, UPGRADING, ROADMAP)
 - [x] T009 Demo: configuration, menu entry, migration
+- [x] T010 2.4.1: `WebauthnErasure` (erasure whatever the mode, ZBX-v-I2), runtime lower-casing of `allowed_origins` (ZBX-v-I3, ZCC-L1), WEBAUTHN.md origin wording (ZBX-v-I1)

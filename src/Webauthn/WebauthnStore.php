@@ -179,6 +179,14 @@ final readonly class WebauthnStore
     }
 
     /**
+     * Since 2.4.1: whether the passkey entity is mapped (a host may not register the bundle's mapping).
+     */
+    public function isMapped(): bool
+    {
+        return $this->doctrine->getManagerForClass(WebauthnCredential::class) instanceof EntityManagerInterface;
+    }
+
+    /**
      * Whether the passkey table exists: a host that never enabled passkeys may not have created it.
      */
     public function hasTable(): bool

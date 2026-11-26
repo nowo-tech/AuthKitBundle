@@ -74,7 +74,7 @@ final class WebauthnConfiguration
                     ->end()
                 ->end()
                 ->arrayNode('allowed_origins')
-                    ->info('Exact origins (https://host[:port]) a ceremony may come from. Empty = exactly https://<rp_id> (audit ZBX-M1: never the request Host); list every origin that serves the login page when it is not that one (e.g. https://login.example.com with rp_id example.com). http:// only for localhost / 127.0.0.1.')
+                    ->info('Exact origins (https://host[:port]; compared lower-cased at runtime, so %env()% values work) a ceremony may come from. Empty = exactly https://<rp_id> (audit ZBX-M1: never the request Host; with rp_id null the RP id is the request host, so the origin follows it, on the default port only); list every origin that serves the login page when it is not that one (e.g. https://login.example.com with rp_id example.com). http:// only for localhost / 127.0.0.1.')
                     ->scalarPrototype()
                         ->validate()
                             ->ifTrue(static fn (mixed $origin): bool => !is_string($origin) || preg_match('#^(https://[^/?\#@\s]+|http://(localhost|127\.0\.0\.1)(:\d+)?)$#', $origin) !== 1 || parse_url($origin) === false)

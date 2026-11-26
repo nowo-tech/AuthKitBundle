@@ -230,7 +230,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-WEBAUTHN-002**: Entity `WebauthnCredential` (exact-key columns, XML mapping) and the up / down SQL scripts per platform under `Resources/sql/webauthn/`.
 - **FR-WEBAUTHN-003**: Controllers `WebauthnLoginController` (passwordless options and assertion, first factor `webauthn`), `WebauthnMfaController` (second step of a pending sign-in) and `WebauthnAccountController` (account page, registration, rename, remove, recent sign-in, last-factor guard); forms `WebauthnCredentialFormType`, `WebauthnRenameFormType`; templates `webauthn/*` and the script `nowo-auth-kit-webauthn.js` (CSP nonce).
 - **FR-WEBAUTHN-004**: Events `WebauthnCredentialAddedEvent`, `WebauthnCredentialUsedEvent`, `WebauthnCredentialRemovedEvent` (base `WebauthnEvent`) and `WebauthnAuthenticationFailedEvent`, framework-free, after the write; `WebauthnSignedInSubscriber` records the full sign-in time.
-- **FR-WEBAUTHN-005**: UserKit eraser `WebauthnPersonalDataEraser` (`auth_kit_webauthn`) and export section `WebauthnPersonalDataExportProvider` (`passkeys`).
+- **FR-WEBAUTHN-005**: UserKit eraser `WebauthnPersonalDataEraser` (`auth_kit_webauthn`) and export section `WebauthnPersonalDataExportProvider` (`passkeys`); since 2.4.1 `WebauthnErasure` (always registered) deletes a user's passkeys whatever the passkey mode, used by `MfaManager::forgetUser()` and `WebauthnManager::forgetUser()` (audit ZBX-v-I2).
 
 ### Multi-account switcher (v1.34, opt-in `multi_account.enabled`)
 

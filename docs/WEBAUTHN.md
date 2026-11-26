@@ -57,7 +57,7 @@ nowo_auth_kit:
             webauthn:
                 mode: enabled              # disabled (default) | enabled
                 rp_id: null                # registrable domain, e.g. example.com; null = request host
-                allowed_origins: []        # exact https://host[:port]; empty = exactly https://<rp_id> (never the Host header)
+                allowed_origins: []        # exact https://host[:port], compared lower-cased; empty = exactly https://<rp_id> (see below)
                 timeout_ms: 60000          # browser timeout; the server challenge lives 30 s longer
                 attestation: none          # none | direct
                 max_credentials: 10        # passkeys per account (Beacon: 10)
@@ -78,10 +78,19 @@ nowo_auth_kit:
   sub-domain can then ask the user's passkeys for an assertion: use it only when you control every sub-domain, and
   then list the origins in `allowed_origins`.
 - `allowed_origins`: the exact origins (`https://host[:port]`) a ceremony may come from; sub-domains are refused.
-  Empty means exactly `https://<rp_id>` (audit ZBX-M1): the expected origin is **never** taken from the request's
-  `Host` header, which a client can forge, so an attacker's sub-domain under a parent `rp_id` cannot make its own
-  origin "expected". The only exception is `rp_id: localhost` served on localhost (development: http and any port).
-  `http://` entries are accepted for `localhost` / `127.0.0.1` only. Configure `framework.trusted_hosts` as well.
+  Entries are compared lower-cased (2.4.1, audits ZBX-v-I3 and ZCC-L1): a browser always sends a lower-case origin,
+  so `https://Login.Example.com` matches `https://login.example.com`. The lower-casing happens at runtime, after env
+  resolution, so an env placeholder inside an entry keeps resolving (for example `https://%env(LOGIN_HOST)%`; write
+  the scheme itself as `https://`).
+  Empty means exactly `https://<rp_id>` (audit ZBX-M1). With an explicit `rp_id`, the expected origin is **never**
+  taken from the request's `Host` header, which a client can forge, so an attacker's sub-domain under a parent `rp_id`
+  cannot make its own origin "expected". With `rp_id: null` (the default) the RP id itself is the request host, so the
+  expected origin is `https://<request host>`: that is safe, because the authenticator's `rpIdHash` is bound to that
+  same host (a forged `Host` changes the RP id too, and no registered passkey answers for it), but set `rp_id` in
+  production anyway (see above). The empty default only covers the default HTTPS port: a login page served on another
+  port (`https://login.example.com:8443`) must be listed in `allowed_origins`, even when `rp_id` is its host. The only
+  exception is `rp_id: localhost` served on localhost (development: http and any port). `http://` entries are accepted
+  for `localhost` / `127.0.0.1` only. Configure `framework.trusted_hosts` as well.
 - `attestation: none` accepts whatever statement the browser returns and verifies it (a security key may keep a
   packed self attestation). `direct` asks for an attestation statement and refuses `none`; there are no trust anchors,
   so it proves a genuine statement, not an approved model.
@@ -174,7 +183,7 @@ The demo has its own migration (`demo/symfony8/migrations/Version20261125000000.
 |-------|-----|
 | Challenge | 32 random bytes per ceremony, kept server-side in the user's session (one per profile and ceremony), valid `timeout_ms` + 30 s |
 | Single use | taken out of the session before the answer is verified, and claimed once in the attempt limiter's store under its per-key lock, so two parallel requests of one session cannot both use it |
-| Origin | exact match against `allowed_origins`, else exactly `https://<rp_id>` (never the `Host` header); sub-domains refused |
+| Origin | exact match against `allowed_origins` (compared lower-cased, at runtime), else exactly `https://<rp_id>` on the default port (with an explicit `rp_id` never the `Host` header; with `rp_id: null` the RP id, and so the origin, is the request host); sub-domains refused |
 | RP id | the `rpIdHash` of the authenticator data must match `rp_id` |
 | User verification | required on every ceremony (`UV` flag), user presence too |
 | Signature | COSE ES256, EdDSA (Ed25519) or RS256, by the library |
@@ -279,7 +288,11 @@ With UserKit installed and the entities mapped (also while no profile enables pa
 Passkey rows reference the user by owner type and id without a foreign key. A host that deletes users without
 UserKit's erasure calls `WebauthnManager::forgetUser($user)` (or `MfaManager::forgetUser($user)`, which calls it since
 2.4.0) in its deletion flow (audit ZBX-L3): a passkey left behind would sign in a later account that gets the same id
-(an e-mail natural key, a reused auto-increment id).
+(an e-mail natural key, a reused auto-increment id). Since 2.4.1 (audit ZBX-v-I2) this works **whatever the passkey
+mode is today**: `MfaManager::forgetUser()` deletes stored passkeys also when every profile has turned passkeys off
+(no `WebauthnManager` then), and the public service `Nowo\AuthKitBundle\Webauthn\WebauthnErasure` (always
+registered; `forgetUser($user): int`) does the same for hosts without MFA. Without a mapped entity or a table there is
+nothing to erase.
 
 ## Worker mode and concurrency
 
@@ -316,4 +329,5 @@ UserKit's erasure calls `WebauthnManager::forgetUser($user)` (or `MfaManager::fo
 7. Audit: listen to the four events; `WebauthnAuthenticationFailedEvent` with `reason: counter` may be a cloned key.
    Notify the user on `WebauthnCredentialAddedEvent` and `WebauthnCredentialRemovedEvent` (Beacon: NotifyKit): the
    bundle does not mail, and a hijacked fresh session could otherwise bind a passkey silently (audit ZBX-I7).
-8. Account deletion without UserKit: call `WebauthnManager::forgetUser()` (ZBX-L3).
+8. Account deletion without UserKit: call `WebauthnErasure::forgetUser()` (any mode, 2.4.1), `MfaManager::forgetUser()` or
+   `WebauthnManager::forgetUser()` (ZBX-L3).

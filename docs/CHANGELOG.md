@@ -126,6 +126,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Follow-ups of the ZBX verification audit (Info findings, no GHSA).
+
+### Added
+
+- `Nowo\AuthKitBundle\Webauthn\WebauthnErasure` (public service, always registered): `forgetUser($user): int`
+  deletes a user's passkeys in every profile whatever the passkey mode is (audit ZBX-v-I2);
+  `WebauthnStore::isMapped()`.
+
+### Fixed
+
+- **Passkey erasure with passkeys switched off (audit ZBX-v-I2).** `MfaManager::forgetUser()` deleted passkeys only
+  while a profile enabled them (`WebauthnManager` exists only then). A host that had passkeys on, turned them off in
+  every profile and deletes users without UserKit kept the rows, and re-enabling passkeys would bring the ZBX-L3
+  scenario back. It now goes through `WebauthnErasure`, wired whatever the mode; `WebauthnManager::forgetUser()`
+  delegates to it (no mapped entity or no table: nothing to erase).
+- **Upper-case `allowed_origins` (audit ZBX-v-I3).** An entry such as `https://Login.example.com` never equals the
+  lower-case origin a browser sends, so it failed closed. Entries are now lower-cased at runtime, after env resolution
+  (`WebauthnCeremonies::allowedOrigins()`), so `%env()%` placeholders keep resolving (audit ZCC-L1: a build-time
+  lower-casing would have lower-cased the env names inside them).
+
+### Documentation
+
+- WEBAUTHN.md (audit ZBX-v-I1): "never the `Host` header" is now exact. With `rp_id: null` the RP id, and so the
+  expected origin, is the request host (safe: the authenticator's `rpIdHash` binds to the same host); a login page on a
+  non-default port must be listed in `allowed_origins`, even when `rp_id` is its host.
+
 ## [2.4.0] - 2026-11-25
 
 ### Added

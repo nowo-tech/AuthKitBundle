@@ -309,19 +309,7 @@ final readonly class WebauthnManager
      */
     public function forgetUser(UserInterface $user): int
     {
-        $owner = $this->owners->personalDataOwner($user);
-        if (!$owner instanceof MfaOwner) {
-            return 0;
-        }
-        $deleted = 0;
-        foreach ($this->store->allOf($owner->type, $owner->id) as $record) {
-            if ($this->store->delete($record)) {
-                ++$deleted;
-                $this->dispatch(new WebauthnCredentialRemovedEvent($record->profile, $record->userType, $record->userId, $record->publicId, $record->label, WebauthnCredentialRemovedEvent::REASON_ERASURE));
-            }
-        }
-
-        return $deleted;
+        return (new WebauthnErasure($this->store, $this->owners, $this->dispatcher))->forgetUser($user);
     }
 
     /**
