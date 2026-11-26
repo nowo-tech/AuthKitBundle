@@ -72,6 +72,7 @@ Worker demo: `demo/symfony8/Caddyfile` runs `php_server` with a `worker` block (
 | `MagicLogin\MagicLoginRequestHandler`, `MagicLoginUserResolver`, `MagicLoginGate` | yes | none | ✅ | ✅ |
 | `QrLogin\QrLoginChallengeManager` | yes | none (`$kernelSecret` is config) | ✅ | ✅ |
 | `Webauthn\WebauthnManager`, `WebauthnCeremonies`, `WebauthnStore` (2.4.0) | yes | none (library objects built per call, detached records) | ✅ | ✅ |
+| `Webauthn\WebauthnErasure` (2.4.1) | yes | none (`readonly`, store and resolver only; records read and deleted per call) | ✅ | ✅ |
 | `QrLogin\QrLoginRateLimiter`, `QrLoginGate`, `QrLoginUserResolver`, `NullQrLoginStepUp`, `DeviceIntelligenceQrLoginStepUp` (decorator) | yes | none | ✅ | ✅ |
 | `QrLogin\NullQrCodeGenerator`, `QrLogin\EndroidQrCodeGenerator` | yes | none (new `Builder` per call) | ✅ | ✅ |
 | `SocialLogin\OAuth2Client`, `ProviderEndpointCatalog`, `OAuthEndpointUrlValidator` | yes | none | ✅ | ✅ |

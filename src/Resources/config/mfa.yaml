@@ -18,6 +18,7 @@ services:
             $sessions: '@?Nowo\UserKitBundle\Sessions\UserSessionManager'
             $logger: '@?logger'
             $passkeys: '@?Nowo\AuthKitBundle\Webauthn\WebauthnManager'
+            $passkeyErasure: '@?Nowo\AuthKitBundle\Webauthn\WebauthnErasure'
 
     Nowo\AuthKitBundle\Mfa\MfaTrustedDevices:
         arguments:

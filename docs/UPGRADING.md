@@ -180,6 +180,18 @@
 
 ## Unreleased
 
+From **2.4.0** (a patch: no schema change, nothing required).
+
+- **Passkey erasure whatever the mode (audit ZBX-v-I2).** `MfaManager::forgetUser()` now deletes stored passkeys also
+  when no profile enables them. Hosts that delete users without UserKit and without MFA can call the new public
+  service `Nowo\AuthKitBundle\Webauthn\WebauthnErasure::forgetUser($user)`. Hosts that construct `MfaManager`
+  themselves may pass the new optional last argument `$passkeyErasure`.
+- **`allowed_origins` is lower-cased at build time (audit ZBX-v-I3).** An entry with upper-case letters used to fail
+  closed (no browser origin matched it); it now works. Check that you did not rely on such an entry being inert.
+- **Non-default port (audit ZBX-v-I1, docs).** With an empty `allowed_origins` the expected origin is
+  `https://<rp_id>` on the default port (with `rp_id: null`, the request host). A login page on another port must be
+  listed in `allowed_origins`.
+
 ## To 2.4.0
 
 From **2.3.0**:

@@ -89,6 +89,7 @@ use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnMfaController;
 use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataEraser;
 use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataExportProvider;
+use Nowo\AuthKitBundle\Webauthn\WebauthnErasure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnStore;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
@@ -1218,12 +1219,22 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
     /**
      * Passkeys (2.4.0): with at least one `webauthn.mode: enabled` profile, loads `webauthn.yaml`, and the second-step
-     * controller when a profile also has `mfa.enabled` with `webauthn.mfa`. Nothing is registered otherwise.
+     * controller when a profile also has `mfa.enabled` with `webauthn.mfa`. Otherwise only {@see WebauthnErasure} is
+     * registered (2.4.1, always).
      *
      * @param array<string, array<string, mixed>> $profiles
      */
     private function registerWebauthn(ContainerBuilder $container, array $profiles, YamlFileLoader $loader): void
     {
+        // 2.4.1 (audit ZBX-v-I2): passkey erasure whatever the passkey mode (MfaManager::forgetUser() and hosts that
+        // delete users without UserKit); no mapped entity or no table: nothing to erase.
+        $container->register(WebauthnErasure::class)
+            ->setPublic(true)
+            ->setArguments([
+                '$store'      => (new Definition(WebauthnStore::class))->setAutowired(true),
+                '$owners'     => (new Definition(MfaOwnerResolver::class))->setAutowired(true),
+                '$dispatcher' => new Reference('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE),
+            ]);
         $enabled = false;
         $mfa     = false;
         foreach ($profiles as $profile) {

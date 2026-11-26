@@ -21,6 +21,7 @@ use Nowo\AuthKitBundle\Port\Ports;
 use Nowo\AuthKitBundle\Profile\ProfileRegistry;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Webauthn\WebauthnErasure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use Nowo\UserKitBundle\Sessions\Model\RevocationReason;
 use Nowo\UserKitBundle\Sessions\UserSessionManager;
@@ -69,6 +70,7 @@ final readonly class MfaManager
         private ?UserSessionManager $sessions = null,
         private LoggerInterface $logger = new NullLogger(),
         private ?WebauthnManager $passkeys = null,
+        private ?WebauthnErasure $passkeyErasure = null,
     ) {
     }
 
@@ -404,7 +406,8 @@ final readonly class MfaManager
     }
 
     /**
-     * Deletes everything MFA knows about a user (account removal / personal data erasure), passkeys included (2.4.0).
+     * Deletes everything MFA knows about a user (account removal / personal data erasure), passkeys included (2.4.0;
+     * since 2.4.1 whatever the passkey mode, audit ZBX-v-I2).
      */
     public function forgetUser(UserInterface $user): void
     {
@@ -412,8 +415,9 @@ final readonly class MfaManager
         if ($credential instanceof MfaCredential) {
             $this->store->delete($credential);
         }
-        // 2.4.0 (audit ZBX-L3): the user's passkeys go too.
-        $this->passkeys?->forgetUser($user);
+        // 2.4.0 (audit ZBX-L3): the user's passkeys go too; since 2.4.1 (audit ZBX-v-I2) also while no profile enables
+        // passkeys (the bundle wires $passkeyErasure whatever the mode; $passkeys alone is the 2.4.0 direct construction).
+        ($this->passkeyErasure ?? $this->passkeys)?->forgetUser($user);
     }
 
     /**

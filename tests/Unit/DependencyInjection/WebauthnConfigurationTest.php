@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnMfaController;
 use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataEraser;
 use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataExportProvider;
+use Nowo\AuthKitBundle\Webauthn\WebauthnErasure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -19,6 +20,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 use function array_filter;
 use function array_keys;
+use function array_values;
 use function str_contains;
 
 /**
@@ -43,7 +45,9 @@ final class WebauthnConfigurationTest extends TestCase
         self::assertSame(['limit' => 20, 'window' => 300], $webauthn['rate_limit']['assert']);
         self::assertSame('/login/webauthn/options', $webauthn['routes']['login_options']['path']);
         self::assertSame('exempt', $this->profile($container)['mfa']['first_factors']['webauthn']);
-        self::assertSame([], array_filter(array_keys($container->getDefinitions()), static fn (string $id): bool => str_contains($id, '\\Webauthn\\Webauthn') || str_contains($id, '\\Webauthn\\Controller')));
+        // 2.4.1 (audit ZBX-v-I2): only the passkey erasure, which works whatever the mode.
+        self::assertSame([WebauthnErasure::class], array_values(array_filter(array_keys($container->getDefinitions()), static fn (string $id): bool => str_contains($id, '\\Webauthn\\Webauthn') || str_contains($id, '\\Webauthn\\Controller'))));
+        self::assertTrue($container->getDefinition(WebauthnErasure::class)->isPublic());
     }
 
     public function testEnabledRegistersTheServices(): void
@@ -124,6 +128,16 @@ final class WebauthnConfigurationTest extends TestCase
         self::assertSame('login.example.com', $webauthn['rp_id']);
         self::assertSame(['https://login.example.com', 'http://localhost:8000'], $webauthn['allowed_origins']);
         self::assertSame('host-key', $webauthn['hash_secret']);
+    }
+
+    public function testUpperCaseOriginsAreLowerCased(): void
+    {
+        // 2.4.1 (audit ZBX-v-I3): a browser origin is lower case, so an upper-case entry would never match.
+        $webauthn = $this->profile($this->load(['webauthn' => [
+            'mode'            => 'enabled',
+            'allowed_origins' => ['HTTPS://Login.Example.COM:8443', 'HTTP://LocalHost:8000'],
+        ]]))['webauthn'];
+        self::assertSame(['https://login.example.com:8443', 'http://localhost:8000'], $webauthn['allowed_origins']);
     }
 
     /**
