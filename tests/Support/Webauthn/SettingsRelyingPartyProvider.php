@@ -10,7 +10,8 @@ use RuntimeException;
 
 /**
  * A host's relying party provider (2.6.0 tests), the way Beacon keeps it: the values of {@see RelyingPartySettings},
- * read on every call, falling back to the decorated default (the configuration). Keeps nothing itself.
+ * read on every call, falling back to the decorated default (the configuration). Keeps nothing itself. The fallback
+ * origins come from the inner provider with the resolved RP id in the context (audit ZCQ-M1): never the request Host.
  */
 final readonly class SettingsRelyingPartyProvider implements WebAuthnRelyingPartyProviderInterface
 {

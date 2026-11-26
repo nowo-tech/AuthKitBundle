@@ -55,6 +55,56 @@ final class WebauthnRelyingPartyKernelTest extends WebauthnKernelTestCase
     }
 
     #[Test]
+    public function aStoredRpIdWithDefaultOriginsNeverTrustsAForgedHost(): void
+    {
+        // Audit ZCQ-M1: the host stores only the RP id; webauthn.rp_id is null and the origins come from the default.
+        $passkey = $this->registerOn('example.com', null);
+        $this->client->getCookieJar()->clear();
+        $this->events = [];
+
+        // The attacker's sub-domain page got the victim's assertion for rpId example.com and posts it with a forged Host.
+        $this->client->setServerParameters(['HTTP_HOST' => 'evil.example.com', 'HTTPS' => 'on']);
+        $page    = $this->client->request('GET', '/login');
+        $options = $this->json('/login/webauthn/options');
+        self::assertSame('example.com', $this->decode($options)['rpId']);
+        $this->client->submit($page->filter('form[name="webauthn_login"]')->form(['webauthn_login[credential]' => $passkey->assert($options, 'https://evil.example.com')]));
+        self::assertSame([WebauthnFailure::INVALID], $this->reasons());
+        self::assertStringStartsWith('anonymous|', $this->whoAmI());
+
+        // The real origin signs in.
+        $this->client->getCookieJar()->clear();
+        $this->client->setServerParameters(['HTTP_HOST' => 'example.com', 'HTTPS' => 'on']);
+        $page    = $this->client->request('GET', '/login');
+        $options = $this->json('/login/webauthn/options');
+        $this->client->submit($page->filter('form[name="webauthn_login"]')->form(['webauthn_login[credential]' => $passkey->assert($options, 'https://example.com')]));
+        self::assertStringStartsWith(self::MEMBER . '|', $this->whoAmI());
+    }
+
+    #[Test]
+    public function anOriginOfAnotherDomainIsDroppedAndPasskeysKeepWorking(): void
+    {
+        // Audit ZCQ-M2 (BC with 2.5): example.org cannot serve example.com; it is ignored, example.com still works.
+        $passkey = $this->registerOn('example.com', ['https://example.com', 'https://example.org']);
+        $this->client->getCookieJar()->clear();
+        $page    = $this->client->request('GET', '/login');
+        $options = $this->json('/login/webauthn/options');
+        $this->client->submit($page->filter('form[name="webauthn_login"]')->form(['webauthn_login[credential]' => $passkey->assert($options, 'https://example.com')]));
+        self::assertStringStartsWith(self::MEMBER . '|', $this->whoAmI());
+    }
+
+    #[Test]
+    public function oneListOfOriginsServesSeveralDomainsWithTheRequestHostAsRpId(): void
+    {
+        // 2.5 multi-domain setup: rp_id null (the request host), both domains listed; each keeps its own origin.
+        $this->settings()->rpId    = null;
+        $this->settings()->origins = ['https://example.com', 'https://example.org'];
+        foreach (['example.com', 'example.org'] as $host) {
+            $this->client->setServerParameters(['HTTP_HOST' => $host, 'HTTPS' => 'on']);
+            self::assertSame($host, $this->decode($this->json('/login/webauthn/options'))['rpId']);
+        }
+    }
+
+    #[Test]
     public function aPasskeyOfAnotherRpIdIsRefusedWithItsOwnReason(): void
     {
         $passkey = $this->registerOn('example.com', ['https://example.com']);
@@ -78,6 +128,9 @@ final class WebauthnRelyingPartyKernelTest extends WebauthnKernelTestCase
     public function aPasskeyCreatedBeforeTheColumnStillSignsIn(): void
     {
         $passkey = $this->registerOn('example.com', ['https://example.com']);
+        // Audit ZCQ-L1: a backfill in another case still matches.
+        $this->em()->getConnection()->executeStatement('UPDATE ' . WebauthnCredential::TABLE . " SET rp_id = 'Example.COM'");
+        self::assertSame(1, $this->passkeys()->countCredentialsForRpId('example.com'));
         $this->em()->getConnection()->executeStatement('UPDATE ' . WebauthnCredential::TABLE . ' SET rp_id = NULL');
         self::assertSame(0, $this->passkeys()->countCredentialsForRpId('example.com'));
         self::assertSame(1, $this->passkeys()->countCredentialsOutsideRpId('example.com'));
@@ -130,7 +183,7 @@ final class WebauthnRelyingPartyKernelTest extends WebauthnKernelTestCase
         yield 'port in the RP id' => ['example.com:443', ['https://example.com']];
         yield 'IP literal' => ['127.0.0.1', ['https://127.0.0.1']];
         yield 'single label' => ['com', ['https://example.com']];
-        yield 'origin on another domain' => ['example.com', ['https://example.org']];
+        yield 'only an origin on another domain' => ['example.com', ['https://example.org']];
         yield 'origin on a look-alike domain' => ['example.com', ['https://evilexample.com']];
         yield 'plain http origin' => ['example.com', ['http://example.com']];
         yield 'origin with a path' => ['example.com', ['https://example.com/login']];
@@ -197,11 +250,11 @@ final class WebauthnRelyingPartyKernelTest extends WebauthnKernelTestCase
     }
 
     /**
-     * Registers a passkey for the member on `https://<rp id>` with the settings' RP id and origins.
+     * Registers a passkey for the member on `https://<rp id>` with the settings' RP id and origins (null: the default).
      *
-     * @param list<string> $origins
+     * @param list<string>|null $origins
      */
-    private function registerOn(string $rpId, array $origins): SoftwareAuthenticator
+    private function registerOn(string $rpId, ?array $origins): SoftwareAuthenticator
     {
         $this->onHost($rpId, $origins);
         $this->signedIn(self::MEMBER, self::PASSWORD);
@@ -218,11 +271,11 @@ final class WebauthnRelyingPartyKernelTest extends WebauthnKernelTestCase
     }
 
     /**
-     * The browser on `https://<host>`, the settings on that RP id (or `$rpId`) and origins.
+     * The browser on `https://<host>`, the settings on that RP id (or `$rpId`) and origins (null: the default).
      *
-     * @param list<string> $origins
+     * @param list<string>|null $origins
      */
-    private function onHost(string $host, array $origins, ?string $rpId = null): void
+    private function onHost(string $host, ?array $origins, ?string $rpId = null): void
     {
         $this->client->setServerParameters(['HTTP_HOST' => $host, 'HTTPS' => 'on']);
         $this->settings()->rpId    = $rpId ?? $host;

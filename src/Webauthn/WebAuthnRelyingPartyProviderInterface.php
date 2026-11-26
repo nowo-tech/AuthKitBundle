@@ -20,7 +20,8 @@ use Nowo\AuthKitBundle\Webauthn\RelyingParty\ConfiguredWebAuthnRelyingPartyProvi
  *
  * AuthKit validates every answer ({@see WebAuthnRelyingPartyValidator}). An invalid answer, or an exception, disables
  * the passkeys of that ceremony (fail closed): no options are issued, nothing is verified, the page asks the person to
- * use the password, and the failure is logged.
+ * use the password, and the failure is logged. Exception messages must not carry secrets (a DSN, a token): AuthKit logs
+ * the exception class, its code and a digest of its message at error level.
  */
 interface WebAuthnRelyingPartyProviderInterface
 {
@@ -30,8 +31,11 @@ interface WebAuthnRelyingPartyProviderInterface
     public function rpId(WebAuthnRelyingPartyContext $context): string;
 
     /**
-     * The exact origins (`https://host[:port]`, lower case, no path) a ceremony may come from; each host is the RP id
-     * or a sub-domain of it. `http://localhost[:port]` only in development.
+     * The exact origins (`https://host[:port]`, lower case, no path, no default port) a ceremony may come from; each host
+     * is the RP id or a sub-domain of it. `http://localhost[:port]` only in development. Asked after {@see self::rpId()},
+     * with the resolved RP id in `$context->resolvedRpId`: derive default origins from it, **never from the request
+     * `Host`** (a forged Host would otherwise make an attacker's sub-domain an expected origin, audit ZBX-M1 / ZCQ-M1).
+     * An entry that cannot serve the RP id is dropped with a warning; with none left, passkeys are disabled.
      *
      * @return list<string>
      */

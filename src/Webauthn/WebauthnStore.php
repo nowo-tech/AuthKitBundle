@@ -27,6 +27,7 @@ use function array_values;
 use function hash;
 use function is_array;
 use function is_string;
+use function strtolower;
 
 /**
  * Persistence of the passkeys (2.4.0), by DBAL statements on the table of {@see WebauthnCredential} (its prefixed name
@@ -194,7 +195,8 @@ final readonly class WebauthnStore
     /**
      * 2.6.0: how many passkeys were created for exactly this RP id (in one profile, or in all). Passkeys created before
      * 2.6.0 and not backfilled (`rp_id` null) are not counted: see {@see self::countOutsideRpId()}. Compared in PHP,
-     * byte for byte (REQ-SEC-006), whatever the column collation.
+     * byte for byte after lower-casing (REQ-SEC-006), whatever the column collation. Reads the `rp_id` of every row:
+     * meant for an administrator's warning, not for every request (audit ZCQ-I5).
      */
     public function countForRpId(string $rpId, ?string $profile = null): int
     {
@@ -271,7 +273,8 @@ final readonly class WebauthnStore
                 (string) $row['label'],
                 $created,
                 $used,
-                $row['rp_id'] !== null ? (string) $row['rp_id'] : null,
+                // Audit ZCQ-L1: lower-cased like the resolved RP id (a backfill may have written another case).
+                $row['rp_id'] !== null ? strtolower((string) $row['rp_id']) : null,
             );
         }, $rows);
     }
@@ -289,7 +292,7 @@ final readonly class WebauthnStore
         $rpIds      = [];
         foreach ($rows as $row) {
             if ($profile === null || $row['profile'] === $profile) {
-                $rpIds[] = $row['rp_id'] !== null ? (string) $row['rp_id'] : null;
+                $rpIds[] = $row['rp_id'] !== null ? strtolower((string) $row['rp_id']) : null;
             }
         }
 

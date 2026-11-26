@@ -242,24 +242,33 @@ or implement `ResetInterface`.
   `http://localhost[:port]` with `allow_http_localhost` (default `kernel.debug`); each host is the RP id or a sub-domain
   of it (`login.example.com` for `example.com`, never `badexample.com`).
 
-The values are lower-cased before the check. An invalid answer, or an exception thrown by the provider:
+The origins are asked after the RP id, with the resolved RP id in `$context->resolvedRpId`; the default derives
+`https://<rp id>` from it, never from the request `Host` (audit ZCQ-M1). An origin that cannot serve the RP id
+(another domain, a malformed entry, an explicit default port) is ignored with a warning; passkeys stay on while one
+usable origin remains (BC with 2.5 multi-domain lists). Messages JSON-encode the values.
+
+The values are lower-cased before the check. An invalid RP id, no usable origin, or an exception thrown by the
+provider:
 
 - options are not issued: `503 {"error": "unavailable"}`; the script sets the state `unavailable` ("Passkeys are not
   available right now. Sign in with your password."), also from the conditional UI, and disables the button;
 - a registration, sign-in or second step in progress is refused (`reason: relying_party`), with the flash
   `webauthn.flash.unavailable`; nothing is verified against a half-valid relying party;
 - the account page still lists, renames and removes passkeys, without the Signal API data;
-- the failure is logged at error level (`Passkeys are disabled: …`, with the RP id, the origins and the violations).
+- the failure is logged at error level (`Passkeys are disabled: …`, with the RP id and the violations; for a provider
+  exception only its class, code and a digest of its message: keep secrets out of exception messages).
 
 Hosts validate in their settings form with `WebAuthnRelyingPartyValidator::violations($rpId, $origins,
-$allowHttpLocalhost)` (empty list = valid).
+$allowHttpLocalhost)` (empty list = valid; `$allowHttpLocalhost` = the profile's `webauthn.allow_http_localhost`, else
+`kernel.debug`). It is strict: it reports every unusable origin.
 
 **Changing the RP id.** Every passkey is bound to the RP id it was created for (stored in `rp_id`). After a change:
 a passkey of the former RP id is refused with `reason: rp_id_mismatch` (logged as a warning), and so is an answer to
 options issued under the former RP id. Before saving a new RP id, warn with
 `WebauthnManager::countCredentialsOutsideRpId($newRpId, ?$profile)` ("N passkeys will stop working": those of another
 RP id and those whose `rp_id` is null); `countCredentialsForRpId($rpId, ?$profile)` counts the passkeys of one RP id.
-Both compare in PHP, byte for byte.
+Both compare in PHP, byte for byte after lower-casing, and read every row's `rp_id`: use them for an administrator's
+warning, not on every request.
 
 ## Passkeys and MFA
 

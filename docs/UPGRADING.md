@@ -208,17 +208,19 @@ id, so a later RP id change is reported as `rp_id_mismatch` and the passkeys it 
 ```sql
 -- MySQL 8.0+ / MariaDB 10.5+
 ALTER TABLE auth_kit_webauthn_credential ADD rp_id VARCHAR(253) DEFAULT NULL;
-UPDATE auth_kit_webauthn_credential SET rp_id = 'example.com' WHERE rp_id IS NULL;
+UPDATE auth_kit_webauthn_credential SET rp_id = LOWER('example.com') WHERE rp_id IS NULL;
 -- PostgreSQL 12+
 ALTER TABLE auth_kit_webauthn_credential ADD rp_id VARCHAR(253) DEFAULT NULL;
-UPDATE auth_kit_webauthn_credential SET rp_id = 'example.com' WHERE rp_id IS NULL;
+UPDATE auth_kit_webauthn_credential SET rp_id = LOWER('example.com') WHERE rp_id IS NULL;
 -- SQLite 3
 ALTER TABLE auth_kit_webauthn_credential ADD COLUMN rp_id VARCHAR(253) DEFAULT NULL;
-UPDATE auth_kit_webauthn_credential SET rp_id = 'example.com' WHERE rp_id IS NULL;
+UPDATE auth_kit_webauthn_credential SET rp_id = LOWER('example.com') WHERE rp_id IS NULL;
 ```
 
-Replace `example.com` with your RP id: `webauthn.rp_id`, or, with `rp_id: null`, the host name of your login page
-(lower case, no port). With several profiles of different RP ids, add `AND profile = '<name>'` per profile. Use your
+Replace `example.com` with exactly your RP id: `webauthn.rp_id`, or, with `rp_id: null`, the host name of your login
+page. No scheme, no port, no `www.` you do not use as RP id (AuthKit compares it lower-cased). After the backfill,
+`WebauthnManager::countCredentialsOutsideRpId('example.com')` must answer 0: a wrong value turns every passkey into
+`rp_id_mismatch`. With several profiles of different RP ids, add `AND profile = '<name>'` per profile. Use your
 table prefix (`doctrine.table_prefix`) when you set one. Run the `ALTER` before switching traffic (every passkey query
 reads the column); the `UPDATE` may run later. `php bin/console doctrine:migrations:diff` generates the `ALTER` (review
 it). The shipped `src/Resources/sql/webauthn/*.up.sql` create the table with the column.
@@ -230,6 +232,11 @@ it). The shipped `src/Resources/sql/webauthn/*.up.sql` create the table with the
   `http://localhost` now disables them (options answer 503): set `allow_http_localhost: true` for that local setup.
   Real deployments use https and are not affected.
 - **An IP RP id is refused** (e.g. `rp_id: null` with a request on `http://127.0.0.1`): browsers already refused it.
+- **Allowed origins that cannot serve the RP id are ignored, with a warning** (another domain, a malformed entry, an
+  explicit default port such as `https://example.com:443`): `allowed_origins: [https://example.com,
+  https://example.org]` with `rp_id: null` keeps working on both domains, each with its own origin. Passkeys are
+  disabled only when no listed origin can serve the RP id. Watch the log for "A WebAuthn allowed origin is ignored".
+  `WebAuthnRelyingPartyValidator::violations()` stays strict for settings forms.
 - **Invalid relying party = passkeys off, password on.** Options answer `503 {"error": "unavailable"}`; the bundled
   script shows the new `unavailable` state ("Passkeys are not available right now. Sign in with your password.") and
   disables the passkey button; a pending sign-in, second step or registration is refused (`relying_party`) and the page
@@ -245,7 +252,9 @@ it). The shipped `src/Resources/sql/webauthn/*.up.sql` create the table with the
 1. Upgrade, add the column and backfill it (above).
 2. Implement `Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyProviderInterface`. Read the setting on every call (no
    property cache, no memo across requests: FrankenPHP worker mode with the kernel reset off) and fall back to the
-   configuration by decorating the default:
+   configuration by decorating the default. The origins are asked after the RP id, with the resolved RP id in
+   `$context->resolvedRpId`: the default provider derives `https://<rp id>` from it, never from the request `Host`, so
+   storing only the RP id is safe (a forged `Host: evil.example.com` never becomes an expected origin):
 
    ```php
    final readonly class InstanceWebAuthnRelyingParty implements WebAuthnRelyingPartyProviderInterface
@@ -271,10 +280,12 @@ it). The shipped `src/Resources/sql/webauthn/*.up.sql` create the table with the
    ```
 
    Or replace it outright: `Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyProviderInterface: '@App\Security\InstanceWebAuthnRelyingParty'`.
-   An exception thrown by the provider (settings store down) disables passkeys for that request only.
+   An exception thrown by the provider (settings store down) disables passkeys for that request only. AuthKit logs its
+   class, code and a digest of its message, never the message itself; still, keep secrets (a DSN, a token) out of
+   exception messages.
 3. In the settings form, validate before saving with
-   `WebAuthnRelyingPartyValidator::violations($rpId, $origins, $kernelDebug)` (an empty list = valid) and show the
-   messages. AuthKit validates again on every ceremony and fails closed.
+   `WebAuthnRelyingPartyValidator::violations($rpId, $origins, $allowHttpLocalhost)` (an empty list = valid; pass the
+   profile's `webauthn.allow_http_localhost`, else `kernel.debug`) and show the messages. AuthKit validates again on every ceremony and fails closed.
 4. Before saving a new RP id, warn with `WebauthnManager::countCredentialsOutsideRpId($newRpId)`: "N passkeys will stop
    working" (their owners sign in with the password and register a new passkey). `countCredentialsForRpId()` gives the
    passkeys of an RP id.

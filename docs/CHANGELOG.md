@@ -159,13 +159,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passkeys will stop working" before saving.
 - **New failure reason `WebauthnFailure::RELYING_PARTY`** (`relying_party`) on `WebauthnAuthenticationFailedEvent`.
 
+- **Origins follow the resolved RP id (audit ZCQ-M1).** `WebAuthnRelyingPartyContext::$resolvedRpId` /
+  `withRpId()`: the origins are asked after the RP id, and the default provider derives `https://<rp id>` from the
+  resolved one, never from the request `Host`, so a decorator that stores only the RP id cannot turn a forged
+  `Host: evil.example.com` into an expected origin.
+- `WebAuthnRelyingPartyValidator::originViolation()` and `rpIdViolation()`; messages JSON-encode the values.
+
 ### Changed
 
+- **Allowed origins that cannot serve the RP id are ignored, not fatal (audit ZCQ-M2, BC with 2.5).** Another domain, a
+  malformed entry or an explicit default port (`https://host:443`, which a browser never sends) is dropped with a
+  warning log; passkeys are disabled only when no origin remains. `violations()` stays strict for settings forms.
+- **Provider failures are logged without their message (audit ZCQ-L2):** exception class, code and a SHA-256 prefix of
+  the message.
+- **Stored `rp_id` values are compared lower-cased (audit ZCQ-L1).**
+- A failing relying party is refused before the credential lookup of an assertion (audit ZCQ-I1).
 - **`http://localhost` origins need development.** They are accepted with `kernel.debug` or
   `webauthn.allow_http_localhost: true`; with debug off and no flag, passkeys fail closed on `http://localhost`. An IP
   RP id (a request host `127.0.0.1` with `rp_id: null`) is refused too; browsers already refused both ceremonies there.
 - `WebauthnCeremonies` (internal): `verifyCreation()` returns the record and its RP id; `rpId()` and
   `allowedOrigins()` answer the validated provider values and may throw `WebauthnFailure` (`relying_party`).
+
+### Fixed
+
+- **Lost savepoint (REQ-RUNTIME-003, audit ZCQ-M3; since 1.46.0).** An AuthKit write inside the application's
+  transaction runs in a savepoint (`AuthKitSavepoint`). When the write lost a deadlock on MySQL / MariaDB, the server
+  had already rolled the whole transaction back, and rolling back to the vanished savepoint threw "SAVEPOINT does not
+  exist", which replaced the deadlock (500 instead of 409 `CONFLICT_001`) and left DBAL believing in a transaction the
+  server no longer had (later writes could autocommit). Now the entry level is rolled back (the connection is closed
+  when that fails too) and the original exception is rethrown. Contention only, with a host transaction around an
+  AuthKit write: no advisory.
 
 ## [2.5.0] - 2026-11-26
 

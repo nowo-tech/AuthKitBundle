@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\PrivateEntityManager;
 
 use DateTimeImmutable;
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\Connection as DriverConnection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -352,6 +353,78 @@ final class PrivateEntityManagerPartsTest extends KernelTestCase
         }, $host);
         self::assertSame([1], $levels);
         $connection->rollBack();
+    }
+
+    #[Test]
+    public function aLostSavepointRollsTheEntryLevelBackAndRethrowsTheOriginalException(): void
+    {
+        // REQ-RUNTIME-003, audit ZCQ-M3: the server already ended the transaction (a MySQL deadlock), so the savepoint is
+        // gone. Simulated on SQLite by a raw ROLLBACK inside the write.
+        $private    = $this->privateManager();
+        $connection = $private->getConnection();
+        $connection->executeStatement('CREATE TABLE IF NOT EXISTS zcq_ballast (id INTEGER NOT NULL PRIMARY KEY)');
+        $connection->executeStatement('DELETE FROM zcq_ballast');
+        $connection->beginTransaction();
+        $connection->executeStatement('INSERT INTO zcq_ballast (id) VALUES (1)');
+        $original = new RuntimeException('deadlock');
+        try {
+            AuthKitSavepoint::write($connection, static function () use ($connection, $original): never {
+                $connection->executeStatement('ROLLBACK');
+
+                throw $original;
+            }, $private);
+        } catch (RuntimeException $caught) {
+        }
+        self::assertSame($original, $caught, 'the original exception, never the "no such savepoint" error');
+        self::assertSame(0, $connection->getTransactionNestingLevel(), 'DBAL no longer believes in the lost transaction');
+        self::assertSame(0, (int) $connection->fetchOne('SELECT COUNT(*) FROM zcq_ballast'), 'nothing was committed');
+        $connection->executeStatement('DROP TABLE zcq_ballast');
+    }
+
+    #[Test]
+    public function aLostSavepointClosesTheConnectionWhenTheRollbackFailsToo(): void
+    {
+        $private    = $this->privateManager();
+        $platform   = $private->getConnection()->getDatabasePlatform();
+        $connection = $this->createMock(Connection::class);
+        $connection->method('isTransactionActive')->willReturn(true);
+        $connection->method('getDatabasePlatform')->willReturn($platform);
+        $connection->method('getTransactionNestingLevel')->willReturn(1);
+        $connection->method('rollbackSavepoint')->willThrowException(new RuntimeException('SAVEPOINT does not exist'));
+        $connection->method('rollBack')->willThrowException(new RuntimeException('no transaction'));
+        $connection->expects(self::once())->method('close');
+        $original = new RuntimeException('deadlock');
+        try {
+            AuthKitSavepoint::write($connection, static fn (): never => throw $original, $private);
+        } catch (RuntimeException $caught) {
+        }
+        self::assertSame($original, $caught);
+
+        // A savepoint that rolls back normally touches nothing else.
+        $intact = $this->createMock(Connection::class);
+        $intact->method('isTransactionActive')->willReturn(true);
+        $intact->method('getDatabasePlatform')->willReturn($platform);
+        $intact->expects(self::once())->method('rollbackSavepoint');
+        $intact->expects(self::never())->method('rollBack');
+        $intact->expects(self::never())->method('close');
+        try {
+            AuthKitSavepoint::write($intact, static fn (): never => throw $original, $private);
+        } catch (RuntimeException $caught) {
+            self::assertSame($original, $caught);
+        }
+
+        // The entry level is already gone (a nested caller rolled back): nothing more to roll back.
+        $gone = $this->createMock(Connection::class);
+        $gone->method('isTransactionActive')->willReturn(true);
+        $gone->method('getDatabasePlatform')->willReturn($platform);
+        $gone->method('getTransactionNestingLevel')->willReturnOnConsecutiveCalls(2, 1);
+        $gone->method('rollbackSavepoint')->willThrowException(new RuntimeException('SAVEPOINT does not exist'));
+        $gone->expects(self::never())->method('rollBack');
+        try {
+            AuthKitSavepoint::write($gone, static fn (): never => throw $original, $private);
+        } catch (RuntimeException $caught) {
+            self::assertSame($original, $caught);
+        }
     }
 
     #[Test]

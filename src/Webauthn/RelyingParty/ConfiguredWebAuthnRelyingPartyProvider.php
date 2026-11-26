@@ -30,7 +30,8 @@ final readonly class ConfiguredWebAuthnRelyingPartyProvider implements WebAuthnR
             // 2.4.1 (audits ZBX-v-I3, ZCC-L1): lower-cased after env resolution (a browser origin is lower case).
             return array_map(strtolower(...), $context->configuredOrigins);
         }
-        $rpId = $this->rpId($context);
+        // Audit ZCQ-M1: the RP id the ceremony resolved (a decorator's), never one derived again from the request.
+        $rpId = $context->resolvedRpId ?? $this->rpId($context);
 
         return $rpId === 'localhost' && $context->requestHost === 'localhost' ? [$context->requestOrigin] : ['https://' . $rpId];
     }

@@ -149,6 +149,10 @@ DBAL 3. No test may be skipped. These are required checks on `main`.
   transient, and the connection is back at level 0. Two acceptances of one invitation have one winner.
 - `AccountLocksTest`, `ConcurrentAccountsTest`, `FirstUserOnlyTest`: two sessions and two worker processes never create
   two accounts for one identifier, or two first accounts. A lock held too long is a transient failure.
+- `WebauthnDatabaseTest` (2.6.0, audit ZCQ-M3): a passkey insert in AuthKit's savepoint inside the application's
+  transaction loses a deadlock: the caller gets the original deadlock, never "SAVEPOINT does not exist"; on MySQL /
+  MariaDB (lost savepoint) DBAL is back at level 0 or the connection is closed, on PostgreSQL the host transaction goes
+  on; nothing of it commits.
 - `MfaCredentialRaceTest`: two first enrolments of one owner share one credential.
 - `MfaSingleUseRaceTest` (2.2.1): a TOTP step, a recovery code and a trusted-device token rotation presented by two
   requests at once: the one that waits on the other's statement is refused when it commits and goes through when it

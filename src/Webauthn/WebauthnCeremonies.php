@@ -192,6 +192,9 @@ final readonly class WebauthnCeremonies
         $credential = $this->parse($json);
         $response   = $credential->response;
         $options    = $this->consume($request, $profile, $ceremony, PublicKeyCredentialRequestOptions::class);
+        // Audit ZCQ-I1: an unusable relying party is refused before the credential is looked up, so the answer never
+        // depends on whether the credential id exists.
+        $this->current($profile, $request, $options->rpId);
         if (!$response instanceof AuthenticatorAssertionResponse) {
             throw new WebauthnFailure(WebauthnFailure::MALFORMED, 'Not an assertion response.');
         }

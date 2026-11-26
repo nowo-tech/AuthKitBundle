@@ -9,6 +9,8 @@ use Doctrine\DBAL\Exception\RetryableException;
 use Doctrine\DBAL\TransactionIsolationLevel;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
+use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
 use Nowo\AuthKitBundle\Doctrine\AuthKitRows;
 use Nowo\AuthKitBundle\Entity\WebauthnCredential;
 use Nowo\AuthKitBundle\Mfa\MfaOwner;
@@ -16,6 +18,7 @@ use Nowo\AuthKitBundle\Tests\Database\Support\DatabaseTestKernel;
 use Nowo\AuthKitBundle\Tests\Database\Support\LoadDatabaseTestCase;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Support\Webauthn\WebauthnSqlScript;
+use Nowo\AuthKitBundle\Webauthn\Base64Url;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRenamedEvent;
 use Nowo\AuthKitBundle\Webauthn\WebauthnCredentialRecord;
 use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
@@ -179,6 +182,64 @@ final class WebauthnDatabaseTest extends LoadDatabaseTestCase
         WebauthnSqlScript::run($connection, 'down');
         self::assertFalse($connection->createSchemaManager()->tablesExist([WebauthnCredential::TABLE]));
         WebauthnSqlScript::run($connection, 'up');
+        $this->assertHealthy();
+    }
+
+    /**
+     * 2.6.0, audit ZCQ-M3 (REQ-RUNTIME-003 lost savepoint): the passkey insert runs in AuthKit's savepoint inside the
+     * host's transaction and deadlocks with a peer. MySQL / MariaDB roll the whole transaction back and drop the
+     * savepoint: the caller gets the original deadlock (never "SAVEPOINT does not exist") and DBAL is back at level 0
+     * (or closed), so nothing the host does next commits silently. PostgreSQL keeps the transaction: the savepoint rolls
+     * back and the host's transaction goes on. If the peer is the victim instead, the insert succeeds.
+     */
+    public function testADeadlockInsideThePasskeyInsertRethrowsTheDeadlockAndLeavesNoStaleTransaction(): void
+    {
+        $this->useWebauthnKernel();
+        $doctrine = $this->get('doctrine', ManagerRegistry::class);
+        $private  = new AuthKitEntityManager($doctrine);
+        $private->live();
+        $store      = new WebauthnStore(new AuthKitManagerRegistry($doctrine, $private));
+        $connection = $private->getConnection();
+        $rawId      = 'cred-deadlock';
+        $peer       = $this->otherSession();
+        self::assertSame('OK', $peer->execute('BEGIN'));
+        $this->ballast();
+        self::assertSame('OK', $peer->execute(sprintf(
+            "INSERT INTO %s (public_id, profile, user_type, user_id, credential_id_hash, credential_id, user_handle, public_key, sign_count, transports, label, created_at) VALUES ('peer', 'default', 'x', 'peer', '%s', '%s', 'h', 'k', 0, '[]', 'Peer', '2026-11-27 10:00:00')",
+            WebauthnCredential::TABLE,
+            WebauthnStore::credentialIdHash($rawId),
+            Base64Url::encode($rawId),
+        )));
+
+        $connection->beginTransaction();
+        $connection->executeStatement('INSERT INTO load_ballast (id) VALUES (1000)');
+        // The peer then wants the ballast key the host transaction holds, while the insert waits on the peer's key.
+        $peer->send($this->sleepStatement(1.0));
+        $peer->send('INSERT INTO load_ballast (id) VALUES (1000)');
+
+        $failure = null;
+        try {
+            $stored = $store->insert('p-deadlock', 'default', new MfaOwner(KernelUser::class, 'ada@example.com'), $rawId, 'handle', 'key', 0, [], null, null, null, 'Key', new DateTimeImmutable(), 'example.com');
+            self::assertTrue($stored, 'the peer lost the deadlock and rolled back');
+        } catch (Throwable $exception) {
+            $failure = $exception;
+        }
+        $level = $connection->isConnected() ? $connection->getTransactionNestingLevel() : 0;
+        // The host ends its transaction (PostgreSQL: still open, and the peer waits on its ballast key).
+        if ($connection->isConnected() && $connection->isTransactionActive()) {
+            $connection->rollBack();
+        }
+        self::assertSame('OK', $peer->await(), 'the sleep');
+        $peerAnswer = $peer->await();
+        if ($failure instanceof Throwable) {
+            self::assertTrue($this->causedByDeadlock($failure), 'the original deadlock, never the lost savepoint: ' . $failure->getMessage());
+            self::assertStringStartsWith('OK', $peerAnswer, 'the peer won');
+            self::assertSame($this->mysql() ? 0 : 1, $level, $this->mysql() ? 'no stale transaction level after the lost savepoint' : 'PostgreSQL kept the host transaction');
+        } else {
+            self::assertMatchesRegularExpression('/^ERR (1213|\\d+ 40P01)/', $peerAnswer);
+        }
+        self::assertSame('OK', $peer->execute('ROLLBACK'));
+        self::assertSame(0, $this->rows('SELECT COUNT(*) FROM load_ballast WHERE id = 1000'), 'nothing of the host transaction was committed');
         $this->assertHealthy();
     }
 

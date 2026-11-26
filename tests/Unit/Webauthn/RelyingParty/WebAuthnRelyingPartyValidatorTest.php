@@ -74,7 +74,10 @@ final class WebAuthnRelyingPartyValidatorTest extends TestCase
         yield 'port too large' => ['example.com', ['https://example.com:65536'], false, ['The origin "https://example.com:65536" is not https://host[:port].']];
         yield 'upper case host' => ['example.com', ['https://Example.com'], false, ['The origin "https://Example.com" is not https://host[:port].']];
         yield 'other scheme' => ['example.com', ['ftp://example.com'], false, ['The origin "ftp://example.com" is not https://host[:port].']];
-        yield 'trailing new line' => ['example.com', ["https://example.com\n"], false, ["The origin \"https://example.com\n\" is not https://host[:port]."]];
+        yield 'trailing new line (JSON in the message)' => ['example.com', ["https://example.com\n"], false, ['The origin "https://example.com\\n" is not https://host[:port].']];
+        yield 'explicit https default port' => ['example.com', ['https://example.com:443'], false, ['The origin "https://example.com:443" names the default port: leave it out.']];
+        yield 'explicit http default port' => ['localhost', ['http://localhost:80'], true, ['The origin "http://localhost:80" names the default port: leave it out.']];
+        yield 'non-default port 8443' => ['example.com', ['https://example.com:8443'], false, []];
         yield 'no origin' => ['example.com', [], false, ['No allowed origin.']];
         yield 'invalid RP id' => ['https://example.com', ['https://example.com'], false, ['The RP id "https://example.com" is not a registrable host name (lower case, no scheme, port or IP address).']];
     }
@@ -87,6 +90,14 @@ final class WebAuthnRelyingPartyValidatorTest extends TestCase
     public function testTheRelyingPartyRules(string $rpId, array $origins, bool $allowHttpLocalhost, array $expected): void
     {
         self::assertSame($expected, WebAuthnRelyingPartyValidator::violations($rpId, $origins, $allowHttpLocalhost));
+    }
+
+    public function testOneOriginAndTheRpIdMessage(): void
+    {
+        self::assertNull(WebAuthnRelyingPartyValidator::originViolation('https://login.example.com', 'example.com'));
+        self::assertNull(WebAuthnRelyingPartyValidator::originViolation('https://anything.example.org', null), 'form only');
+        self::assertSame('The origin "https://example.org" is not on the RP id "example.com" or a sub-domain of it.', WebAuthnRelyingPartyValidator::originViolation('https://example.org', 'example.com'));
+        self::assertSame('The RP id "a\\u0000b" is not a registrable host name (lower case, no scheme, port or IP address).', WebAuthnRelyingPartyValidator::rpIdViolation("a\0b"));
     }
 
     public function testTooManyOrigins(): void
