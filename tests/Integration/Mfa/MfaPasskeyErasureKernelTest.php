@@ -54,7 +54,7 @@ final class MfaPasskeyErasureKernelTest extends MfaKernelTestCase
 
     private function ownerOf(string $email): MfaOwner
     {
-        $owner = new MfaOwnerResolver($this->doctrine())->resolve($this->user($email));
+        $owner = (new MfaOwnerResolver($this->doctrine()))->resolve($this->user($email));
         self::assertInstanceOf(MfaOwner::class, $owner);
 
         return $owner;
