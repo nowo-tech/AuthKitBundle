@@ -25,6 +25,7 @@ use function sprintf;
  *
  * - the sign counter moves once: an assertion that waits on a peer's counter update follows its outcome (refused when
  *   the peer committed the same counter, recorded when it rolled back), and a stale counter is refused;
+ * - a rename's conditional UPDATE follows a peer's rename it waited on (2.5.0);
  * - a credential id is registered once (unique digest, `duplicate`);
  * - the exact-key columns tell look-alike owners apart (binary NO PAD collation);
  * - the platform's up script creates exactly the mapped table (collations included) and the down script drops it.
@@ -61,6 +62,36 @@ final class WebauthnDatabaseTest extends LoadDatabaseTestCase
         self::assertSame(5, $this->rows(sprintf('SELECT sign_count FROM %s WHERE id = %d', WebauthnCredential::TABLE, $record->id)));
         self::assertFalse($this->store()->recordUse($record, 5, true, new DateTimeImmutable()), 'the same counter again');
         self::assertTrue($this->store()->recordUse($record, 6, null, new DateTimeImmutable()));
+        $this->assertHealthy();
+    }
+
+    /**
+     * 2.5.0: a rename whose UPDATE waits on a peer's uncommitted rename follows its outcome. The UPDATE only matches the
+     * label it read, so after a committed peer it changes nothing (the manager then reads the row again) and after a
+     * rolled-back peer it renames; either way the label it reports replacing is the one that was there.
+     */
+    #[DataProvider('outcomes')]
+    public function testARenameWaitingOnAPeerFollowsItsOutcome(bool $commit): void
+    {
+        $record = $this->passkey('ada@example.com', 'cred-ada');
+        $peer   = $this->otherSession();
+        self::assertSame('OK', $peer->execute('BEGIN'));
+        self::assertSame('OK', $peer->execute(sprintf("UPDATE %s SET label = 'Peer' WHERE id = %d", WebauthnCredential::TABLE, $record->id)));
+        $peer->send($this->sleepStatement(1.0));
+        $peer->send($commit ? 'COMMIT' : 'ROLLBACK');
+
+        $started = microtime(true);
+        $renamed = $this->store()->rename($record, 'Mine');
+
+        self::assertGreaterThan(0.5, microtime(true) - $started, 'the update waited for the peer');
+        self::assertSame('OK', $peer->await());
+        self::assertSame('OK', $peer->await());
+        self::assertSame(!$commit, $renamed);
+        $fresh = $this->store()->findByCredentialId('default', 'cred-ada');
+        self::assertInstanceOf(WebauthnCredentialRecord::class, $fresh);
+        self::assertSame($commit ? 'Peer' : 'Mine', $fresh->label);
+        self::assertFalse($this->store()->rename($record, 'Other'), 'a stale label never matches');
+        self::assertTrue($this->store()->rename($fresh, 'Other'));
         $this->assertHealthy();
     }
 

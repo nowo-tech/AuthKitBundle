@@ -127,6 +127,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Webauthn\Event\WebauthnCredentialRenamedEvent`** (Beacon request, for the host's security audit log): dispatched
+  after a passkey rename is written, with the base passkey payload (`profile`, `userType`, `userId`, `publicId`) plus
+  `oldLabel` (the label the rename replaced) and `newLabel` (the stored, cleaned label). Never key material, the
+  credential id or the user handle. Not dispatched when the cleaned label equals the current one. Like its siblings it
+  carries no client IP: the actor is the owner (renaming is self-service only).
+
+### Fixed
+
+- **Passkey rename under concurrency (REQ-RUNTIME-003).** `WebauthnManager::rename()` read the passkey and then wrote
+  its label without the per-owner lock that registration and removal use. It now runs under that lock, and
+  `WebauthnStore::rename()` only matches the label it read (`UPDATE … WHERE id = :id AND label = :old`): a rename that
+  lost a race to a write outside the lock reads the row again and decides on it, so the event never reports a label
+  that was not there. `WebauthnStore::rename()` now returns false for a record whose label is stale.
+
 ## [2.4.1] - 2026-11-26
 
 Follow-ups of the ZBX verification audit (Info findings, no GHSA).

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Integration\Webauthn;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Nowo\AuthKitBundle\Entity\WebauthnCredential;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
 use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
@@ -15,17 +17,21 @@ use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\Webauthn\RacingManagerRegistry;
 use Nowo\AuthKitBundle\Tests\Support\Webauthn\SoftwareAuthenticator;
 use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnLoginController;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnAuthenticationFailedEvent;
+use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRenamedEvent;
 use Nowo\AuthKitBundle\Webauthn\WebauthnCeremonies;
 use Nowo\AuthKitBundle\Webauthn\WebauthnFailure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use Nowo\AuthKitBundle\Webauthn\WebauthnRemoval;
 use Nowo\AuthKitBundle\Webauthn\WebauthnStore;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\DependencyInjection\ServiceLocator;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -41,7 +47,7 @@ use function str_repeat;
 /**
  * Edge paths of the passkey services (2.4.0): a session that changed user between options and registration, the
  * passkey limit reached by a parallel registration, a parallel use of the same challenge, a user who no longer exists,
- * remember-me sessions, a hand-built manager without locks, a firewall without a programmatic sign-in.
+ * remember-me sessions, a hand-built manager without locks, a rename racing another writer (2.5.0), a firewall without a programmatic sign-in.
  */
 final class WebauthnEdgeKernelTest extends WebauthnKernelTestCase
 {
@@ -166,8 +172,61 @@ final class WebauthnEdgeKernelTest extends WebauthnKernelTestCase
             $this->clock(),
             $this->limiter(),
         );
+        self::assertTrue($manager->rename($this->user('member@example.com'), $id, 'B'));
         self::assertSame(WebauthnRemoval::LastFactor, $manager->remove($this->user('member@example.com'), $id, true));
         self::assertSame(WebauthnRemoval::Removed, $manager->remove($this->user('member@example.com'), $id));
+        self::assertFalse($manager->rename($this->user('member@example.com'), $id, 'C'));
+    }
+
+    /**
+     * @return iterable<string, array{string|null, bool, list<array{string, string}>, string|null}>
+     */
+    public static function racingRenames(): iterable
+    {
+        // [the peer's write between the read and the UPDATE, the answer, the events (old, new), the stored label]
+        yield 'the peer renamed it: the rename replaces the peer\'s label' => ['Peer', true, [['Peer', 'Mine']], 'Mine'];
+        yield 'the peer already set the same label: nothing to write' => ['Mine', true, [], 'Mine'];
+        yield 'the peer removed it: unknown' => [null, false, [], null];
+    }
+
+    /**
+     * 2.5.0 (REQ-RUNTIME-003): a write outside the lock between the read and the conditional UPDATE; the event reports
+     * the label the rename really replaced. The real-database variant is in tests/Database/WebauthnDatabaseTest.php.
+     *
+     * @param list<array{string, string}> $events
+     */
+    #[Test]
+    #[DataProvider('racingRenames')]
+    public function aRenameRacingAnotherWriterReportsTheLabelItReplaced(?string $peerLabel, bool $answer, array $events, ?string $stored): void
+    {
+        $this->registerWith($this->user('member@example.com'), 'A');
+        $id    = $this->passkeys()->passkeys($this->user('member@example.com'))[0]->publicId;
+        $table = $this->em()->getClassMetadata(WebauthnCredential::class)->getTableName();
+        $em    = $this->doctrine()->getManagerForClass(WebauthnCredential::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $dispatcher = $this->service('event_dispatcher');
+        self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
+        $peer = static function (EntityManagerInterface $em) use ($table, $id, $peerLabel): void {
+            $peerLabel === null
+                ? $em->getConnection()->executeStatement('DELETE FROM ' . $table . ' WHERE public_id = ?', [$id])
+                : $em->getConnection()->executeStatement('UPDATE ' . $table . ' SET label = ? WHERE public_id = ?', [$peerLabel, $id]);
+        };
+        $manager = new WebauthnManager(
+            $this->service(ProfileRegistry::class),
+            new WebauthnStore(new RacingManagerRegistry($em, 3, $peer)),
+            $this->ceremonies(),
+            new MfaOwnerResolver($this->doctrine()),
+            $this->service(UserLookupInterface::class),
+            $this->clock(),
+            $this->limiter(),
+            null,
+            $dispatcher,
+        );
+
+        self::assertSame($answer, $manager->rename($this->user('member@example.com'), $id, 'Mine'));
+        self::assertSame($events, array_map(static fn (WebauthnCredentialRenamedEvent $e): array => [$e->oldLabel, $e->newLabel], $this->eventsOf(WebauthnCredentialRenamedEvent::class)));
+        $passkeys = $this->passkeys()->passkeys($this->user('member@example.com'));
+        self::assertSame($stored, $passkeys[0]->label ?? null);
     }
 
     #[Test]

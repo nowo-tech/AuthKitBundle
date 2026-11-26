@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Webauthn;
 
 use Nowo\AuthKitBundle\Entity\WebauthnCredential;
+use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Support\Webauthn\SoftwareAuthenticator;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnAuthenticationFailedEvent;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRemovedEvent;
+use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRenamedEvent;
 use Nowo\AuthKitBundle\Webauthn\WebauthnFailure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnRemoval;
 use PHPUnit\Framework\Attributes\Test;
@@ -98,6 +100,16 @@ final class WebauthnAccountKernelTest extends WebauthnKernelTestCase
         $this->client->submit($rename);
         self::assertResponseRedirects('/account/webauthn');
         self::assertSame('Phone', $this->passkeys()->passkeys($this->user('member@example.com'))[0]->label);
+        // 2.5.0: one event after the write, with the label replaced and the stored one; never key material.
+        $renamed = $this->eventsOf(WebauthnCredentialRenamedEvent::class);
+        self::assertCount(1, $renamed);
+        self::assertSame(['default', KernelUser::class, 'member@example.com', $id, 'Laptop', 'Phone'], [$renamed[0]->profile, $renamed[0]->userType, $renamed[0]->userId, $renamed[0]->publicId, $renamed[0]->oldLabel, $renamed[0]->newLabel]);
+
+        // The same label (once cleaned) again: a success without a write or an event.
+        $page = $this->client->request('GET', '/account/webauthn');
+        $this->client->submit($page->filter('[data-testid="auth-kit-webauthn-rename"]')->form(['webauthn_rename_' . $id . '[label]' => ' Phone ']));
+        self::assertStringContainsString('The passkey was renamed.', $this->client->followRedirect()->html());
+        self::assertCount(1, $this->eventsOf(WebauthnCredentialRenamedEvent::class));
 
         $page = $this->client->request('GET', '/account/webauthn');
         $this->client->submit($page->filter('[data-testid="auth-kit-webauthn-delete"]')->form());

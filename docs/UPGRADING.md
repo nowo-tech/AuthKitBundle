@@ -181,6 +181,46 @@
 
 ## Unreleased
 
+### To 2.5.0
+
+From **2.4.1** (a minor: no schema change, nothing required).
+
+- **New event `Webauthn\Event\WebauthnCredentialRenamedEvent`.** Dispatched after the owner renamed a passkey (not for
+  a rename to the same label). Payload: `profile`, `userType`, `userId`, `publicId` (the passkey's public id, never the
+  credential id), `oldLabel`, `newLabel`. Labels are user-chosen text: escape them when you render them. Beacon
+  (security audit log) adopts it with a listener:
+
+  ```php
+  use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRenamedEvent;
+  use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+
+  #[AsEventListener]
+  final readonly class PasskeyRenamedAuditListener
+  {
+      public function __construct(private SecurityAuditLog $audit)
+      {
+      }
+
+      public function __invoke(WebauthnCredentialRenamedEvent $event): void
+      {
+          // The actor is the owner: renaming is self-service only (impersonation is refused).
+          $this->audit->record('passkey.renamed', $event->userType, $event->userId, [
+              'profile' => $event->profile,
+              'passkey' => $event->publicId,
+              'from'    => $event->oldLabel,
+              'to'      => $event->newLabel,
+          ]);
+      }
+  }
+  ```
+
+  The listener runs after the write; when the rename happens inside a transaction the host opened, AuthKit's write is
+  in a savepoint and the outer transaction can still roll back (as for the other passkey events). Keep the listener
+  stateless (FrankenPHP worker mode without kernel reset). Client IP: the event carries none; read it from the current
+  request in the listener if your audit log needs it.
+- **`WebauthnStore::rename()`** (low-level) now only updates a row whose label is still `$record->label` and returns
+  false otherwise. Code that called it with a record read earlier must read the row again first.
+
 ## To 2.4.1
 
 From **2.4.0**:

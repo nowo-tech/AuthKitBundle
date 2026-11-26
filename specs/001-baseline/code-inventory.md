@@ -752,6 +752,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Webauthn/Event/WebauthnAuthenticationFailedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
 | `Webauthn/Event/WebauthnCredentialAddedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
 | `Webauthn/Event/WebauthnCredentialRemovedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
+| `Webauthn/Event/WebauthnCredentialRenamedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
 | `Webauthn/Event/WebauthnCredentialUsedEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
 | `Webauthn/Event/WebauthnEvent.php` | production | FR-WEBAUTHN-004 | Mapped |
 | `Webauthn/EventSubscriber/WebauthnSignedInSubscriber.php` | production | FR-WEBAUTHN-004 | Mapped |

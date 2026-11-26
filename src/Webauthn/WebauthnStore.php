@@ -160,11 +160,15 @@ final readonly class WebauthnStore
         )) === 1;
     }
 
+    /**
+     * Sets the label of a passkey whose label is still the one read (`$record->label`, since 2.5.0): false when the row
+     * is gone or another writer changed its label in between, so the caller knows which label it replaced.
+     */
     public function rename(WebauthnCredentialRecord $record, string $label): bool
     {
         return $this->write(fn (Connection $connection): int|string => $connection->executeStatement(
-            'UPDATE ' . $this->table() . ' SET label = :label WHERE id = :id',
-            ['label' => $label, 'id' => $record->id],
+            'UPDATE ' . $this->table() . ' SET label = :label WHERE id = :id AND label = :old',
+            ['label' => $label, 'id' => $record->id, 'old' => $record->label],
             ['id' => ParameterType::INTEGER],
         )) === 1;
     }

@@ -15,6 +15,7 @@ use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnAuthenticationFailedEvent;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialAddedEvent;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRemovedEvent;
+use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRenamedEvent;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialUsedEvent;
 use Psr\Clock\ClockInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -44,9 +45,10 @@ use function trim;
  * WebAuthn user handle is an HMAC of it (`webauthn.hash_secret`), never personal data.
  *
  * Deny by default: an unknown credential, another profile's credential and another user's credential fail in the same
- * way ({@see WebauthnFailure}; the controllers answer every failure with one generic message). Registration and
- * removal run under a per-owner lock (symfony/lock), so `webauthn.max_credentials` and the last-factor guard hold under
- * parallel requests; the sign counter moves by a conditional UPDATE ({@see WebauthnStore::recordUse()}).
+ * way ({@see WebauthnFailure}; the controllers answer every failure with one generic message). Registration, removal
+ * and (since 2.5.0) renaming run under a per-owner lock (symfony/lock), so `webauthn.max_credentials`, the last-factor
+ * guard and the label a rename replaced hold under parallel requests; the sign counter moves by a conditional UPDATE
+ * ({@see WebauthnStore::recordUse()}).
  *
  * Stateless (worker safe): every call resolves the profile, the owner and the passkeys again; events follow the write.
  */
@@ -263,14 +265,34 @@ final readonly class WebauthnManager
     }
 
     /**
-     * Renames one of the user's passkeys; false when it is unknown (or another account's: the same answer).
+     * Renames one of the user's passkeys; false when it is unknown (or another account's: the same answer). True without
+     * a write when the cleaned label is the current one. Under the per-owner lock, and the UPDATE only matches the label
+     * it read ({@see WebauthnStore::rename()}): a rename that lost a race to a write outside the lock reads the row again
+     * and decides on it (REQ-RUNTIME-003). A {@see WebauthnCredentialRenamedEvent} follows the write.
      */
     public function rename(UserInterface $user, string $publicId, string $label): bool
     {
         [$profile, $owner] = $this->context($user);
-        $record            = $this->store->findForOwner($profile->name, $owner, $publicId);
+        $label             = self::label($label);
+        $renamed           = $this->locked($profile, $owner, function () use ($profile, $owner, $publicId, $label): bool|WebauthnCredentialRecord {
+            $record = $this->store->findForOwner($profile->name, $owner, $publicId);
+            while ($record instanceof WebauthnCredentialRecord && $record->label !== $label) {
+                if ($this->store->rename($record, $label)) {
+                    return $record;
+                }
+                // Another writer changed (or removed) the row since it was read: decide again on the fresh row.
+                $record = $this->store->findForOwner($profile->name, $owner, $publicId);
+            }
 
-        return $record instanceof WebauthnCredentialRecord && $this->store->rename($record, self::label($label));
+            return $record instanceof WebauthnCredentialRecord;
+        });
+        if (!$renamed instanceof WebauthnCredentialRecord) {
+            return $renamed;
+        }
+        $this->dispatch(new WebauthnCredentialRenamedEvent($profile->name, $owner->type, $owner->id, $renamed->publicId, $renamed->label, $label));
+        $this->logger->info('Passkey renamed.', ['profile' => $profile->name, 'owner' => $owner->key(), 'passkey' => $renamed->publicId]);
+
+        return true;
     }
 
     /**
