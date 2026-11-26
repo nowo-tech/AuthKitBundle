@@ -3,6 +3,10 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [To 2.6.0](#to-260)
+    - [Schema: the RP id of each passkey](#schema-the-rp-id-of-each-passkey)
+    - [What changes in 2.6.0](#what-changes-in-260)
+    - [Keeping the relying party in your database (Beacon adoption)](#keeping-the-relying-party-in-your-database-beacon-adoption)
 - [To 2.5.0](#to-250)
   - [To 2.5.0](#to-250-1)
 - [To 2.4.1](#to-241)
@@ -182,6 +186,102 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+### To 2.6.0
+
+From **2.5.0** (a minor):
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+Nothing is required when passkeys are off (`webauthn.mode: disabled`). With passkeys on, add the column below. Your
+`webauthn.rp_id` / `webauthn.allowed_origins` keep working unchanged: they are now read by the default
+`WebAuthnRelyingPartyProviderInterface`.
+
+#### Schema: the RP id of each passkey
+
+`auth_kit_webauthn_credential` gains `rp_id` (`VARCHAR(253) NULL`): the RP id a passkey was created for. `NULL` means
+"created before 2.6.0, for the RP id configured then"; such a passkey keeps working. Backfill it with your current RP
+id, so a later RP id change is reported as `rp_id_mismatch` and the passkeys it orphans are counted exactly:
+
+```sql
+-- MySQL 8.0+ / MariaDB 10.5+
+ALTER TABLE auth_kit_webauthn_credential ADD rp_id VARCHAR(253) DEFAULT NULL;
+UPDATE auth_kit_webauthn_credential SET rp_id = 'example.com' WHERE rp_id IS NULL;
+-- PostgreSQL 12+
+ALTER TABLE auth_kit_webauthn_credential ADD rp_id VARCHAR(253) DEFAULT NULL;
+UPDATE auth_kit_webauthn_credential SET rp_id = 'example.com' WHERE rp_id IS NULL;
+-- SQLite 3
+ALTER TABLE auth_kit_webauthn_credential ADD COLUMN rp_id VARCHAR(253) DEFAULT NULL;
+UPDATE auth_kit_webauthn_credential SET rp_id = 'example.com' WHERE rp_id IS NULL;
+```
+
+Replace `example.com` with your RP id: `webauthn.rp_id`, or, with `rp_id: null`, the host name of your login page
+(lower case, no port). With several profiles of different RP ids, add `AND profile = '<name>'` per profile. Use your
+table prefix (`doctrine.table_prefix`) when you set one. Run the `ALTER` before switching traffic (every passkey query
+reads the column); the `UPDATE` may run later. `php bin/console doctrine:migrations:diff` generates the `ALTER` (review
+it). The shipped `src/Resources/sql/webauthn/*.up.sql` create the table with the column.
+
+#### What changes in 2.6.0
+
+- **`http://localhost` origins need development.** Accepted with `kernel.debug`, or with
+  `webauthn.allow_http_localhost: true`. A production-mode kernel (debug off) that served passkeys on
+  `http://localhost` now disables them (options answer 503): set `allow_http_localhost: true` for that local setup.
+  Real deployments use https and are not affected.
+- **An IP RP id is refused** (e.g. `rp_id: null` with a request on `http://127.0.0.1`): browsers already refused it.
+- **Invalid relying party = passkeys off, password on.** Options answer `503 {"error": "unavailable"}`; the bundled
+  script shows the new `unavailable` state ("Passkeys are not available right now. Sign in with your password.") and
+  disables the passkey button; a pending sign-in, second step or registration is refused (`relying_party`) and the page
+  flashes `webauthn.flash.unavailable`. The failure is logged at error level with the violations. A custom
+  `webauthn/_ceremony.html.twig` override must add `data-label-unavailable`.
+- **New failure reasons** on `WebauthnAuthenticationFailedEvent::$reason`: `relying_party` and `rp_id_mismatch` (a
+  passkey, or a challenge, of another RP id than the current one). Map them in your audit log if you switch on reasons.
+- The account page leaves out `data-nowo-auth-kit-webauthn-signal` while the relying party is invalid
+  (`webauthn_signal` is `null` for a custom template).
+
+#### Keeping the relying party in your database (Beacon adoption)
+
+1. Upgrade, add the column and backfill it (above).
+2. Implement `Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyProviderInterface`. Read the setting on every call (no
+   property cache, no memo across requests: FrankenPHP worker mode with the kernel reset off) and fall back to the
+   configuration by decorating the default:
+
+   ```php
+   final readonly class InstanceWebAuthnRelyingParty implements WebAuthnRelyingPartyProviderInterface
+   {
+       public function __construct(private InstanceSettings $settings, private WebAuthnRelyingPartyProviderInterface $inner) {}
+
+       public function rpId(WebAuthnRelyingPartyContext $context): string
+       {
+           return $this->settings->get('webauthn_rp_id') ?? $this->inner->rpId($context);
+       }
+
+       public function allowedOrigins(WebAuthnRelyingPartyContext $context): array
+       {
+           return $this->settings->get('webauthn_allowed_origins') ?? $this->inner->allowedOrigins($context);
+       }
+   }
+   ```
+
+   ```yaml
+   App\Security\InstanceWebAuthnRelyingParty:
+       decorates: Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyProviderInterface
+       arguments: { $inner: '@.inner' }
+   ```
+
+   Or replace it outright: `Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyProviderInterface: '@App\Security\InstanceWebAuthnRelyingParty'`.
+   An exception thrown by the provider (settings store down) disables passkeys for that request only.
+3. In the settings form, validate before saving with
+   `WebAuthnRelyingPartyValidator::violations($rpId, $origins, $kernelDebug)` (an empty list = valid) and show the
+   messages. AuthKit validates again on every ceremony and fails closed.
+4. Before saving a new RP id, warn with `WebauthnManager::countCredentialsOutsideRpId($newRpId)`: "N passkeys will stop
+   working" (their owners sign in with the password and register a new passkey). `countCredentialsForRpId()` gives the
+   passkeys of an RP id.
+5. Keep `WEBAUTHN_RP_ID` / `allowed_origins` in the config as the fallback, or remove them once the setting is saved.
+6. Map the new reasons `relying_party` and `rp_id_mismatch` in the security audit log, and check the login page shows
+   the `unavailable` state when the setting is invalid.
+7. Local stacks on `http://localhost` with `APP_DEBUG=0`: set `webauthn.allow_http_localhost: true`.
 
 ## To 2.5.0
 

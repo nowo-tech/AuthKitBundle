@@ -12,6 +12,8 @@ use DateTimeImmutable;
 use Nowo\AuthKitBundle\DependencyInjection\WebauthnConfiguration;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Webauthn\RelyingParty\WebAuthnRelyingParty;
+use Nowo\AuthKitBundle\Webauthn\RelyingParty\WebAuthnRelyingPartyResolver;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Serializer\Encoder\JsonEncode;
@@ -45,7 +47,6 @@ use Webauthn\PublicKeyCredentialUserEntity;
 use Webauthn\TrustPath\EmptyTrustPath;
 
 use function array_map;
-use function array_values;
 use function hash;
 use function intdiv;
 use function is_array;
@@ -55,7 +56,6 @@ use function json_decode;
 use function json_encode;
 use function random_bytes;
 use function strlen;
-use function strtolower;
 
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
@@ -68,7 +68,12 @@ use const JSON_UNESCAPED_SLASHES;
  * valid for `webauthn.timeout_ms` plus 30 seconds. A challenge is taken out of the session before the response is
  * verified and claimed once more in the attempt limiter's store under its per-key lock, so two parallel requests of the
  * same session (session handlers that do not lock) cannot both use it (REQ-RUNTIME-003). Every ceremony requires user
- * verification, checks the exact origin (`webauthn.allowed_origins`, else the request origin) and the RP id hash.
+ * verification, checks the exact origin and the RP id hash.
+ *
+ * 2.6.0: the RP id and the allowed origins come from {@see WebAuthnRelyingPartyProviderInterface}, asked again (and
+ * validated) by every option and verification call ({@see WebAuthnRelyingPartyResolver}); an invalid relying party fails
+ * closed ({@see WebauthnFailure::RELYING_PARTY}). A verification also refuses options issued for another RP id than the
+ * current one ({@see WebauthnFailure::RP_ID_MISMATCH}).
  *
  * Stateless: the library objects (serializer, validators) are built per call and never kept (FrankenPHP worker).
  *
@@ -87,6 +92,7 @@ final readonly class WebauthnCeremonies
     public function __construct(
         private ClockInterface $clock,
         private AuthKitAttemptLimiter $limiter,
+        private WebAuthnRelyingPartyResolver $relyingParty,
     ) {
     }
 
@@ -95,13 +101,15 @@ final readonly class WebauthnCeremonies
      *
      * @param string $userHandle raw bytes of the opaque user handle
      * @param list<string> $excludeIds raw credential ids the user already has
+     *
+     * @throws WebauthnFailure `relying_party`
      */
     public function creationOptions(ProfileSettings $profile, Request $request, string $userHandle, string $name, string $displayName, array $excludeIds): string
     {
         $settings = $profile->webauthn;
         // WebAuthn Level 3 deprecates rp.name: the library serializes the RP id in its place.
         $options = PublicKeyCredentialCreationOptions::create(
-            PublicKeyCredentialRpEntity::create('', $this->rpId($profile, $request)),
+            PublicKeyCredentialRpEntity::create('', $this->relyingParty($profile, $request)->rpId),
             PublicKeyCredentialUserEntity::create($name, $userHandle, $displayName),
             random_bytes(32),
             array_map(PublicKeyCredentialParameters::createPk(...), self::ALGORITHMS),
@@ -123,12 +131,14 @@ final readonly class WebauthnCeremonies
      * passkeys), stored in the session and returned for the browser.
      *
      * @param list<array{id: string, transports: list<string>}> $allow raw ids and transports (empty: discoverable)
+     *
+     * @throws WebauthnFailure `relying_party`
      */
     public function requestOptions(ProfileSettings $profile, Request $request, string $ceremony, array $allow = []): string
     {
         $options = PublicKeyCredentialRequestOptions::create(
             random_bytes(32),
-            $this->rpId($profile, $request),
+            $this->relyingParty($profile, $request)->rpId,
             array_map(static fn (array $credential): PublicKeyCredentialDescriptor => PublicKeyCredentialDescriptor::create(PublicKeyCredentialDescriptor::CREDENTIAL_TYPE_PUBLIC_KEY, $credential['id'], $credential['transports']), $allow),
             PublicKeyCredentialRequestOptions::USER_VERIFICATION_REQUIREMENT_REQUIRED,
             $this->timeout($profile),
@@ -141,10 +151,13 @@ final readonly class WebauthnCeremonies
 
     /**
      * Verifies a registration response against the session's creation options (the challenge is consumed first).
+     * Returns the passkey and the RP id it was created for (2.6.0: the options' RP id, checked to be the current one).
      *
      * @throws WebauthnFailure
+     *
+     * @return array{0: CredentialRecord, 1: string}
      */
-    public function verifyCreation(ProfileSettings $profile, Request $request, string $json): CredentialRecord
+    public function verifyCreation(ProfileSettings $profile, Request $request, string $json): array
     {
         $credential = $this->parse($json);
         $response   = $credential->response;
@@ -152,8 +165,9 @@ final readonly class WebauthnCeremonies
             throw new WebauthnFailure(WebauthnFailure::MALFORMED, 'Not a registration response.');
         }
         $options = $this->consume($request, $profile, 'register', PublicKeyCredentialCreationOptions::class);
+        $party   = $this->current($profile, $request, $options->rp->id);
         try {
-            $record = AuthenticatorAttestationResponseValidator::create($this->factory($profile, $request)->creationCeremony())->check($response, $options, $request->getHost());
+            $record = AuthenticatorAttestationResponseValidator::create($this->factory($party)->creationCeremony())->check($response, $options, $party->rpId);
         } catch (Throwable $exception) {
             throw new WebauthnFailure(WebauthnFailure::INVALID, 'The registration response was refused: ' . $exception->getMessage(), $exception);
         }
@@ -161,7 +175,7 @@ final readonly class WebauthnCeremonies
             throw new WebauthnFailure(WebauthnFailure::INVALID, 'webauthn.attestation is direct: an attestation statement is required.');
         }
 
-        return $record;
+        return [$record, $party->rpId];
     }
 
     /**
@@ -196,6 +210,12 @@ final readonly class WebauthnCeremonies
      */
     public function verifyAssertion(ProfileSettings $profile, Request $request, WebauthnCredentialRecord $record, AuthenticatorAssertionResponse $response, PublicKeyCredentialRequestOptions $options, ?string $userHandle): array
     {
+        $party = $this->current($profile, $request, $options->rpId);
+        // 2.6.0: a passkey created for another RP id never verifies under this one (null: created before 2.6.0, for the
+        // RP id configured then; the RP id hash check below still applies).
+        if ($record->rpId !== null && $record->rpId !== $party->rpId) {
+            throw new WebauthnFailure(WebauthnFailure::RP_ID_MISMATCH, 'The passkey was created for another RP id.');
+        }
         $stored = CredentialRecord::create(
             (string) Base64Url::decode($record->credentialId),
             PublicKeyCredentialDescriptor::CREDENTIAL_TYPE_PUBLIC_KEY,
@@ -212,8 +232,8 @@ final readonly class WebauthnCeremonies
             true,
         );
         try {
-            $checked = AuthenticatorAssertionResponseValidator::create($this->factory($profile, $request)->requestCeremony())
-                ->check($stored, $response, $options, $request->getHost(), $userHandle);
+            $checked = AuthenticatorAssertionResponseValidator::create($this->factory($party)->requestCeremony())
+                ->check($stored, $response, $options, $party->rpId, $userHandle);
         } catch (CounterException $exception) {
             throw new WebauthnFailure(WebauthnFailure::COUNTER, 'The sign counter did not increase (replay or cloned authenticator).', $exception);
         } catch (Throwable $exception) {
@@ -223,11 +243,24 @@ final readonly class WebauthnCeremonies
         return ['counter' => $checked->counter, 'backup' => $checked->backupStatus];
     }
 
+    /**
+     * The current RP id of the profile on this request ({@see WebAuthnRelyingPartyProviderInterface}, validated).
+     *
+     * @throws WebauthnFailure `relying_party`
+     */
     public function rpId(ProfileSettings $profile, Request $request): string
     {
-        $configured = $profile->webauthn['rp_id'] ?? null;
+        return $this->relyingParty($profile, $request)->rpId;
+    }
 
-        return is_string($configured) && $configured !== '' ? $configured : $request->getHost();
+    /**
+     * The validated relying party of the profile on this request (2.6.0), asked again on every call.
+     *
+     * @throws WebauthnFailure `relying_party`
+     */
+    public function relyingParty(ProfileSettings $profile, Request $request): WebAuthnRelyingParty
+    {
+        return $this->relyingParty->resolve($profile, $request);
     }
 
     /**
@@ -358,35 +391,43 @@ final readonly class WebauthnCeremonies
         ]);
     }
 
-    private function factory(ProfileSettings $profile, Request $request): CeremonyStepManagerFactory
+    /**
+     * The current relying party, which must still have the RP id the ceremony's options were issued for (2.6.0): options
+     * of a previous RP id are refused ({@see WebauthnFailure::RP_ID_MISMATCH}), never verified under the new one.
+     *
+     * @throws WebauthnFailure `relying_party` or `rp_id_mismatch`
+     */
+    private function current(ProfileSettings $profile, Request $request, ?string $issuedFor): WebAuthnRelyingParty
+    {
+        $party = $this->relyingParty($profile, $request);
+        if ($issuedFor !== $party->rpId) {
+            throw new WebauthnFailure(WebauthnFailure::RP_ID_MISMATCH, 'The ceremony was started for another RP id.');
+        }
+
+        return $party;
+    }
+
+    private function factory(WebAuthnRelyingParty $party): CeremonyStepManagerFactory
     {
         $factory = new CeremonyStepManagerFactory();
         $factory->setAlgorithmManager($this->algorithms());
         $factory->setAttestationStatementSupportManager($this->attestationSupports());
-        $factory->setAllowedOrigins($this->allowedOrigins($profile, $request));
+        $factory->setAllowedOrigins($party->origins);
 
         return $factory;
     }
 
     /**
-     * The exact origins a ceremony may come from (audit ZBX-M1): `webauthn.allowed_origins`, else exactly
-     * `https://<rp id>`. Never the request's `Host`: with a parent-domain RP id, a forged `Host` naming an attacker's
-     * sub-domain would otherwise make that sub-domain's origin "expected" and its assertion valid. The only exception
-     * is a `localhost` RP id served on localhost (development, where browsers allow plain http and any port).
+     * The exact origins a ceremony may come from ({@see WebAuthnRelyingPartyProviderInterface}, validated; the default
+     * is `webauthn.allowed_origins`, else exactly `https://<rp id>`, audit ZBX-M1: never the request's `Host`).
+     *
+     * @throws WebauthnFailure `relying_party`
      *
      * @return list<string>
      */
     public function allowedOrigins(ProfileSettings $profile, Request $request): array
     {
-        $origins = $profile->webauthn['allowed_origins'] ?? [];
-        if (is_array($origins) && $origins !== []) {
-            // 2.4.1 (audits ZBX-v-I3, ZCC-L1): lower-cased here, after env resolution (a browser origin is lower case;
-            // lower-casing at build time would also lower-case the names inside %env()% placeholders).
-            return array_values(array_map(static fn (mixed $origin): string => strtolower((string) $origin), $origins));
-        }
-        $rpId = $this->rpId($profile, $request);
-
-        return $rpId === 'localhost' && $request->getHost() === 'localhost' ? [$request->getSchemeAndHttpHost()] : ['https://' . $rpId];
+        return $this->relyingParty($profile, $request)->origins;
     }
 
     private function algorithms(): Manager

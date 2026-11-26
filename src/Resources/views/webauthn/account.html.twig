@@ -4,7 +4,8 @@
   account has fewer than webauthn_max. Without a recent full sign-in (webauthn.recent_sign_in) the page asks to sign in
   again instead (webauthn_sign_in_again minutes, webauthn_logout_route).
   Variables: webauthn_profile, webauthn_passkeys (list of Webauthn\WebauthnPasskey), webauthn_max, webauthn_signal
-  (rpId, userId, allAcceptedCredentialIds: handed to PublicKeyCredential.signalAllAcceptedCredentials()), and with a recent
+  (rpId, userId, allAcceptedCredentialIds: handed to PublicKeyCredential.signalAllAcceptedCredentials(); 2.6.0: null
+  while the relying party is invalid, no signal is sent), and with a recent
   sign-in webauthn_register_form (null at the limit), webauthn_register_options_url, webauthn_rename_forms and
   webauthn_delete_forms (by public id). Override with web_ui.templates.webauthn_account or the Twig path
   @NowoAuthKitBundle/webauthn/account.html.twig. Block nowo_auth_kit_webauthn_account_before: the host's account
@@ -27,7 +28,7 @@
 {%- endblock %}
 
 {% block nowo_ui_content %}
-    <div class="nowo-auth-kit-webauthn-account" data-testid="auth-kit-webauthn-account" data-nowo-auth-kit-webauthn-signal="{{ webauthn_signal|json_encode }}">{% block nowo_auth_kit_webauthn_account_before %}{% endblock %}
+    <div class="nowo-auth-kit-webauthn-account" data-testid="auth-kit-webauthn-account"{% if webauthn_signal is not null %} data-nowo-auth-kit-webauthn-signal="{{ webauthn_signal|json_encode }}"{% endif %}>{% block nowo_auth_kit_webauthn_account_before %}{% endblock %}
 
         <h1 class="{{ nowo_ui_class('page_title', _b) }}">{{ 'webauthn.account.title'|trans({}, _b) }}</h1>
         <p class="{{ nowo_ui_class('page_intro', _b) }}">{{ 'webauthn.account.intro'|trans({}, _b) }}</p>

@@ -69,9 +69,30 @@ do.
   demo migration.
 - **FR-WA-07** Templates overridable (`web_ui.templates.webauthn_account`, blocks), script with CSP nonce.
 - **FR-WA-08** FrankenPHP worker mode without kernel reset; REQ-RUNTIME-003.
+- **FR-WA-09** (2.6.0, Beacon request) The RP id and the allowed origins of every ceremony (options, verification,
+  origin check) come from `WebAuthnRelyingPartyProviderInterface`, asked per call (no memo across requests); the
+  default answers `webauthn.rp_id` / `webauthn.allowed_origins` (no BC break for configured hosts).
+- **FR-WA-10** (2.6.0) Every answer is validated (`WebAuthnRelyingPartyValidator`: registrable host RP id without
+  scheme, port or IP literal; https origins, `http://localhost` only with `kernel.debug` or
+  `webauthn.allow_http_localhost`; each origin host equal to the RP id or a sub-domain). Invalid values or a failing
+  provider fail closed: no options (503 `unavailable`), no verification (`relying_party`), the page asks for the
+  password, error log.
+- **FR-WA-11** (2.6.0) Nullable `rp_id` per passkey (UPGRADING backfill DDL for MySQL, MariaDB, PostgreSQL, SQLite);
+  a passkey or a challenge of another RP id is refused with `rp_id_mismatch`; `WebauthnManager::countCredentialsForRpId()`
+  and `countCredentialsOutsideRpId()` let the host warn before an RP id change.
+
+### US-06 — The relying party lives in the host's database (P2, 2.6.0)
+
+An administrator saves the RP id and origins as an instance setting. Every ceremony uses the saved value from the next
+request on; an invalid value disables passkeys (the login page asks for the password) instead of running a ceremony on
+it; before saving a new RP id the host shows how many passkeys will stop working; a passkey of the former RP id is
+refused with its own reason.
 
 ## Success Criteria
 
 - 100 % line coverage; kernel tests for every scenario and refusal; worker test (two users, 300 rounds, flat memory);
   real-database tests (MySQL, MariaDB, PostgreSQL; DBAL 3 and 4) for the counter race, the unique key, exact owners
   and the SQL scripts.
+- 2.6.0: kernel tests for the provider override, every fail-closed path, an RP id / origin mismatch, a passkey and a
+  challenge of another RP id, a legacy passkey without `rp_id`; a worker test (one kept-alive kernel, the setting
+  changes between requests); unit tests of the validator and the resolver; 100 % coverage of the new code.

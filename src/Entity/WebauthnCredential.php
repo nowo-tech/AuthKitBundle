@@ -10,6 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
 use Nowo\AuthKitBundle\Doctrine\TablePrefixListener;
 use Nowo\AuthKitBundle\Mfa\MfaOwner;
+use Nowo\AuthKitBundle\Webauthn\WebauthnFailure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnStore;
 
 /**
@@ -21,6 +22,9 @@ use Nowo\AuthKitBundle\Webauthn\WebauthnStore;
  * `user_handle` and `public_id` get the binary NO PAD collation on MySQL / MariaDB ({@see IdentityCollationListener}).
  * Rows are written by DBAL statements of {@see WebauthnStore} (the sign counter by a conditional UPDATE); this class is
  * the mapping and a read model for standard hosts.
+ *
+ * `rp_id` (2.6.0, nullable): the WebAuthn RP id the passkey was created for, so a changed RP id is reported as such
+ * ({@see WebauthnFailure::RP_ID_MISMATCH}) and the passkeys it orphans can be counted.
  *
  * The table and its named indexes take `nowo_auth_kit.doctrine.table_prefix` ({@see TablePrefixListener}).
  */
@@ -75,6 +79,8 @@ class WebauthnCredential
         private DateTimeImmutable $createdAt,
         #[ORM\Column(name: 'last_used_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
         private ?DateTimeImmutable $lastUsedAt = null,
+        #[ORM\Column(name: 'rp_id', type: Types::STRING, length: 253, nullable: true)]
+        private ?string $rpId = null,
     ) {
     }
 
@@ -167,5 +173,14 @@ class WebauthnCredential
     public function getLastUsedAt(): ?DateTimeImmutable
     {
         return $this->lastUsedAt;
+    }
+
+    /**
+     * 2.6.0: the RP id the passkey was created for; null for a passkey created before 2.6.0 and not backfilled (it was
+     * created for the RP id configured then).
+     */
+    public function getRpId(): ?string
+    {
+        return $this->rpId;
     }
 }

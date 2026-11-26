@@ -379,6 +379,7 @@ webauthn:
         failed: "La clé d’accès n’a pas pu être utilisée. Réessayez."
         cancelled: "Annulé. Réessayez quand vous êtes prêt."
         no_script: "Les clés d’accès nécessitent JavaScript."
+        unavailable: "Les clés d’accès ne sont pas disponibles pour le moment. Connectez-vous avec votre mot de passe."
     flash:
         failed: "La connexion avec la clé d’accès a échoué. Réessayez ou utilisez une autre méthode."
         register_failed: "La clé d’accès n’a pas pu être ajoutée. Réessayez."
@@ -388,6 +389,7 @@ webauthn:
         unknown: "Cette clé d’accès n’existe pas."
         removed: "La clé d’accès a été supprimée."
         last_factor: "Votre compte exige un second facteur : ajoutez une autre clé d’accès ou activez une application d’authentification avant de supprimer celle-ci."
+        unavailable: "Les clés d’accès ne sont pas disponibles pour le moment. Connectez-vous avec votre mot de passe ou une autre méthode."
     account:
         title: "Clés d’accès"
         intro: "Connectez-vous avec votre empreinte, votre visage, le verrouillage de l’écran ou une clé de sécurité. Une clé d’accès sert aussi de seconde étape."

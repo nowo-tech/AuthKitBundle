@@ -49,6 +49,12 @@ use function is_string;
  */
 final class WebauthnAccountController
 {
+    /** Flash of a refused registration by reason (2.6.0: an invalid relying party asks for the password). */
+    private const REGISTER_FLASHES = [
+        WebauthnFailure::LIMIT         => 'webauthn.flash.limit',
+        WebauthnFailure::RELYING_PARTY => 'webauthn.flash.unavailable',
+    ];
+
     public function __construct(
         private readonly Environment $twig,
         private readonly FormFactoryInterface $forms,
@@ -73,7 +79,7 @@ final class WebauthnAccountController
             'webauthn_passkeys'             => $passkeys,
             'webauthn_max'                  => (int) ($profile->webauthn['max_credentials'] ?? 10),
             'nowo_auth_kit_webauthn_assets' => true,
-            'webauthn_signal'               => $this->passkeys->acceptedCredentials($user, $request),
+            'webauthn_signal'               => $this->signal($user, $request),
         ];
         if (!$this->isRecent($request, $profile)) {
             $variables += ['webauthn_sign_in_again' => (int) ceil($this->recentWindow($profile) / 60), 'webauthn_logout_route' => $profile->routes['logout']['name']];
@@ -105,7 +111,11 @@ final class WebauthnAccountController
         try {
             return WebauthnLoginController::json($this->passkeys->registrationOptions($user, $request));
         } catch (WebauthnFailure $failure) {
-            return WebauthnLoginController::json(['error' => $failure->reason], $failure->reason === WebauthnFailure::RATE_LIMITED ? Response::HTTP_TOO_MANY_REQUESTS : Response::HTTP_CONFLICT);
+            return match ($failure->reason) {
+                // 2.6.0: passkeys are disabled (invalid relying party); the script shows the "unavailable" state.
+                WebauthnFailure::RELYING_PARTY => WebauthnLoginController::refused($failure),
+                default                        => WebauthnLoginController::json(['error' => $failure->reason], $failure->reason === WebauthnFailure::RATE_LIMITED ? Response::HTTP_TOO_MANY_REQUESTS : Response::HTTP_CONFLICT),
+            };
         }
     }
 
@@ -126,7 +136,7 @@ final class WebauthnAccountController
             // @igor-ignore - Stateless service call (the passkey is stored in the database), not a mutation of worker state.
             $this->passkeys->register($user, $request, WebauthnCredentialFormType::credential($form), WebauthnCredentialFormType::label($form));
         } catch (WebauthnFailure $failure) {
-            $this->flash->flash($request, 'error', $failure->reason === WebauthnFailure::LIMIT ? 'webauthn.flash.limit' : 'webauthn.flash.register_failed');
+            $this->flash->flash($request, 'error', self::REGISTER_FLASHES[$failure->reason] ?? 'webauthn.flash.register_failed');
 
             return $this->back($profile);
         }
@@ -177,6 +187,21 @@ final class WebauthnAccountController
     /**
      * A required second factor must keep one factor: with TOTP off, the last passkey stays (the last-factor guard).
      */
+    /**
+     * The Signal API data of the page, or null when the relying party is invalid (2.6.0: passkeys are disabled; the page
+     * still lists, renames and removes them).
+     *
+     * @return array{rpId: string, userId: string, allAcceptedCredentialIds: list<string>}|null
+     */
+    private function signal(UserInterface $user, Request $request): ?array
+    {
+        try {
+            return $this->passkeys->acceptedCredentials($user, $request);
+        } catch (WebauthnFailure) {
+            return null;
+        }
+    }
+
     private function keepLastPasskey(UserInterface $user, ProfileSettings $profile): bool
     {
         return $profile->webauthnMfa() && $this->mfa instanceof MfaManager
