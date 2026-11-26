@@ -11,3 +11,4 @@
 - [x] T009 Demo: configuration, menu entry, migration
 - [x] T010 2.4.1: `WebauthnErasure` (erasure whatever the mode, ZBX-v-I2), runtime lower-casing of `allowed_origins` (ZBX-v-I3, ZCC-L1), WEBAUTHN.md origin wording (ZBX-v-I1)
 - [x] T011 2.5.0: `WebauthnCredentialRenamedEvent` (Beacon audit log), rename under the per-owner lock + label compare-and-set (REQ-RUNTIME-003), kernel race tests + real-database two-connection test, docs
+- [x] T012 2.5.0 audit ZCH: bounded rename retry + locking re-read (M1), label cleaning of separators / private-use / unassigned / fillers (L1), actor wording (I2), `WebauthnStore::rename()` `@internal` (I3)

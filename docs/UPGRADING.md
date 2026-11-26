@@ -203,7 +203,8 @@ From **2.4.1** (a minor: no schema change, nothing required).
 
       public function __invoke(WebauthnCredentialRenamedEvent $event): void
       {
-          // The actor is the owner: renaming is self-service only (impersonation is refused).
+          // From AuthKit's account page the actor is the owner (self-service only, impersonation refused). A host
+          // tool that calls WebauthnManager::rename() for another user records its own actor here.
           $this->audit->record('passkey.renamed', $event->userType, $event->userId, [
               'profile' => $event->profile,
               'passkey' => $event->publicId,
@@ -214,11 +215,18 @@ From **2.4.1** (a minor: no schema change, nothing required).
   }
   ```
 
+  `WebauthnManager::rename()` is public API and takes any user: the event always names the passkey's owner, so a host
+  admin or support tool that renames someone else's passkey adds its own actor to the audit entry.
   The listener runs after the write; when the rename happens inside a transaction the host opened, AuthKit's write is
   in a savepoint and the outer transaction can still roll back (as for the other passkey events). Keep the listener
   stateless (FrankenPHP worker mode without kernel reset). Client IP: the event carries none; read it from the current
   request in the listener if your audit log needs it.
-- **`WebauthnStore::rename()`** (low-level) now only updates a row whose label is still `$record->label` and returns
+- **Rename conflicts.** A rename whose passkey label keeps changing under it (another writer) gives up after 3
+  attempts with a `TransientStorageFailure` (409 `CONFLICT_001` + `Retry-After` on AuthKit's pages). Hosts calling
+  `WebauthnManager::rename()` themselves may see it under heavy contention: retry the request.
+- **Passkey labels** (register and rename) now also lose line and paragraph separators (U+2028, U+2029), private-use
+  and unassigned code points and invisible fillers (U+115F, U+1160, U+2800, U+3164, U+FFA0), replaced by a space.
+- **`WebauthnStore::rename()`** (low-level, now marked `@internal`) only updates a row whose label is still `$record->label` and returns
   false otherwise. Code that called it with a record read earlier must read the row again first.
 
 ## To 2.4.1

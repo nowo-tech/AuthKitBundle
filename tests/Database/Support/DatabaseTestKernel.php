@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\Security\UserRegistrar;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\Tests\Integration\Invitation\InvitationsTestKernel;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
+use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
@@ -37,7 +38,7 @@ use const PHP_VERSION_ID;
  * PostgreSQL 16 in CI, job "Load readiness"), with public ids for the services the load tests and the concurrent
  * writers drive. Environment `*_private` turns `doctrine.private_entity_manager` on; environment `test_first` is
  * `registration_mode: first_user_only` with social sign-up (`create_user_if_missing`), for the first-account races
- * (audit QG-M1). {@see SlowUserPersist} makes a writer process hold its unit open.
+ * (audit QG-M1); environment `test_webauthn` turns passkeys on (`load.webauthn`, 2.5.0). {@see SlowUserPersist} makes a writer process hold its unit open.
  */
 final class DatabaseTestKernel extends InvitationsTestKernel
 {
@@ -98,6 +99,12 @@ final class DatabaseTestKernel extends InvitationsTestKernel
         if ($this->environment === 'test_table') {
             // 2.2.0: the reset credential in AuthKit's own table (password_reset.storage: table).
             $container->loadFromExtension('nowo_auth_kit', ['password_reset' => ['storage' => 'table']]);
+        }
+        if ($this->environment === 'test_webauthn') {
+            // 2.5.0 (audit ZCH-M1): passkeys on, for the manager-level rename tests on a real server.
+            $container->loadFromExtension('framework', ['lock' => 'flock']);
+            $container->loadFromExtension('nowo_auth_kit', ['webauthn' => ['mode' => 'enabled', 'hash_secret' => 'webauthn-test-key']]);
+            $container->setAlias('load.webauthn', WebauthnManager::class)->setPublic(true);
         }
         $container->register(SlowUserPersist::class)->addTag('doctrine.event_listener', ['event' => 'prePersist']);
         foreach (self::SERVICES as $id => $service) {

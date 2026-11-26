@@ -133,7 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after a passkey rename is written, with the base passkey payload (`profile`, `userType`, `userId`, `publicId`) plus
   `oldLabel` (the label the rename replaced) and `newLabel` (the stored, cleaned label). Never key material, the
   credential id or the user handle. Not dispatched when the cleaned label equals the current one. Like its siblings it
-  carries no client IP: the actor is the owner (renaming is self-service only).
+  carries no client IP. From AuthKit's account page the actor is the owner (self-service only); a host calling
+  `WebauthnManager::rename()` for someone else adds its own actor in its listener (audit ZCH-I2).
 
 ### Fixed
 
@@ -141,7 +142,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its label without the per-owner lock that registration and removal use. It now runs under that lock, and
   `WebauthnStore::rename()` only matches the label it read (`UPDATE … WHERE id = :id AND label = :old`): a rename that
   lost a race to a write outside the lock reads the row again and decides on it, so the event never reports a label
-  that was not there. `WebauthnStore::rename()` now returns false for a record whose label is stale.
+  that was not there. `WebauthnStore::rename()` now returns false for a record whose label is stale (marked
+  `@internal`: use `WebauthnManager::rename()`).
+- **Bounded rename retry (audit ZCH-M1).** Inside a host transaction under REPEATABLE READ (MySQL, MariaDB without
+  snapshot isolation) the re-read answered from the transaction's snapshot while the UPDATE saw the latest row, so the
+  retry could loop forever under the owner lock; a legacy utf8mb3 column could do the same without concurrency. The
+  re-read is now a locking read (`SELECT … FOR UPDATE`) inside an open transaction, and after
+  `WebauthnManager::RENAME_ATTEMPTS` (3) attempts the rename throws `TransientStorageFailure` (409 `CONFLICT_001`).
+- **Passkey labels (audit ZCH-L1).** `WebauthnManager::label()` also replaces line / paragraph separators (U+2028,
+  U+2029, which a line-oriented audit log would show as a forged extra line), private-use and unassigned code points
+  and invisible fillers (U+115F, U+1160, U+2800, U+3164, U+FFA0) by a space, on register and rename.
 
 ## [2.4.1] - 2026-11-26
 
