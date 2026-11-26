@@ -55,7 +55,7 @@ use function json_decode;
 use function json_encode;
 use function random_bytes;
 use function strlen;
-use function strval;
+use function strtolower;
 
 use const JSON_THROW_ON_ERROR;
 use const JSON_UNESCAPED_SLASHES;
@@ -380,7 +380,9 @@ final readonly class WebauthnCeremonies
     {
         $origins = $profile->webauthn['allowed_origins'] ?? [];
         if (is_array($origins) && $origins !== []) {
-            return array_values(array_map(strval(...), $origins));
+            // 2.4.1 (audits ZBX-v-I3, ZCC-L1): lower-cased here, after env resolution (a browser origin is lower case;
+            // lower-casing at build time would also lower-case the names inside %env()% placeholders).
+            return array_values(array_map(static fn (mixed $origin): string => strtolower((string) $origin), $origins));
         }
         $rpId = $this->rpId($profile, $request);
 

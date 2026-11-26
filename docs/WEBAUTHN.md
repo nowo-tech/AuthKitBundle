@@ -57,7 +57,7 @@ nowo_auth_kit:
             webauthn:
                 mode: enabled              # disabled (default) | enabled
                 rp_id: null                # registrable domain, e.g. example.com; null = request host
-                allowed_origins: []        # exact https://host[:port], lower-cased; empty = exactly https://<rp_id> (see below)
+                allowed_origins: []        # exact https://host[:port], compared lower-cased; empty = exactly https://<rp_id> (see below)
                 timeout_ms: 60000          # browser timeout; the server challenge lives 30 s longer
                 attestation: none          # none | direct
                 max_credentials: 10        # passkeys per account (Beacon: 10)
@@ -78,8 +78,10 @@ nowo_auth_kit:
   sub-domain can then ask the user's passkeys for an assertion: use it only when you control every sub-domain, and
   then list the origins in `allowed_origins`.
 - `allowed_origins`: the exact origins (`https://host[:port]`) a ceremony may come from; sub-domains are refused.
-  Entries are lower-cased when the container is built (2.4.1, audit ZBX-v-I3): a browser always sends a lower-case
-  origin, so `https://Login.Example.com` is stored as `https://login.example.com`.
+  Entries are compared lower-cased (2.4.1, audits ZBX-v-I3 and ZCC-L1): a browser always sends a lower-case origin,
+  so `https://Login.Example.com` matches `https://login.example.com`. The lower-casing happens at runtime, after env
+  resolution, so an env placeholder inside an entry keeps resolving (for example `https://%env(LOGIN_HOST)%`; write
+  the scheme itself as `https://`).
   Empty means exactly `https://<rp_id>` (audit ZBX-M1). With an explicit `rp_id`, the expected origin is **never**
   taken from the request's `Host` header, which a client can forge, so an attacker's sub-domain under a parent `rp_id`
   cannot make its own origin "expected". With `rp_id: null` (the default) the RP id itself is the request host, so the
@@ -181,7 +183,7 @@ The demo has its own migration (`demo/symfony8/migrations/Version20261125000000.
 |-------|-----|
 | Challenge | 32 random bytes per ceremony, kept server-side in the user's session (one per profile and ceremony), valid `timeout_ms` + 30 s |
 | Single use | taken out of the session before the answer is verified, and claimed once in the attempt limiter's store under its per-key lock, so two parallel requests of one session cannot both use it |
-| Origin | exact match against `allowed_origins` (lower-cased at build time), else exactly `https://<rp_id>` on the default port (with an explicit `rp_id` never the `Host` header; with `rp_id: null` the RP id, and so the origin, is the request host); sub-domains refused |
+| Origin | exact match against `allowed_origins` (compared lower-cased, at runtime), else exactly `https://<rp_id>` on the default port (with an explicit `rp_id` never the `Host` header; with `rp_id: null` the RP id, and so the origin, is the request host); sub-domains refused |
 | RP id | the `rpIdHash` of the authenticator data must match `rp_id` |
 | User verification | required on every ceremony (`UV` flag), user presence too |
 | Signature | COSE ES256, EdDSA (Ed25519) or RS256, by the library |

@@ -52,6 +52,8 @@ without TOTP stays (last-factor guard).
 **Given** UserKit, **Then** the eraser `auth_kit_webauthn` deletes the user's passkeys in every profile (also under the
 original identifier) and the export section `passkeys` lists them without key material; a missing table is nothing to
 do.
+**Given** no UserKit and passkeys switched off in every profile (2.4.1, audit ZBX-v-I2), **Then**
+`MfaManager::forgetUser()` (through `WebauthnErasure`, always registered) still deletes the stored passkeys.
 
 ## Requirements
 

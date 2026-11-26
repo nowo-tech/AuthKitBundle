@@ -11,7 +11,6 @@ use function is_string;
 use function parse_url;
 use function preg_match;
 use function str_starts_with;
-use function strtolower;
 
 /**
  * `profiles.<name>.webauthn` (2.4.0): passkeys (WebAuthn Level 3) as a passwordless first factor and as a second factor
@@ -75,13 +74,8 @@ final class WebauthnConfiguration
                     ->end()
                 ->end()
                 ->arrayNode('allowed_origins')
-                    ->info('Exact origins (https://host[:port], lower-cased at build time) a ceremony may come from. Empty = exactly https://<rp_id> (audit ZBX-M1: never the request Host; with rp_id null the RP id is the request host, so the origin follows it, on the default port only); list every origin that serves the login page when it is not that one (e.g. https://login.example.com with rp_id example.com). http:// only for localhost / 127.0.0.1.')
+                    ->info('Exact origins (https://host[:port]; compared lower-cased at runtime, so %env()% values work) a ceremony may come from. Empty = exactly https://<rp_id> (audit ZBX-M1: never the request Host; with rp_id null the RP id is the request host, so the origin follows it, on the default port only); list every origin that serves the login page when it is not that one (e.g. https://login.example.com with rp_id example.com). http:// only for localhost / 127.0.0.1.')
                     ->scalarPrototype()
-                        // 2.4.1 (audit ZBX-v-I3): a browser origin is lower case; an upper-case entry would never match.
-                        ->beforeNormalization()
-                            ->ifString()
-                            ->then(static fn (string $origin): string => strtolower($origin))
-                        ->end()
                         ->validate()
                             ->ifTrue(static fn (mixed $origin): bool => !is_string($origin) || preg_match('#^(https://[^/?\#@\s]+|http://(localhost|127\.0\.0\.1)(:\d+)?)$#', $origin) !== 1 || parse_url($origin) === false)
                             ->thenInvalid('Invalid webauthn.allowed_origins entry %s: use https://host[:port] without path (http:// only for localhost).')

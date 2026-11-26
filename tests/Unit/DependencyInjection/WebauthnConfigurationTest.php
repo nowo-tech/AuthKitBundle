@@ -130,14 +130,15 @@ final class WebauthnConfigurationTest extends TestCase
         self::assertSame('host-key', $webauthn['hash_secret']);
     }
 
-    public function testUpperCaseOriginsAreLowerCased(): void
+    public function testOriginsAreKeptAsWrittenSoEnvPlaceholdersResolve(): void
     {
-        // 2.4.1 (audit ZBX-v-I3): a browser origin is lower case, so an upper-case entry would never match.
+        // Audit ZCC-L1: no build-time lower-casing (it broke the names inside %env()% placeholders); the ceremonies
+        // lower-case the resolved values (WebauthnEnvOriginKernelTest).
         $webauthn = $this->profile($this->load(['webauthn' => [
             'mode'            => 'enabled',
-            'allowed_origins' => ['HTTPS://Login.Example.COM:8443', 'HTTP://LocalHost:8000'],
+            'allowed_origins' => ['https://%env(LOGIN_HOST)%', 'https://Login.Example.com:8443'],
         ]]))['webauthn'];
-        self::assertSame(['https://login.example.com:8443', 'http://localhost:8000'], $webauthn['allowed_origins']);
+        self::assertSame(['https://%env(LOGIN_HOST)%', 'https://Login.Example.com:8443'], $webauthn['allowed_origins']);
     }
 
     /**
