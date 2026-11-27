@@ -152,7 +152,9 @@ carry the provider key and a reason only); keep the secret write-only in your fo
   travels in the browser's URL to the provider that issued it (GET, as RP-Initiated Logout allows); an expired token is
   still accepted there as a hint. The `end_session_endpoint` is as trusted as the issuer: whoever controls an issuer's
   discovery document (a tenant's IdP) chooses where its users land after signing out, as it already chooses where they
-  sign in. Opt a credential in only when you trust its issuer that far.
+  sign in. Opt a credential in only when you trust its issuer that far: let only platform administrators, or
+  organization administrators of IdPs you trust, set `rp_initiated_logout`. A user the host signs in after its own
+  linking challenge (a later request) gets a local-only sign-out in 2.8.0 (no hint was kept).
 - **Who may set `exempt` / `exempt_when_amr`** is the host's decision (platform administrators rather than organization
   administrators, unless the organization's IdP is trusted to enforce MFA): an exemption trusts that IdP's own MFA.
 - **`amr` has no age.** It describes how the IdP session authenticated, not when: under `exempt_when_amr` AuthKit's second

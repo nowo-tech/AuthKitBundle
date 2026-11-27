@@ -147,7 +147,7 @@ closed; clearer per-mode passkey state texts). One nullable column, no BC break 
   public HTTPS, a sign-out answered with something else than a redirect, any error, logged by class only). No outbound
   request at sign-out; the local sign-out always completes, so a provider that is down only affects the page the
   browser lands on. A host callback handler that signs the user in gets the same; one that signs nobody in (a linking
-  step) keeps no hint.
+  step) keeps no hint, so a user signed in later after the host's linking challenge gets a local-only sign-out.
 - **`social_login.rp_logout.post_logout_redirect_uris`** (per profile, default `[]`): allow-list of same-origin paths or
   absolute http(s) URLs (no credentials, fragment, `//host` or backslash; checked at build time). The sign-out's own
   target when listed, else the first entry, else none. Never taken from the request.

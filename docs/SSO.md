@@ -232,7 +232,8 @@ nowo_auth_kit:
    `end_session_endpoint` (from its discovery document) and the ID token. A provider whose discovery publishes no
    `end_session_endpoint` (or an unsafe one) gets no hint; an ID token larger than 8 KiB is not kept (the sign-out then
    sends `client_id` only). A new social sign-in replaces or removes the hint. A handler that signs nobody in (a
-   linking step) keeps none.
+   linking step) keeps none: a user the host signs in later, after its own linking challenge (another request), gets a
+   **local-only sign-out** in 2.8.0. A public helper to record the hint for such deferred sign-ins may come later.
 2. **Sign-out.** The firewall's logout runs as usual; on its `LogoutEvent` (after the default target, before the session
    is invalidated) AuthKit removes the hint and, when the signed-in user is the one it was issued for and the credential
    is still enabled, opted in and has the same client id, answers a redirect to
@@ -242,7 +243,11 @@ nowo_auth_kit:
    omitted (the provider shows its own signed-out page). It is never read from the request. No `state` is sent: the
    application's session is already gone when the provider redirects back, so there is nothing to compare it with.
 
-Not covered: OAuth2-only credentials (no ID token), front- or back-channel logout (the provider calling the
+Who may opt a credential in is the host's decision: the `end_session_endpoint` comes from whoever controls the issuer.
+Let only platform administrators, or organization administrators of IdPs you trust, set `rp_initiated_logout`
+([SECURITY.md](SECURITY.md#enterprise-oidc-270)).
+
+Not covered: deferred sign-ins after a host linking challenge (local-only sign-out, see 1.), OAuth2-only credentials (no ID token), front- or back-channel logout (the provider calling the
 application), and sign-outs answered with something other than a redirect (an API logout keeps its own answer).
 
 ## Security notes
