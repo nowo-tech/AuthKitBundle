@@ -121,6 +121,11 @@ Routes: `challenge` `/login/mfa`, `setup` `/login/mfa/setup`, `account` `/accoun
 
 `exempt` never skips the forced enrolment of a required user.
 
+2.7.0: a social provider credential can override the `social` rule for its own sign-ins:
+`SocialLoginCredential::setMfaFirstFactorPolicy('required' | 'exempt' | 'exempt_when_amr', $acceptedAmr)`.
+`exempt_when_amr` exempts only when the `amr` claim of the validated ID token names an accepted value (never from the
+userinfo answer); otherwise the second step is required. See [SSO.md](SSO.md#mfa-first-factor-per-credential).
+
 ## Remember-me
 
 The remember-me cookie is never issued by the first factor alone: the wish is kept and the cookie is issued when the

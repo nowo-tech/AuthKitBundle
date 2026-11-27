@@ -13,10 +13,16 @@ use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcCredentialRules;
 use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
 
+use function array_unique;
+use function array_values;
+use function count;
 use function in_array;
 use function is_bool;
 use function is_scalar;
+use function is_string;
+use function preg_match;
 use function sprintf;
+use function strlen;
 use function strtolower;
 use function trim;
 
@@ -28,6 +34,25 @@ use function trim;
 #[ORM\UniqueConstraint(name: 'uniq_auth_kit_social_credential_provider', columns: ['provider'])]
 class SocialLoginCredential
 {
+    /** 2.7.0: `link_existing_account` values a credential may override the profile's with (null = the profile's). */
+    public const LINK_EXISTING_ACCOUNT_POLICIES = ['reset_password', 'deny', 'keep'];
+
+    /** 2.7.0: the second step follows the user's MFA, as for any first factor. */
+    public const MFA_REQUIRED = 'required';
+
+    /** 2.7.0: no second step after this credential (forced enrolment still applies). */
+    public const MFA_EXEMPT = 'exempt';
+
+    /** 2.7.0: no second step only when the validated ID token's `amr` names one of {@see self::getMfaAcceptedAmr()}. */
+    public const MFA_EXEMPT_WHEN_AMR = 'exempt_when_amr';
+
+    public const MFA_FIRST_FACTOR_POLICIES = [self::MFA_REQUIRED, self::MFA_EXEMPT, self::MFA_EXEMPT_WHEN_AMR];
+
+    /** Most `amr` values one credential accepts, and the longest one (RFC 8176 values are short tokens). */
+    public const MFA_ACCEPTED_AMR_MAX_COUNT = 16;
+
+    public const MFA_ACCEPTED_AMR_MAX_LENGTH = 64;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
@@ -106,6 +131,36 @@ class SocialLoginCredential
      */
     #[ORM\Column(name: 'provider_settings', type: Types::JSON, nullable: true)]
     private ?array $providerSettings = null;
+
+    /**
+     * 2.7.0: false keeps the credential out of the provider buttons (`social_links` / `sso_links`, the invitation accept
+     * page); it is started only by name (`nowo_auth_kit_social_login_start`). Null (every row before 2.7.0) = listed.
+     */
+    #[ORM\Column(name: 'listed', type: Types::BOOLEAN, nullable: true)]
+    private ?bool $listed = null;
+
+    /**
+     * 2.7.0: `link_existing_account` for this credential (reset_password | deny | keep); null = the profile's
+     * `social_login.link_existing_account`.
+     */
+    #[ORM\Column(name: 'link_existing_account', type: Types::STRING, length: 16, nullable: true)]
+    private ?string $linkExistingAccount = null;
+
+    /**
+     * 2.7.0: MFA first-factor policy of a sign-in with this credential (required | exempt | exempt_when_amr); null = the
+     * profile's `mfa.first_factors.social`.
+     */
+    #[ORM\Column(name: 'mfa_first_factor', type: Types::STRING, length: 16, nullable: true)]
+    private ?string $mfaFirstFactor = null;
+
+    /**
+     * 2.7.0: `amr` values (RFC 8176) that exempt a sign-in with `mfa_first_factor: exempt_when_amr`. Typed loosely: a
+     * row written outside the setter may hold anything, and the getter keeps only non-empty strings.
+     *
+     * @var array<mixed>|null
+     */
+    #[ORM\Column(name: 'mfa_accepted_amr', type: Types::JSON, nullable: true)]
+    private ?array $mfaAcceptedAmr = null;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
@@ -358,6 +413,122 @@ class SocialLoginCredential
         }
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->providerSettings = $clean === [] ? null : $clean;
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * Whether the credential is offered among the provider buttons (2.7.0; true for every row before 2.7.0).
+     */
+    public function isListed(): bool
+    {
+        return $this->listed !== false;
+    }
+
+    /**
+     * @param bool|null $listed false: started only by name from the host (`login_hint` may be passed); null = listed
+     */
+    public function setListed(?bool $listed): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->listed = $listed;
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * The credential's own `link_existing_account` (2.7.0), or null for the profile's.
+     */
+    public function getLinkExistingAccount(): ?string
+    {
+        // A value written outside the setter (SQL) that is not a known policy is read as the strictest one.
+        if ($this->linkExistingAccount !== null && !in_array($this->linkExistingAccount, self::LINK_EXISTING_ACCOUNT_POLICIES, true)) {
+            return 'deny';
+        }
+
+        return $this->linkExistingAccount;
+    }
+
+    /**
+     * @param string|null $policy reset_password | deny | keep; null = the profile's `social_login.link_existing_account`
+     *
+     * @throws InvalidArgumentException for any other value
+     */
+    public function setLinkExistingAccount(?string $policy): self
+    {
+        if ($policy !== null && !in_array($policy, self::LINK_EXISTING_ACCOUNT_POLICIES, true)) {
+            throw new InvalidArgumentException(sprintf('Unknown link_existing_account policy "%s" (reset_password, deny or keep).', $policy));
+        }
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->linkExistingAccount = $policy;
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * The credential's own MFA first-factor policy (2.7.0), or null for the profile's `mfa.first_factors.social`.
+     */
+    public function getMfaFirstFactor(): ?string
+    {
+        // Fail closed: a value written outside the setter that is not a known policy asks for the second step.
+        if ($this->mfaFirstFactor !== null && !in_array($this->mfaFirstFactor, self::MFA_FIRST_FACTOR_POLICIES, true)) {
+            return self::MFA_REQUIRED;
+        }
+
+        return $this->mfaFirstFactor;
+    }
+
+    /**
+     * The `amr` values that exempt a sign-in under `exempt_when_amr` (2.7.0); only non-empty strings are returned.
+     *
+     * @return list<string>
+     */
+    public function getMfaAcceptedAmr(): array
+    {
+        $values = [];
+        foreach ($this->mfaAcceptedAmr ?? [] as $value) {
+            if (is_string($value) && $value !== '') {
+                $values[] = $value;
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Sets the MFA first-factor policy of this credential (2.7.0).
+     *
+     * @param string|null $policy required | exempt | exempt_when_amr; null = the profile's `mfa.first_factors.social`
+     * @param list<string> $acceptedAmr `amr` values that exempt the sign-in; required (non-empty) with exempt_when_amr,
+     *                                  refused with any other policy
+     *
+     * @throws InvalidArgumentException for an unknown policy or an invalid `amr` list
+     */
+    public function setMfaFirstFactorPolicy(?string $policy, array $acceptedAmr = []): self
+    {
+        if ($policy !== null && !in_array($policy, self::MFA_FIRST_FACTOR_POLICIES, true)) {
+            throw new InvalidArgumentException(sprintf('Unknown MFA first-factor policy "%s" (required, exempt or exempt_when_amr).', $policy));
+        }
+        if ($policy !== self::MFA_EXEMPT_WHEN_AMR && $acceptedAmr !== []) {
+            throw new InvalidArgumentException('Accepted amr values are only used with the exempt_when_amr policy.');
+        }
+        if ($policy === self::MFA_EXEMPT_WHEN_AMR) {
+            if ($acceptedAmr === [] || count($acceptedAmr) > self::MFA_ACCEPTED_AMR_MAX_COUNT) {
+                throw new InvalidArgumentException(sprintf('The exempt_when_amr policy needs between 1 and %d accepted amr values.', self::MFA_ACCEPTED_AMR_MAX_COUNT));
+            }
+            foreach ($acceptedAmr as $value) {
+                if (strlen($value) > self::MFA_ACCEPTED_AMR_MAX_LENGTH || preg_match('/^[\x21-\x7E]+$/D', $value) !== 1) {
+                    throw new InvalidArgumentException('An accepted amr value must be a non-empty printable ASCII token without spaces (at most 64 characters).');
+                }
+            }
+        }
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->mfaFirstFactor = $policy;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->mfaAcceptedAmr = $policy === self::MFA_EXEMPT_WHEN_AMR ? array_values(array_unique($acceptedAmr)) : null;
         $this->touch();
 
         return $this;

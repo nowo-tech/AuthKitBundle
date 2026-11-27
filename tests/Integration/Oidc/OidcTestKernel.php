@@ -20,7 +20,7 @@ use function sys_get_temp_dir;
  * discovery / JWKS / token / userinfo answers come from {@see FakeIdp}, host names resolve through {@see FakeResolver},
  * discovery documents and key sets live in an array pool.
  */
-final class OidcTestKernel extends AuthKitTestKernel
+class OidcTestKernel extends AuthKitTestKernel
 {
     public const POOL = 'test.oidc_cache';
 

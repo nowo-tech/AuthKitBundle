@@ -7,9 +7,11 @@ namespace Nowo\AuthKitBundle\Tests\Unit\SocialLogin;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
+use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Port\Internal\UserLookupInterface;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
+use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
@@ -265,17 +267,43 @@ final class SocialAccountLinkerHardeningTest extends TestCase
         self::assertSame('own-hash', $existing->getPassword());
     }
 
+    /** 2.7.0: a credential's own deny wins over the profile's keep, for every caller of the linker. */
+    public function testACredentialDenyWinsOverTheProfile(): void
+    {
+        $credentials = $this->createStub(SocialLoginCredentialRepository::class);
+        $credentials->method('findOneByProvider')->willReturn((new SocialLoginCredential())->setProvider('google')->setLinkExistingAccount('deny'));
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('link_existing_account is deny');
+
+        $this->linkExisting(new TestUser('known@example.com'), ['link_existing_account' => 'keep'], $credentials);
+    }
+
+    /** 2.7.0: a credential's own keep over the profile's deny (a provider the application trusts with addresses). */
+    public function testACredentialKeepWinsOverTheProfileDeny(): void
+    {
+        $credentials = $this->createStub(SocialLoginCredentialRepository::class);
+        $credentials->method('findOneByProvider')->willReturn((new SocialLoginCredential())->setProvider('google')->setLinkExistingAccount('keep'));
+        $existing = new TestUser('known@example.com');
+        $existing->setId(5);
+        $existing->setPassword('own-hash');
+
+        $this->linkExisting($existing, ['link_existing_account' => 'deny'], $credentials);
+
+        self::assertSame('own-hash', $existing->getPassword());
+    }
+
     /**
      * @param array<string, mixed> $socialLogin
      */
-    private function linkExisting(TestUser $existing, array $socialLogin): UserInterface
+    private function linkExisting(TestUser $existing, array $socialLogin, ?SocialLoginCredentialRepository $credentials = null): UserInterface
     {
         $users = $this->createMock(EntityRepository::class);
         $users->method('findBy')->willReturn([$existing]);
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getRepository')->willReturn($users);
 
-        return $this->linker($em, $this->noAccount())->linkOrCreate(
+        return $this->linker($em, $this->noAccount(), null, $credentials)->linkOrCreate(
             $this->profile(TestUser::class, $socialLogin),
             'google',
             new SocialUserProfile('sub-4', 'known@example.com', null, [], true),
@@ -299,12 +327,12 @@ final class SocialAccountLinkerHardeningTest extends TestCase
         return $accounts;
     }
 
-    private function linker(EntityManagerInterface $em, SocialLoginAccountRepository $accounts, ?RegistrationGate $gate = null): SocialAccountLinker
+    private function linker(EntityManagerInterface $em, SocialLoginAccountRepository $accounts, ?RegistrationGate $gate = null, ?SocialLoginCredentialRepository $credentials = null): SocialAccountLinker
     {
         $hasher = $this->createMock(UserPasswordHasherInterface::class);
         $hasher->method('hashPassword')->willReturn('random-hash');
 
-        return new SocialAccountLinker($em, $accounts, PropertyAccess::createPropertyAccessor(), $hasher, new MockClock(), registrationGate: $gate);
+        return new SocialAccountLinker($em, $accounts, PropertyAccess::createPropertyAccessor(), $hasher, new MockClock(), registrationGate: $gate, credentials: $credentials);
     }
 
     /**

@@ -84,6 +84,7 @@ use Nowo\AuthKitBundle\SocialLogin\Oidc\JwksProvider;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcDiscovery;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialLoginTestHandlerInterface;
 use Nowo\AuthKitBundle\Transaction\AuthKitTransactionRunner;
 use Nowo\AuthKitBundle\Twig\AuthKitFlashExtension;
 use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnMfaController;
@@ -335,6 +336,8 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $this->registerPersonalDataPorts($container, $config['personal_data']);
         $this->registerPersonalDataErasers($container, $registerMapping, $config['personal_data']['enabled'] === true);
         $container->registerForAutoconfiguration(SocialCallbackStepInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
+        // 2.7.0: the host's answer to a test sign-in (SocialLoginTestStart).
+        $container->registerForAutoconfiguration(SocialLoginTestHandlerInterface::class)->addTag(SocialLoginTestHandlerInterface::TAG);
 
         if ($config['flash']['twig_filter'] !== true) {
             $container->removeDefinition(AuthKitFlashExtension::class);

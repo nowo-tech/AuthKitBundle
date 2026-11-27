@@ -33,6 +33,10 @@ services:
             - '../../SocialLogin/Oidc/OidcException.php'
             - '../../SocialLogin/Oidc/OidcProviderMetadata.php'
             - '../../SocialLogin/Oidc/OidcProviderSettings.php'
+            # 2.7.0: static helpers and an exception (never services).
+            - '../../SocialLogin/LoginHint.php'
+            - '../../SocialLogin/SocialCredentialPolicy.php'
+            - '../../SocialLogin/SocialLoginTestException.php'
             - '../../Form/'
             - '../../Controller/'
             - '../../QrLogin/DeviceIntelligenceQrLoginStepUp.php'
@@ -280,6 +284,12 @@ services:
         arguments:
             $callbackHandlers: !tagged_iterator nowo_auth_kit.social_callback_handler
             $logger: '@?logger'
+            $testHandlers: !tagged_iterator nowo_auth_kit.social_test_handler
+
+    # 2.7.0: host-minted test sign-in (one-shot marker bound to the OAuth state; no URL flag).
+    Nowo\AuthKitBundle\SocialLogin\SocialLoginTestStart:
+        arguments:
+            $testHandlers: !tagged_iterator nowo_auth_kit.social_test_handler
 
     Nowo\AuthKitBundle\Controller\SocialLoginStartController:
         autoconfigure: false

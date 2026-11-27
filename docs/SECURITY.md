@@ -6,6 +6,8 @@
 - [Application responsibilities](#application-responsibilities)
 - [Logging](#logging)
 - [Bundle responsibilities](#bundle-responsibilities)
+- [Social login client secrets](#social-login-client-secrets)
+- [Enterprise OIDC (2.7.0)](#enterprise-oidc-270)
 - [Password-reset poisoning (Host header)](#password-reset-poisoning-host-header)
 - [Content Security Policy (CSP)](#content-security-policy-csp)
 - [1.40.0 (markup only)](#1400-markup-only)
@@ -106,6 +108,39 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 - Passkeys (2.6.0): the WebAuthn relying party (RP id, allowed origins) is validated on every ceremony, whoever provides it (`WebAuthnRelyingPartyProviderInterface`): registrable host RP id (no scheme, port or IP literal), https origins on the RP id or its sub-domains (`http://localhost` only with `kernel.debug` or `webauthn.allow_http_localhost`). An invalid value or a failing provider disables passkeys for that request (no options, no verification, logged at error level; the password still works): fail closed, never a ceremony against a half-valid relying party. A passkey, or a challenge, of another RP id than the current one is refused with its own reason (`rp_id_mismatch`). Origins follow the resolved RP id, never the request `Host`; an origin that cannot serve the RP id is ignored with a warning. A provider exception is logged as class, code and message digest only. The public-suffix check is left to the browser (no Public Suffix List in the bundle)
 - AuthKit writes inside the application's transaction run in a savepoint; a lost savepoint (MySQL / MariaDB deadlock) rolls back the entry level or closes the connection and rethrows the original exception (REQ-RUNTIME-003, 2.6.0)
 - Optional OTP input is entry UX only; reset codes are still hashed and compared with `hash_equals`, and `max_code_attempts` still clears the credential
+
+## Social login client secrets
+
+`SocialLoginCredential::$clientSecret` carries `#[Encrypted]`: it is encrypted at rest **only when
+nowo-tech/doctrine-encrypt-bundle is installed and configured** (with its key). Without DoctrineEncrypt the bundle
+stores the secret in clear text and does not refuse to run (2.7.0 keeps this behaviour; a fail-closed option for
+enterprise credentials is planned for 2.8.0). Applications that store organization (enterprise) client secrets must
+configure DoctrineEncrypt first. AuthKit never logs a client secret, a token or a code (log contexts are scalar and
+carry the provider key and a reason only); keep the secret write-only in your forms and out of exports.
+
+## Enterprise OIDC (2.7.0)
+
+- **Set `deny` on every credential whose IdP you do not control.** NULL inherits `social_login.link_existing_account` (default `reset_password`); an IdP run by a tenant can assert any verified e-mail, so with anything but `deny` it can take over any local account with that address (administrators included). With `deny` an existing local account is never linked by e-mail alone (the host runs its own linking
+  challenge). Only an unknown stored policy is read as `deny`; NULL is not.
+- **`login_hint`** is forwarded only as a plain dot-atom e-mail address (no quoted local part, IP literal or markup).
+- **MFA exemption only from signed claims.** `mfa_first_factor: exempt_when_amr` reads `amr` from the validated ID token
+  (signature, `iss`, `aud`, `exp` / `iat`, `nonce`); the userinfo answer is never read for it, an OAuth2 credential is
+  never exempted by it, and an unknown stored policy is read as `required`.
+- **`login_hint`** is validated (dot-atom e-mail accepted by `FILTER_VALIDATE_EMAIL`, at most 254 bytes, no white space
+  or control characters) and dropped otherwise; it is advisory and never compared with the asserted e-mail.
+- **Test sign-in** cannot be triggered by a URL: the marker is stored server-side with the OAuth state by
+  `SocialLoginTestStart::start()`, which the host calls from an administrator-only action (POST with a CSRF token). The
+  callback of a test state reaches the host's `SocialLoginTestHandlerInterface` only, never signs in, links or creates
+  an account, refuses a sign-in answer, and burns the marker with the state. Without a registered handler no test
+  starts, and a pending test state is burned and refused.
+- **Unlisted credentials** are hidden, not protected: anyone who knows the provider key can start them (and so learn
+  the IdP's authorize URL and client id). Use non-guessable provider keys when an organization's IdP or tenant is
+  confidential. Authorization belongs in the host's callback handler (organization membership, verified domain).
+- **Who may set `exempt` / `exempt_when_amr`** is the host's decision (platform administrators rather than organization
+  administrators, unless the organization's IdP is trusted to enforce MFA): an exemption trusts that IdP's own MFA.
+- **`amr` has no age.** It describes how the IdP session authenticated, not when: under `exempt_when_amr` AuthKit's second
+  step is skipped for as long as the IdP session lives (no `auth_time` / `max_age` check). Some IdPs leave `amr` out of
+  their ID tokens (then the second step is always required).
 
 ## Password-reset poisoning (Host header)
 

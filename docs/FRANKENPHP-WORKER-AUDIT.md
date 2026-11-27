@@ -79,7 +79,8 @@ Worker demo: `demo/symfony8/Caddyfile` runs `php_server` with a `worker` block (
 | `QrLogin\NullQrCodeGenerator`, `QrLogin\EndroidQrCodeGenerator` | yes | none (new `Builder` per call) | ✅ | ✅ |
 | `SocialLogin\OAuth2Client`, `ProviderEndpointCatalog`, `OAuthEndpointUrlValidator` | yes | none | ✅ | ✅ |
 | `SocialLogin\SocialAccountLinker` | yes | none | ✅ | ✅ |
-| `SocialLogin\SocialLoginStateStore` | yes | none (state kept in the session) | ✅ | ✅ |
+| `SocialLogin\SocialLoginStateStore` | yes | none (state, PKCE verifier, nonce and the 2.7.0 test marker kept in the session) | ✅ | ✅ |
+| `SocialLogin\SocialLoginTestStart` (2.7.0) | yes | none (readonly deps; the one-shot test marker lives in the session with the state) | ✅ | ✅ |
 | `SocialLogin\SocialLoginGate` | yes | none (queries enabled credentials on every call, no cache) | ✅ | ✅ |
 | `Repository\QrLoginChallengeRepository`, `SocialLoginAccountRepository`, `SocialLoginCredentialRepository` | yes | none besides the EntityManager reference | ✅ | ✅ |
 | `Mfa\EventSubscriber\MfaPasswordChangeListener` (Doctrine `onFlush` / `postFlush`, 1.34) | yes | `$changed`: users whose password changed in the flush in progress, per unit of work (1.45.2). Emptied in `postFlush`, by `onClear`, when its unit of work is gone, at the main `kernel.request`, `kernel.terminate`, `console.terminate`, `WorkerMessageReceived/Handled/FailedEvent`, and by `reset()` | ✅ | ✅ (since 1.45.1, W-05) |

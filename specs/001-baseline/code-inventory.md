@@ -181,6 +181,17 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Resources/public/js/nowo-auth-kit-form-post.js` | production | FR-SOCIAL-008 | Mapped |
 | `Resources/views/security/social_form_post.html.twig` | production | FR-SOCIAL-008 | Mapped |
 
+## Enterprise OpenID Connect (v2.7.0, [spec 009](../009-enterprise-oidc/spec.md))
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Port/SocialLoginTestGate.php` | production | FR-SOCIAL-012 | Mapped |
+| `SocialLogin/LoginHint.php` | production | FR-SOCIAL-011 | Mapped |
+| `SocialLogin/SocialCredentialPolicy.php` | production | FR-SOCIAL-011 | Mapped |
+| `SocialLogin/SocialLoginTestException.php` | production | FR-SOCIAL-012 | Mapped |
+| `SocialLogin/SocialLoginTestHandlerInterface.php` | production | FR-SOCIAL-012 | Mapped |
+| `SocialLogin/SocialLoginTestStart.php` | production | FR-SOCIAL-012 | Mapped |
+
 ## Profiles & locale
 
 | Source file | Spec section | Requirement IDs | Status |
@@ -779,10 +790,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 446 |
+| PHP under `src/` | 459 |
 | Resources (config/translations/views/public/sql) | 85 |
-| **Total production sources** | **531** |
-| Audit command | `git ls-files src \| wc -l` → 531 |
+| **Total production sources** | **544** |
+| Audit command | `git ls-files src \| wc -l` → 544 |
 
 ## Coverage gate
 

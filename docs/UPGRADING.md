@@ -3,6 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Schema: four nullable columns](#schema-four-nullable-columns)
+  - [Behaviour that changes](#behaviour-that-changes-270)
 - [To 2.6.0](#to-260)
   - [To 2.6.0](#to-260-1)
 - [To 2.5.0](#to-250)
@@ -184,6 +186,62 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+Planned as **2.7.0** (minor), from **2.6.x**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+Enterprise OpenID Connect per organization (Beacon spec 221): unlisted credentials, `login_hint`, `link_existing_account`
+and the MFA first-factor policy per credential, validated ID token claims for host handlers, and the host-minted test
+sign-in. Nothing changes until you set the new values: see [SSO.md](SSO.md#enterprise-oidc-per-organization-270).
+
+### Schema: four nullable columns
+
+`auth_kit_social_credential` gains `listed` (`BOOLEAN NULL`), `link_existing_account` (`VARCHAR(16) NULL`),
+`mfa_first_factor` (`VARCHAR(16) NULL`) and `mfa_accepted_amr` (`JSON NULL`). All nullable, no data migration: existing
+rows keep `NULL` (listed, the profile's link policy, the profile's MFA rule).
+
+```bash
+php bin/console doctrine:migrations:diff   # then review and migrate
+```
+
+```sql
+-- MySQL / MariaDB
+ALTER TABLE auth_kit_social_credential ADD listed TINYINT(1) DEFAULT NULL, ADD link_existing_account VARCHAR(16) DEFAULT NULL, ADD mfa_first_factor VARCHAR(16) DEFAULT NULL, ADD mfa_accepted_amr JSON DEFAULT NULL;
+-- PostgreSQL
+ALTER TABLE auth_kit_social_credential ADD listed BOOLEAN DEFAULT NULL;
+ALTER TABLE auth_kit_social_credential ADD link_existing_account VARCHAR(16) DEFAULT NULL;
+ALTER TABLE auth_kit_social_credential ADD mfa_first_factor VARCHAR(16) DEFAULT NULL;
+ALTER TABLE auth_kit_social_credential ADD mfa_accepted_amr JSON DEFAULT NULL;
+-- SQLite
+ALTER TABLE auth_kit_social_credential ADD COLUMN listed BOOLEAN DEFAULT NULL;
+ALTER TABLE auth_kit_social_credential ADD COLUMN link_existing_account VARCHAR(16) DEFAULT NULL;
+ALTER TABLE auth_kit_social_credential ADD COLUMN mfa_first_factor VARCHAR(16) DEFAULT NULL;
+ALTER TABLE auth_kit_social_credential ADD COLUMN mfa_accepted_amr CLOB DEFAULT NULL; -- (DC2Type:json)
+```
+
+Use your table prefix (`doctrine.table_prefix`) when you set one. Until the columns exist every page that reads the
+credential table fails, as for any new mapped column: migrate before switching traffic.
+
+<a id="behaviour-that-changes-270"></a>
+### Behaviour that changes
+
+- `SocialLoginStateStore::consumePending()` returns one more key, `test` (bool). Only code that calls the store
+  directly (tests, host start controllers) sees it; an `assertSame` on the whole array needs `'test' => false`.
+- `GET /login/social/{provider}` reads `login_hint`. A valid address is now sent to the provider (it may pre-fill its
+  sign-in form); an invalid one is ignored as before.
+- `SocialAccountLinker` looks the provider credential up (one `findOneByProvider()` per first link of an existing
+  account) to read its `link_existing_account`. A host that builds the linker itself can pass `credentials:`; without it
+  the profile value applies, as before.
+- Fixed (audit ZCX-I4): an invitation accepted with an OpenID Connect provider now stores the link with its issuer.
+  Links stored before with a NULL issuer for an OIDC provider (`issuer IS NULL` on `auth_kit_social_account` for a
+  provider key that signs in through OIDC) still refuse to sign in: delete those rows, the next sign-in links again.
+- Enterprise credentials: call `setLinkExistingAccount('deny')` on every credential whose IdP you do not control; NULL
+  inherits the profile's `link_existing_account` (default `reset_password`).
+- Client secrets: unchanged. `client_secret` is encrypted at rest only when DoctrineEncrypt is installed and configured;
+  configure it before you store enterprise secrets ([SECURITY.md](SECURITY.md#social-login-client-secrets)).
 
 ## To 2.6.0
 
