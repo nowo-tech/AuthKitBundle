@@ -92,6 +92,77 @@ final class EncryptedReadKeepsRowCleanTest extends TestCase
         self::assertSame(self::STORED_UPDATED_AT, $em->getConnection()->fetchOne('SELECT updated_at FROM auth_kit_social_account'));
     }
 
+    /**
+     * Audit ZDO-AK-I5: a rotation and a revocation through a real encrypted flush and reload reach the database (new
+     * ciphertext, decrypting to the new value) and stamp `updated_at`.
+     */
+    public function testARotationThroughAnEncryptedFlushIsWrittenAndStamped(): void
+    {
+        $em = $this->manager(true);
+        $em->persist((new SocialLoginCredential())->setProvider('org-acme')->setLabel('Acme')->setClientId('client-placeholder')->setClientSecret('secret-placeholder'));
+        $em->persist((new SocialLoginAccount())->setProvider('google')->setProviderUserId('subject-1')->setUserClass('App\\User')
+            ->setUserId('1')->setUserIdentifier('user@example.test')->setAccessToken('access-placeholder')->setRefreshToken('refresh-placeholder'));
+        $em->flush();
+        $em->clear();
+        $connection = $em->getConnection();
+        $connection->executeStatement('UPDATE auth_kit_social_credential SET updated_at = ?', [self::STORED_UPDATED_AT]);
+        $connection->executeStatement('UPDATE auth_kit_social_account SET updated_at = ?', [self::STORED_UPDATED_AT]);
+        $storedSecret = (string) $connection->fetchOne('SELECT client_secret FROM auth_kit_social_credential');
+
+        $credential = (new SocialLoginCredentialRepository(new SingleManagerRegistry($em)))->findOneByProvider('org-acme');
+        $account    = (new SocialLoginAccountRepository(new SingleManagerRegistry($em)))->findOneBy(['providerUserId' => 'subject-1']);
+        self::assertInstanceOf(SocialLoginCredential::class, $credential);
+        self::assertInstanceOf(SocialLoginAccount::class, $account);
+        $credential->setClientSecret('rotated-placeholder');
+        $account->setAccessToken(null)->setRefreshToken('rotated-refresh-placeholder');
+        $em->flush();
+        $em->clear();
+
+        $row = $connection->fetchAssociative('SELECT client_secret, updated_at FROM auth_kit_social_credential');
+        self::assertIsArray($row);
+        self::assertNotSame($storedSecret, $row['client_secret']);
+        self::assertTrue(str_ends_with((string) $row['client_secret'], DoctrineEncryptSubscriber::ENCRYPTION_MARKER));
+        self::assertNotSame(self::STORED_UPDATED_AT, $row['updated_at']);
+        $row = $connection->fetchAssociative('SELECT access_token, refresh_token, updated_at FROM auth_kit_social_account');
+        self::assertIsArray($row);
+        self::assertNull($row['access_token']);
+        self::assertTrue(str_ends_with((string) $row['refresh_token'], DoctrineEncryptSubscriber::ENCRYPTION_MARKER));
+        self::assertNotSame(self::STORED_UPDATED_AT, $row['updated_at']);
+
+        $reloaded = (new SocialLoginCredentialRepository(new SingleManagerRegistry($em)))->findOneByProvider('org-acme');
+        self::assertInstanceOf(SocialLoginCredential::class, $reloaded);
+        self::assertSame('rotated-placeholder', $reloaded->getClientSecret());
+        $reloadedAccount = (new SocialLoginAccountRepository(new SingleManagerRegistry($em)))->findOneBy(['providerUserId' => 'subject-1']);
+        self::assertInstanceOf(SocialLoginAccount::class, $reloadedAccount);
+        self::assertNull($reloadedAccount->getAccessToken());
+        self::assertSame('rotated-refresh-placeholder', $reloadedAccount->getRefreshToken());
+    }
+
+    /**
+     * Audit ZDO-AK-I2 (documented): a plaintext ending with the marker is still written and encrypted; only
+     * `updatedAt` is not stamped.
+     */
+    public function testAPlaintextEndingWithTheMarkerIsWrittenWithoutStamping(): void
+    {
+        $em = $this->manager(true);
+        $em->persist((new SocialLoginCredential())->setProvider('org-acme')->setLabel('Acme')->setClientId('client-placeholder')->setClientSecret('secret-placeholder'));
+        $em->flush();
+        $em->clear();
+        $em->getConnection()->executeStatement('UPDATE auth_kit_social_credential SET updated_at = ?', [self::STORED_UPDATED_AT]);
+        $storedSecret = (string) $em->getConnection()->fetchOne('SELECT client_secret FROM auth_kit_social_credential');
+
+        $credential = (new SocialLoginCredentialRepository(new SingleManagerRegistry($em)))->findOneByProvider('org-acme');
+        self::assertInstanceOf(SocialLoginCredential::class, $credential);
+        $credential->setClientSecret('b2RkLXBsYWNlaG9sZGVy' . DoctrineEncryptSubscriber::ENCRYPTION_MARKER);
+        $em->flush();
+        $em->clear();
+
+        // Written (how DoctrineEncrypt stores it depends on its encryptor: an authenticated one encrypts it again; the
+        // toy encryptor of this test cannot tell it from ciphertext). Only the timestamp is left alone.
+        self::assertNotSame($storedSecret, $em->getConnection()->fetchOne('SELECT client_secret FROM auth_kit_social_credential'));
+        self::assertSame(self::STORED_UPDATED_AT, $em->getConnection()->fetchOne('SELECT updated_at FROM auth_kit_social_credential'));
+    }
+
     public function testARealSecretChangeStillStampsUpdatedAt(): void
     {
         $credential = new SocialLoginCredential();

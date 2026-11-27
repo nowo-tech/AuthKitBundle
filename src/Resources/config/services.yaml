@@ -188,6 +188,7 @@ services:
             $maxDuration: '%nowo_auth_kit.http_client.max_duration%'
             $discoveryFailureTtl: '%nowo_auth_kit.oidc.discovery_failure_ttl%'
             $trustedPrivateHosts: '%nowo_auth_kit.oidc.trusted_private_hosts%'
+            $environment: '%kernel.environment%'
 
     Nowo\AuthKitBundle\SocialLogin\Oidc\OidcHttpClient:
         arguments:

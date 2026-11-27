@@ -79,6 +79,8 @@ final class OidcTrustedPrivateHostsTest extends TestCase
         yield 'link-local v4' => ['https://mock-idp.e2e.test/x', ['169.254.10.1']];
         yield 'metadata v4-mapped' => ['https://mock-idp.e2e.test/x', ['::ffff:169.254.169.254']];
         yield 'metadata v6' => ['https://mock-idp.e2e.test/x', ['fd00:ec2::254']];
+        yield 'metadata v6 fd20:ce::254' => ['https://mock-idp.e2e.test/x', ['fd20:ce::254']];
+        yield 'metadata v6 fd00:c1::a9fe:a9fe' => ['https://mock-idp.e2e.test/x', ['fd00:c1::a9fe:a9fe']];
         yield 'link-local v6' => ['https://mock-idp.e2e.test/x', ['fe80::1']];
         yield 'nat64 of metadata' => ['https://mock-idp.e2e.test/x', ['64:ff9b::a9fe:a9fe']];
         yield 'cgnat' => ['https://mock-idp.e2e.test/x', ['100.64.0.1']];
@@ -126,13 +128,30 @@ final class OidcTrustedPrivateHostsTest extends TestCase
 
     public function testOptionsRefuseWildcardsAndIpLiterals(): void
     {
-        self::assertSame(['mock-idp.e2e.test'], (new OidcOptions(trustedPrivateHosts: ['Mock-IdP.E2E.test', 'mock-idp.e2e.test']))->trustedPrivateHosts);
+        self::assertSame(['mock-idp.e2e.test'], (new OidcOptions(trustedPrivateHosts: ['Mock-IdP.E2E.test', 'mock-idp.e2e.test'], environment: 'test'))->trustedPrivateHosts);
         foreach (['*.e2e.test', '10.0.0.5', '::1', '10.0.0.0/8', 'idp:443', 1] as $entry) {
             try {
-                new OidcOptions(trustedPrivateHosts: [$entry]); // @phpstan-ignore argument.type (invalid entries on purpose)
+                new OidcOptions(trustedPrivateHosts: [$entry], environment: 'test'); // @phpstan-ignore argument.type (invalid entries on purpose)
                 self::fail('refused');
             } catch (InvalidArgumentException $e) {
                 self::assertStringContainsString('trusted_private_hosts', $e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * SECURITY (audit ZDO-AK-I3): a list that reached the options without the extension's check (a host writing the
+     * internal parameter itself) is still refused outside kernel.environment "test".
+     */
+    public function testOptionsRefuseTheListOutsideTheTestEnvironment(): void
+    {
+        self::assertSame([], (new OidcOptions(environment: 'prod'))->trustedPrivateHosts);
+        foreach (['prod', 'dev', null] as $environment) {
+            try {
+                new OidcOptions(trustedPrivateHosts: ['mock-idp.e2e.test'], environment: $environment);
+                self::fail('refused');
+            } catch (InvalidArgumentException $e) {
+                self::assertStringContainsString('kernel.environment is "test"', $e->getMessage());
             }
         }
     }
@@ -148,6 +167,11 @@ final class OidcTrustedPrivateHostsTest extends TestCase
         }
         self::assertTrue($checker->isMetadata('169.254.0.1'));
         self::assertTrue($checker->isMetadata('fd00:ec2::254'));
+        self::assertTrue($checker->isMetadata('fd20:ce::254'));
+        self::assertTrue($checker->isMetadata('fd00:c1::a9fe:a9fe'));
+        self::assertTrue($checker->isMetadata('FD20:00CE:0:0:0:0:0:0254'));
+        self::assertFalse($checker->isTrustablePrivate('fd20:ce::254'));
+        self::assertFalse($checker->isTrustablePrivate('fd00:c1::a9fe:a9fe'));
         self::assertTrue($checker->isMetadata('::ffff:169.254.169.254'));
         self::assertFalse($checker->isMetadata('fd00:ec2::253'));
         self::assertFalse($checker->isMetadata('10.0.0.1'));
@@ -179,6 +203,6 @@ final class OidcTrustedPrivateHostsTest extends TestCase
             }
         };
 
-        return new OidcHttpClient($client, new OidcOptions(trustedPrivateHosts: ['mock-idp.e2e.test']), $resolver, logger: $logger);
+        return new OidcHttpClient($client, new OidcOptions(trustedPrivateHosts: ['mock-idp.e2e.test'], environment: 'test'), $resolver, logger: $logger);
     }
 }

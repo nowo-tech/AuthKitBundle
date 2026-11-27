@@ -19,9 +19,18 @@ use function strlen;
  * refused the unit of work, and any flush rewrote `updated_at`). The setters of AuthKit's encrypted properties stamp
  * `updatedAt` only when {@see self::changes()} answers true.
  *
- * A value carrying the encryption marker is the stored form. One edge: with `on_decrypt_failure: keep`, a value that
- * could not be decrypted stays in its stored form, and replacing it through the setter keeps the new value but does not
- * stamp `updatedAt`. Stateless (worker-safe).
+ * A value that ends with the encryption marker (`<ENC>`) is taken as the stored form, so a write from or to such a
+ * value never stamps `updatedAt`. The value itself is always assigned and persisted (DoctrineEncrypt decides on its own
+ * whether to encrypt it, and Doctrine computes the change set from the values, not from `updatedAt`); only the timestamp
+ * is affected, in two edges:
+ *
+ * - a value that still ends with `<ENC>` in memory: no encryptor configured, or a DoctrineEncrypt older than 2.10
+ *   whose `on_decrypt_failure: keep` left the stored form in place (since 2.10, `keep` puts the payload with the marker
+ *   stripped in the property, so replacing it does stamp `updatedAt`);
+ * - a real plaintext that ends with `<ENC>` (a client secret set to such a value, or a token an identity provider
+ *   returns): written and encrypted as usual, but `updated_at` keeps its previous time.
+ *
+ * Stateless (worker-safe).
  *
  * @internal
  */

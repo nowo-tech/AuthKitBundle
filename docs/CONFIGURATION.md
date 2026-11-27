@@ -678,8 +678,9 @@ on the container network. It relaxes the SSRF guard, so:
 
 - it is honoured only when `kernel.environment` is `test`: in any other environment a non-empty list stops the
   container from compiling. Put it under `when@test` only;
-- the cloud metadata addresses (`169.254.0.0/16`, `fd00:ec2::254`) and every other reserved range (link-local, CGNAT,
-  multicast, NAT64, 6to4…) stay refused even for a listed host; IP literals in URLs are never exempt, `localhost` is
+- known cloud metadata addresses stay refused (`169.254.0.0/16`, `fd00:ec2::254`, `fd20:ce::254`,
+  `fd00:c1::a9fe:a9fe`), as does every other reserved range (link-local, CGNAT, multicast, NAT64, 6to4…), even for a
+  listed host; IP literals in URLs are never exempt, `localhost` is
   still refused by name, HTTPS is still required, redirects are still never followed and the connection is still pinned
   to the checked address;
 - each use is logged at `debug` (endpoint label, host, addresses).

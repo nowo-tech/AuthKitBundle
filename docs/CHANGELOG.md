@@ -141,8 +141,9 @@ Planned as **2.9.0** (minor: one test-only option, plus a fix). No BC break, not
   provider container in end-to-end tests. Until now such a host was always refused by the SSRF guard. Safeguards: the
   option is honoured only when `kernel.environment` is `test`, and a non-empty list makes the container fail to compile
   in any other environment; entries are exact host names compared case-insensitively (wildcards, IP addresses and
-  ranges, ports are refused); cloud metadata addresses (`169.254.0.0/16`, `fd00:ec2::254`) and every other reserved
-  range stay refused even for a listed host; IP literals are never exempt; HTTPS, pinning and no-redirects are
+  ranges, ports are refused); known cloud metadata addresses stay refused (`169.254.0.0/16`, `fd00:ec2::254`,
+  `fd20:ce::254`, `fd00:c1::a9fe:a9fe`), as does every other reserved range, even for a listed host; the options service
+  re-checks `%kernel.environment%` before applying the list; IP literals are never exempt; HTTPS, pinning and no-redirects are
   unchanged; each use is logged at debug. New `PublicIpChecker::isTrustablePrivate()` / `isMetadata()`;
   `OidcHttpClient` takes an optional logger. See [CONFIGURATION.md](CONFIGURATION.md#openid-connect-providers-oidc).
 
@@ -158,7 +159,8 @@ Planned as **2.9.0** (minor: one test-only option, plus a fix). No BC break, not
   manager wrote a spurious `UPDATE … SET updated_at` (the column then showed the last read, not the last change).
   Nothing else was written: the stored ciphertext, the secret and the tokens were never changed. These three setters
   now stamp `updatedAt` only on a real value change, never for the encryption layer swapping the stored form in or
-  out (new internal `Doctrine\EncryptedFieldWrite`). `MfaCredential` (no setter for its secret) was not affected,
+  out (new internal `Doctrine\EncryptedFieldWrite`). A value is always written; only a value that itself ends with the
+  encryption marker `<ENC>` (written and encrypted as usual) leaves `updated_at` at its previous time. `MfaCredential` (no setter for its secret) was not affected,
   and AuthKit has no secret migration on read. Rows with a plain (unencrypted) secret were never affected. Worker
   safe; the host entity manager is never cleared, reset or closed.
 

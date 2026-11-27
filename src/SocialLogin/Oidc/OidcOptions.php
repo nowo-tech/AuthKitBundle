@@ -61,6 +61,7 @@ final readonly class OidcOptions
      * @param float $timeout idle timeout of every OIDC request (nowo_auth_kit.http_client.timeout)
      * @param float $maxDuration total time limit of every OIDC request (nowo_auth_kit.http_client.max_duration)
      * @param list<string> $trustedPrivateHosts 2.9.0, test environment only: see {@see self::$trustedPrivateHosts}
+     * @param string|null $environment kernel.environment; a non-empty $trustedPrivateHosts is refused unless it is "test"
      */
     public function __construct(
         array $allowedAlgorithms = self::SUPPORTED_ALGORITHMS,
@@ -74,12 +75,19 @@ final readonly class OidcOptions
         public float $maxDuration = 20.0,
         public int $discoveryFailureTtl = self::DEFAULT_DISCOVERY_FAILURE_TTL,
         array $trustedPrivateHosts = [],
+        ?string $environment = null,
     ) {
         $unsupported = array_diff($allowedAlgorithms, self::SUPPORTED_ALGORITHMS);
         if ($allowedAlgorithms === [] || $unsupported !== []) {
             throw new InvalidArgumentException(sprintf('The OIDC algorithm allow-list must be a non-empty subset of %s ("none" and HS* are never accepted); got: %s.', implode(', ', self::SUPPORTED_ALGORITHMS), implode(', ', $allowedAlgorithms)));
         }
         $this->allowedAlgorithms = $allowedAlgorithms;
+
+        // Defence in depth (audit ZDO-AK-I3): the extension already refuses the list outside "test", but a host could
+        // still set the internal parameter directly; the list is applied only with kernel.environment "test".
+        if ($trustedPrivateHosts !== [] && $environment !== 'test') {
+            throw new InvalidArgumentException(sprintf('"nowo_auth_kit.oidc.trusted_private_hosts" is honoured only when kernel.environment is "test" (got %s).', $environment === null ? 'none' : '"' . $environment . '"'));
+        }
 
         $hosts = [];
         foreach ($trustedPrivateHosts as $host) {

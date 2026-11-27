@@ -79,11 +79,16 @@ final class PublicIpChecker
     /** @var list<array{0: string, 1: int}> */
     private const TRUSTABLE_PRIVATE_V6 = [
         ['::1', 128],  // loopback
-        ['fc00::', 7], // unique local (fd00:ec2::254 excluded: metadata)
+        ['fc00::', 7], // unique local (the known metadata addresses inside it excluded, see METADATA_V6)
     ];
 
-    /** Cloud instance metadata addresses: never reachable, trusted host or not (169.254.0.0/16 also covers IPv4-mapped). */
-    private const METADATA_V6 = 'fd00:ec2::254';
+    /**
+     * Known IPv6 cloud instance metadata addresses: never reachable, trusted host or not (IPv4 metadata is 169.254.0.0/16,
+     * IPv4-mapped included). All of them sit inside fc00::/7.
+     *
+     * @var list<string>
+     */
+    private const METADATA_V6 = ['fd00:ec2::254', 'fd20:ce::254', 'fd00:c1::a9fe:a9fe'];
 
     /**
      * 2.9.0: whether a non-public address is one a trusted private host (test environment only) may resolve to: a
@@ -108,7 +113,8 @@ final class PublicIpChecker
     }
 
     /**
-     * 2.9.0: cloud instance metadata (169.254.0.0/16, also IPv4-mapped, and fd00:ec2::254).
+     * 2.9.0: known cloud instance metadata addresses (169.254.0.0/16, also IPv4-mapped; fd00:ec2::254, fd20:ce::254,
+     * fd00:c1::a9fe:a9fe).
      */
     public function isMetadata(string $ip): bool
     {
@@ -123,7 +129,13 @@ final class PublicIpChecker
             return $this->inRange($packed, (string) inet_pton('169.254.0.0'), 16);
         }
 
-        return $packed === inet_pton(self::METADATA_V6);
+        foreach (self::METADATA_V6 as $metadata) {
+            if ($packed === inet_pton($metadata)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function isPublic(string $ip): bool
