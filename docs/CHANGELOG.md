@@ -132,6 +132,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned as **2.9.0** (minor: one test-only option, plus a fix). No BC break, nothing for hosts to do.
+
+### Added
+
+- **`oidc.trusted_private_hosts` (test environment only).** A list of exact host names (default `[]`) whose private or
+  loopback addresses the OpenID Connect fetches (discovery, JWKS, token, userinfo) accept, for a simulated identity
+  provider container in end-to-end tests. Until now such a host was always refused by the SSRF guard. Safeguards: the
+  option is honoured only when `kernel.environment` is `test`, and a non-empty list makes the container fail to compile
+  in any other environment; entries are exact host names compared case-insensitively (wildcards, IP addresses and
+  ranges, ports are refused); known cloud metadata addresses stay refused (`169.254.0.0/16`, `fd00:ec2::254`,
+  `fd20:ce::254`, `fd00:c1::a9fe:a9fe`), as does every other reserved range, even for a listed host; the options service
+  re-checks `%kernel.environment%` before applying the list; IP literals are never exempt; HTTPS, pinning and no-redirects are
+  unchanged; each use is logged at debug. New `PublicIpChecker::isTrustablePrivate()` / `isMetadata()`;
+  `OidcHttpClient` takes an optional logger. See [CONFIGURATION.md](CONFIGURATION.md#openid-connect-providers-oidc).
+
+### Fixed
+
+- **Reading a social credential or a linked social account no longer leaves the unit of work dirty.**
+  nowo-tech/doctrine-encrypt-bundle writes an `#[Encrypted]` property through its setter when there is one (its
+  default `property_access: auto`): the decrypted value after a load and after a flush, the stored ciphertext before a
+  flush. `SocialLoginCredential::setClientSecret()` and `SocialLoginAccount::setAccessToken()` / `setRefreshToken()`
+  stamped `updatedAt` on every call, so a row whose secret or token is stored encrypted was scheduled for update right
+  after it was read (for example `SocialLoginCredentialRepository::findOneByProvider()` followed only by getters): a
+  host transaction runner refusing a dirty unit of work refused the request, and any later flush of that entity
+  manager wrote a spurious `UPDATE … SET updated_at` (the column then showed the last read, not the last change).
+  Nothing else was written: the stored ciphertext, the secret and the tokens were never changed. These three setters
+  now stamp `updatedAt` only on a real value change, never for the encryption layer swapping the stored form in or
+  out (new internal `Doctrine\EncryptedFieldWrite`). A value is always written; only a value that itself ends with the
+  encryption marker `<ENC>` (written and encrypted as usual) leaves `updated_at` at its previous time. `MfaCredential` (no setter for its secret) was not affected,
+  and AuthKit has no secret migration on read. Rows with a plain (unencrypted) secret were never affected. Worker
+  safe; the host entity manager is never cleared, reset or closed.
+
 ## [2.8.0] - 2026-11-27
 
 Planned as **2.8.0** (minor, Beacon spec 221 items 5 and 6: RP-initiated logout and enterprise client secrets fail

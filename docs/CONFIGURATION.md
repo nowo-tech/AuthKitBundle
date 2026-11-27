@@ -668,7 +668,31 @@ nowo_auth_kit:
         max_response_bytes: 524288  # 4096..5242880
         discovery_failure_ttl: 30   # 0..300 s, negative cache of a failed discovery
         cache_pool: cache.app
+        trusted_private_hosts: []   # 2.9.0, TEST ENVIRONMENT ONLY (see below)
 ```
+
+`trusted_private_hosts` (2.9.0) lists exact host names (no wildcard, no IP address or range, no port; compared
+case-insensitively) whose **private or loopback** addresses the OIDC fetches (discovery, JWKS, token, userinfo)
+accept: for example a simulated identity provider container in end-to-end tests, which always resolves to an address
+on the container network. It relaxes the SSRF guard, so:
+
+- it is honoured only when `kernel.environment` is `test`: in any other environment a non-empty list stops the
+  container from compiling. Put it under `when@test` only;
+- known cloud metadata addresses stay refused (`169.254.0.0/16`, `fd00:ec2::254`, `fd20:ce::254`,
+  `fd00:c1::a9fe:a9fe`), as does every other reserved range (link-local, CGNAT, multicast, NAT64, 6to4…), even for a
+  listed host; IP literals in URLs are never exempt, `localhost` is
+  still refused by name, HTTPS is still required, redirects are still never followed and the connection is still pinned
+  to the checked address;
+- each use is logged at `debug` (endpoint label, host, addresses).
+
+```yaml
+when@test:
+    nowo_auth_kit:
+        oidc:
+            trusted_private_hosts: [idp.e2e.test]
+```
+
+The test identity provider must serve HTTPS with a certificate the PHP container trusts (mount its CA into the image).
 
 The `http_client` deadlines above apply to every OIDC request too. Per profile, `social_login.start_rate_limit`
 (default 20, 0 disables) and `social_login.start_rate_window` (60 s) bound the sign-in starts per client IP.

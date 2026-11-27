@@ -268,6 +268,13 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         foreach (['allowed_algorithms', 'clock_skew', 'max_id_token_age', 'metadata_cache_ttl', 'jwks_cache_ttl', 'jwks_refresh_interval', 'max_response_bytes', 'discovery_failure_ttl'] as $oidcKey) {
             $container->setParameter('nowo_auth_kit.oidc.' . $oidcKey, $oidcKey === 'allowed_algorithms' ? array_values($config['oidc'][$oidcKey]) : $config['oidc'][$oidcKey]);
         }
+        // 2.9.0: relaxes the SSRF guard of the OIDC fetches; honoured only in the test environment, refused anywhere else.
+        $trustedPrivateHosts = array_values($config['oidc']['trusted_private_hosts']);
+        $environment         = $container->hasParameter('kernel.environment') ? $container->getParameter('kernel.environment') : null;
+        if ($trustedPrivateHosts !== [] && $environment !== 'test') {
+            throw new InvalidArgumentException(sprintf('"nowo_auth_kit.oidc.trusted_private_hosts" lets the OIDC fetches reach private addresses and is honoured only when kernel.environment is "test" (got %s). Set it under when@test only, or remove it.', is_string($environment) ? '"' . $environment . '"' : 'none'));
+        }
+        $container->setParameter('nowo_auth_kit.oidc.trusted_private_hosts', $trustedPrivateHosts);
         $container->setParameter('nowo_auth_kit.doctrine.table_prefix', $config['doctrine']['table_prefix']);
         $container->setParameter('nowo_auth_kit.locale.unlocalized_route_suffix', $config['locale']['unlocalized_route_suffix']);
         $container->setParameter('nowo_auth_kit.locale.localized_logout_redirect', $config['locale']['localized_logout_redirect']);

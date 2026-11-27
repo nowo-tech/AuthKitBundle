@@ -62,6 +62,82 @@ final class PublicIpChecker
         ['ff00::', 8],       // multicast
     ];
 
+    /**
+     * 2.9.0: the private / loopback ranges an `oidc.trusted_private_hosts` entry may resolve to (test environment
+     * only). Nothing else that {@see self::isPublic()} refuses is accepted for a trusted host: not the cloud metadata
+     * addresses ({@see self::isMetadata()}), not link-local, CGNAT, multicast, reserved, NAT64, 6to4 or Teredo.
+     *
+     * @var list<array{0: string, 1: int}>
+     */
+    private const TRUSTABLE_PRIVATE_V4 = [
+        ['10.0.0.0', 8],
+        ['127.0.0.0', 8],
+        ['172.16.0.0', 12],
+        ['192.168.0.0', 16],
+    ];
+
+    /** @var list<array{0: string, 1: int}> */
+    private const TRUSTABLE_PRIVATE_V6 = [
+        ['::1', 128],  // loopback
+        ['fc00::', 7], // unique local (the known metadata addresses inside it excluded, see METADATA_V6)
+    ];
+
+    /**
+     * Known IPv6 cloud instance metadata addresses: never reachable, trusted host or not (IPv4 metadata is 169.254.0.0/16,
+     * IPv4-mapped included). All of them sit inside fc00::/7.
+     *
+     * @var list<string>
+     */
+    private const METADATA_V6 = ['fd00:ec2::254', 'fd20:ce::254', 'fd00:c1::a9fe:a9fe'];
+
+    /**
+     * 2.9.0: whether a non-public address is one a trusted private host (test environment only) may resolve to: a
+     * private or loopback address that is not a cloud metadata address.
+     */
+    public function isTrustablePrivate(string $ip): bool
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false || $this->isMetadata($ip)) {
+            return false;
+        }
+        $packed = (string) inet_pton($ip);
+        if (strlen($packed) === 4) {
+            return $this->inAny($packed, self::TRUSTABLE_PRIVATE_V4);
+        }
+        if (substr($packed, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
+            $v4 = inet_ntop(substr($packed, 12));
+
+            return $v4 !== false && $this->isTrustablePrivate($v4);
+        }
+
+        return $this->inAny($packed, self::TRUSTABLE_PRIVATE_V6);
+    }
+
+    /**
+     * 2.9.0: known cloud instance metadata addresses (169.254.0.0/16, also IPv4-mapped; fd00:ec2::254, fd20:ce::254,
+     * fd00:c1::a9fe:a9fe).
+     */
+    public function isMetadata(string $ip): bool
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+            return false;
+        }
+        $packed = (string) inet_pton($ip);
+        if (strlen($packed) === 16 && substr($packed, 0, 12) === str_repeat("\0", 10) . "\xff\xff") {
+            $packed = substr($packed, 12);
+        }
+        if (strlen($packed) === 4) {
+            return $this->inRange($packed, (string) inet_pton('169.254.0.0'), 16);
+        }
+
+        foreach (self::METADATA_V6 as $metadata) {
+            if ($packed === inet_pton($metadata)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isPublic(string $ip): bool
     {
         if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
