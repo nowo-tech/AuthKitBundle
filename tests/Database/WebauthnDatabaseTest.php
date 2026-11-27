@@ -204,8 +204,9 @@ final class WebauthnDatabaseTest extends LoadDatabaseTestCase
         $peer       = $this->otherSession();
         self::assertSame('OK', $peer->execute('BEGIN'));
         $this->ballast();
+        // An explicit id: with DBAL 3 the PostgreSQL id comes from a sequence the raw INSERT would not call.
         self::assertSame('OK', $peer->execute(sprintf(
-            "INSERT INTO %s (public_id, profile, user_type, user_id, credential_id_hash, credential_id, user_handle, public_key, sign_count, transports, label, created_at) VALUES ('peer', 'default', 'x', 'peer', '%s', '%s', 'h', 'k', 0, '[]', 'Peer', '2026-11-27 10:00:00')",
+            "INSERT INTO %s (id, public_id, profile, user_type, user_id, credential_id_hash, credential_id, user_handle, public_key, sign_count, transports, label, created_at) VALUES (900001, 'peer', 'default', 'x', 'peer', '%s', '%s', 'h', 'k', 0, '[]', 'Peer', '2026-11-27 10:00:00')",
             WebauthnCredential::TABLE,
             WebauthnStore::credentialIdHash($rawId),
             Base64Url::encode($rawId),
