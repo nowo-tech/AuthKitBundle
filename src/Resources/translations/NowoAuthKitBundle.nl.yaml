@@ -4,6 +4,7 @@ login:
     title: Inloggen
     heading: Inloggen
     submit: Inloggen
+    reauthenticate: "Bevestig dat jij het bent om door te gaan."
     register_link: Account aanmaken
     forgot_password_link: Wachtwoord vergeten?
     magic_login_link: Inloggen via e-mailkoppeling

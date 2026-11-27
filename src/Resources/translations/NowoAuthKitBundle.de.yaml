@@ -4,6 +4,7 @@ login:
     title: Anmelden
     heading: Anmelden
     submit: Anmelden
+    reauthenticate: "Bestätigen Sie, dass Sie es sind, um fortzufahren."
     register_link: Konto erstellen
     forgot_password_link: Passwort vergessen?
     magic_login_link: Mit E-Mail-Link anmelden

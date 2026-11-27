@@ -11,6 +11,7 @@ use Nowo\AuthKitBundle\MagicLogin\MagicLoginGate;
 use Nowo\AuthKitBundle\MagicLogin\MagicLoginRequestHandler;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\LoginTarget\Reauthentication;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,7 +19,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 use Twig\Environment;
 
 /**
@@ -45,7 +45,8 @@ final class MagicLoginRequestController
     {
         $profile = $this->profileResolver->resolve($request);
 
-        if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
+        // 2.7.1: a remember-me session may confirm its identity with a link; only a full sign-in is sent away.
+        if (Reauthentication::isFullySignedIn($this->tokenStorage->getToken())) {
             $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
             return new Response('', Response::HTTP_FOUND, [

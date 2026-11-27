@@ -16,6 +16,7 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
+use Nowo\AuthKitBundle\Security\LoginTarget\Reauthentication;
 use Nowo\AuthKitBundle\View\AuthPageFactory;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -26,7 +27,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Environment;
 
@@ -57,7 +57,8 @@ final class ResetPasswordCodeController
     {
         $profile = $this->profileResolver->resolve($request);
 
-        if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
+        // 2.7.1 (audit ZDD-L2): a remember-me session that forgot its password may reset it; only a full sign-in is sent away.
+        if (Reauthentication::isFullySignedIn($this->tokenStorage->getToken())) {
             $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
             return new Response('', Response::HTTP_FOUND, [

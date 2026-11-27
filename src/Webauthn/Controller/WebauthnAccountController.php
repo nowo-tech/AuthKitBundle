@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\Mfa\MfaRequirement;
 use Nowo\AuthKitBundle\Mfa\Security\MfaPendingToken;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\LoginTarget\Reauthentication;
 use Nowo\AuthKitBundle\Webauthn\Form\WebauthnCredentialFormType;
 use Nowo\AuthKitBundle\Webauthn\Form\WebauthnRenameFormType;
 use Nowo\AuthKitBundle\Webauthn\WebauthnFailure;
@@ -43,7 +44,8 @@ use function is_string;
 /**
  * The signed-in user's passkeys (2.4.0): list, add (options + registration form), rename and remove. Adding, renaming
  * and removing need a recent full sign-in (`webauthn.recent_sign_in`; a hijacked long-lived session cannot bind the
- * attacker's authenticator or remove the owner's). Refused while impersonating and for remember-me sessions. Removing
+ * attacker's authenticator or remove the owner's). Refused while impersonating and for remember-me sessions (2.7.1: the
+ * page itself shows them its "sign in again" state, linking to the login page with the page as `_target_path`). Removing
  * the last passkey is refused while a second factor is required and TOTP is off. Every POST is a CSRF-protected form;
  * an unknown passkey and another account's passkey get the same answer. Responses are `private, no-store`.
  */
@@ -72,16 +74,26 @@ final class WebauthnAccountController
     #[Route(path: '/account/webauthn', name: 'nowo_auth_kit_webauthn_account', methods: ['GET'])]
     public function account(Request $request): Response
     {
-        [$user, $profile] = $this->context();
-        $passkeys         = $this->passkeys->passkeys($user);
-        $variables        = [
+        // 2.7.1: a remember-me session sees the page in its "sign in again" state (no form, no signal) instead of a
+        // redirect; the POST and options endpoints still refuse it.
+        [$user, $profile, $remembered] = $this->context(allowRemembered: true);
+        $passkeys                      = $this->passkeys->passkeys($user);
+        $variables                     = [
             'webauthn_profile'              => $profile->name,
             'webauthn_passkeys'             => $passkeys,
             'webauthn_max'                  => (int) ($profile->webauthn['max_credentials'] ?? 10),
             'nowo_auth_kit_webauthn_assets' => true,
-            'webauthn_signal'               => $this->signal($user, $request),
+            'webauthn_signal'               => $remembered ? null : $this->signal($user, $request),
         ];
-        if (!$this->isRecent($request, $profile)) {
+        if ($remembered) {
+            $variables += [
+                'webauthn_sign_in_again'     => (int) ceil($this->recentWindow($profile) / 60),
+                'webauthn_logout_route'      => $profile->routes['logout']['name'],
+                'webauthn_sign_in_again_url' => $this->urls->generate($profile->routes['login']['name'], [
+                    Reauthentication::TARGET_PARAMETER => $this->urls->generate((string) $profile->webauthn['routes']['account']['name']),
+                ]),
+            ];
+        } elseif (!$this->isRecent($request, $profile)) {
             $variables += ['webauthn_sign_in_again' => (int) ceil($this->recentWindow($profile) / 60), 'webauthn_logout_route' => $profile->routes['logout']['name']];
         } else {
             $renames = [];
@@ -209,9 +221,12 @@ final class WebauthnAccountController
     }
 
     /**
-     * @return array{0: UserInterface, 1: ProfileSettings}
+     * The signed-in user, the profile and whether the session is a remember-me one (only with `$allowRemembered`: the
+     * account page; every other endpoint refuses it).
+     *
+     * @return array{0: UserInterface, 1: ProfileSettings, 2: bool}
      */
-    private function context(): array
+    private function context(bool $allowRemembered = false): array
     {
         $token = $this->tokens->getToken();
         $user  = $token?->getUser();
@@ -221,12 +236,13 @@ final class WebauthnAccountController
         if ($token instanceof SwitchUserToken) {
             throw new AccessDeniedHttpException('Passkeys cannot be managed while impersonating.');
         }
-        if (!$this->authorization->isGranted('IS_AUTHENTICATED_FULLY')) {
+        $remembered = !$this->authorization->isGranted('IS_AUTHENTICATED_FULLY');
+        if ($remembered && (!$allowRemembered || !Reauthentication::isRememberedOnly($token))) {
             throw new AccessDeniedException('Sign in again to manage your passkeys.');
         }
         $profile = $this->passkeys->profileFor($user) ?? throw new NotFoundHttpException('Passkeys are not enabled for this account type.');
 
-        return [$user, $profile];
+        return [$user, $profile, $remembered];
     }
 
     private function isRecent(Request $request, ProfileSettings $profile): bool

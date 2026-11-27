@@ -8,6 +8,8 @@
   multi_account (1.34) the accounts of this browser come first (accounts_switcher, masked identifiers).
   2.4.0 (webauthn.passwordless): "Sign in with a passkey" after the form (block nowo_auth_kit_webauthn_login,
   webauthn_login: {form, options_url}); the identifier field carries autocomplete="username webauthn" (conditional UI).
+  2.7.1: reauthenticate is true for a remember-me session asked to sign in again (page.intro is then
+  login.reauthenticate, "Confirm it's you to continue"); a successful sign-in returns to the saved target path.
 #}
 {% extends '@NowoAuthKitBundle/security/_auth_page.html.twig' %}
 

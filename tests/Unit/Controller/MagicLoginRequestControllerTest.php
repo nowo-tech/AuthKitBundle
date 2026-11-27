@@ -33,6 +33,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\RememberMeToken;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Http\LoginLink\LoginLinkDetails;
@@ -101,6 +102,32 @@ final class MagicLoginRequestControllerTest extends TestCase
 
         $response = $controller->request(new Request());
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+    }
+
+    public function testARememberedSessionSeesTheRequestForm(): void
+    {
+        $twig = $this->createMock(Environment::class);
+        $twig->expects(self::once())->method('render')->willReturn('<html>magic</html>');
+
+        $profileRegistry = ProfileRegistryFactory::single(TestUser::class, [
+            'magic_login' => ['mode' => 'enabled'],
+        ]);
+        $tokenStorage = new TokenStorage();
+        $user         = new TestUser();
+        $user->setEmail('a@b.c');
+        $tokenStorage->setToken(new RememberMeToken($user, 'main'));
+
+        $controller = $this->controller(
+            new MagicLoginGate($profileRegistry),
+            AuthKitTestUrlGenerator::fromMock($this->createMock(UrlGeneratorInterface::class)),
+            $twig,
+            $profileRegistry,
+            tokenStorage: $tokenStorage,
+        );
+
+        $response = $controller->request(new Request());
+
+        self::assertSame('<html>magic</html>', $response->getContent(), '2.7.1: a remember-me session is not bounced.');
     }
 
     public function testSubmitAddsFlashAndRedirects(): void

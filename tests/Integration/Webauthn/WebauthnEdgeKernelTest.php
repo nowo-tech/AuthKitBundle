@@ -156,7 +156,11 @@ final class WebauthnEdgeKernelTest extends WebauthnKernelTestCase
         self::assertNotNull($remember);
         $this->client->getCookieJar()->clear();
         $this->client->getCookieJar()->set($remember);
+        // 2.7.1: the page renders its "sign in again" state; the options and POST endpoints still refuse the session.
         $this->client->request('GET', '/account/webauthn');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-testid="auth-kit-webauthn-sign-in-again"]');
+        $this->client->request('GET', '/account/webauthn/register/options');
         self::assertResponseRedirects();
         self::assertStringContainsString('/login', (string) $this->client->getResponse()->headers->get('Location'));
     }

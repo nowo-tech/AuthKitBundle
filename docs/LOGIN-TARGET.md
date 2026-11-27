@@ -20,6 +20,7 @@ Since 1.44. Two opt-in features for applications with background calls (polling,
   - [Background calls keep the saved page](#background-calls-keep-the-saved-page)
 - [Expired-session 401](#expired-session-401)
   - [Front-end handling](#front-end-handling)
+- [Remember-me sessions and full sign-in pages](#remember-me-sessions-and-full-sign-in-pages)
 - [How a request is classified](#how-a-request-is-classified)
 - [Trusted hosts and proxies](#trusted-hosts-and-proxies)
 - [Performance](#performance)
@@ -220,6 +221,42 @@ itself is never saved as the target).
 With MFA, a request of a session whose second step is pending is answered by MFA containment first (`kernel.exception`
 priority 4: `401 {"error":"mfa_required"}` for JSON, a redirect to the challenge for pages); the expired-session
 responder runs next (priority 2), then the firewall (1).
+
+## Remember-me sessions and full sign-in pages
+
+Since 2.7.1. A session restored from the remember-me cookie is only `IS_AUTHENTICATED_REMEMBERED`. When it opens a
+page that needs `IS_AUTHENTICATED_FULLY` (a host page, the two-factor account page), the firewall saves the page as the
+target path and redirects to the login page (a background call gets the [expired-session 401](#expired-session-401)
+when enabled). The login page then:
+
+- shows the form to a remember-me session, with the line "Confirm it's you to continue." (`login.reauthenticate`;
+  template variable `reauthenticate`), as `private, no-store`;
+- keeps the saved target path, so a successful sign-in (password, passkey, magic link in the same browser) returns to
+  the page; with `login_target` enabled the target is still checked after the sign-in;
+- saves a `_target_path` query parameter as the target, only for a remember-me session, only when it is a
+  same-origin path that the target policy allows (a GET HTML page, whether or not `login_target` is enabled), and as
+  an absolute URL (a base URL is never doubled); the passkey account page links to
+  `/login?_target_path=/account/webauthn`;
+- lets the remember-me session follow "Forgot your password?" (the reset pages no longer send it away) and does not
+  offer "Create an account" (`registration_allowed` is false on that form);
+- still redirects a **fully** authenticated user to `login_success_route` (and the magic-link request page and the
+  passkey sign-in endpoint do the same).
+
+The remembered identity is never swapped silently and never reused: the form asks for credentials. If the person signs
+in as **another** account, the normal login semantics apply: the new token replaces the remembered one, the session id
+is migrated, and the saved target path is followed for the new account (it passed the same checks). The remembered
+account's cookie is cleared, so when the new session expires the browser never comes back silently as the remembered
+account: Symfony's remember-me listener clears it for authenticators with a remember-me badge (form login, login
+links), and `RememberedIdentitySwitchSubscriber` for `Security::login()` sign-ins (passkey, social / SSO, QR,
+registration, invitations). Ticking "Remember me" gives the new account its own cookie.
+
+Signing in again as the **same** account follows Symfony's rule: a password re-authentication without "Remember me"
+drops the remember-me cookie (the form's badge clears it), while a passkey re-authentication keeps it.
+
+The session **id** is migrated on every one of these sign-ins, but its attributes stay (Symfony's `migrate` strategy).
+A host that keeps per-user data in the session (a selected tenant, wizard state) should clear it on
+`LoginSuccessEvent` when the user identifier changes (`$event->getPreviousToken()?->getUserIdentifier()`), or use
+`session_fixation_strategy: invalidate`. AuthKit's own per-user session state is bound to its owner.
 
 ## How a request is classified
 

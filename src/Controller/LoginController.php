@@ -19,6 +19,8 @@ use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
+use Nowo\AuthKitBundle\Security\LoginTarget\Reauthentication;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
@@ -32,7 +34,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 use Twig\Environment;
 
@@ -62,6 +63,7 @@ final class LoginController
         private readonly FeatureAvailability $availability = new FeatureAvailability(),
         private readonly ProviderMarkResolver $marks = new ProviderMarkResolver(),
         private readonly ?WebauthnManager $passkeys = null,
+        private readonly ?LoginTargetPolicy $targets = null,
     ) {
     }
 
@@ -70,12 +72,19 @@ final class LoginController
     {
         $profile = $this->profileResolver->resolve($request);
 
-        if ($this->tokenStorage->getToken()?->getUser() instanceof UserInterface) {
+        $token = $this->tokenStorage->getToken();
+        // 2.7.1: only a fully authenticated user goes to the success route. A remember-me session sees the form to
+        // confirm its identity, and the saved target path (the page that needed a full sign-in) is kept.
+        if (Reauthentication::isFullySignedIn($token)) {
             $target = $profile->loginSuccessRoute ?? 'homepage';
 
             return new Response('', Response::HTTP_FOUND, [
                 'Location' => $this->urlGenerator->generate($target),
             ]);
+        }
+        $reauthenticate = Reauthentication::isRememberedOnly($token);
+        if ($reauthenticate) {
+            Reauthentication::keepTarget($request, $profile->firewall, $this->targets);
         }
 
         $form = $this->formFactory->create(LoginFormType::class, null, [
@@ -128,11 +137,12 @@ final class LoginController
         if (($resetAvailable ?? $mailReady) && $passwordResetEnabled) {
             $links[] = $this->pages->link('login.forgot_password_link', $this->urlGenerator->generate($profile->routes['reset_request']['name']));
         }
-        if ($registrationAllowed) {
+        // 2.7.1 (audit ZDD-L2): no "Create an account" on the re-authentication form (a signed-in session is sent away).
+        if ($registrationAllowed && !$reauthenticate) {
             $links[] = $this->pages->link('login.register_link', $this->urlGenerator->generate($profile->routes['register']['name']));
         }
 
-        $page = $this->pages->create('login', $profile, $formView, $links, $this->pages->authenticationError($error));
+        $page = $this->pages->create('login', $profile, $formView, $links, $this->pages->authenticationError($error), intro: $reauthenticate ? 'login.reauthenticate' : null);
 
         /** @var array<string, mixed> $markOverrides */
         $markOverrides = $profile->socialLogin['provider_marks'] ?? [];
@@ -149,6 +159,7 @@ final class LoginController
             : null;
 
         $content = $this->twig->render($profile->template('login'), $this->pages->context('login', $page, $profile, [
+            'reauthenticate'         => $reauthenticate,
             'accounts_switcher'      => $accounts instanceof AccountSwitcherView && !$accounts->isEmpty() ? $accounts : null,
             'login_form'             => $formView,
             'error'                  => $error,
@@ -162,7 +173,7 @@ final class LoginController
             'social_login_providers' => $socialProviders,
             'sso_login_enabled'      => $ssoProviders !== [],
             'sso_login_providers'    => $ssoProviders,
-            'registration_allowed'   => $registrationAllowed,
+            'registration_allowed'   => $registrationAllowed && !$reauthenticate,
             'qr_login_enabled'       => $qrLoginEnabled,
             'qr_login_start_route'   => $profile->routes['qr_login_start']['name'],
             'social_links'           => array_map(static fn (SocialLoginCredential $c): ProviderLink => $providerLink($c, 'social.continue_with'), $socialProviders),
@@ -170,7 +181,8 @@ final class LoginController
         ] + $this->passkeySignIn($profile)));
 
         $response = new Response($content);
-        if ($accounts instanceof AccountSwitcherView && !$accounts->isEmpty()) {
+        // 2.7.1: the re-authentication page belongs to a remembered session; like the account list, never cached.
+        if ($reauthenticate || ($accounts instanceof AccountSwitcherView && !$accounts->isEmpty())) {
             // 1.35 (audit EC-I2): the accounts of a shared browser stay out of any cache, like the /accounts chooser.
             $response->setPrivate();
             $response->headers->addCacheControlDirective('no-store');

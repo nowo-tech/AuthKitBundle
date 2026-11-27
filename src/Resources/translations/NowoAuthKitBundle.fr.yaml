@@ -4,6 +4,7 @@ login:
     title: Connexion
     heading: Connexion
     submit: Se connecter
+    reauthenticate: "Confirmez qu'il s'agit bien de vous pour continuer."
     register_link: Créer un compte
     forgot_password_link: Mot de passe oublié ?
     magic_login_link: Se connecter avec un lien e-mail
