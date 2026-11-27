@@ -232,6 +232,11 @@ services:
             $unlocalizedMode: '%nowo_auth_kit.locale.unlocalized%'
             $unlocalizedRouteSuffix: '%nowo_auth_kit.locale.unlocalized_route_suffix%'
 
+    # 2.7.1: signing in as another account from a remember-me session clears the remembered account's cookie.
+    Nowo\AuthKitBundle\EventSubscriber\RememberedIdentitySwitchSubscriber:
+        arguments:
+            $rememberMeHandlers: !tagged_locator { tag: security.remember_me_handler, index_by: firewall }
+
     # 1.32.2 opt-in (locale.localized_logout_redirect): /{_locale}/logout -> bare logout URL, query kept.
     Nowo\AuthKitBundle\EventSubscriber\LocalizedLogoutRedirectSubscriber:
         arguments:

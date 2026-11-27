@@ -4,6 +4,7 @@ login:
     title: Iniciar sessão
     heading: Iniciar sessão
     submit: Entrar
+    reauthenticate: "Confirme que é você para continuar."
     register_link: Criar uma conta
     forgot_password_link: Esqueceu a palavra-passe?
     magic_login_link: Entrar com link de e-mail

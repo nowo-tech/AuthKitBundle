@@ -58,6 +58,7 @@ final class AuthPageFactory
     /**
      * @param iterable<Link> $links footer links
      * @param array<string, bool|float|int|string|null> $attributes extra attributes of the scaffold root
+     * @param string|null $intro translation key replacing the page's own intro (2.7.1: the re-authentication line)
      */
     public function create(
         string $page,
@@ -66,9 +67,11 @@ final class AuthPageFactory
         iterable $links = [],
         Label|string|null $error = null,
         array $attributes = [],
+        ?string $intro = null,
     ): AuthPage {
-        [$title, , $intro, $submit] = $this->definition($page);
-        $brand                      = $profile->webUi['brand'] ?? null;
+        [$title, , $defaultIntro, $submit] = $this->definition($page);
+        $intro ??= $defaultIntro;
+        $brand = $profile->webUi['brand'] ?? null;
 
         return new AuthPage(
             title: self::label($title),

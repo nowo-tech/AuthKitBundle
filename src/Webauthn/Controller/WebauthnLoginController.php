@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\LoginTarget\Reauthentication;
 use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\Webauthn\Form\WebauthnCredentialFormType;
 use Nowo\AuthKitBundle\Webauthn\WebauthnFailure;
@@ -24,7 +25,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\User\UserInterface;
 
 use function is_string;
 
@@ -67,7 +67,8 @@ final class WebauthnLoginController
     {
         $profile = $this->profile($request);
         $login   = $this->urls->generate($profile->routes['login']['name']);
-        if ($this->tokens->getToken()?->getUser() instanceof UserInterface) {
+        // 2.7.1: a remember-me session may confirm its identity with a passkey; only a full sign-in is sent back.
+        if (Reauthentication::isFullySignedIn($this->tokens->getToken())) {
             return new RedirectResponse($login, Response::HTTP_SEE_OTHER);
         }
         $form = self::form($this->forms, $profile, $this->urls);

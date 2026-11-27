@@ -61,6 +61,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `DeviceIntelligence/NewDeviceLoginNotifierInterface.php` | production | FR-DIINTEL-001 | Mapped |
 | `DeviceIntelligence/NullNewDeviceLoginNotifier.php` | production | FR-DIINTEL-001 | Mapped |
 | `EventSubscriber/NewDeviceLoginSubscriber.php` | production | FR-DIINTEL-001 | Mapped |
+| `EventSubscriber/RememberedIdentitySwitchSubscriber.php` | production | FR-WA-12 | Mapped |
 | `EventSubscriber/LocalizedLogoutRedirectSubscriber.php` | production | FR-LOCALE-001 | Mapped |
 | `EventSubscriber/UnlocalizedDefaultLocaleSubscriber.php` | production | FR-LOCALE-001 | Mapped |
 
@@ -557,6 +558,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Security/LoginTarget/LoginTargetPolicy.php` | production | FR-LOGINT-001 | Mapped |
 | `Security/LoginTarget/LoginTargetVoterInterface.php` | production | FR-LOGINT-001 | Mapped |
 | `Security/LoginTarget/NavigationKind.php` | production | FR-LOGINT-001 | Mapped |
+| `Security/LoginTarget/Reauthentication.php` | production | FR-WA-12 | Mapped |
 | `Security/ProgrammaticLoginAuthenticator.php` | production | FR-LOGINT-003 | Mapped |
 | `Security/SessionExpired/SessionExpiredResponder.php` | production | FR-LOGINT-002 | Mapped |
 

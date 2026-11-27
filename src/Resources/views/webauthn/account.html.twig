@@ -2,7 +2,8 @@
   Passkeys of the signed-in user (2.4.0, nowo_auth_kit_webauthn_account) on the UiKit admin layout: the list (label,
   added, last used, synced), rename and remove per passkey, and "Add a passkey" (label + browser ceremony) while the
   account has fewer than webauthn_max. Without a recent full sign-in (webauthn.recent_sign_in) the page asks to sign in
-  again instead (webauthn_sign_in_again minutes, webauthn_logout_route).
+  again instead (webauthn_sign_in_again minutes, webauthn_logout_route; 2.7.1: webauthn_sign_in_again_url for a
+  remember-me session, the login page with this page as _target_path, preferred over the sign-out link when set).
   Variables: webauthn_profile, webauthn_passkeys (list of Webauthn\WebauthnPasskey), webauthn_max, webauthn_signal
   (rpId, userId, allAcceptedCredentialIds: handed to PublicKeyCredential.signalAllAcceptedCredentials(); 2.6.0: null
   while the relying party is invalid, no signal is sent), and with a recent
@@ -71,7 +72,8 @@
             <div class="{{ nowo_ui_class('card_body', _b) }}">
                 {% if webauthn_sign_in_again is defined %}
                     <p role="status" data-testid="auth-kit-webauthn-sign-in-again">{{ 'webauthn.account.sign_in_again'|trans({'%minutes%': webauthn_sign_in_again}, _b) }}</p>
-                    <p><a href="{{ path(webauthn_logout_route, {_csrf_token: csrf_token('logout')}) }}">{{ 'mfa.account.sign_in_again_action'|trans({}, _b) }}</a></p>
+                    {#- 2.7.1: a remember-me session signs in again on the login page and comes back here; a stale full sign-in signs out first. -#}
+                    <p><a href="{{ webauthn_sign_in_again_url|default(null) ?: path(webauthn_logout_route, {_csrf_token: csrf_token('logout')}) }}" data-testid="auth-kit-webauthn-sign-in-again-link">{{ 'mfa.account.sign_in_again_action'|trans({}, _b) }}</a></p>
                 {% elseif webauthn_register_form %}
                     <p>{{ 'webauthn.account.add_help'|trans({}, _b) }}</p>
                     {{ include('@NowoAuthKitBundle/webauthn/_ceremony.html.twig', {ceremony: {form: webauthn_register_form, options_url: webauthn_register_options_url}, mode: 'register', button: 'webauthn.account.add_button', fields: true}) }}

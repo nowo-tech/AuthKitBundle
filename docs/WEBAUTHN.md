@@ -199,7 +199,7 @@ The demo has its own migration (`demo/symfony8/migrations/Version20261125000000.
 | Counter | the library refuses a counter that does not increase (unless both are zero), then `UPDATE … WHERE sign_count < :new` records it: a replay, a parallel assertion with the same counter or a cloned authenticator fails (`reason: counter`, logged as a warning) |
 | Attestation | every statement the browser returns is verified; `direct` refuses `none` |
 | Limits | `rate_limit.*`, `max_credentials` (under a per-owner lock), the MFA pending attempts (`mfa.max_attempts`) for the second step |
-| Recent sign-in | adding, renaming and removing need a full sign-in within `recent_sign_in` (remember-me and impersonation refused) |
+| Recent sign-in | adding, renaming and removing need a full sign-in within `recent_sign_in` (remember-me and impersonation refused; 2.7.1: a remember-me session sees the page's "sign in again" state, whose link signs in on the login page and comes back) |
 
 One challenge is pending per profile and ceremony in a session: asking for new options (a second tab, the button
 after the conditional UI started) replaces the previous challenge, and the older ceremony then fails with

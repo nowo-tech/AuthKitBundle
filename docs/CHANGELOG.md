@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.7.1] - Unreleased](#271---unreleased)
 - [[2.7.0] - 2026-11-27](#270---2026-11-27)
 - [[2.6.0] - 2026-11-27](#260---2026-11-27)
 - [[2.5.0] - 2026-11-26](#250---2026-11-26)
@@ -129,6 +130,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [2.7.1] - Unreleased
+
+Planned as **2.7.1** (patch, owner-reported production bug in Beacon). No schema change, no configuration change, no BC
+break.
+
+### Fixed
+
+- **A remember-me session no longer bounces to the dashboard from a page that needs a full sign-in.** A user signed
+  in with "Remember me" whose session had expired is only `IS_AUTHENTICATED_REMEMBERED`. Opening a page guarded by
+  `IS_AUTHENTICATED_FULLY` (the passkey and two-factor account pages, or any host page) sent them to the login page,
+  which treated them as signed in and redirected them to `login_success_route` with no explanation. Now:
+  - The login page (`LoginController`), the magic-link request page (`MagicLoginRequestController`) and the passkey
+    sign-in endpoint (`WebauthnLoginController::assert()`) send only a **fully** authenticated user away. A
+    remember-me session sees the form with the line "Confirm it's you to continue." (`login.reauthenticate`, 7
+    locales; template variable `reauthenticate`), the response is `private, no-store`, and the target path the
+    firewall saved is kept: a successful sign-in returns to the page that asked for it. A `_target_path` query
+    parameter on the login page is saved as the target only for a remember-me session and only when it is a
+    same-origin path (`LoginTargetPolicy::sameOriginParts()`; `login_target`, when enabled, still checks it after the
+    sign-in). CSRF and rate limits are unchanged.
+  - The passkey account page (`/account/webauthn`) renders its existing "sign in again" state for a remember-me
+    session instead of a redirect (passkey list only, no forms, no Signal API data). Its link now goes to the login
+    page with the account page as `_target_path` (`webauthn_sign_in_again_url`) instead of signing out; a stale full
+    sign-in keeps the sign-out link. The options endpoint and every POST (add, rename, remove) still refuse the
+    session.
+  - The two-factor account page (`/account/security/mfa`) keeps refusing a remember-me session (DD-I1); the firewall
+    now lands it on the login form, and the sign-in returns to the page.
+  - Signing in as another account from that form follows the normal login semantics: the new token replaces the
+    remembered one and the session id is migrated. The remembered account's remember-me cookie is cleared (Symfony
+    already does it for the password form; the new `RememberedIdentitySwitchSubscriber` also for passkey, programmatic
+    and login-link sign-ins), so the browser never falls back silently to it when the new session expires (documented in
+    [LOGIN-TARGET.md](LOGIN-TARGET.md#remember-me-sessions-and-full-sign-in-pages)).
+- `AuthPageFactory::create()` takes an optional `intro` translation key (trailing argument, default unchanged).
 
 ## [2.7.0] - 2026-11-27
 
