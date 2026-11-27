@@ -235,6 +235,11 @@ credential table fails, as for any new mapped column: migrate before switching t
 - `SocialAccountLinker` looks the provider credential up (one `findOneByProvider()` per first link of an existing
   account) to read its `link_existing_account`. A host that builds the linker itself can pass `credentials:`; without it
   the profile value applies, as before.
+- Fixed (audit ZCX-I4): an invitation accepted with an OpenID Connect provider now stores the link with its issuer.
+  Links stored before with a NULL issuer for an OIDC provider (`issuer IS NULL` on `auth_kit_social_account` for a
+  provider key that signs in through OIDC) still refuse to sign in: delete those rows, the next sign-in links again.
+- Enterprise credentials: call `setLinkExistingAccount('deny')` on every credential whose IdP you do not control; NULL
+  inherits the profile's `link_existing_account` (default `reset_password`).
 - Client secrets: unchanged. `client_secret` is encrypted at rest only when DoctrineEncrypt is installed and configured;
   configure it before you store enterprise secrets ([SECURITY.md](SECURITY.md#social-login-client-secrets)).
 

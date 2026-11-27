@@ -33,6 +33,7 @@ use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\HostExtensions\SocialProviderResponses;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuthKitBundle\Tests\Stub\TestUser;
+use Nowo\AuthKitBundle\Tests\Support\Oidc\FakeIdp;
 use Nowo\AuthKitBundle\Tests\Support\Oidc\FakeResolver;
 use Nowo\AuthKitBundle\Tests\Support\ProfileRegistryFactory;
 use Psr\Cache\CacheItemPoolInterface;
@@ -462,6 +463,60 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         self::assertCount(1, $accepted);
         self::assertFalse($accepted[0]->existingAccount);
         self::assertCount(1, $this->hooks()->registered);
+    }
+
+    /**
+     * Audit ZCX-I4 (pre-existing since 2.3.0): an invitation accepted with an OpenID Connect provider links under the
+     * provider's issuer, so the same provider signs the account in again (before, the link had no issuer and every
+     * later sign-in was refused by the issuer check).
+     */
+    public function testAnOidcAcceptanceKeepsTheIssuerAndSignsInAgain(): void
+    {
+        $em = $this->entityManager();
+        $em->persist((new SocialLoginCredential())->setProvider('okta')->setLabel('Okta')->setEnabled(true)->setClientId('client-placeholder')->setClientSecret('secret-placeholder')->setIssuer('https://idp.example.com'));
+        $em->flush();
+        $em->clear();
+        $this->provider()->oidc = new FakeIdp('https://idp.example.com', 'client-placeholder', 'key-1', 'new.person@example.com');
+
+        $this->open($this->inviteLink('new.person@example.com'));
+        $crawler = $this->client->request('GET', '/invitation');
+        $this->client->submit($crawler->filter('[data-testid="auth-kit-invitation-social-okta"]')->form());
+        $query = $this->authorizeQuery();
+        $this->client->request('GET', '/login/social/okta/check', ['code' => 'c', 'state' => $query['state']]);
+        self::assertResponseRedirects('/home');
+        $link = $this->entityManager()->getRepository(SocialLoginAccount::class)->findOneBy(['provider' => 'okta', 'providerUserId' => 'subject-1']);
+        self::assertInstanceOf(SocialLoginAccount::class, $link);
+        self::assertSame('https://idp.example.com', $link->getIssuer());
+
+        // A new browser signs in with the same provider.
+        $this->service(TokenStorageInterface::class)->setToken(null);
+        $this->client->getCookieJar()->clear();
+        $this->client->request('GET', '/login/social/okta');
+        $query = $this->authorizeQuery();
+        $this->client->request('GET', '/login/social/okta/check', ['code' => 'c', 'state' => $query['state']]);
+        self::assertResponseRedirects('/home');
+        self::assertSame('new.person@example.com', $this->service(TokenStorageInterface::class)->getToken()?->getUserIdentifier());
+    }
+
+    /**
+     * The query of the provider redirect just answered; the fake provider signs its nonce.
+     *
+     * @return array<string, string>
+     */
+    private function authorizeQuery(): array
+    {
+        $location = (string) $this->client->getResponse()->headers->get('Location');
+        self::assertStringStartsWith('https://idp.example.com/authorize?', $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+        self::assertIsString($query['state'] ?? null);
+        self::assertIsString($query['nonce'] ?? null);
+        self::assertInstanceOf(FakeIdp::class, $this->provider()->oidc);
+        $this->provider()->oidc->nonce = $query['nonce'];
+
+        /** @var array<string, string> $typed */
+        $typed = $query;
+
+        return $typed;
     }
 
     public function testASocialMismatchKeepsTheInvitationPending(): void

@@ -135,6 +135,11 @@ final class SocialLoginCheckController
         if ($pending === null) {
             return $this->refused($request, $loginUrl, 'social.error.invalid_state');
         }
+        // Audit ZCX-I2 (defence in depth): the burned state must be of the mode chosen above; a test state never takes
+        // the sign-in path and a sign-in state never reaches the test handler.
+        if ($pending['test'] !== $testing) {
+            return $this->refused($request, $loginUrl, 'social.error.invalid_state');
+        }
 
         // GY-L9: the sign-in could not happen, so nothing may be linked for it. A handler signs in by itself.
         if (!$handler instanceof SocialCallbackHandlerInterface && !$this->loginAuthenticator->canSignIn($profile->firewall)) {

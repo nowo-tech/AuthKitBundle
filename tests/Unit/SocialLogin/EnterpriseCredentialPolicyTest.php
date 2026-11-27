@@ -196,6 +196,12 @@ final class EnterpriseCredentialPolicyTest extends TestCase
         yield 'array' => [['ada@example.com'], null];
         yield 'new line' => ["ada@example.com\nX: y", null];
         yield 'space' => ['ada @example.com', null];
+        // Audit ZCX-L1: dot-atom only (no quoted local part, no IP literal, no markup).
+        yield 'quoted local part with markup' => ['"\\"><svg/onload=1>"@x.com', null];
+        yield 'quoted local part' => ['"a&prompt=none"@x.com', null];
+        yield 'IP literal' => ['a@[127.0.0.1]', null];
+        yield 'comment' => ['a(b)@x.com', null];
+        yield 'no dot in the host' => ['a@localhost', null];
         yield 'too long' => [str_repeat('a', 64) . '@' . str_repeat('b', 190) . '.com', null];
     }
 

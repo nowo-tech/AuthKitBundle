@@ -120,20 +120,27 @@ carry the provider key and a reason only); keep the secret write-only in your fo
 
 ## Enterprise OIDC (2.7.0)
 
-- **Deny by default where it matters.** `link_existing_account: deny` on an enterprise credential: an existing local
-  account is never linked by e-mail alone. An unknown stored policy is read as `deny`.
+- **Set `deny` on every credential whose IdP you do not control.** NULL inherits `social_login.link_existing_account` (default `reset_password`); an IdP run by a tenant can assert any verified e-mail, so with anything but `deny` it can take over any local account with that address (administrators included). With `deny` an existing local account is never linked by e-mail alone (the host runs its own linking
+  challenge). Only an unknown stored policy is read as `deny`; NULL is not.
+- **`login_hint`** is forwarded only as a plain dot-atom e-mail address (no quoted local part, IP literal or markup).
 - **MFA exemption only from signed claims.** `mfa_first_factor: exempt_when_amr` reads `amr` from the validated ID token
   (signature, `iss`, `aud`, `exp` / `iat`, `nonce`); the userinfo answer is never read for it, an OAuth2 credential is
   never exempted by it, and an unknown stored policy is read as `required`.
-- **`login_hint`** is validated (e-mail syntax, at most 254 bytes, no white space or control characters) and dropped
-  otherwise; it is advisory and never compared with the asserted e-mail.
+- **`login_hint`** is validated (dot-atom e-mail accepted by `FILTER_VALIDATE_EMAIL`, at most 254 bytes, no white space
+  or control characters) and dropped otherwise; it is advisory and never compared with the asserted e-mail.
 - **Test sign-in** cannot be triggered by a URL: the marker is stored server-side with the OAuth state by
   `SocialLoginTestStart::start()`, which the host calls from an administrator-only action (POST with a CSRF token). The
   callback of a test state reaches the host's `SocialLoginTestHandlerInterface` only, never signs in, links or creates
   an account, refuses a sign-in answer, and burns the marker with the state. Without a registered handler no test
   starts, and a pending test state is burned and refused.
-- **Unlisted credentials** are hidden, not protected: anyone who knows the provider key can start them. Authorization
-  belongs in the host's callback handler (organization membership, verified domain) as for any provider.
+- **Unlisted credentials** are hidden, not protected: anyone who knows the provider key can start them (and so learn
+  the IdP's authorize URL and client id). Use non-guessable provider keys when an organization's IdP or tenant is
+  confidential. Authorization belongs in the host's callback handler (organization membership, verified domain).
+- **Who may set `exempt` / `exempt_when_amr`** is the host's decision (platform administrators rather than organization
+  administrators, unless the organization's IdP is trusted to enforce MFA): an exemption trusts that IdP's own MFA.
+- **`amr` has no age.** It describes how the IdP session authenticated, not when: under `exempt_when_amr` AuthKit's second
+  step is skipped for as long as the IdP session lives (no `auth_time` / `max_age` check). Some IdPs leave `amr` out of
+  their ID tokens (then the second step is always required).
 
 ## Password-reset poisoning (Host header)
 

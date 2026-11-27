@@ -401,7 +401,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         $result = $this->acceptor->acceptPendingForSocial(
             $session,
             $profile->name,
-            new SocialUserProfile($social->id, $email, $social->name, $social->raw, $email !== null),
+            new SocialUserProfile($social->id, $email, $social->name, $social->raw, $email !== null, $social->issuer, $social->idTokenClaims),
             $this->socialFormData($profile, $social->name),
         );
         $user = $result->userRef()?->user();
@@ -420,7 +420,8 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
                 // The invited e-mail as stored (the provider may spell it with capitals); verified, it matched above.
                 // `link_existing_account: deny` is refused with accept_page at compile time (KL-L3), a credential's own deny when
                 // the acceptance starts (2.7.0).
-                $this->accountLinker->linkOrCreate($profile, $context->provider, new SocialUserProfile($social->id, $result->invitation->email, $social->name, $social->raw, true), $context->tokens);
+                // 2.7.0 (audit ZCX-I4): the issuer is kept, so an OpenID Connect link signs in again (ZBP-L1 compares it).
+                $this->accountLinker->linkOrCreate($profile, $context->provider, new SocialUserProfile($social->id, $result->invitation->email, $social->name, $social->raw, true, $social->issuer, $social->idTokenClaims), $context->tokens);
             } catch (Throwable $exception) {
                 // A host lookup or a storage failure: the accepted account signs in now and may link the provider later.
                 $this->logger?->notice('AuthKit could not link the social identity of an accepted invitation.', ['provider' => $context->provider, 'reason' => $exception::class]);

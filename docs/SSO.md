@@ -42,6 +42,7 @@ $credential = (new \Nowo\AuthKitBundle\Entity\SocialLoginCredential())
     ->setClientSecret($clientSecret)
     ->setEnabled(true)
     ->setEnterpriseSso(true)
+    ->setLinkExistingAccount('deny') // 2.7.0: an IdP you do not control never takes over a local account by e-mail
     ->setScopes(['openid', 'profile', 'email'])
     ->setAuthorizeUrl('https://idp.example.com/oauth2/v1/authorize')
     ->setTokenUrl('https://idp.example.com/oauth2/v1/token')
@@ -78,6 +79,22 @@ settings below. Every new column is nullable: null keeps the behaviour of 2.6.0.
 
 ### Unlisted credentials and login_hint
 
+A credential for an organization's own IdP (note the `deny`, see below):
+
+```php
+$credential = (new SocialLoginCredential())
+    ->setProvider('org-7f3a9c')            // a non-guessable key if the organization's IdP is confidential
+    ->setLabel('Acme')
+    ->setClientId($clientId)
+    ->setClientSecret($clientSecret)       // encrypted at rest only with DoctrineEncrypt configured
+    ->setIssuer('https://login.microsoftonline.com/<tenant>/v2.0')
+    ->setEnterpriseSso(true)
+    ->setListed(false)
+    ->setLinkExistingAccount('deny')       // the tenant IdP must never take over a local account by e-mail
+    ->setMfaFirstFactorPolicy('exempt_when_amr', ['mfa'])
+    ->setEnabled(true);
+```
+
 `setListed(false)` keeps a credential out of every provider button list (`social_links`, `sso_links`, the invitation
 accept page). It still starts by name, from a host page (for example after home-realm discovery on the e-mail domain):
 
@@ -88,16 +105,19 @@ return $this->redirectToRoute('nowo_auth_kit_social_login_start', [
 ]);
 ```
 
-`login_hint` is forwarded to the provider's authorization request only when it is a syntactically valid e-mail address
-of at most 254 bytes without white space or control characters; anything else is dropped silently (never echoed). It
+`login_hint` is forwarded to the provider's authorization request only when it is a plain dot-atom e-mail address (no
+quoted local part, no IP literal) that `FILTER_VALIDATE_EMAIL` accepts, of at most 254 bytes without white space or
+control characters; anything else is dropped silently (never echoed). It
 replaces a `login_hint` set in `authorization_params`. The hint is advisory: the address the provider asserts is checked
 as for any sign-in and is not compared with the hint.
 
 ### link_existing_account per credential
 
-`setLinkExistingAccount('deny')` on an enterprise credential: a first sign-in whose verified e-mail matches an existing
-local account is refused (the account is never linked by e-mail alone; the host runs its own linking challenge, e.g.
-through a callback handler). Public providers can keep the profile's `reset_password`. Accepted values: `reset_password`,
+**Set `deny` on every credential whose IdP you do not control.** NULL inherits `social_login.link_existing_account` (default `reset_password`); an IdP run by a tenant can assert any verified e-mail, so with anything but `deny` it can take over any local account with that address (administrators included).
+
+With `setLinkExistingAccount('deny')` a first sign-in whose verified e-mail matches an existing local account is refused
+(the account is never linked by e-mail alone; the host runs its own linking challenge, e.g. through a callback handler).
+Public providers can keep the profile's `reset_password`. Accepted values: `reset_password`,
 `deny`, `keep`. The linker reads the credential's value for every caller (`linkAndSignIn()` and `linkOrCreate()`, host
 handlers included); a stored value that is not one of them is read as `deny`.
 
@@ -118,6 +138,11 @@ completes the profile (`raw`) but is never read for this decision: a userinfo `a
 credential (no ID token) under `exempt_when_amr` always gets `required`. The policy applies with `mfa.enabled: true`
 and to AuthKit's own sign-in as well as to a `SocialCallbackStepInterface` answer that signs in; a value that is not one
 of the three is read as `required`. The accepted list holds 1 to 16 printable ASCII tokens of at most 64 characters.
+
+`amr` says how the IdP session authenticated, not when: there is no `auth_time` / `max_age` check, so the exemption
+lasts as long as the IdP session. Some IdPs leave `amr` out of their ID tokens (then the second step is always
+required). Deciding who may set `exempt` / `exempt_when_amr` (platform or organization administrators) is the host's
+call: an exemption trusts that IdP's own MFA.
 
 ### Validated ID token claims
 

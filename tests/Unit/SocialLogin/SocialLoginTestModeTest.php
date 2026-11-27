@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Controller\SocialLoginCheckController;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
+use Nowo\AuthKitBundle\Port\Internal\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Port\SocialLoginTestGate;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
@@ -144,6 +145,31 @@ final class SocialLoginTestModeTest extends TestCase
         self::assertNull($store->consumePending('google', $state));
     }
 
+    /** Audit ZCX-I2: a session whose state changed mode between the two reads is refused, nothing else runs. */
+    public function testAStateThatChangedModeIsRefused(): void
+    {
+        $request = $this->request();
+        $store   = $this->store($request);
+        $request->query->add(['code' => 'c', 'state' => $store->issue('google')]);
+        // A host step's supports() runs between the mode check and the burn; here it rewrites the pending payload.
+        $step = $this->createMock(SocialCallbackHandlerInterface::class);
+        $step->method('supports')->willReturnCallback(static function (Request $request): bool {
+            $session = $request->getSession();
+            $payload = $session->get('_nowo_auth_kit_social_oauth_state');
+            self::assertIsArray($payload);
+            $session->set('_nowo_auth_kit_social_oauth_state', ['test' => true] + $payload);
+
+            return false;
+        });
+        $security = $this->createMock(Security::class);
+        $security->expects(self::never())->method('login');
+
+        $response = $this->check($store, $this->google(), [], $security, [$step])->check($request, 'google');
+
+        self::assertSame('/login', $response->headers->get('Location'));
+        self::assertNull($store->consumePending('google', (string) $request->query->get('state')), 'The state was burned.');
+    }
+
     public function testASignInMarksTheCredentialMfaRule(): void
     {
         $request = $this->request();
@@ -187,8 +213,9 @@ final class SocialLoginTestModeTest extends TestCase
 
     /**
      * @param list<object> $testHandlers
+     * @param list<object> $callbackHandlers
      */
-    private function check(SocialLoginStateStore $store, SocialLoginCredential $credential, array $testHandlers, ?Security $security = null): SocialLoginCheckController
+    private function check(SocialLoginStateStore $store, SocialLoginCredential $credential, array $testHandlers, ?Security $security = null, array $callbackHandlers = []): SocialLoginCheckController
     {
         $credentials = $this->createStub(SocialLoginCredentialRepository::class);
         $credentials->method('findEnabledOrdered')->willReturn([$credential]);
@@ -215,6 +242,7 @@ final class SocialLoginTestModeTest extends TestCase
             AuthKitTestUrlGenerator::fromMock($inner),
             ProfileRegistryFactory::requestResolver(TestUser::class, $config),
             $security ?? $this->createStub(Security::class),
+            callbackHandlers: $callbackHandlers,
             testHandlers: $testHandlers,
         );
     }

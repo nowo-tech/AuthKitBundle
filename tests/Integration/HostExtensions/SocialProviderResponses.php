@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\HostExtensions;
 
 use Closure;
+use Nowo\AuthKitBundle\Tests\Support\Oidc\FakeIdp;
 use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Contracts\HttpClient\ResponseInterface;
 
 use function json_encode;
 use function str_contains;
+use function str_starts_with;
 use function strpos;
 use function substr;
 
@@ -28,6 +30,9 @@ final class SocialProviderResponses
 
     public string $name = 'New Person';
 
+    /** 2.7.0: an OpenID Connect provider answering for its own issuer (discovery, JWKS, token with an ID token). */
+    public ?FakeIdp $oidc = null;
+
     /** Runs while the provider answers (a revocation arriving during the callback). */
     public ?Closure $whileAnswering = null;
 
@@ -37,6 +42,9 @@ final class SocialProviderResponses
     public function __invoke(string $method, string $url, array $options = []): ResponseInterface
     {
         ++$this->requests;
+        if ($this->oidc instanceof FakeIdp && str_starts_with($url, $this->oidc->issuer . '/')) {
+            return ($this->oidc)($method, $url, $options);
+        }
         if ($this->whileAnswering instanceof Closure) {
             ($this->whileAnswering)();
             $this->whileAnswering = null;

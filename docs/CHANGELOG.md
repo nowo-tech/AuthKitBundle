@@ -138,11 +138,15 @@ columns, no BC break: null keeps the 2.6.0 behaviour.
   null = listed). An unlisted credential is never among `social_links` / `sso_links` nor on the invitation accept page;
   it starts by name through `nowo_auth_kit_social_login_start`.
 - **`login_hint` on the start route.** `GET /login/social/{provider}?login_hint=<e-mail>` forwards the hint to the
-  provider's authorization request (OAuth2 and OpenID Connect) when it is a valid e-mail address of at most 254 bytes
-  without white space or control characters; anything else is dropped, never echoed (`SocialLogin\LoginHint`).
+  provider's authorization request (OAuth2 and OpenID Connect) when it is a plain dot-atom e-mail address (no quoted
+  local part, no IP literal; `FILTER_VALIDATE_EMAIL` too) of at most 254 bytes without white space or control
+  characters; anything else is dropped, never echoed (`SocialLogin\LoginHint`, audit ZCX-L1).
   `OAuth2Client::buildAuthorizeUrl()` and `OidcClient::begin()` take an optional trailing `?string $loginHint`.
 - **`link_existing_account` per credential.** `setLinkExistingAccount(?string)` / `getLinkExistingAccount()` (column
-  `link_existing_account VARCHAR(16) NULL`: `reset_password` | `deny` | `keep`, null = the profile's). The linker reads it
+  `link_existing_account VARCHAR(16) NULL`: `reset_password` | `deny` | `keep`, null = the profile's). **Set `deny` on
+  every credential whose IdP you do not control:** NULL inherits `social_login.link_existing_account` (default
+  `reset_password`), and an IdP run by a tenant can assert any verified e-mail, so with anything but `deny` it can take
+  over any local account with that address (audit ZCX-M1). The linker reads it
   for every caller (new optional constructor argument `?SocialLoginCredentialRepository $credentials`). A stored value
   that is not a policy is read as `deny`. The invitation accept page skips a credential whose effective policy is `deny`
   (run-time counterpart of the KL-L3 build-time check, which stays for the profile value).
@@ -162,7 +166,15 @@ columns, no BC break: null keeps the 2.6.0 behaviour.
   `SocialLogin\SocialLoginTestHandlerInterface` (autoconfigured, tag `nowo_auth_kit.social_test_handler`): no callback
   step runs, nothing is linked or provisioned and nobody is signed in (a sign-in answer is refused). No URL parameter
   can start or mark a test. Refusals: `SocialLogin\SocialLoginTestException` (`no_handler`, `social_disabled`,
-  `unknown_provider`, `provider`). A disabled credential can be tested.
+  `unknown_provider`, `provider`). A disabled credential can be tested. The callback also checks that the burned state
+  is of the mode it chose (audit ZCX-I2, defence in depth).
+
+### Fixed
+
+- **Invitation acceptance with an OpenID Connect provider** (since 2.3.0, audit ZCX-I4): the link was stored without
+  the provider's issuer, so every later sign-in with that provider was refused by the issuer check (ZBP-L1). The
+  acceptance now keeps the issuer (and the ID token claims). Links already stored with a NULL issuer for an OIDC
+  provider still refuse: unlink them (delete the `auth_kit_social_account` row) so the next sign-in links again.
 
 ### Documentation
 
