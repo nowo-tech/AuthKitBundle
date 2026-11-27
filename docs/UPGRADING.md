@@ -3,8 +3,9 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.7.0](#to-270)
   - [Schema: four nullable columns](#schema-four-nullable-columns)
-  - [Behaviour that changes](#behaviour-that-changes-270)
+  - [Behaviour that changes](#behaviour-that-changes)
 - [To 2.6.0](#to-260)
   - [To 2.6.0](#to-260-1)
 - [To 2.5.0](#to-250)
@@ -16,7 +17,7 @@
 - [To 2.3.0](#to-230)
   - [Schema: three nullable columns](#schema-three-nullable-columns)
   - [New providers](#new-providers)
-  - [Behaviour that changes](#behaviour-that-changes)
+  - [Behaviour that changes](#behaviour-that-changes-1)
 - [To 2.2.1](#to-221)
 - [To 2.2.0](#to-220)
   - [Password reset: one link stores one password (REQ-RUNTIME-003)](#password-reset-one-link-stores-one-password-req-runtime-003)
@@ -186,6 +187,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.7.0
+
+From **2.6.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 Planned as **2.7.0** (minor), from **2.6.x**:
 

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.7.0] - 2026-11-27](#270---2026-11-27)
 - [[2.6.0] - 2026-11-27](#260---2026-11-27)
 - [[2.5.0] - 2026-11-26](#250---2026-11-26)
 - [[2.4.1] - 2026-11-26](#241---2026-11-26)
@@ -128,6 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [2.7.0] - 2026-11-27
 
 Planned as **2.7.0** (minor, Beacon spec 221 blocks 0 + A: enterprise OpenID Connect per organization). Four nullable
 columns, no BC break: null keeps the 2.6.0 behaviour.
