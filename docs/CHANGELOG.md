@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.8.0] - 2026-11-27](#280---2026-11-27)
 - [[2.7.1] - 2026-11-27](#271---2026-11-27)
 - [[2.7.0] - 2026-11-27](#270---2026-11-27)
 - [[2.6.0] - 2026-11-27](#260---2026-11-27)
@@ -131,6 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-11-27
+
 Planned as **2.8.0** (minor, Beacon spec 221 items 5 and 6: RP-initiated logout and enterprise client secrets fail
 closed; clearer per-mode passkey state texts). One nullable column, no BC break for credentials without `enterprise_sso` or without a client secret.
 
@@ -189,7 +192,6 @@ closed; clearer per-mode passkey state texts). One nullable column, no BC break 
 
 ## [2.7.1] - 2026-11-27
 
-break.
 
 ### Fixed
 
