@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
-- [[2.7.1] - Unreleased](#271---unreleased)
+- [[2.7.1] - 2026-11-27](#271---2026-11-27)
 - [[2.7.0] - 2026-11-27](#270---2026-11-27)
 - [[2.6.0] - 2026-11-27](#260---2026-11-27)
 - [[2.5.0] - 2026-11-26](#250---2026-11-26)
@@ -131,9 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.7.1] - Unreleased
+## [2.7.1] - 2026-11-27
 
-Planned as **2.7.1** (patch, owner-reported production bug in Beacon). No schema change, no configuration change, no BC
 break.
 
 ### Fixed
