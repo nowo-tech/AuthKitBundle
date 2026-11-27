@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.9.0] - 2026-11-27](#290---2026-11-27)
 - [[2.8.0] - 2026-11-27](#280---2026-11-27)
 - [[2.7.1] - 2026-11-27](#271---2026-11-27)
 - [[2.7.0] - 2026-11-27](#270---2026-11-27)
@@ -132,6 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-11-27
+
 Planned as **2.9.0** (minor: one test-only option, plus a fix). No BC break, nothing for hosts to do.
 
 ### Added
@@ -223,7 +226,6 @@ closed; clearer per-mode passkey state texts). One nullable column, no BC break 
   by e-mail under the credential's policy; with `deny` the user needs the host's own re-link flow).
 
 ## [2.7.1] - 2026-11-27
-
 
 ### Fixed
 

@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.9.0](#to-290)
 - [To 2.8.0](#to-280)
   - [Schema: one nullable column](#schema-one-nullable-column)
   - [Enterprise client secrets fail closed](#enterprise-client-secrets-fail-closed)
@@ -192,6 +193,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.9.0
+
+From **2.8.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ## To 2.8.0
 
