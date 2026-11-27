@@ -371,8 +371,12 @@ accounts:
 webauthn:
     login:
         button: "Entrar com uma chave de acesso"
+        state:
+            cancelled: "Não foi usada nenhuma chave de acesso. Se este dispositivo ainda não tiver uma chave de acesso para este site, inicie sessão com a sua palavra-passe e adicione uma nas definições de segurança da sua conta. Uma chave de acesso criada noutro site ou servidor não funciona aqui."
     mfa:
         button: "Usar uma chave de acesso"
+        state:
+            cancelled: "Não foi usada nenhuma chave de acesso. Se este dispositivo ainda não tiver uma chave de acesso para este site, use outro método de verificação e adicione uma chave de acesso nas definições de segurança da sua conta. Uma chave de acesso criada noutro site ou servidor não funciona aqui."
     state:
         unsupported: "Este navegador não suporta chaves de acesso."
         working: "Siga as instruções do navegador ou do telemóvel…"

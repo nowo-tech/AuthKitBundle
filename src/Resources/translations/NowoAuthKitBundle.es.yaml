@@ -369,8 +369,12 @@ accounts:
 webauthn:
     login:
         button: "Iniciar sesión con una llave de acceso"
+        state:
+            cancelled: "No se ha usado ninguna llave de acceso. Si este dispositivo aún no tiene una llave de acceso para este sitio, inicia sesión con tu contraseña y añade una en los ajustes de seguridad de tu cuenta. Una llave de acceso creada en otro sitio o servidor no funciona aquí."
     mfa:
         button: "Usar una llave de acceso"
+        state:
+            cancelled: "No se ha usado ninguna llave de acceso. Si este dispositivo aún no tiene una llave de acceso para este sitio, usa otro método de verificación y añade una llave de acceso en los ajustes de seguridad de tu cuenta. Una llave de acceso creada en otro sitio o servidor no funciona aquí."
     state:
         unsupported: "Este navegador no puede usar llaves de acceso."
         working: "Sigue las instrucciones de tu navegador o teléfono…"

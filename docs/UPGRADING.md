@@ -246,6 +246,10 @@ existing rows (`php bin/console doctrine:encrypt:database`). Set the option to `
   builds it itself gets no RP-initiated logout without it.
 - The session gains `_nowo_auth_kit_rp_logout` after an OIDC sign-in with an opted-in credential (sealed; removed on
   sign-out, replaced or removed by the next social sign-in).
+- Passkeys: the sign-in and MFA pages show a longer `cancelled` text (new keys `webauthn.login.state.cancelled` and
+  `webauthn.mfa.state.cancelled`). A host that overrode `webauthn.state.cancelled` and wants its text on those pages
+  too overrides the per-mode keys as well (the per-mode key wins; `webauthn.<mode>.state.<state>` for any state and mode
+  works the same way). See [WEBAUTHN.md](WEBAUTHN.md#templates-and-the-script).
 - Audit ZCX-v-I1 (2.7.0 note): after you delete an `auth_kit_social_account` row with a NULL issuer, the next sign-in
   with that provider links again by e-mail under the credential's `link_existing_account` (or the profile's). With
   `deny` that sign-in is refused: re-link the user through your own linking flow (see

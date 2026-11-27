@@ -371,8 +371,12 @@ accounts:
 webauthn:
     login:
         button: "Accedi con una passkey"
+        state:
+            cancelled: "Non è stata usata nessuna passkey. Se questo dispositivo non ha ancora una passkey per questo sito, accedi con la tua password e aggiungine una nelle impostazioni di sicurezza del tuo account. Una passkey creata su un altro sito o server non funziona qui."
     mfa:
         button: "Usa una passkey"
+        state:
+            cancelled: "Non è stata usata nessuna passkey. Se questo dispositivo non ha ancora una passkey per questo sito, usa un altro metodo di verifica e aggiungi una passkey nelle impostazioni di sicurezza del tuo account. Una passkey creata su un altro sito o server non funziona qui."
     state:
         unsupported: "Questo browser non supporta le passkey."
         working: "Segui le istruzioni del browser o del telefono…"

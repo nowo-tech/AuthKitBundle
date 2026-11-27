@@ -369,8 +369,12 @@ accounts:
 webauthn:
     login:
         button: "Sign in with a passkey"
+        state:
+            cancelled: "No passkey was used. If this device has no passkey for this site yet, sign in with your password and add one in your account's security settings. A passkey made on another site or server doesn't work here."
     mfa:
         button: "Use a passkey"
+        state:
+            cancelled: "No passkey was used. If this device has no passkey for this site yet, use another verification method and add a passkey in your account's security settings. A passkey made on another site or server doesn't work here."
     state:
         unsupported: "This browser cannot use passkeys."
         working: "Follow the instructions of your browser or phone…"

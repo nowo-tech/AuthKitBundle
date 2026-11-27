@@ -323,6 +323,15 @@ them, and an equivalent fallback otherwise; the conditional UI starts only when 
 checked against Chrome Modern Web Guidance (`passkeys`, `passkey-authentication`, `passkey-registration`,
 `passkey-management`).
 
+State texts (2.8.0): each root carries `data-label-<state>` from the translation key `webauthn.<mode>.state.<state>`
+(domain `NowoAuthKitBundle`, mode `login`, `mfa` or `register`) when it exists, else `webauthn.state.<state>`. A host
+can override one mode without touching the others. AuthKit ships `webauthn.login.state.cancelled` ("No passkey was
+used. If this device has no passkey for this site yet, sign in with your password and add one in your account's
+security settings. A passkey made on another site or server doesn't work here.") and `webauthn.mfa.state.cancelled`
+(another verification method) in its 7 locales; registration keeps "Cancelled". The text deliberately covers both a
+cancelled prompt and a device without a passkey for this site: the browser reports both as `NotAllowedError` and does
+not let a page tell them apart (privacy), so AuthKit does not try.
+
 ## Events
 
 All framework-free (profile, owner type and id, passkey public id), dispatched after the write:

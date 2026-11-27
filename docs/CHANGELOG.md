@@ -131,7 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 Planned as **2.8.0** (minor, Beacon spec 221 items 5 and 6: RP-initiated logout and enterprise client secrets fail
-closed). One nullable column, no BC break for credentials without `enterprise_sso` or without a client secret.
+closed; clearer per-mode passkey state texts). One nullable column, no BC break for credentials without `enterprise_sso` or without a client secret.
 
 ### Added
 
@@ -157,6 +157,14 @@ closed). One nullable column, no BC break for credentials without `enterprise_ss
   unsafe one is dropped (null), so the discovery of a provider that worked in 2.7.0 never fails because of it. The
   discovery cache key changes (`nowo_auth_kit.oidc.metadata.v2.`): each issuer is fetched once more after the upgrade.
 
+- **Per-mode passkey state texts.** `webauthn/_ceremony.html.twig` reads `webauthn.<mode>.state.<state>` first and
+  falls back to `webauthn.state.<state>` (no BC break; a host can override one mode). New keys in the 7 locales:
+  `webauthn.login.state.cancelled` (en: "No passkey was used. If this device has no passkey for this site yet, sign in
+  with your password and add one in your account's security settings. A passkey made on another site or server doesn't
+  work here.") and `webauthn.mfa.state.cancelled` (use another verification method). Registration keeps
+  `webauthn.state.cancelled`. A cancelled prompt and a device without a passkey stay indistinguishable (both
+  `NotAllowedError`, by browser design), so one text covers both. No script change.
+
 ### Changed
 
 - **Enterprise client secrets fail closed.** New `doctrine.require_enterprise_secret_encryption` (default `true`):
@@ -170,7 +178,7 @@ closed). One nullable column, no BC break for credentials without `enterprise_ss
 ### Documentation
 
 - [SSO.md](SSO.md#rp-initiated-logout-280), [SECURITY.md](SECURITY.md#social-login-client-secrets),
-  [CONFIGURATION.md](CONFIGURATION.md), [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md), UPGRADING (schema,
+  [CONFIGURATION.md](CONFIGURATION.md), [WEBAUTHN.md](WEBAUTHN.md#templates-and-the-script), [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md), UPGRADING (schema,
   fail-closed secrets, and audit ZCX-v-I1: after an admin deletes a NULL-issuer link row, the next sign-in links again
   by e-mail under the credential's policy; with `deny` the user needs the host's own re-link flow).
 

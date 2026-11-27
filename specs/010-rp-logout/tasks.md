@@ -7,3 +7,5 @@
 - [x] T005 `EnterpriseSecretEncryptionGuard`, `doctrine.require_enterprise_secret_encryption`
 - [x] T006 Tests: unit, SQLite + DoctrineEncrypt listener, kernel (doctrine-encrypt-bundle, fake IdP); 100 % coverage
 - [x] T007 Docs: SSO, SECURITY, CONFIGURATION, FRANKENPHP-WORKER-AUDIT, CHANGELOG, UPGRADING (SQL for 4 databases)
+- [x] T008 Owner request: per-mode passkey state texts (`webauthn.<mode>.state.<state>`, fallback `webauthn.state.<state>`),
+  clearer `login` / `mfa` `cancelled` texts in 7 locales; kernel tests; WEBAUTHN, CHANGELOG, UPGRADING

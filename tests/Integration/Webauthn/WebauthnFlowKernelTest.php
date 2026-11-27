@@ -29,6 +29,10 @@ final class WebauthnFlowKernelTest extends WebauthnKernelTestCase
         self::assertCount(1, $root);
         self::assertSame('/login/webauthn/options', $root->attr('data-options-url'));
         self::assertSame('1', $root->attr('data-conditional'));
+        // 2.8.0: webauthn.login.state.cancelled first, webauthn.state.<state> for the states without a per-mode text.
+        self::assertStringStartsWith('No passkey was used. If this device has no passkey for this site yet, sign in with your password', (string) $root->attr('data-label-cancelled'));
+        self::assertSame('The passkey could not be used. Try again.', $root->attr('data-label-failed'));
+        self::assertSame('This browser cannot use passkeys.', $root->attr('data-label-unsupported'));
         self::assertCount(1, $page->filter('form[name="webauthn_login"] input[name="webauthn_login[credential]"]'));
         self::assertSame('test-nonce', $page->filter('script[src*="nowo-auth-kit-webauthn.js"]')->attr('nonce'));
     }

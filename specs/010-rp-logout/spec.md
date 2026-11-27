@@ -60,3 +60,11 @@ Consumer credentials and enterprise credentials without a secret are not affecte
 - Front-channel and back-channel logout (the provider calling the application).
 - RP-initiated logout for OAuth2-only credentials (no ID token).
 - A `state` round trip (the application session is gone when the provider redirects back).
+
+## Also in 2.8.0 (owner request)
+
+- **FR-008** Passkey state texts per mode: `webauthn/_ceremony.html.twig` reads `webauthn.<mode>.state.<state>` first,
+  then `webauthn.state.<state>`. `login` and `mfa` ship a clearer `cancelled` text (no passkey used; sign in with the
+  password or another method and add a passkey in the security settings; a passkey from another site or server does not
+  work here); `register` keeps the shared text. A cancelled prompt and a missing credential are not told apart (both
+  `NotAllowedError`, hidden by the browser on purpose).
