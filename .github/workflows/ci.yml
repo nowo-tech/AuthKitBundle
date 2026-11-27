@@ -163,7 +163,7 @@ jobs:
         run: composer audit --locked
 
 
-      - run: composer test
+      - run: composer test -- --display-deprecations
         if: env.HEAVY == 'true'
 
       - name: Validate 100% coverage
