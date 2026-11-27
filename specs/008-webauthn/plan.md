@@ -10,3 +10,7 @@
 4. `WebauthnManager` (owner key, HMAC user handle, limits, per-owner lock, events), `MfaManager::hasSecondFactor()`.
 5. Controllers, forms (hidden credential in a FormKit form), templates, script, translations (7 locales).
 6. Personal data hooks; tests (unit, kernel, worker, real databases); docs; demo.
+7. 2.6.0 runtime relying party: port `WebAuthnRelyingPartyProviderInterface` + context VO, default provider over the
+   configuration, internal resolver (validation, fail closed, log), public validator, ceremonies and controllers on the
+   resolver (503 `unavailable`, flash, script state), `rp_id` column (entity, XML, SQL scripts, demo migration,
+   UPGRADING DDL), count methods on `WebauthnManager`, tests, docs.

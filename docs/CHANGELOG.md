@@ -128,6 +128,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Runtime WebAuthn relying party (Beacon request).** New port `Webauthn\WebAuthnRelyingPartyProviderInterface`
+  (`rpId(WebAuthnRelyingPartyContext): string`, `allowedOrigins(WebAuthnRelyingPartyContext): list<string>`), asked on
+  every ceremony: registration and sign-in options, their verification and the origin check. Nothing reads
+  `webauthn.rp_id` / `webauthn.allowed_origins` directly any more. The default,
+  `Webauthn\RelyingParty\ConfiguredWebAuthnRelyingPartyProvider`, answers the configuration exactly as 2.5 did. Alias
+  the interface to keep the values elsewhere (an instance setting in a database), or decorate it to fall back to the
+  configuration. The context (`ValueObject\WebAuthnRelyingPartyContext`) carries the profile, the request host and
+  origin and the configured values; it is built per call (FrankenPHP worker mode with the kernel reset off).
+- **Relying party validation, fail closed.** `Webauthn\WebAuthnRelyingPartyValidator` (public, stateless:
+  `violations()`, `isValidRpId()`, `isHostOfRpId()`) checks every answer: the RP id is a lower-case host name (no
+  scheme, port or IP literal, at least two labels except `localhost`, last label not numeric); each origin is exactly
+  `https://host[:port]`, or `http://localhost[:port]` in development; each origin host is the RP id or a sub-domain of
+  it. An invalid answer, or an exception of the provider, disables passkeys for that ceremony: options answer 503
+  `{"error": "unavailable"}`, a pending verification is refused (reason `relying_party`), the page shows "Passkeys are
+  not available right now. Sign in with your password." (new state `unavailable` of the bundled script, new
+  translations `webauthn.state.unavailable` and `webauthn.flash.unavailable` in 7 locales) and the failure is logged
+  (error, with the violations).
+- **`webauthn.allow_http_localhost`** (`null` default = `kernel.debug`): whether `http://localhost` origins are accepted.
+- **RP id of each passkey.** New nullable column `auth_kit_webauthn_credential.rp_id` (`VARCHAR(253)`), written on
+  registration (`WebauthnCredential::getRpId()`). A passkey of another RP id than the current one, and a ceremony whose
+  options were issued for another RP id, are refused with the new reason `WebauthnFailure::RP_ID_MISMATCH`
+  (`rp_id_mismatch`, logged as a warning) instead of a generic `invalid`. `null` = created before 2.6.0 for the RP id
+  configured then (still accepted; the RP id hash check applies).
+- **`WebauthnManager::countCredentialsForRpId(string $rpId, ?string $profile = null): int`** and
+  **`countCredentialsOutsideRpId(string $newRpId, ?string $profile = null): int`**: how many passkeys use an RP id, and
+  how many stop working if the RP id becomes another one (a null `rp_id` counts as stopping), so a host can warn "N
+  passkeys will stop working" before saving.
+- **New failure reason `WebauthnFailure::RELYING_PARTY`** (`relying_party`) on `WebauthnAuthenticationFailedEvent`.
+
+- **Origins follow the resolved RP id (audit ZCQ-M1).** `WebAuthnRelyingPartyContext::$resolvedRpId` /
+  `withRpId()`: the origins are asked after the RP id, and the default provider derives `https://<rp id>` from the
+  resolved one, never from the request `Host`, so a decorator that stores only the RP id cannot turn a forged
+  `Host: evil.example.com` into an expected origin.
+- `WebAuthnRelyingPartyValidator::originViolation()` and `rpIdViolation()`; messages JSON-encode the values.
+
+### Changed
+
+- **Allowed origins that cannot serve the RP id are ignored, not fatal (audit ZCQ-M2, BC with 2.5).** Another domain, a
+  malformed entry or an explicit default port (`https://host:443`, which a browser never sends) is dropped with a
+  warning log; passkeys are disabled only when no origin remains. `violations()` stays strict for settings forms.
+- **Provider failures are logged without their message (audit ZCQ-L2):** exception class, code and a SHA-256 prefix of
+  the message.
+- **Stored `rp_id` values are compared lower-cased (audit ZCQ-L1).**
+- A failing relying party is refused before the credential lookup of an assertion (audit ZCQ-I1).
+- **`http://localhost` origins need development.** They are accepted with `kernel.debug` or
+  `webauthn.allow_http_localhost: true`; with debug off and no flag, passkeys fail closed on `http://localhost`. An IP
+  RP id (a request host `127.0.0.1` with `rp_id: null`) is refused too; browsers already refused both ceremonies there.
+- `WebauthnCeremonies` (internal): `verifyCreation()` returns the record and its RP id; `rpId()` and
+  `allowedOrigins()` answer the validated provider values and may throw `WebauthnFailure` (`relying_party`).
+
+### Fixed
+
+- **Lost savepoint (REQ-RUNTIME-003, audit ZCQ-M3; since 1.46.0).** An AuthKit write inside the application's
+  transaction runs in a savepoint (`AuthKitSavepoint`). When the write lost a deadlock on MySQL / MariaDB, the server
+  had already rolled the whole transaction back, and rolling back to the vanished savepoint threw "SAVEPOINT does not
+  exist", which replaced the deadlock (500 instead of 409 `CONFLICT_001`) and left DBAL believing in a transaction the
+  server no longer had (later writes could autocommit). Now the entry level is rolled back (the connection is closed
+  when that fails too) and the original exception is rethrown. Contention only, with a host transaction around an
+  AuthKit write: no advisory.
+
 ## [2.5.0] - 2026-11-26
 
 ### Added

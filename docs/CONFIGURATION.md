@@ -380,11 +380,18 @@ nowo_auth_kit:
         max_credentials: 10
 ```
 
-Every key (`allowed_origins`, `timeout_ms`, `attestation`, `recent_sign_in`, `passwordless`, `mfa`, `hash_secret`,
-`rate_limit.{options,assert,register}`, `routes.*`), the table, the SQL scripts and the security checks:
+Every key (`allowed_origins`, `allow_http_localhost`, `timeout_ms`, `attestation`, `recent_sign_in`, `passwordless`,
+`mfa`, `hash_secret`, `rate_limit.{options,assert,register}`, `routes.*`), the table, the SQL scripts and the security
+checks:
 [WEBAUTHN.md](WEBAUTHN.md). With `mfa.enabled` a passkey is a second factor (`mfa.first_factors.webauthn`: `exempt` by
 default). Host firewall layer: `^/login/webauthn` like the login page (`PUBLIC_ACCESS`), `/account/webauthn` for
 signed-in users.
+
+2.6.0: `rp_id` and `allowed_origins` are read through `Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyProviderInterface`
+(default: this configuration). Alias or decorate the interface to keep them elsewhere, for example an instance setting
+in your database; every answer is validated per ceremony and an invalid one disables passkeys (the password still
+works). `allow_http_localhost` (`null` = `kernel.debug`) decides whether `http://localhost` origins are accepted. See
+[WEBAUTHN.md](WEBAUTHN.md#relying-party-at-runtime-260).
 
 ## Several accounts at once
 

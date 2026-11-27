@@ -379,6 +379,7 @@ webauthn:
         failed: "De passkey kon niet worden gebruikt. Probeer het opnieuw."
         cancelled: "Geannuleerd. Probeer het opnieuw wanneer je klaar bent."
         no_script: "Passkeys hebben JavaScript nodig."
+        unavailable: "Passkeys zijn nu niet beschikbaar. Log in met je wachtwoord."
     flash:
         failed: "Inloggen met de passkey is mislukt. Probeer het opnieuw of gebruik een andere methode."
         register_failed: "De passkey kon niet worden toegevoegd. Probeer het opnieuw."
@@ -388,6 +389,7 @@ webauthn:
         unknown: "Die passkey bestaat niet."
         removed: "De passkey is verwijderd."
         last_factor: "Je account heeft een tweede factor nodig: voeg nog een passkey toe of zet een authenticator-app aan voordat je deze verwijdert."
+        unavailable: "Passkeys zijn nu niet beschikbaar. Log in met je wachtwoord of een andere methode."
     account:
         title: "Passkeys"
         intro: "Log in met je vingerafdruk, gezicht, schermvergrendeling of een beveiligingssleutel. Een passkey werkt ook als tweede stap."

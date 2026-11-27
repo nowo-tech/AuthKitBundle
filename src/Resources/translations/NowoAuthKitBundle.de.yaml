@@ -379,6 +379,7 @@ webauthn:
         failed: "Der Passkey konnte nicht verwendet werden. Versuchen Sie es erneut."
         cancelled: "Abgebrochen. Versuchen Sie es erneut, wenn Sie bereit sind."
         no_script: "Passkeys benötigen JavaScript."
+        unavailable: "Passkeys sind gerade nicht verfügbar. Melden Sie sich mit Ihrem Passwort an."
     flash:
         failed: "Die Anmeldung mit dem Passkey ist fehlgeschlagen. Versuchen Sie es erneut oder nutzen Sie eine andere Methode."
         register_failed: "Der Passkey konnte nicht hinzugefügt werden. Versuchen Sie es erneut."
@@ -388,6 +389,7 @@ webauthn:
         unknown: "Dieser Passkey existiert nicht."
         removed: "Der Passkey wurde entfernt."
         last_factor: "Ihr Konto benötigt einen zweiten Faktor: Fügen Sie einen weiteren Passkey hinzu oder aktivieren Sie eine Authenticator-App, bevor Sie diesen entfernen."
+        unavailable: "Passkeys sind gerade nicht verfügbar. Melden Sie sich mit Ihrem Passwort oder einer anderen Methode an."
     account:
         title: "Passkeys"
         intro: "Melden Sie sich mit Fingerabdruck, Gesicht, Bildschirmsperre oder einem Sicherheitsschlüssel an. Ein Passkey dient auch als zweiter Schritt."

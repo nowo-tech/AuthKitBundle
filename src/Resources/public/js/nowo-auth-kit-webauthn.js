@@ -6,8 +6,10 @@
  * CSRF-protected POST). Login roots with data-conditional="1" also start the conditional UI, so the browser offers the
  * passkeys of this site (or "use a phone": the hybrid QR transport) from the field with
  * autocomplete="username webauthn". The root gets data-nowo-auth-kit-webauthn-state (idle | working | unsupported |
- * failed | cancelled) and a bubbling `nowo-auth-kit:webauthn-state` event ({detail: {mode, state}}); the status text
- * comes from data-label-<state>. Nothing secret is logged.
+ * failed | cancelled | unavailable) and a bubbling `nowo-auth-kit:webauthn-state` event ({detail: {mode, state}}); the
+ * status text comes from data-label-<state>. 2.6.0: options answered 503 {"error": "unavailable"} (the server's relying
+ * party is invalid, passkeys are disabled) set the state `unavailable` and disable the button, also from the
+ * conditional UI, so the page asks for the password. Nothing secret is logged.
  */
 (function () {
     'use strict';
@@ -128,6 +130,11 @@
         function fetchOptions() {
             return fetch(optionsUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' })
                 .then(function (response) {
+                    if (response.status === 503) {
+                        var unavailable = new Error('options unavailable');
+                        unavailable.name = 'UnavailableError';
+                        throw unavailable;
+                    }
                     if (!response.ok) {
                         throw new Error('options ' + response.status);
                     }
@@ -141,8 +148,20 @@
             form.submit();
         }
 
+        function unavailable() {
+            state('unavailable');
+            if (button) {
+                button.disabled = true;
+            }
+        }
+
         function fail(error) {
             busy = false;
+            if (error && error.name === 'UnavailableError') {
+                unavailable();
+
+                return;
+            }
             state(error && (error.name === 'NotAllowedError' || error.name === 'AbortError') ? 'cancelled' : 'failed');
         }
 
@@ -173,8 +192,11 @@
                         state('working');
                         submit(credential);
                     }
-                }).catch(function () {
+                }).catch(function (error) {
                     // Aborted by the button, or nothing chosen: the explicit ceremony stays available.
+                    if (error && error.name === 'UnavailableError') {
+                        unavailable();
+                    }
                 });
             });
         }

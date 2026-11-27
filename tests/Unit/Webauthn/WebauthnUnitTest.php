@@ -25,6 +25,8 @@ final class WebauthnUnitTest extends TestCase
         $used       = new DateTimeImmutable('2026-11-25 11:00:00');
         $credential = new WebauthnCredential('p1', 'default', 'App\\User', '7', 'hash', 'cred', 'handle', 'key', 3, ['usb'], 'aaguid', true, false, 'Key', $created, $used);
         self::assertNull($credential->getId());
+        self::assertNull($credential->getRpId());
+        self::assertSame('example.com', (new WebauthnCredential('p1', 'default', 'App\\User', '7', 'hash', 'cred', 'handle', 'key', 3, ['usb'], 'aaguid', true, false, 'Key', $created, $used, 'example.com'))->getRpId());
         self::assertSame(['p1', 'default', 'App\\User', '7', 'hash', 'cred', 'handle', 'key', 3, ['usb'], 'aaguid', true, false, 'Key', $created, $used], [
             $credential->getPublicId(),
             $credential->getProfile(),

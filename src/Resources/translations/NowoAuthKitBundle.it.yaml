@@ -379,6 +379,7 @@ webauthn:
         failed: "Impossibile usare la passkey. Riprova."
         cancelled: "Annullato. Riprova quando sei pronto."
         no_script: "Le passkey richiedono JavaScript."
+        unavailable: "Le passkey non sono disponibili al momento. Accedi con la tua password."
     flash:
         failed: "Accesso con la passkey non riuscito. Riprova o usa un altro metodo."
         register_failed: "Impossibile aggiungere la passkey. Riprova."
@@ -388,6 +389,7 @@ webauthn:
         unknown: "Questa passkey non esiste."
         removed: "La passkey è stata rimossa."
         last_factor: "Il tuo account richiede un secondo fattore: aggiungi un’altra passkey o attiva un’app di autenticazione prima di rimuovere questa."
+        unavailable: "Le passkey non sono disponibili al momento. Accedi con la tua password o con un altro metodo."
     account:
         title: "Passkey"
         intro: "Accedi con impronta, volto, blocco schermo o una chiave di sicurezza. Una passkey vale anche come secondo passaggio."

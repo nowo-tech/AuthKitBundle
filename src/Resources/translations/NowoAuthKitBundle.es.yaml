@@ -377,6 +377,7 @@ webauthn:
         failed: "No se pudo usar la llave de acceso. Inténtalo de nuevo."
         cancelled: "Cancelado. Inténtalo de nuevo cuando quieras."
         no_script: "Las llaves de acceso necesitan JavaScript."
+        unavailable: "Las llaves de acceso no están disponibles ahora. Inicia sesión con tu contraseña."
     flash:
         failed: "No se pudo iniciar sesión con la llave de acceso. Inténtalo de nuevo o usa otro método."
         register_failed: "No se pudo añadir la llave de acceso. Inténtalo de nuevo."
@@ -386,6 +387,7 @@ webauthn:
         unknown: "Esa llave de acceso no existe."
         removed: "Se ha eliminado la llave de acceso."
         last_factor: "Tu cuenta necesita un segundo factor: añade otra llave de acceso o activa una app de autenticación antes de eliminar esta."
+        unavailable: "Las llaves de acceso no están disponibles ahora. Inicia sesión con tu contraseña u otro método."
     account:
         title: "Llaves de acceso"
         intro: "Inicia sesión con tu huella, tu cara, el bloqueo de pantalla o una llave de seguridad. Una llave de acceso también sirve como segundo paso."

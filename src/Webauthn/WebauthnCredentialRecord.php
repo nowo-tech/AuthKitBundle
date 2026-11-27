@@ -8,7 +8,8 @@ use DateTimeImmutable;
 
 /**
  * One stored passkey as read by {@see WebauthnStore} (2.4.0): a detached value, never a managed entity (worker safe).
- * Binary values are unpadded base64url. Internal: hosts see {@see WebauthnPasskey}.
+ * Binary values are unpadded base64url. `rpId` (2.6.0): the RP id the passkey was created for; null for a passkey
+ * created before 2.6.0 and not backfilled (the RP id configured then). Internal: hosts see {@see WebauthnPasskey}.
  *
  * @internal
  */
@@ -34,6 +35,7 @@ final readonly class WebauthnCredentialRecord
         public string $label,
         public DateTimeImmutable $createdAt,
         public ?DateTimeImmutable $lastUsedAt,
+        public ?string $rpId = null,
     ) {
     }
 

@@ -15,6 +15,7 @@ Passkeys (WebAuthn Level 3, platform and roaming authenticators) as a **password
 - [Storage](#storage)
   - [SQL scripts](#sql-scripts)
 - [Ceremonies and security checks](#ceremonies-and-security-checks)
+- [Relying party at runtime (2.6.0)](#relying-party-at-runtime-260)
 - [Passkeys and MFA](#passkeys-and-mfa)
 - [Sign-in page, conditional UI and the phone QR code](#sign-in-page-conditional-ui-and-the-phone-qr-code)
 - [Account page](#account-page)
@@ -65,6 +66,7 @@ nowo_auth_kit:
                 passwordless: true         # login page button + conditional UI
                 mfa: true                  # a passkey is a second factor (with mfa.enabled)
                 hash_secret: null          # HMAC key of the opaque user handle (null: %kernel.secret%)
+                allow_http_localhost: null # 2.6.0: accept http://localhost origins; null = kernel.debug
                 rate_limit:
                     options:  { limit: 30, window: 300 }   # per client IP (sign-in and second step)
                     assert:   { limit: 20, window: 300 }   # per client IP; a success gives its slot back
@@ -90,7 +92,11 @@ nowo_auth_kit:
   production anyway (see above). The empty default only covers the default HTTPS port: a login page served on another
   port (`https://login.example.com:8443`) must be listed in `allowed_origins`, even when `rp_id` is its host. The only
   exception is `rp_id: localhost` served on localhost (development: http and any port). `http://` entries are accepted
-  for `localhost` / `127.0.0.1` only. Configure `framework.trusted_hosts` as well.
+  for `localhost` only, and since 2.6.0 only in development (`kernel.debug`, or `allow_http_localhost: true`); the
+  build still accepts `http://127.0.0.1`, but no ceremony runs on it (an IP is never a valid RP id). Configure
+  `framework.trusted_hosts` as well.
+- 2.6.0: both values are what the default relying party provider answers; a host can keep them elsewhere (see
+  [Relying party at runtime](#relying-party-at-runtime-260)).
 - `attestation: none` accepts whatever statement the browser returns and verifies it (a security key may keep a
   packed self attestation). `direct` asks for an attestation statement and refuses `none`; there are no trust anchors,
   so it proves a genuine statement, not an approved model.
@@ -142,6 +148,7 @@ Table `auth_kit_webauthn_credential` (takes `doctrine.table_prefix`):
 | `backup_eligible` / `backup_state` | synced passkey flags |
 | `label` | user-facing name (≤ 100 characters, control characters removed) |
 | `created_at` / `last_used_at` | audit |
+| `rp_id` | 2.6.0, nullable: the RP id the passkey was created for (`null`: created before 2.6.0, for the RP id configured then) |
 
 `user_type`, `user_id`, `credential_id_hash`, `user_handle` and `public_id` are exact keys (REQ-SEC-006): binary NO PAD
 collation on MySQL (`utf8mb4_0900_bin`) and MariaDB (`utf8mb4_nopad_bin`), set by the schema listener and declared to
@@ -184,7 +191,8 @@ The demo has its own migration (`demo/symfony8/migrations/Version20261125000000.
 | Challenge | 32 random bytes per ceremony, kept server-side in the user's session (one per profile and ceremony), valid `timeout_ms` + 30 s |
 | Single use | taken out of the session before the answer is verified, and claimed once in the attempt limiter's store under its per-key lock, so two parallel requests of one session cannot both use it |
 | Origin | exact match against `allowed_origins` (compared lower-cased, at runtime), else exactly `https://<rp_id>` on the default port (with an explicit `rp_id` never the `Host` header; with `rp_id: null` the RP id, and so the origin, is the request host); sub-domains refused |
-| RP id | the `rpIdHash` of the authenticator data must match `rp_id` |
+| RP id | the `rpIdHash` of the authenticator data must match the RP id of the ceremony's options, which must still be the current RP id (else `rp_id_mismatch`); a passkey whose stored `rp_id` differs from the current one is refused (`rp_id_mismatch`) |
+| Relying party | 2.6.0: RP id and origins come from `WebAuthnRelyingPartyProviderInterface`, validated on every call; invalid = no options and no verification (`relying_party`) |
 | User verification | required on every ceremony (`UV` flag), user presence too |
 | Signature | COSE ES256, EdDSA (Ed25519) or RS256, by the library |
 | Credential | looked up by the digest of its id in the profile; on the second step it must belong to the pending user and carry that user's handle |
@@ -204,6 +212,63 @@ list the pending user's own passkeys.
 
 A cloned authenticator is not disabled automatically (whoever copies a counter could otherwise lock the owner out);
 the `WebauthnAuthenticationFailedEvent` with `reason: counter` is the signal for the host's audit.
+
+## Relying party at runtime (2.6.0)
+
+The RP id and the allowed origins of every ceremony come from
+`Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyProviderInterface`:
+
+```php
+public function rpId(WebAuthnRelyingPartyContext $context): string;
+/** @return list<string> */
+public function allowedOrigins(WebAuthnRelyingPartyContext $context): array;
+```
+
+`WebAuthnRelyingPartyContext` (`Nowo\AuthKitBundle\ValueObject`) carries `profile`, `requestHost`, `requestOrigin`,
+`configuredRpId` (`webauthn.rp_id`) and `configuredOrigins` (`webauthn.allowed_origins`). The default service,
+`Nowo\AuthKitBundle\Webauthn\RelyingParty\ConfiguredWebAuthnRelyingPartyProvider`, answers the configuration as
+described above. Alias the interface to your own service, or decorate it to fall back to the configuration (the
+UPGRADING "To 2.6.0" section has a complete example). The provider is asked on every options and verification call:
+read the current value each time and keep nothing between requests (FrankenPHP worker mode with the kernel reset off),
+or implement `ResetInterface`.
+
+**Validation (fail closed).** `Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyValidator` checks every answer:
+
+- RP id: lower-case LDH host name (labels of 1 to 63 characters, 253 in all), no scheme, port, path or trailing dot;
+  not an IP literal; at least two labels, except `localhost`; the last label is not numeric. A public suffix
+  (`co.uk`, `github.io`) is **not** detected: that needs the Public Suffix List (a dependency AuthKit does not take);
+  browsers refuse such an RP id themselves, so the ceremony fails in the browser.
+- Origins: 1 to 50; each exactly `https://host[:port]` (no path, query, fragment or user info), or
+  `http://localhost[:port]` with `allow_http_localhost` (default `kernel.debug`); each host is the RP id or a sub-domain
+  of it (`login.example.com` for `example.com`, never `badexample.com`).
+
+The origins are asked after the RP id, with the resolved RP id in `$context->resolvedRpId`; the default derives
+`https://<rp id>` from it, never from the request `Host` (audit ZCQ-M1). An origin that cannot serve the RP id
+(another domain, a malformed entry, an explicit default port) is ignored with a warning; passkeys stay on while one
+usable origin remains (BC with 2.5 multi-domain lists). Messages JSON-encode the values.
+
+The values are lower-cased before the check. An invalid RP id, no usable origin, or an exception thrown by the
+provider:
+
+- options are not issued: `503 {"error": "unavailable"}`; the script sets the state `unavailable` ("Passkeys are not
+  available right now. Sign in with your password."), also from the conditional UI, and disables the button;
+- a registration, sign-in or second step in progress is refused (`reason: relying_party`), with the flash
+  `webauthn.flash.unavailable`; nothing is verified against a half-valid relying party;
+- the account page still lists, renames and removes passkeys, without the Signal API data;
+- the failure is logged at error level (`Passkeys are disabled: …`, with the RP id and the violations; for a provider
+  exception only its class, code and a digest of its message: keep secrets out of exception messages).
+
+Hosts validate in their settings form with `WebAuthnRelyingPartyValidator::violations($rpId, $origins,
+$allowHttpLocalhost)` (empty list = valid; `$allowHttpLocalhost` = the profile's `webauthn.allow_http_localhost`, else
+`kernel.debug`). It is strict: it reports every unusable origin.
+
+**Changing the RP id.** Every passkey is bound to the RP id it was created for (stored in `rp_id`). After a change:
+a passkey of the former RP id is refused with `reason: rp_id_mismatch` (logged as a warning), and so is an answer to
+options issued under the former RP id. Before saving a new RP id, warn with
+`WebauthnManager::countCredentialsOutsideRpId($newRpId, ?$profile)` ("N passkeys will stop working": those of another
+RP id and those whose `rp_id` is null); `countCredentialsForRpId($rpId, ?$profile)` counts the passkeys of one RP id.
+Both compare in PHP, byte for byte after lower-casing, and read every row's `rp_id`: use them for an administrator's
+warning, not on every request.
 
 ## Passkeys and MFA
 
@@ -251,7 +316,7 @@ Blocks: `nowo_auth_kit_webauthn_login` (login page), `nowo_auth_kit_webauthn_mfa
 `public/js/nowo-auth-kit-webauthn.js` is hand-written, CSP safe (no inline code, no eval) and carries the request
 attribute `csp_nonce` as its `nonce`, like every AuthKit script. Roots
 `[data-nowo-auth-kit-webauthn="login|mfa|register"]` get `data-nowo-auth-kit-webauthn-state` (`idle`, `working`,
-`unsupported`, `failed`, `cancelled`) and dispatch a bubbling `nowo-auth-kit:webauthn-state` event
+`unsupported`, `failed`, `cancelled`, and since 2.6.0 `unavailable`: the server disabled passkeys) and dispatch a bubbling `nowo-auth-kit:webauthn-state` event
 (`{detail: {mode, state}}`). It uses `PublicKeyCredential.parse*OptionsFromJSON()` and `toJSON()` where the browser has
 them, and an equivalent fallback otherwise; the conditional UI starts only when `PublicKeyCredential.getClientCapabilities()` (or
 `isConditionalMediationAvailable()`) reports it. Without JavaScript the forms say that passkeys need it. Front-end
@@ -268,14 +333,15 @@ All framework-free (profile, owner type and id, passkey public id), dispatched a
 | `Webauthn\Event\WebauthnCredentialUsedEvent` | a passkey signed in (`context: login`) or passed a second step (`context: mfa`) |
 | `Webauthn\Event\WebauthnCredentialRenamedEvent` | renamed by its owner (2.5.0: `oldLabel`, `newLabel`; not for the same label) |
 | `Webauthn\Event\WebauthnCredentialRemovedEvent` | removed by its owner (`reason: user`) or by a personal-data erasure (`reason: erasure`) |
-| `Webauthn\Event\WebauthnAuthenticationFailedEvent` | a refused ceremony (`context`: `login`, `mfa`, `register`; `reason`: `malformed`, `challenge`, `unknown_credential`, `invalid`, `counter`, `duplicate`, `limit`, `rate_limited`, `user`) |
+| `Webauthn\Event\WebauthnAuthenticationFailedEvent` | a refused ceremony (`context`: `login`, `mfa`, `register`; `reason`: `malformed`, `challenge`, `unknown_credential`, `invalid`, `counter`, `duplicate`, `limit`, `rate_limited`, `user`, and since 2.6.0 `relying_party`, `rp_id_mismatch`) |
 
 ## PHP API
 
 `Nowo\AuthKitBundle\Webauthn\WebauthnManager` (public service): `profileFor()`, `passkeys()` (list of
 `WebauthnPasskey`: public id, label, dates, transports, synced, AAGUID; never key material), `hasSecondFactor()`,
 `registrationOptions()` / `register()`, `loginOptions()` / `login()`, `mfaOptions()` / `verifyMfa()`, `rename()`,
-`remove()` (`WebauthnRemoval::Removed | Unknown | LastFactor`). Refusals throw `WebauthnFailure` with a `reason`.
+`remove()` (`WebauthnRemoval::Removed | Unknown | LastFactor`), and since 2.6.0 `countCredentialsForRpId()` /
+`countCredentialsOutsideRpId()`. Refusals throw `WebauthnFailure` with a `reason`.
 
 ## Personal data
 
@@ -300,7 +366,8 @@ nothing to erase.
 - Every service is stateless (`readonly`); the library's serializer and validators are built per call; reads return
   detached values, never managed entities. `WebauthnWorkerKernelTest` runs 300 alternating passkey sign-ins of two
   users in one kernel that is never reset, with a refused cross-user assertion every third round, and asserts flat
-  memory.
+  memory. `WebauthnRelyingPartyWorkerKernelTest` (2.6.0) changes the host's relying party setting between requests of
+  one kept-alive kernel and checks each request gets the value of that moment.
 - Concurrency (REQ-RUNTIME-003): challenge claim under the limiter lock; counter by conditional UPDATE; registration
   limit and last-factor guard under a per-owner lock; a credential id registered twice hits the unique key
   (`duplicate`). See [CONCURRENCY.md](CONCURRENCY.md).
@@ -327,7 +394,9 @@ nothing to erase.
    `WebauthnManager::passkeys()` and the routes above, extending `webauthn/account.html.twig`).
 6. MFA policies (`mfa.policy`) need no change: a passkey counts through `MfaManager::hasSecondFactor()`. A host that
    removes passkeys itself passes `keepOne: true` when the user would be left without a required factor.
-7. Audit: listen to the five events (`WebauthnCredentialRenamedEvent` since 2.5.0); `WebauthnAuthenticationFailedEvent` with `reason: counter` may be a cloned key.
+7. 2.6.0, optional: keep the RP id and the origins in your database with `WebAuthnRelyingPartyProviderInterface`
+   ([Relying party at runtime](#relying-party-at-runtime-260); adoption steps in UPGRADING "To 2.6.0").
+8. Audit: listen to the five events (`WebauthnCredentialRenamedEvent` since 2.5.0); `WebauthnAuthenticationFailedEvent` with `reason: counter` may be a cloned key.
    Notify the user on `WebauthnCredentialAddedEvent` and `WebauthnCredentialRemovedEvent` (Beacon: NotifyKit): the
    bundle does not mail, and a hijacked fresh session could otherwise bind a passkey silently (audit ZBX-I7).
 8. Account deletion without UserKit: call `WebauthnErasure::forgetUser()` (any mode, 2.4.1), `MfaManager::forgetUser()` or

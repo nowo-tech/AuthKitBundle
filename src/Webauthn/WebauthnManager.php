@@ -38,6 +38,7 @@ use function mb_substr;
 use function preg_replace;
 use function random_bytes;
 use function sprintf;
+use function strtolower;
 use function trim;
 
 /**
@@ -113,7 +114,7 @@ final readonly class WebauthnManager
      * still accepts, all unpadded base64url, so a password manager drops the passkeys removed here. The signed-in
      * user's own data only.
      *
-     * @throws WebauthnFailure `user`
+     * @throws WebauthnFailure `user`, or `relying_party` (2.6.0) when the relying party is invalid
      *
      * @return array{rpId: string, userId: string, allAcceptedCredentialIds: list<string>}
      */
@@ -164,7 +165,7 @@ final readonly class WebauthnManager
     {
         [$profile, $owner] = $this->context($user);
         try {
-            $credential = $this->ceremonies->verifyCreation($profile, $request, $json);
+            [$credential, $rpId] = $this->ceremonies->verifyCreation($profile, $request, $json);
         } catch (WebauthnFailure $failure) {
             throw $this->failed($failure, $profile, 'register', $owner);
         }
@@ -176,7 +177,7 @@ final readonly class WebauthnManager
         $publicId = bin2hex(random_bytes(16));
         $label    = self::label($label);
         $now      = $this->now();
-        $outcome  = $this->locked($profile, $owner, function () use ($profile, $owner, $credential, $handle, $publicId, $label, $now): string {
+        $outcome  = $this->locked($profile, $owner, function () use ($profile, $owner, $credential, $handle, $publicId, $label, $now, $rpId): string {
             if (count($this->store->credentialsOf($profile->name, $owner)) >= $this->max($profile)) {
                 return WebauthnFailure::LIMIT;
             }
@@ -194,6 +195,7 @@ final readonly class WebauthnManager
                 $credential->backupStatus,
                 $label,
                 $now,
+                $rpId,
             );
 
             return $stored ? '' : WebauthnFailure::DUPLICATE;
@@ -339,6 +341,25 @@ final readonly class WebauthnManager
     }
 
     /**
+     * 2.6.0: how many passkeys were created for exactly this RP id (in one profile, or in all), e.g. to show "N passkeys
+     * use example.com". Passkeys created before 2.6.0 whose `rp_id` was not backfilled are not counted.
+     */
+    public function countCredentialsForRpId(string $rpId, ?string $profile = null): int
+    {
+        return $this->store->countForRpId(strtolower($rpId), $profile);
+    }
+
+    /**
+     * 2.6.0: how many passkeys stop working if the RP id becomes `$newRpId` (in one profile, or in all): those created
+     * for another RP id and those whose RP id is unknown (`rp_id` null). Warn before saving a new RP id: "N passkeys will
+     * stop working".
+     */
+    public function countCredentialsOutsideRpId(string $newRpId, ?string $profile = null): int
+    {
+        return $this->store->countOutsideRpId(strtolower($newRpId), $profile);
+    }
+
+    /**
      * Deletes every passkey of the user, in every profile (audit ZBX-L3): call it when the account is deleted without
      * UserKit's erasure (which runs {@see PersonalData\WebauthnPersonalDataEraser}); {@see MfaManager::forgetUser()}
      * calls it. Passkey rows reference the user by owner id without a foreign key: a passkey left behind would sign in
@@ -393,6 +414,9 @@ final readonly class WebauthnManager
         } catch (WebauthnFailure $failure) {
             if ($failure->reason === WebauthnFailure::COUNTER) {
                 $this->logger->warning('Passkey sign counter did not increase: a replay, a parallel use or a cloned authenticator.', ['profile' => $profile->name, 'passkey' => $record?->publicId]);
+            }
+            if ($failure->reason === WebauthnFailure::RP_ID_MISMATCH) {
+                $this->logger->warning('Passkey refused: it (or its challenge) belongs to another RP id than the current one.', ['profile' => $profile->name, 'passkey' => $record?->publicId, 'passkey_rp_id' => $record?->rpId]);
             }
 
             throw $this->failed($failure, $profile, $context, $owner, $record);

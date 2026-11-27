@@ -377,6 +377,7 @@ webauthn:
         failed: "The passkey could not be used. Try again."
         cancelled: "Cancelled. Try again when you are ready."
         no_script: "Passkeys need JavaScript."
+        unavailable: "Passkeys are not available right now. Sign in with your password."
     flash:
         failed: "The passkey sign-in failed. Try again or use another method."
         register_failed: "The passkey could not be added. Try again."
@@ -386,6 +387,7 @@ webauthn:
         unknown: "That passkey does not exist."
         removed: "The passkey was removed."
         last_factor: "Your account needs a second factor: add another passkey or turn on an authenticator app before removing this one."
+        unavailable: "Passkeys are not available right now. Sign in with your password or another method."
     account:
         title: "Passkeys"
         intro: "Sign in with your fingerprint, face, screen lock or a security key. A passkey also works as your second step."

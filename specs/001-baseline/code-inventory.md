@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-26 (2.4.1: + `Webauthn/WebauthnErasure.php`; 2.4.0, passkeys: 23 PHP + 14 Resources)  
-**Units**: **531** (`446` PHP under `src/` + `85` Resources)
+**Last audited**: 2026-11-26 (2.6.0: + 6 PHP, runtime WebAuthn relying party; 2.4.1: + `Webauthn/WebauthnErasure.php`; 2.4.0, passkeys: 23 PHP + 14 Resources)  
+**Units**: **538** (`453` PHP under `src/` + `85` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -430,6 +430,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `ValueObject/EnrolmentCandidate.php` | production | FR-PORT-002 | Mapped |
 | `ValueObject/QrLoginChallengeRef.php` | production | FR-PORT-002 | Mapped |
 | `ValueObject/SocialCallbackResult.php` | production | FR-PORT-002 | Mapped |
+| `ValueObject/WebAuthnRelyingPartyContext.php` | production (2.6.0) | FR-WEBAUTHN-006, FR-PORT-002 | Mapped |
 
 ## Private entity manager (v1.46)
 
@@ -760,6 +761,11 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Webauthn/Form/WebauthnRenameFormType.php` | production | FR-WEBAUTHN-003 | Mapped |
 | `Webauthn/PersonalData/WebauthnPersonalDataEraser.php` | production | FR-WEBAUTHN-005 | Mapped |
 | `Webauthn/PersonalData/WebauthnPersonalDataExportProvider.php` | production | FR-WEBAUTHN-005 | Mapped |
+| `Webauthn/RelyingParty/ConfiguredWebAuthnRelyingPartyProvider.php` | production (2.6.0) | FR-WEBAUTHN-006 | Mapped |
+| `Webauthn/RelyingParty/WebAuthnRelyingParty.php` | production (2.6.0, internal) | FR-WEBAUTHN-006 | Mapped |
+| `Webauthn/RelyingParty/WebAuthnRelyingPartyResolver.php` | production (2.6.0, internal) | FR-WEBAUTHN-006 | Mapped |
+| `Webauthn/WebAuthnRelyingPartyProviderInterface.php` | production (2.6.0, port) | FR-WEBAUTHN-006 | Mapped |
+| `Webauthn/WebAuthnRelyingPartyValidator.php` | production (2.6.0) | FR-WEBAUTHN-006 | Mapped |
 | `Webauthn/WebauthnCeremonies.php` | production | FR-WEBAUTHN-001 | Mapped |
 | `Webauthn/WebauthnCredentialRecord.php` | production | FR-WEBAUTHN-001 | Mapped |
 | `Webauthn/WebauthnErasure.php` | production | FR-WEBAUTHN-005 | Mapped |

@@ -44,7 +44,7 @@ final class WebauthnWorkerKernelTest extends KernelTestCase
 
     protected static function getKernelClass(): string
     {
-        return WebauthnTestKernel::class;
+        return WebauthnWorkerTestKernel::class;
     }
 
     /**

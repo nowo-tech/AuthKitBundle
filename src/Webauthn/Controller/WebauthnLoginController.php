@@ -55,8 +55,8 @@ final class WebauthnLoginController
         $profile = $this->profile($request);
         try {
             $json = $this->passkeys->loginOptions($profile, $request);
-        } catch (WebauthnFailure) {
-            return self::json(['error' => 'rate_limited'], Response::HTTP_TOO_MANY_REQUESTS);
+        } catch (WebauthnFailure $failure) {
+            return self::refused($failure);
         }
 
         return self::json($json);
@@ -85,8 +85,8 @@ final class WebauthnLoginController
         }
         try {
             $user = $this->passkeys->login($profile, $request, WebauthnCredentialFormType::credential($form));
-        } catch (WebauthnFailure) {
-            $this->flash->flash($request, 'error', 'webauthn.flash.failed');
+        } catch (WebauthnFailure $failure) {
+            $this->flash->flash($request, 'error', self::flashFor($failure));
 
             return new RedirectResponse($login, Response::HTTP_SEE_OTHER);
         }
@@ -107,6 +107,26 @@ final class WebauthnLoginController
             'action'        => $urls->generate((string) $profile->webauthn['routes']['login_assert']['name']),
             'csrf_token_id' => 'nowo_auth_kit_webauthn_login.' . $profile->name,
         ]);
+    }
+
+    /**
+     * The JSON answer of refused ceremony options: 503 `unavailable` when the relying party is invalid (2.6.0: passkeys
+     * are disabled, the script asks for the password), else 429 `rate_limited`.
+     */
+    public static function refused(WebauthnFailure $failure): JsonResponse
+    {
+        return $failure->reason === WebauthnFailure::RELYING_PARTY
+            ? self::json(['error' => 'unavailable'], Response::HTTP_SERVICE_UNAVAILABLE)
+            : self::json(['error' => 'rate_limited'], Response::HTTP_TOO_MANY_REQUESTS);
+    }
+
+    /**
+     * The flash of a refused sign-in: one generic message (deny by default), except an invalid relying party (2.6.0:
+     * passkeys are disabled, use the password; it says nothing about the account).
+     */
+    public static function flashFor(WebauthnFailure $failure): string
+    {
+        return $failure->reason === WebauthnFailure::RELYING_PARTY ? 'webauthn.flash.unavailable' : 'webauthn.flash.failed';
     }
 
     /**

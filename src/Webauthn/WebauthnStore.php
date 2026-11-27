@@ -27,6 +27,7 @@ use function array_values;
 use function hash;
 use function is_array;
 use function is_string;
+use function strtolower;
 
 /**
  * Persistence of the passkeys (2.4.0), by DBAL statements on the table of {@see WebauthnCredential} (its prefixed name
@@ -37,7 +38,7 @@ use function is_string;
  */
 final readonly class WebauthnStore
 {
-    private const COLUMNS = 'id, public_id, profile, user_type, user_id, credential_id, user_handle, public_key, sign_count, transports, aaguid, backup_eligible, backup_state, label, created_at, last_used_at';
+    private const COLUMNS = 'id, public_id, profile, user_type, user_id, credential_id, user_handle, public_key, sign_count, transports, aaguid, backup_eligible, backup_state, label, created_at, last_used_at, rp_id';
 
     public function __construct(
         private ManagerRegistry $doctrine,
@@ -114,8 +115,9 @@ final readonly class WebauthnStore
      * Stores a new passkey; false when its credential id is already registered (by anyone).
      *
      * @param list<string> $transports
+     * @param string|null $rpId the RP id the passkey was created for (2.6.0)
      */
-    public function insert(string $publicId, string $profile, MfaOwner $owner, string $rawId, string $userHandle, string $publicKey, int $signCount, array $transports, ?string $aaguid, ?bool $backupEligible, ?bool $backupState, string $label, DateTimeImmutable $now): bool
+    public function insert(string $publicId, string $profile, MfaOwner $owner, string $rawId, string $userHandle, string $publicKey, int $signCount, array $transports, ?string $aaguid, ?bool $backupEligible, ?bool $backupState, string $label, DateTimeImmutable $now, ?string $rpId = null): bool
     {
         $em = $this->entityManager();
         try {
@@ -136,6 +138,7 @@ final readonly class WebauthnStore
                 'label'              => $label,
                 'created_at'         => $now,
                 'last_used_at'       => null,
+                'rp_id'              => $rpId,
             ], [
                 'sign_count'      => ParameterType::INTEGER,
                 'transports'      => Types::JSON,
@@ -190,6 +193,36 @@ final readonly class WebauthnStore
     }
 
     /**
+     * 2.6.0: how many passkeys were created for exactly this RP id (in one profile, or in all). Passkeys created before
+     * 2.6.0 and not backfilled (`rp_id` null) are not counted: see {@see self::countOutsideRpId()}. Compared in PHP,
+     * byte for byte after lower-casing (REQ-SEC-006), whatever the column collation. Reads the `rp_id` of every row:
+     * meant for an administrator's warning, not for every request (audit ZCQ-I5).
+     */
+    public function countForRpId(string $rpId, ?string $profile = null): int
+    {
+        $count = 0;
+        foreach ($this->rpIds($profile) as $stored) {
+            $count += $stored === $rpId ? 1 : 0;
+        }
+
+        return $count;
+    }
+
+    /**
+     * 2.6.0: how many passkeys stop working when the RP id becomes `$rpId`: those created for another RP id, and those
+     * whose RP id is unknown (`rp_id` null: created before 2.6.0 and not backfilled).
+     */
+    public function countOutsideRpId(string $rpId, ?string $profile = null): int
+    {
+        $count = 0;
+        foreach ($this->rpIds($profile) as $stored) {
+            $count += $stored === $rpId ? 0 : 1;
+        }
+
+        return $count;
+    }
+
+    /**
      * Since 2.4.1: whether the passkey entity is mapped (a host may not register the bundle's mapping).
      */
     public function isMapped(): bool
@@ -240,8 +273,30 @@ final readonly class WebauthnStore
                 (string) $row['label'],
                 $created,
                 $used,
+                // Audit ZCQ-L1: lower-cased like the resolved RP id (a backfill may have written another case).
+                $row['rp_id'] !== null ? strtolower((string) $row['rp_id']) : null,
             );
         }, $rows);
+    }
+
+    /**
+     * The RP id of every passkey (of one profile, re-checked in PHP, or of all).
+     *
+     * @return list<string|null>
+     */
+    private function rpIds(?string $profile): array
+    {
+        $connection = $this->entityManager()->getConnection();
+        $sql        = 'SELECT profile, rp_id FROM ' . $this->table();
+        $rows       = $profile === null ? $connection->fetchAllAssociative($sql) : $connection->fetchAllAssociative($sql . ' WHERE profile = :profile', ['profile' => $profile]);
+        $rpIds      = [];
+        foreach ($rows as $row) {
+            if ($profile === null || $row['profile'] === $profile) {
+                $rpIds[] = $row['rp_id'] !== null ? strtolower((string) $row['rp_id']) : null;
+            }
+        }
+
+        return $rpIds;
     }
 
     /**

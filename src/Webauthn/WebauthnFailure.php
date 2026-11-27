@@ -41,6 +41,18 @@ final class WebauthnFailure extends RuntimeException
     /** The account cannot be signed in (unknown or disabled user, no usable owner id, firewall without a programmatic login). */
     public const USER = 'user';
 
+    /**
+     * 2.6.0: the relying party is unusable (the {@see WebAuthnRelyingPartyProviderInterface} answered an invalid RP id
+     * or origins, or failed): passkeys are disabled until it is fixed; the page asks for the password.
+     */
+    public const RELYING_PARTY = 'relying_party';
+
+    /**
+     * 2.6.0: the passkey, or the challenge of this ceremony, belongs to another RP id than the current one (the RP id
+     * changed since): the passkey no longer works and must be registered again.
+     */
+    public const RP_ID_MISMATCH = 'rp_id_mismatch';
+
     public function __construct(
         public readonly string $reason,
         string $message = '',

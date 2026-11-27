@@ -379,6 +379,7 @@ webauthn:
         failed: "Não foi possível usar a chave de acesso. Tente novamente."
         cancelled: "Cancelado. Tente novamente quando estiver pronto."
         no_script: "As chaves de acesso precisam de JavaScript."
+        unavailable: "As chaves de acesso não estão disponíveis agora. Inicie sessão com a sua palavra-passe."
     flash:
         failed: "O início de sessão com a chave de acesso falhou. Tente novamente ou use outro método."
         register_failed: "Não foi possível adicionar a chave de acesso. Tente novamente."
@@ -388,6 +389,7 @@ webauthn:
         unknown: "Essa chave de acesso não existe."
         removed: "A chave de acesso foi removida."
         last_factor: "A sua conta precisa de um segundo fator: adicione outra chave de acesso ou ative uma app de autenticação antes de remover esta."
+        unavailable: "As chaves de acesso não estão disponíveis agora. Inicie sessão com a sua palavra-passe ou outro método."
     account:
         title: "Chaves de acesso"
         intro: "Entre com a impressão digital, o rosto, o bloqueio do ecrã ou uma chave de segurança. Uma chave de acesso também serve de segundo passo."

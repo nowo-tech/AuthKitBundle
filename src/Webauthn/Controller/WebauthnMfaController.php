@@ -56,8 +56,8 @@ final class WebauthnMfaController
         }
         try {
             return WebauthnLoginController::json($this->passkeys->mfaOptions($user, $request));
-        } catch (WebauthnFailure) {
-            return WebauthnLoginController::json(['error' => 'rate_limited'], Response::HTTP_TOO_MANY_REQUESTS);
+        } catch (WebauthnFailure $failure) {
+            return WebauthnLoginController::refused($failure);
         }
     }
 
@@ -84,8 +84,8 @@ final class WebauthnMfaController
         }
         try {
             $this->passkeys->verifyMfa($user, $request, WebauthnCredentialFormType::credential($form));
-        } catch (WebauthnFailure) {
-            $this->flash->flash($request, 'error', 'webauthn.flash.failed');
+        } catch (WebauthnFailure $failure) {
+            $this->flash->flash($request, 'error', WebauthnLoginController::flashFor($failure));
 
             return $challenge;
         }

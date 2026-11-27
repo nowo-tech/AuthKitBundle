@@ -11,6 +11,18 @@ services:
     Nowo\AuthKitBundle\Webauthn\WebauthnStore: ~
     Nowo\AuthKitBundle\Webauthn\WebauthnCeremonies: ~
 
+    # 2.6.0: the relying party (RP id, allowed origins) of every ceremony, asked per call. The default answers the
+    # profile's webauthn.rp_id / allowed_origins; alias the interface to your service to keep them elsewhere (e.g. a
+    # database setting), or decorate it to fall back to the configuration.
+    Nowo\AuthKitBundle\Webauthn\RelyingParty\ConfiguredWebAuthnRelyingPartyProvider: ~
+    Nowo\AuthKitBundle\Webauthn\WebAuthnRelyingPartyProviderInterface:
+        alias: Nowo\AuthKitBundle\Webauthn\RelyingParty\ConfiguredWebAuthnRelyingPartyProvider
+
+    Nowo\AuthKitBundle\Webauthn\RelyingParty\WebAuthnRelyingPartyResolver:
+        arguments:
+            $debug: '%kernel.debug%'
+            $logger: '@?logger'
+
     Nowo\AuthKitBundle\Webauthn\WebauthnManager:
         public: true
         arguments:
