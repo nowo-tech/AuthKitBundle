@@ -328,7 +328,8 @@ which shows `mfa.flash.unavailable`.
   only wrong codes keep their IP slot (a busy shared NAT is not locked out); constant-time comparisons; the challenge is only
   reachable with a pending token (no "does this account have MFA" oracle).
 - The forced enrolment is bound to its pending sign-in: if MFA was turned on elsewhere meanwhile, the sign-in restarts.
-- The account page needs a full sign-in (`IS_AUTHENTICATED_FULLY`; a remember-me session signs in again first), and
+- The account page needs a full sign-in (`IS_AUTHENTICATED_FULLY`; a remember-me session signs in again first: since
+  2.7.1 the login page shows it the form and the sign-in returns to the account page), and
   setting up the second factor needs a sign-in within `mfa.recent_sign_in` (15 min): a hijacked long-lived session
   cannot bind the attacker's authenticator. Disable and new recovery codes ask for a current code.
 - The admin reset refuses accounts holding a role the administrator does not hold.

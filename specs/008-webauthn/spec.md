@@ -81,6 +81,15 @@ do.
   a passkey or a challenge of another RP id is refused with `rp_id_mismatch`; `WebauthnManager::countCredentialsForRpId()`
   and `countCredentialsOutsideRpId()` let the host warn before an RP id change.
 
+- **FR-WA-12** (2.7.1, owner-reported Beacon bug) A remember-me session (only `IS_AUTHENTICATED_REMEMBERED`) is
+  never bounced to `login_success_route` by `/login`, `/magic-login` or the passkey sign-in endpoint: it sees the form
+  ("Confirm it's you to continue.") and a successful sign-in returns to the saved target path (or a same-origin
+  `_target_path` query of the login page). `/account/webauthn` renders its "sign in again" state for it (link to the
+  login page with the page as `_target_path`); the options and POST endpoints still refuse it. Signing in as another
+  account clears the remembered account's cookie. Audit ZDD: the saved `_target_path` is an absolute URL allowed by
+  the target policy; the reset-password pages let a remember-me session through and the re-authentication form offers
+  no registration link.
+
 ### US-06 — The relying party lives in the host's database (P2, 2.6.0)
 
 An administrator saves the RP id and origins as an instance setting. Every ceremony uses the saved value from the next

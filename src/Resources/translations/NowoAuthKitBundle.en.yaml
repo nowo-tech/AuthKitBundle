@@ -4,6 +4,7 @@ login:
     title: Sign in
     heading: Sign in
     submit: Sign in
+    reauthenticate: "Confirm it's you to continue."
     register_link: Create an account
     forgot_password_link: Forgot your password?
     magic_login_link: Sign in with email link

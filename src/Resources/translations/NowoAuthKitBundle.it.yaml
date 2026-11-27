@@ -4,6 +4,7 @@ login:
     title: Accedi
     heading: Accedi
     submit: Accedi
+    reauthenticate: "Conferma che sei tu per continuare."
     register_link: Crea un account
     forgot_password_link: Password dimenticata?
     magic_login_link: Accedi con link e-mail
