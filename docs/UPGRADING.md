@@ -199,8 +199,8 @@ composer update nowo-tech/auth-kit-bundle
 
 A patch: no schema or configuration change, nothing required. Behaviour that changes (the fix):
 
-- **Remember-me sessions see the login form.** `/login`, `/magic-login` and the passkey sign-in endpoint no longer
-  redirect a remember-me session (only `IS_AUTHENTICATED_REMEMBERED`) to `login_success_route`: it signs in again and
+- **Remember-me sessions see the login form.** `/login`, `/magic-login`, the reset-password pages and the passkey
+  sign-in endpoint no longer redirect a remember-me session (only `IS_AUTHENTICATED_REMEMBERED`) to `login_success_route`: it signs in again and
   returns to the page that needed a full sign-in. A fully authenticated user is still redirected. Hosts that relied on
   `/login` redirecting a remembered user (a "go to the app" link pointing at `/login`) should link to the app instead.
 - **Passkey account page.** A remember-me session gets the page (200, "sign in again" state) instead of a redirect to
@@ -209,7 +209,9 @@ A patch: no schema or configuration change, nothing required. Behaviour that cha
   the bundled template).
 - **Another account from a remembered browser.** Signing in as a different account clears the remembered account's
   remember-me cookie (the new account gets its own when "Remember me" is ticked).
-- Host login templates can read the new `reauthenticate` variable; the bundled one shows `page.intro`
+- **Per-user session data.** The session id is migrated on an account switch but its attributes stay (Symfony
+  `migrate`): clear your own per-user session keys on `LoginSuccessEvent` when the identifier changes.
+- Host login templates can read the new `reauthenticate` variable (`registration_allowed` is false on that form); the bundled one shows `page.intro`
   (`login.reauthenticate`).
 
 ## To 2.7.0

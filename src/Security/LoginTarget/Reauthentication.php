@@ -52,16 +52,21 @@ final class Reauthentication
 
     /**
      * Saves the `_target_path` query parameter of a re-authentication link as the firewall's target path, when it is
-     * a same-origin path of this application ({@see LoginTargetPolicy::sameOriginParts()}). Anything else is ignored
-     * and the target already saved by the firewall stays.
+     * a same-origin path of this application ({@see LoginTargetPolicy::sameOriginParts()}) and, with a policy, a page
+     * the post-login guard allows (audit ZDD-I1: a crafted link cannot choose an API or JSON route even with
+     * `login_target` off). It is stored as an absolute URL built from the path without the base URL (audit ZDD-L1:
+     * Symfony adds the base URL again when it redirects). Anything else is ignored and the target already saved by
+     * the firewall stays.
      */
-    public static function keepTarget(Request $request, string $firewall): void
+    public static function keepTarget(Request $request, string $firewall, ?LoginTargetPolicy $policy = null): void
     {
         // all(): an array value is ignored, never a 400 (InputBag::get() refuses non-scalars).
         $target = $request->query->all()[self::TARGET_PARAMETER] ?? null;
-        if (!is_string($target) || !$request->hasSession() || LoginTargetPolicy::sameOriginParts($target, $request) === null) {
+        $parts  = is_string($target) && $request->hasSession() ? LoginTargetPolicy::sameOriginParts($target, $request) : null;
+        if ($parts === null || ($policy instanceof LoginTargetPolicy && !$policy->allows($target, $request, $firewall))) {
             return;
         }
-        $request->getSession()->set('_security.' . $firewall . '.target_path', $target);
+        [$path, $query] = $parts;
+        $request->getSession()->set('_security.' . $firewall . '.target_path', $request->getUriForPath($path) . ($query !== null ? '?' . $query : ''));
     }
 }

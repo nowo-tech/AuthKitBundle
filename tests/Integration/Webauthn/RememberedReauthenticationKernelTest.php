@@ -149,6 +149,37 @@ final class RememberedReauthenticationKernelTest extends WebauthnKernelTestCase
         self::assertStringEndsNotWith('|' . RememberMeToken::class, $this->whoAmI());
     }
 
+    #[Test]
+    public function theReauthenticationFormLetsARememberedSessionResetItsPassword(): void
+    {
+        // Audit ZDD-L2: "Forgot your password?" no longer bounces; "Create an account" is not offered.
+        $this->remembered();
+        $login = $this->client->request('GET', '/login');
+        self::assertResponseIsSuccessful();
+        self::assertCount(0, $login->selectLink('Create an account'));
+        $this->client->click($login->selectLink('Forgot your password?')->link());
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('[data-testid="auth-kit-reset_request"]');
+    }
+
+    #[Test]
+    public function aPasskeySignInAsAnotherAccountClearsTheRememberedCookieAndLandsOnTheTarget(): void
+    {
+        // Audit ZDD-L3: Security::login() carries no remember-me badge; the subscriber clears the old cookie.
+        $authenticator = new SoftwareAuthenticator();
+        $this->signedIn('support@example.com', 'support-password-123');
+        $this->registerPasskey($authenticator);
+
+        $this->remembered();
+        $this->client->request('GET', '/account/security/mfa');
+        self::assertResponseRedirects('http://localhost/login');
+        $this->passkeyLogin($authenticator);
+        self::assertResponseRedirects();
+        self::assertTrue(str_ends_with((string) $this->client->getResponse()->headers->get('Location'), '/account/security/mfa'));
+        self::assertNull($this->client->getCookieJar()->get('REMEMBERME'), 'The remembered member never comes back.');
+        self::assertStringStartsWith('support@example.com|', $this->whoAmI());
+    }
+
     /**
      * A browser that only has the member's remember-me cookie left (the session expired).
      */

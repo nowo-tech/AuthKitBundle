@@ -147,9 +147,12 @@ break.
     remember-me session sees the form with the line "Confirm it's you to continue." (`login.reauthenticate`, 7
     locales; template variable `reauthenticate`), the response is `private, no-store`, and the target path the
     firewall saved is kept: a successful sign-in returns to the page that asked for it. A `_target_path` query
-    parameter on the login page is saved as the target only for a remember-me session and only when it is a
-    same-origin path (`LoginTargetPolicy::sameOriginParts()`; `login_target`, when enabled, still checks it after the
-    sign-in). CSRF and rate limits are unchanged.
+    parameter on the login page is saved as the target only for a remember-me session, only when it is a
+    same-origin page the target policy allows (`LoginTargetPolicy::allows()`, also with `login_target` off), and as an
+    absolute URL (no doubled base URL on sub-directory deployments). CSRF and rate limits are unchanged.
+  - "Forgot your password?" on that form works: the reset pages (`ResetPasswordRequestController`,
+    `ResetPasswordCodeController`, `ResetPasswordController`) send away only a fully authenticated user. "Create an
+    account" is not offered on it (`registration_allowed` false); `/register` still sends any signed-in user away.
   - The passkey account page (`/account/webauthn`) renders its existing "sign in again" state for a remember-me
     session instead of a redirect (passkey list only, no forms, no Signal API data). Its link now goes to the login
     page with the account page as `_target_path` (`webauthn_sign_in_again_url`) instead of signing out; a stale full
@@ -159,8 +162,9 @@ break.
     now lands it on the login form, and the sign-in returns to the page.
   - Signing in as another account from that form follows the normal login semantics: the new token replaces the
     remembered one and the session id is migrated. The remembered account's remember-me cookie is cleared (Symfony
-    already does it for the password form; the new `RememberedIdentitySwitchSubscriber` also for passkey, programmatic
-    and login-link sign-ins), so the browser never falls back silently to it when the new session expires (documented in
+    already does it for form login and login links; the new `RememberedIdentitySwitchSubscriber` for `Security::login()`
+    sign-ins: passkey, social / SSO, QR, registration, invitations), so the browser never falls back silently to it
+    when the new session expires (documented in
     [LOGIN-TARGET.md](LOGIN-TARGET.md#remember-me-sessions-and-full-sign-in-pages)).
 - `AuthPageFactory::create()` takes an optional `intro` translation key (trailing argument, default unchanged).
 

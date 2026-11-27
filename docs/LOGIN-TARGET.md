@@ -233,19 +233,30 @@ when enabled). The login page then:
   template variable `reauthenticate`), as `private, no-store`;
 - keeps the saved target path, so a successful sign-in (password, passkey, magic link in the same browser) returns to
   the page; with `login_target` enabled the target is still checked after the sign-in;
-- saves a `_target_path` query parameter as the target, only for a remember-me session and only when it is a
-  same-origin path (the passkey account page links to `/login?_target_path=/account/webauthn`);
+- saves a `_target_path` query parameter as the target, only for a remember-me session, only when it is a
+  same-origin path that the target policy allows (a GET HTML page, whether or not `login_target` is enabled), and as
+  an absolute URL (a base URL is never doubled); the passkey account page links to
+  `/login?_target_path=/account/webauthn`;
+- lets the remember-me session follow "Forgot your password?" (the reset pages no longer send it away) and does not
+  offer "Create an account" (`registration_allowed` is false on that form);
 - still redirects a **fully** authenticated user to `login_success_route` (and the magic-link request page and the
   passkey sign-in endpoint do the same).
 
 The remembered identity is never swapped silently and never reused: the form asks for credentials. If the person signs
 in as **another** account, the normal login semantics apply: the new token replaces the remembered one, the session id
 is migrated, and the saved target path is followed for the new account (it passed the same checks). The remembered
-account's cookie is cleared (Symfony's remember-me listener does it for the password form;
-`RememberedIdentitySwitchSubscriber` for every other sign-in, such as a passkey), so when the new session expires the
-browser never comes back silently as the remembered account; ticking "Remember me" gives the new account its own
-cookie. Signing in again as the same account follows Symfony's rule: the form issues a new cookie when "Remember me"
-is ticked.
+account's cookie is cleared, so when the new session expires the browser never comes back silently as the remembered
+account: Symfony's remember-me listener clears it for authenticators with a remember-me badge (form login, login
+links), and `RememberedIdentitySwitchSubscriber` for `Security::login()` sign-ins (passkey, social / SSO, QR,
+registration, invitations). Ticking "Remember me" gives the new account its own cookie.
+
+Signing in again as the **same** account follows Symfony's rule: a password re-authentication without "Remember me"
+drops the remember-me cookie (the form's badge clears it), while a passkey re-authentication keeps it.
+
+The session **id** is migrated on every one of these sign-ins, but its attributes stay (Symfony's `migrate` strategy).
+A host that keeps per-user data in the session (a selected tenant, wizard state) should clear it on
+`LoginSuccessEvent` when the user identifier changes (`$event->getPreviousToken()?->getUserIdentifier()`), or use
+`session_fixation_strategy: invalidate`. AuthKit's own per-user session state is bound to its owner.
 
 ## How a request is classified
 

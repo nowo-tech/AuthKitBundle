@@ -19,6 +19,7 @@ use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\QrLogin\QrLoginGate;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Routing\AuthKitUrlGenerator;
+use Nowo\AuthKitBundle\Security\LoginTarget\LoginTargetPolicy;
 use Nowo\AuthKitBundle\Security\LoginTarget\Reauthentication;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
@@ -62,6 +63,7 @@ final class LoginController
         private readonly FeatureAvailability $availability = new FeatureAvailability(),
         private readonly ProviderMarkResolver $marks = new ProviderMarkResolver(),
         private readonly ?WebauthnManager $passkeys = null,
+        private readonly ?LoginTargetPolicy $targets = null,
     ) {
     }
 
@@ -82,7 +84,7 @@ final class LoginController
         }
         $reauthenticate = Reauthentication::isRememberedOnly($token);
         if ($reauthenticate) {
-            Reauthentication::keepTarget($request, $profile->firewall);
+            Reauthentication::keepTarget($request, $profile->firewall, $this->targets);
         }
 
         $form = $this->formFactory->create(LoginFormType::class, null, [
@@ -135,7 +137,8 @@ final class LoginController
         if (($resetAvailable ?? $mailReady) && $passwordResetEnabled) {
             $links[] = $this->pages->link('login.forgot_password_link', $this->urlGenerator->generate($profile->routes['reset_request']['name']));
         }
-        if ($registrationAllowed) {
+        // 2.7.1 (audit ZDD-L2): no "Create an account" on the re-authentication form (a signed-in session is sent away).
+        if ($registrationAllowed && !$reauthenticate) {
             $links[] = $this->pages->link('login.register_link', $this->urlGenerator->generate($profile->routes['register']['name']));
         }
 
@@ -170,7 +173,7 @@ final class LoginController
             'social_login_providers' => $socialProviders,
             'sso_login_enabled'      => $ssoProviders !== [],
             'sso_login_providers'    => $ssoProviders,
-            'registration_allowed'   => $registrationAllowed,
+            'registration_allowed'   => $registrationAllowed && !$reauthenticate,
             'qr_login_enabled'       => $qrLoginEnabled,
             'qr_login_start_route'   => $profile->routes['qr_login_start']['name'],
             'social_links'           => array_map(static fn (SocialLoginCredential $c): ProviderLink => $providerLink($c, 'social.continue_with'), $socialProviders),
