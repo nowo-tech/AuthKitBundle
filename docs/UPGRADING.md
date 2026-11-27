@@ -3,10 +3,8 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
-  - [To 2.6.0](#to-260)
-    - [Schema: the RP id of each passkey](#schema-the-rp-id-of-each-passkey)
-    - [What changes in 2.6.0](#what-changes-in-260)
-    - [Keeping the relying party in your database (Beacon adoption)](#keeping-the-relying-party-in-your-database-beacon-adoption)
+- [To 2.6.0](#to-260)
+  - [To 2.6.0](#to-260-1)
 - [To 2.5.0](#to-250)
   - [To 2.5.0](#to-250-1)
 - [To 2.4.1](#to-241)
@@ -186,6 +184,14 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.6.0
+
+From **2.5.0**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
 
 ### To 2.6.0
 
