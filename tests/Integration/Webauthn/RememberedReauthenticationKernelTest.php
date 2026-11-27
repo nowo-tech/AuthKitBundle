@@ -32,7 +32,7 @@ final class RememberedReauthenticationKernelTest extends WebauthnKernelTestCase
         $link = $page->filter('[data-testid="auth-kit-webauthn-sign-in-again-link"]')->attr('href');
         self::assertSame('/login?_target_path=/account/webauthn', $link, 'The link signs in again, it does not sign out.');
 
-        $login = $this->client->request('GET', (string) $link);
+        $login = $this->client->request('GET', $link);
         self::assertResponseIsSuccessful();
         self::assertStringContainsString("Confirm it's you to continue.", $login->text());
         self::assertStringContainsString('no-store', (string) $this->client->getResponse()->headers->get('Cache-Control'));
