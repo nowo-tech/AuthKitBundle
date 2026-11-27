@@ -153,7 +153,7 @@ final class EncryptedReadKeepsRowCleanTest extends TestCase
 
         $credential = (new SocialLoginCredentialRepository(new SingleManagerRegistry($em)))->findOneByProvider('org-acme');
         self::assertInstanceOf(SocialLoginCredential::class, $credential);
-        $credential->setClientSecret('b2RkLXBsYWNlaG9sZGVy' . DoctrineEncryptSubscriber::ENCRYPTION_MARKER);
+        $credential->setClientSecret(base64_encode('odd-placeholder') . DoctrineEncryptSubscriber::ENCRYPTION_MARKER);
         $em->flush();
         $em->clear();
 
