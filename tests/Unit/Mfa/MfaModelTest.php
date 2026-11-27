@@ -130,7 +130,7 @@ final class MfaModelTest extends TestCase
     public function testPendingTokenAuthenticationProofs(): void
     {
         $user  = new InMemoryUser('ana', null, ['ROLE_USER']);
-        $inner = new class ($user, 'main', ['ROLE_USER']) extends UsernamePasswordToken {
+        $inner = new class($user, 'main', ['ROLE_USER']) extends UsernamePasswordToken {
             /** @var array<string, int> */
             private array $proofs = [];
 
