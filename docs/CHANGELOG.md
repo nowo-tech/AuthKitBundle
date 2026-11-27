@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.8.1] - Unreleased](#281---unreleased)
 - [[2.8.0] - 2026-11-27](#280---2026-11-27)
 - [[2.7.1] - 2026-11-27](#271---2026-11-27)
 - [[2.7.0] - 2026-11-27](#270---2026-11-27)
@@ -131,6 +132,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [[1.0.0] - 2026-06-18](#100---2026-06-18)
 
 ## [Unreleased]
+
+## [2.8.1] - Unreleased
+
+### Fixed
+
+- **Reading a social credential or a linked social account no longer leaves the unit of work dirty.**
+  nowo-tech/doctrine-encrypt-bundle writes an `#[Encrypted]` property through its setter when there is one (its
+  default `property_access: auto`): the decrypted value after a load and after a flush, the stored ciphertext before a
+  flush. `SocialLoginCredential::setClientSecret()` and `SocialLoginAccount::setAccessToken()` / `setRefreshToken()`
+  stamped `updatedAt` on every call, so a row whose secret or token is stored encrypted was scheduled for update right
+  after it was read (for example `SocialLoginCredentialRepository::findOneByProvider()` followed only by getters): a
+  host transaction runner refusing a dirty unit of work refused the request, and any later flush of that entity
+  manager wrote a spurious `UPDATE … SET updated_at` (the column then showed the last read, not the last change).
+  Nothing else was written: the stored ciphertext, the secret and the tokens were never changed. These three setters
+  now stamp `updatedAt` only on a real value change, never for the encryption layer swapping the stored form in or
+  out (new internal `Doctrine\EncryptedFieldWrite`). `MfaCredential` (no setter for its secret) was not affected,
+  and AuthKit has no secret migration on read. Rows with a plain (unencrypted) secret were never affected. Worker
+  safe; the host entity manager is never cleared, reset or closed.
 
 ## [2.8.0] - 2026-11-27
 
