@@ -33,6 +33,10 @@ services:
             - '../../SocialLogin/Oidc/OidcException.php'
             - '../../SocialLogin/Oidc/OidcProviderMetadata.php'
             - '../../SocialLogin/Oidc/OidcProviderSettings.php'
+            # 2.8.0: RP-initiated logout value object and static helper (never services).
+            - '../../SocialLogin/Oidc/EndSessionEndpointRule.php'
+            - '../../SocialLogin/Oidc/PostLogoutRedirectUri.php'
+            - '../../SocialLogin/Oidc/RpLogoutHint.php'
             # 2.7.0: static helpers and an exception (never services).
             - '../../SocialLogin/LoginHint.php'
             - '../../SocialLogin/SocialCredentialPolicy.php'
@@ -290,6 +294,22 @@ services:
             $callbackHandlers: !tagged_iterator nowo_auth_kit.social_callback_handler
             $logger: '@?logger'
             $testHandlers: !tagged_iterator nowo_auth_kit.social_test_handler
+
+    # 2.8.0: OpenID Connect RP-initiated logout. The hint lives sealed in the session (key derived from kernel.secret);
+    # the subscriber runs on every firewall's LogoutEvent (global security events bubble to the firewalls).
+    Nowo\AuthKitBundle\SocialLogin\Oidc\RpLogoutSession:
+        arguments:
+            $secret: '%kernel.secret%'
+
+    Nowo\AuthKitBundle\EventSubscriber\RpInitiatedLogoutSubscriber:
+        arguments:
+            $logger: '@?logger'
+
+    # 2.8.0 (fail closed): no enterprise client secret is written unencrypted. Removed by the extension with
+    # nowo_auth_kit.doctrine.require_enterprise_secret_encryption: false (tests and demos only).
+    Nowo\AuthKitBundle\Doctrine\EnterpriseSecretEncryptionGuard:
+        tags:
+            - { name: doctrine.event_listener, event: onFlush }
 
     # 2.7.0: host-minted test sign-in (one-shot marker bound to the OAuth state; no URL flag).
     Nowo\AuthKitBundle\SocialLogin\SocialLoginTestStart:

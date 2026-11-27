@@ -112,10 +112,21 @@ Sample logging notifiers record **metadata only**: masked identifier, delivery m
 ## Social login client secrets
 
 `SocialLoginCredential::$clientSecret` carries `#[Encrypted]`: it is encrypted at rest **only when
-nowo-tech/doctrine-encrypt-bundle is installed and configured** (with its key). Without DoctrineEncrypt the bundle
-stores the secret in clear text and does not refuse to run (2.7.0 keeps this behaviour; a fail-closed option for
-enterprise credentials is planned for 2.8.0). Applications that store organization (enterprise) client secrets must
-configure DoctrineEncrypt first. AuthKit never logs a client secret, a token or a code (log contexts are scalar and
+nowo-tech/doctrine-encrypt-bundle is installed and configured** (with its key).
+
+- **Enterprise credentials fail closed (2.8.0).** A credential with `enterprise_sso` true and a client secret is never
+  inserted or updated unless DoctrineEncrypt's listener is registered on the entity manager being flushed and has an
+  encryptor: `Doctrine\EnterpriseSecretNotEncryptedException` is thrown from `onFlush`, before the flush opens its
+  transaction, so nothing is written (the message names the provider, never the secret). Only
+  `doctrine.require_enterprise_secret_encryption: false` turns this off (tests and demos).
+- **ORM writes only.** The guard sees the Doctrine unit of work: DBAL statements, DQL `UPDATE` and DoctrineEncrypt's
+  own `doctrine:decrypt:database` (DBAL) can still store an enterprise secret in clear. Do not run
+  `doctrine:decrypt:database` in production. Rows stored before 2.8.0 stay as they are until
+  `doctrine:encrypt:database`; an ORM update of such a row without encryption is refused.
+- **Consumer credentials** (`enterprise_sso` false) keep the 2.7.0 behaviour: without DoctrineEncrypt their secret is
+  stored in clear text and AuthKit does not refuse to run. Configure DoctrineEncrypt for every production deployment.
+
+AuthKit never logs a client secret, a token or a code (log contexts are scalar and
 carry the provider key and a reason only); keep the secret write-only in your forms and out of exports.
 
 ## Enterprise OIDC (2.7.0)
@@ -136,6 +147,23 @@ carry the provider key and a reason only); keep the secret write-only in your fo
 - **Unlisted credentials** are hidden, not protected: anyone who knows the provider key can start them (and so learn
   the IdP's authorize URL and client id). Use non-guessable provider keys when an organization's IdP or tenant is
   confidential. Authorization belongs in the host's callback handler (organization membership, verified domain).
+- **RP-initiated logout (2.8.0)** is opt-in per credential and deny by default. The ID token kept for `id_token_hint`
+  is sealed in the session (XChaCha20-Poly1305, key derived from `kernel.secret`, at most 8 KiB, never logged), bound
+  to the user it signed in and removed at the first sign-out. The sign-out redirect goes only to the provider's
+  `end_session_endpoint` from its discovery document, checked at discovery and again at sign-out by
+  `EndSessionEndpointRule` (HTTPS; no credentials, fragment, control characters, white space or `"<>\^`{|}`; a host
+  name with at least two labels, or a canonical public IP literal: no `127.1`, `0x7f.0.0.1`, `[::1]` or `intranet`); `post_logout_redirect_uri` comes from the host's allow-list only. Any doubt (another user,
+  credential disabled / opted out / client id changed, endpoint unsafe, an error) keeps the plain local sign-out, which
+  always completes first: the provider being down never keeps a user signed in to the application. The ID token
+  travels in the browser's URL to the provider that issued it (GET, as RP-Initiated Logout allows); an expired token is
+  still accepted there as a hint. The `end_session_endpoint` is as trusted as the issuer: whoever controls an issuer's
+  discovery document (a tenant's IdP) chooses where its users land after signing out, as it already chooses where they
+  sign in. Opt a credential in only when you trust its issuer that far: let only platform administrators, or
+  organization administrators of IdPs you trust, set `rp_initiated_logout`. A user the host signs in after its own
+  linking challenge (a later request) gets a local-only sign-out in 2.8.0 (no hint was kept), and so do sessions
+  restored by remember-me, impersonated sessions and the other accounts of a multi-account `logout_scope: all`. Turn
+  on `logout.enable_csrf` (a forged sign-out would also end the IdP session), and set `framework.trusted_hosts` when
+  the allow-list holds relative paths. Keeping the hint never fails a completed sign-in (any error: no hint).
 - **Who may set `exempt` / `exempt_when_amr`** is the host's decision (platform administrators rather than organization
   administrators, unless the organization's IdP is trusted to enforce MFA): an exemption trusts that IdP's own MFA.
 - **`amr` has no age.** It describes how the IdP session authenticated, not when: under `exempt_when_amr` AuthKit's second

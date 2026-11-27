@@ -39,6 +39,8 @@ final class WebauthnAccountKernelTest extends WebauthnKernelTestCase
         $rename = $page->filter('[data-testid="auth-kit-webauthn-rename"]')->form();
         $delete = $page->filter('[data-testid="auth-kit-webauthn-delete"]')->form();
         $add    = $page->filter('form[name="webauthn_register"]')->form();
+        // 2.8.0: no webauthn.register.state.* key: the shared webauthn.state.* texts (registration keeps "Cancelled").
+        self::assertSame('Cancelled. Try again when you are ready.', $page->filter('[data-nowo-auth-kit-webauthn="register"]')->attr('data-label-cancelled'));
 
         $this->clock()->modify('+16 minutes');
         $page = $this->client->request('GET', '/account/webauthn');

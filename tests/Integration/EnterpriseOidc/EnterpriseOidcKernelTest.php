@@ -19,10 +19,13 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
+use function explode;
 use function parse_str;
 use function parse_url;
 use function str_contains;
+use function str_ends_with;
 use function str_repeat;
+use function str_starts_with;
 
 use const PHP_URL_QUERY;
 
@@ -206,6 +209,78 @@ final class EnterpriseOidcKernelTest extends WebTestCase
         $user = $this->em()->getRepository(KernelUser::class)->findOneBy(['email' => 'ada@example.com']);
         self::assertInstanceOf(KernelUser::class, $user);
         self::assertSame('old-password-123', $user->getPassword(), 'Refused before any password reset.');
+    }
+
+    /**
+     * 2.8.0: a sign-in with an RP-logout credential sends the sign-out on to the provider's end_session_endpoint, after
+     * the local session is gone.
+     */
+    public function testASignOutAfterAnRpLogoutSignInGoesToTheProvider(): void
+    {
+        $this->find('okta')->setRpInitiatedLogout(true);
+        $this->em()->flush();
+        $this->idp()->discovery = ['end_session_endpoint' => 'https://idp.example.com/logout'];
+        $this->signIn('okta');
+
+        $this->client->request('GET', '/logout');
+        self::assertResponseStatusCodeSame(302);
+        $location = (string) $this->client->getResponse()->headers->get('Location');
+        self::assertTrue(str_starts_with($location, 'https://idp.example.com/logout?'), $location);
+        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
+        self::assertSame('client-placeholder', $query['client_id'] ?? null);
+        self::assertSame('http://localhost/', $query['post_logout_redirect_uri'] ?? null, 'The sign-out target, on the allow-list.');
+        self::assertIsString($query['id_token_hint'] ?? null);
+        self::assertCount(3, explode('.', $query['id_token_hint']));
+        self::assertNull($this->tokens()->getToken(), 'Signed out locally.');
+
+        // The hint went with the session: a second sign-out is a plain one.
+        $this->client->request('GET', '/logout');
+        self::assertResponseRedirects('http://localhost/');
+    }
+
+    public function testWithoutTheOptInOrAnEndpointTheSignOutStaysLocal(): void
+    {
+        $this->idp()->discovery = ['end_session_endpoint' => 'https://idp.example.com/logout'];
+        $this->signIn('okta');
+        $this->client->request('GET', '/logout');
+        self::assertResponseRedirects('http://localhost/');
+
+        $this->find('okta')->setRpInitiatedLogout(true);
+        $this->em()->flush();
+        $this->idp()->discovery = [];
+        $this->clearPools();
+        $this->signIn('okta');
+        $this->client->request('GET', '/logout');
+        self::assertResponseRedirects('http://localhost/');
+    }
+
+    /**
+     * 2.8.0 (fail closed): the enterprise client secrets of this kernel are stored encrypted (doctrine-encrypt-bundle).
+     */
+    public function testTheEnterpriseClientSecretIsStoredEncrypted(): void
+    {
+        $stored = (string) $this->em()->getConnection()->fetchOne('SELECT client_secret FROM auth_kit_social_credential WHERE provider = ?', ['okta']);
+        self::assertTrue(str_ends_with($stored, '<ENC>'), $stored);
+        self::assertFalse(str_contains($stored, 'secret-placeholder'));
+        self::assertSame('secret-placeholder', $this->find('okta')->getClientSecret());
+    }
+
+    private function signIn(string $provider): void
+    {
+        $query              = $this->start('/login/social/' . $provider);
+        $this->idp()->nonce = $query['nonce'];
+        $this->client->request('GET', '/login/social/' . $provider . '/check', ['code' => 'code-1', 'state' => $query['state']]);
+        self::assertResponseRedirects('/home');
+        self::assertSame('ada@example.com', $this->tokens()->getToken()?->getUserIdentifier());
+    }
+
+    private function clearPools(): void
+    {
+        foreach ([OidcTestKernel::POOL, 'cache.app'] as $id) {
+            $pool = self::getContainer()->get($id);
+            self::assertInstanceOf(CacheItemPoolInterface::class, $pool);
+            $pool->clear();
+        }
     }
 
     /**

@@ -193,6 +193,18 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `SocialLogin/SocialLoginTestHandlerInterface.php` | production | FR-SOCIAL-012 | Mapped |
 | `SocialLogin/SocialLoginTestStart.php` | production | FR-SOCIAL-012 | Mapped |
 
+## RP-initiated logout and enterprise secrets (v2.8.0, [spec 010](../010-rp-logout/spec.md))
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Doctrine/EnterpriseSecretEncryptionGuard.php` | production | FR-SOCIAL-014 | Mapped |
+| `Doctrine/EnterpriseSecretNotEncryptedException.php` | production | FR-SOCIAL-014 | Mapped |
+| `EventSubscriber/RpInitiatedLogoutSubscriber.php` | production | FR-SOCIAL-013 | Mapped |
+| `SocialLogin/Oidc/EndSessionEndpointRule.php` | production | FR-SOCIAL-013 | Mapped |
+| `SocialLogin/Oidc/PostLogoutRedirectUri.php` | production | FR-SOCIAL-013 | Mapped |
+| `SocialLogin/Oidc/RpLogoutHint.php` | production | FR-SOCIAL-013 | Mapped |
+| `SocialLogin/Oidc/RpLogoutSession.php` | production | FR-SOCIAL-013 | Mapped |
+
 ## Profiles & locale
 
 | Source file | Spec section | Requirement IDs | Status |
@@ -792,10 +804,10 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Metric | Count |
 | --- | ---: |
-| PHP under `src/` | 459 |
+| PHP under `src/` | 466 |
 | Resources (config/translations/views/public/sql) | 85 |
-| **Total production sources** | **544** |
-| Audit command | `git ls-files src \| wc -l` → 544 |
+| **Total production sources** | **551** |
+| Audit command | `git ls-files src \| wc -l` → 551 |
 
 ## Coverage gate
 

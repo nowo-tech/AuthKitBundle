@@ -14,6 +14,8 @@ final readonly class OidcProviderMetadata
     /**
      * @param list<string> $codeChallengeMethods
      * @param list<string> $tokenAuthMethods
+     * @param string|null $endSessionEndpoint 2.8.0: OpenID Connect RP-Initiated Logout 1.0 `end_session_endpoint`
+     *                                        (public HTTPS, or null when the provider publishes none or an unsafe one)
      */
     public function __construct(
         public string $issuer,
@@ -23,6 +25,7 @@ final readonly class OidcProviderMetadata
         public ?string $userinfoEndpoint,
         public array $codeChallengeMethods = [],
         public array $tokenAuthMethods = [],
+        public ?string $endSessionEndpoint = null,
     ) {
     }
 
@@ -46,7 +49,7 @@ final readonly class OidcProviderMetadata
     }
 
     /**
-     * @return array{issuer: string, authorization_endpoint: string, token_endpoint: string, jwks_uri: string, userinfo_endpoint: ?string, code_challenge_methods_supported: list<string>, token_endpoint_auth_methods_supported: list<string>}
+     * @return array{issuer: string, authorization_endpoint: string, token_endpoint: string, jwks_uri: string, userinfo_endpoint: ?string, code_challenge_methods_supported: list<string>, token_endpoint_auth_methods_supported: list<string>, end_session_endpoint: ?string}
      */
     public function toArray(): array
     {
@@ -58,6 +61,7 @@ final readonly class OidcProviderMetadata
             'userinfo_endpoint'                     => $this->userinfoEndpoint,
             'code_challenge_methods_supported'      => $this->codeChallengeMethods,
             'token_endpoint_auth_methods_supported' => $this->tokenAuthMethods,
+            'end_session_endpoint'                  => $this->endSessionEndpoint,
         ];
     }
 }

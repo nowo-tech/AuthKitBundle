@@ -19,6 +19,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\Doctrine\AuthKitEntityManager;
 use Nowo\AuthKitBundle\Doctrine\AuthKitExactKeyColumns;
 use Nowo\AuthKitBundle\Doctrine\AuthKitManagerRegistry;
+use Nowo\AuthKitBundle\Doctrine\EnterpriseSecretEncryptionGuard;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
 use Nowo\AuthKitBundle\Doctrine\IdentityCollationListener;
 use Nowo\AuthKitBundle\Doctrine\PasswordResetCollationListener;
@@ -310,6 +311,10 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
 
         if ($config['doctrine']['table_prefix'] === '') {
             $container->removeDefinition(TablePrefixListener::class);
+        }
+        // 2.8.0 (fail closed): enterprise client secrets are written encrypted or not at all, unless turned off (tests, demos).
+        if ($config['doctrine']['require_enterprise_secret_encryption'] === false) {
+            $container->removeDefinition(EnterpriseSecretEncryptionGuard::class);
         }
         // REQ-SEC-006 (1.47.0): binary NO PAD collation of the MFA, social, vault and invitation identity columns.
         if ($registerMapping) {

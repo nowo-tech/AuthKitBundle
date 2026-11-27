@@ -16,6 +16,7 @@ AuthKit exposes **organization / SSO** sign-in by reusing the existing OAuth/OID
   - [Validated ID token claims](#validated-id-token-claims)
   - [Test sign-in](#test-sign-in)
   - [Client secrets at rest](#client-secrets-at-rest)
+- [RP-initiated logout (2.8.0)](#rp-initiated-logout-280)
 - [Security notes](#security-notes)
 - [Roadmap](#roadmap)
 
@@ -195,9 +196,72 @@ A disabled credential can be tested (before you enable it); the profile's `socia
 ### Client secrets at rest
 
 `client_secret` carries DoctrineEncrypt's `#[Encrypted]`: it is encrypted at rest **only when
-`nowo-tech/doctrine-encrypt-bundle` is installed and configured**. Without it the secret is stored in clear text and
-AuthKit does not refuse to run (2.7.0 changes nothing here). Configure DoctrineEncrypt before storing enterprise
-secrets, keep the secret write-only in your forms and out of exports and logs (AuthKit never logs it).
+`nowo-tech/doctrine-encrypt-bundle` is installed and configured**. Since 2.8.0 an enterprise credential
+(`enterprise_sso` true) with a client secret is never written otherwise: the flush throws
+`Doctrine\EnterpriseSecretNotEncryptedException` and writes nothing (`doctrine.require_enterprise_secret_encryption`,
+default `true`; `false` only for tests and demos). Consumer credentials keep the 2.7.0 behaviour. Keep the secret
+write-only in your forms and out of exports and logs (AuthKit never logs it).
+
+```php
+try {
+    $em->flush();
+} catch (EnterpriseSecretNotEncryptedException) {
+    // DoctrineEncrypt is not encrypting this entity manager: nothing was written. Configure it, never retry in clear.
+}
+```
+
+## RP-initiated logout (2.8.0)
+
+OpenID Connect RP-Initiated Logout 1.0, opt-in per credential: signing out of the application also ends the user's
+session at the provider.
+
+```php
+$credential->setRpInitiatedLogout(true); // null / false (default): local sign-out only
+```
+
+```yaml
+nowo_auth_kit:
+    social_login:
+        rp_logout:
+            # Register the same URIs at the IdP as post-logout redirect URIs.
+            post_logout_redirect_uris: ['/', 'https://app.example.com/signed-out']
+```
+
+1. **Sign-in.** After an OIDC sign-in with that credential (AuthKit's linker, or a host callback handler that signs the
+   user in), the session keeps a sealed hint: provider key, client id, the signed-in user, the provider's
+   `end_session_endpoint` (from its discovery document) and the ID token. A provider whose discovery publishes no
+   `end_session_endpoint` (or an unsafe one) gets no hint; an ID token larger than 8 KiB is not kept (the sign-out then
+   sends `client_id` only). A new social sign-in replaces or removes the hint. A handler that signs nobody in (a
+   linking step) keeps no new hint (a previous one stays bound to its own user): a user the host signs in later, after its own linking challenge (another request), gets a
+   **local-only sign-out** in 2.8.0. A public helper to record the hint for such deferred sign-ins may come later.
+2. **Sign-out.** The firewall's logout runs as usual; on its `LogoutEvent` (priority 16: after the default target and
+   the multi-account sign-out, whose chooser redirect it replaces; before the session is invalidated) AuthKit removes the hint and, when the signed-in user is the one it was issued for and the credential
+   is still enabled, opted in and has the same client id, answers a redirect to
+   `end_session_endpoint?id_token_hint=…&client_id=…&post_logout_redirect_uri=…`. The local session and token are gone
+   either way, so a provider that is down only changes the page the browser lands on.
+3. **`post_logout_redirect_uri`** is the sign-out's own target when it is on the allow-list, else the first entry, else
+   omitted (the provider shows its own signed-out page). It is never read from the request. No `state` is sent: the
+   application's session is already gone when the provider redirects back, so there is nothing to compare it with.
+
+Who may opt a credential in is the host's decision: the `end_session_endpoint` comes from whoever controls the issuer.
+Let only platform administrators, or organization administrators of IdPs you trust, set `rp_initiated_logout`
+([SECURITY.md](SECURITY.md#enterprise-oidc-270)).
+
+Recommendations:
+
+- Turn on `logout.enable_csrf` on the firewall: with RP-initiated logout a forged sign-out link also ends the IdP
+  session, and with `id_token_hint` many IdPs skip their own confirmation.
+- Relative allow-list entries (`/signed-out`) are resolved from the request's host: set `framework.trusted_hosts` (the
+  IdP still matches the value against the URIs registered for the client).
+- The sealed hint is up to about 15 KiB per session: fine for file, Redis or database session storage, too large for
+  cookie-based session handlers (do not opt credentials in there).
+
+Local-only sign-outs (no hint in that session): sessions restored by remember-me, impersonation (`switch_user`: the
+impersonated user is not the one the hint was issued for), the other accounts of a multi-account
+`logout_scope: all`, and deferred sign-ins after a host linking challenge.
+
+Not covered: deferred sign-ins after a host linking challenge (local-only sign-out, see 1.), OAuth2-only credentials (no ID token), front- or back-channel logout (the provider calling the
+application), and sign-outs answered with something other than a redirect (an API logout keeps its own answer).
 
 ## Security notes
 
@@ -209,5 +273,5 @@ secrets, keep the secret write-only in your forms and out of exports and logs (A
 
 - SAML 2.0 SP (metadata, ACS, signed assertions)
 - Per-tenant IdP discovery stays in the host (2.7.0 adds unlisted credentials and `login_hint` for it)
-- RP-initiated logout (`end_session_endpoint`)
+- RP-initiated logout: done in 2.8.0 ([above](#rp-initiated-logout-280)); front- and back-channel logout are not planned yet
 - Just-in-time role/group mapping from claims

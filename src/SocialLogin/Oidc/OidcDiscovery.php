@@ -28,7 +28,11 @@ use function sprintf;
  */
 final class OidcDiscovery
 {
-    private const CACHE_PREFIX = 'nowo_auth_kit.oidc.metadata.';
+    /** 2.8.0: `v2` documents carry `end_session_endpoint`; a 2.7.0 entry (without it) is never read back. */
+    private const CACHE_PREFIX = 'nowo_auth_kit.oidc.metadata.v2.';
+
+    /** 2.8.0: longest optional endpoint kept (it is stored in the session with the RP-initiated logout hint). */
+    public const MAX_OPTIONAL_ENDPOINT_LENGTH = 2048;
 
     private const FAILURE_PREFIX = 'nowo_auth_kit.oidc.metadata_failed.';
 
@@ -128,7 +132,23 @@ final class OidcDiscovery
             $userinfo === null ? null : $this->endpoint($document, 'userinfo_endpoint'),
             $this->stringList($document['code_challenge_methods_supported'] ?? null),
             $this->stringList($document['token_endpoint_auth_methods_supported'] ?? null),
+            $this->endSessionEndpoint($document),
         );
+    }
+
+    /**
+     * 2.8.0: `end_session_endpoint`, which the sign-in does not need. It must pass {@see EndSessionEndpointRule} (HTTPS,
+     * public unambiguous host, no credentials, fragment, white space or control characters; audit ZDC-L1). An absent,
+     * malformed or unsafe value is dropped (null: no RP-initiated logout), so it never fails a sign-in that worked in
+     * 2.7.0.
+     *
+     * @param array<string, mixed> $document
+     */
+    private function endSessionEndpoint(array $document): ?string
+    {
+        $url = $document['end_session_endpoint'] ?? null;
+
+        return is_string($url) && EndSessionEndpointRule::isSafe($url) ? $url : null;
     }
 
     /**

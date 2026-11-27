@@ -3,7 +3,8 @@
   nowo-auth-kit-webauthn.js fills with the JSON of the browser's answer before submitting it. Root
   [data-nowo-auth-kit-webauthn="login|mfa|register"] with data-options-url, data-conditional (login: conditional UI from
   the login field, autocomplete="username webauthn") and data-label-<state> texts (unsupported, working, failed,
-  cancelled, unavailable: 2.6.0, passkeys disabled by an invalid relying party); the script sets
+  cancelled, unavailable: 2.6.0, passkeys disabled by an invalid relying party; 2.8.0: each text is
+  webauthn.<mode>.state.<state> when that key exists, else webauthn.state.<state>); the script sets
   data-nowo-auth-kit-webauthn-state and dispatches a bubbling `nowo-auth-kit:webauthn-state`
   event ({detail: {mode, state}}). Variables: ceremony ({form, options_url}), mode, button (translation key),
   conditional (bool), fields (bool: render the label field of a registration).
@@ -11,7 +12,12 @@
 {% set _b = 'NowoAuthKitBundle' %}
 <div class="nowo-auth-kit-webauthn" data-nowo-auth-kit-webauthn="{{ mode }}" data-options-url="{{ ceremony.options_url }}"
     {%- if conditional|default(false) %} data-conditional="1"{% endif %}
-    {%- for _state in ['unsupported', 'working', 'failed', 'cancelled', 'unavailable'] %} data-label-{{ _state }}="{{ ('webauthn.state.' ~ _state)|trans({}, _b) }}"{% endfor %}
+    {%- for _state in ['unsupported', 'working', 'failed', 'cancelled', 'unavailable'] -%}
+        {#- 2.8.0: webauthn.<mode>.state.<state> first (a host may override one mode), else webauthn.state.<state>. -#}
+        {%- set _key = 'webauthn.' ~ mode ~ '.state.' ~ _state -%}
+        {%- set _label = _key|trans({}, _b) -%}
+        {%- if _label == _key %}{% set _label = ('webauthn.state.' ~ _state)|trans({}, _b) %}{% endif %} data-label-{{ _state }}="{{ _label }}"
+    {%- endfor %}
     data-testid="auth-kit-webauthn-{{ mode }}">
     {{ form_start(ceremony.form, {attr: {class: 'nowo-auth-kit-webauthn__form'}}) }}
         {% if fields|default(false) and ceremony.form.label is defined %}{{ form_row(ceremony.form.label) }}{% endif %}

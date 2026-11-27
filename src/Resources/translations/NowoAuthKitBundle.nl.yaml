@@ -372,8 +372,12 @@ accounts:
 webauthn:
     login:
         button: "Inloggen met een passkey"
+        state:
+            cancelled: "Er is geen passkey gebruikt. Als dit apparaat nog geen passkey voor deze site heeft, log dan in met je wachtwoord en voeg er een toe in de beveiligingsinstellingen van je account. Een passkey die op een andere site of server is gemaakt, werkt hier niet."
     mfa:
         button: "Een passkey gebruiken"
+        state:
+            cancelled: "Er is geen passkey gebruikt. Als dit apparaat nog geen passkey voor deze site heeft, gebruik dan een andere verificatiemethode en voeg een passkey toe in de beveiligingsinstellingen van je account. Een passkey die op een andere site of server is gemaakt, werkt hier niet."
     state:
         unsupported: "Deze browser ondersteunt geen passkeys."
         working: "Volg de instructies van je browser of telefoon…"

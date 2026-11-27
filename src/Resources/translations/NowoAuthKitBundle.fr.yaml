@@ -372,8 +372,12 @@ accounts:
 webauthn:
     login:
         button: "Se connecter avec une clé d’accès"
+        state:
+            cancelled: "Aucune clé d’accès n’a été utilisée. Si cet appareil n’a pas encore de clé d’accès pour ce site, connectez-vous avec votre mot de passe et ajoutez-en une dans les paramètres de sécurité de votre compte. Une clé d’accès créée sur un autre site ou serveur ne fonctionne pas ici."
     mfa:
         button: "Utiliser une clé d’accès"
+        state:
+            cancelled: "Aucune clé d’accès n’a été utilisée. Si cet appareil n’a pas encore de clé d’accès pour ce site, utilisez une autre méthode de vérification et ajoutez une clé d’accès dans les paramètres de sécurité de votre compte. Une clé d’accès créée sur un autre site ou serveur ne fonctionne pas ici."
     state:
         unsupported: "Ce navigateur ne prend pas en charge les clés d’accès."
         working: "Suivez les instructions de votre navigateur ou téléphone…"

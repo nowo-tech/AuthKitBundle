@@ -47,6 +47,9 @@ final class WebauthnMfaKernelTest extends WebauthnKernelTestCase
         self::assertCount(0, $page->filter('form[name="mfa_code_form"]'), 'No TOTP: no code form.');
         $root = $page->filter('[data-nowo-auth-kit-webauthn="mfa"]');
         self::assertSame('/login/mfa/webauthn/options', $root->attr('data-options-url'));
+        // 2.8.0: the per-mode cancelled text of the second step.
+        self::assertStringContainsString('use another verification method and add a passkey', (string) $root->attr('data-label-cancelled'));
+        self::assertSame('The passkey could not be used. Try again.', $root->attr('data-label-failed'));
         self::assertSame('test-nonce', $page->filter('script[src*="nowo-auth-kit-webauthn.js"]')->attr('nonce'));
 
         $options = $this->json('/login/mfa/webauthn/options');

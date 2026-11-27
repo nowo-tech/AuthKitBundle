@@ -80,6 +80,8 @@ Worker demo: `demo/symfony8/Caddyfile` runs `php_server` with a `worker` block (
 | `SocialLogin\OAuth2Client`, `ProviderEndpointCatalog`, `OAuthEndpointUrlValidator` | yes | none | ✅ | ✅ |
 | `SocialLogin\SocialAccountLinker` | yes | none | ✅ | ✅ |
 | `SocialLogin\SocialLoginStateStore` | yes | none (state, PKCE verifier, nonce and the 2.7.0 test marker kept in the session) | ✅ | ✅ |
+| `SocialLogin\Oidc\RpLogoutSession`, `EventSubscriber\RpInitiatedLogoutSubscriber` (2.8.0) | yes | none (`readonly`; the sealed RP-logout hint lives in the session, the credential is read per sign-out, no outbound request) | ✅ | ✅ |
+| `Doctrine\EnterpriseSecretEncryptionGuard` (Doctrine `onFlush`, 2.8.0) | yes | none (reads the flushed manager's listeners per flush) | ✅ | ✅ |
 | `SocialLogin\SocialLoginTestStart` (2.7.0) | yes | none (readonly deps; the one-shot test marker lives in the session with the state) | ✅ | ✅ |
 | `SocialLogin\SocialLoginGate` | yes | none (queries enabled credentials on every call, no cache) | ✅ | ✅ |
 | `Repository\QrLoginChallengeRepository`, `SocialLoginAccountRepository`, `SocialLoginCredentialRepository` | yes | none besides the EntityManager reference | ✅ | ✅ |

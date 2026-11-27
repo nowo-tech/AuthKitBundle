@@ -372,8 +372,12 @@ accounts:
 webauthn:
     login:
         button: "Mit einem Passkey anmelden"
+        state:
+            cancelled: "Es wurde kein Passkey verwendet. Wenn dieses Gerät noch keinen Passkey für diese Website hat, melden Sie sich mit Ihrem Passwort an und fügen Sie in den Sicherheitseinstellungen Ihres Kontos einen hinzu. Ein Passkey, der auf einer anderen Website oder einem anderen Server erstellt wurde, funktioniert hier nicht."
     mfa:
         button: "Passkey verwenden"
+        state:
+            cancelled: "Es wurde kein Passkey verwendet. Wenn dieses Gerät noch keinen Passkey für diese Website hat, verwenden Sie eine andere Bestätigungsmethode und fügen Sie in den Sicherheitseinstellungen Ihres Kontos einen Passkey hinzu. Ein Passkey, der auf einer anderen Website oder einem anderen Server erstellt wurde, funktioniert hier nicht."
     state:
         unsupported: "Dieser Browser unterstützt keine Passkeys."
         working: "Folgen Sie den Anweisungen Ihres Browsers oder Telefons…"

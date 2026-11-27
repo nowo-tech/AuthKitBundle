@@ -238,6 +238,8 @@ nowo_auth_kit:
         provider_marks: {}          # 1.48: provider → false | 'asset/path.svg' | {path, package, on_white: true|false|auto}
         authorization_params: {}    # 1.48: provider → map of extra authorize-request params (null removes one)
                                     #       google/microsoft send prompt=select_account unless you set prompt: ~
+        rp_logout:                  # 2.8.0: OIDC RP-initiated logout (opt-in per credential: rp_initiated_logout)
+            post_logout_redirect_uris: []   # allow-list: same-origin paths ('/') or absolute http(s) URLs; [] = none sent
 
     registration_rate_limit: 5      # 0 = disabled
     registration_rate_window: 900
@@ -297,6 +299,7 @@ nowo_auth_kit:
         entity_manager: null    # 1.43.0+: extra manager that also maps the AuthKit entities, reset too (getManagerForClass() is always included)
         private_entity_manager: null  # 2.0: no effect, the private manager is the only mode (AuthKit rows through a private manager on the default one, never flushes yours); false fails the build, true is deprecated (removed in 3.0)
         mapping_type: attribute # 1.46.0+: attribute | xml (src/Resources/config/doctrine-xml)
+        require_enterprise_secret_encryption: true  # 2.8.0: refuse to write an enterprise client secret without DoctrineEncrypt; false = tests / demos only
     routing:
         skip_disabled_features: false
 ```
@@ -615,6 +618,13 @@ Per credential (2.7.0, database columns, not configuration): `listed` (unlisted 
 `link_existing_account` (over `social_login.link_existing_account`) and the MFA first-factor policy (over
 `mfa.first_factors.social`). The start route accepts `?login_hint=<e-mail>`. See
 [SSO.md](SSO.md#enterprise-oidc-per-organization-270).
+
+RP-initiated logout (2.8.0): the credential column `rp_initiated_logout` opts an OpenID Connect credential in; the
+profile's `social_login.rp_logout.post_logout_redirect_uris` is the allow-list of the `post_logout_redirect_uri` sent
+to the provider (the sign-out's own target when listed, else the first entry, else none; never taken from the request).
+Register the same URIs at the provider. `doctrine.require_enterprise_secret_encryption` (2.8.0, default `true`)
+refuses to write an enterprise credential's client secret unless nowo-tech/doctrine-encrypt-bundle encrypts it. See
+[SSO.md](SSO.md#rp-initiated-logout-280).
 
 See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md).
 
