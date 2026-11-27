@@ -611,6 +611,11 @@ Since 1.48 the built-in `google` and `microsoft` providers send `prompt=select_a
 
 `social_login.authorization_params` (1.48) adds parameters to the authorization request per provider, e.g. `{google: {access_type: offline, login_hint: ada@example.com}}`. A `null` value removes a parameter the bundle would send by default. The credential's own `setAuthorizationParams()` wins over this map, and the protocol parameters the bundle owns (`state`, `redirect_uri`, `scope`, `client_id`, `client_secret`, `response_type`, `code_challenge*`) are refused here and ignored if a raw database row carries them. See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md#extra-authorization-parameters).
 
+Per credential (2.7.0, database columns, not configuration): `listed` (unlisted credentials start only by name),
+`link_existing_account` (over `social_login.link_existing_account`) and the MFA first-factor policy (over
+`mfa.first_factors.social`). The start route accepts `?login_hint=<e-mail>`. See
+[SSO.md](SSO.md#enterprise-oidc-per-organization-270).
+
 See [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md).
 
 ### HTTP timeouts (social login)

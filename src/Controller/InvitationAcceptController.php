@@ -36,6 +36,7 @@ use Nowo\AuthKitBundle\SocialLogin\Pkce;
 use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
+use Nowo\AuthKitBundle\SocialLogin\SocialCredentialPolicy;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
@@ -309,7 +310,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         if (!$form->isSubmitted() || !$form->isValid()) {
             throw new AccessDeniedHttpException('Invalid CSRF token.');
         }
-        $credential = $this->providerCredential($provider);
+        $credential = $this->providerCredential($provider, $profile);
         if (!$credential instanceof SocialLoginCredential || !$this->oauth2Client instanceof OAuth2Client || !$this->stateStore instanceof SocialLoginStateStore) {
             return $this->redirect($this->urlGenerator->generate(self::routeName($profile)), Response::HTTP_SEE_OTHER);
         }
@@ -417,7 +418,8 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         if ($this->accountLinker instanceof SocialAccountLinker && $result->invitation instanceof InvitationSnapshot) {
             try {
                 // The invited e-mail as stored (the provider may spell it with capitals); verified, it matched above.
-                // `link_existing_account: deny` is refused with accept_page at compile time (KL-L3).
+                // `link_existing_account: deny` is refused with accept_page at compile time (KL-L3), a credential's own deny when
+                // the acceptance starts (2.7.0).
                 $this->accountLinker->linkOrCreate($profile, $context->provider, new SocialUserProfile($social->id, $result->invitation->email, $social->name, $social->raw, true), $context->tokens);
             } catch (Throwable $exception) {
                 // A host lookup or a storage failure: the accepted account signs in now and may link the provider later.
@@ -551,7 +553,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         $markOverrides = $profile->socialLogin['provider_marks'] ?? [];
         $providers     = [];
         foreach ($this->socialCredentials?->findEnabledOrdered() ?? [] as $credential) {
-            if ($credential->isEnterpriseSso()) {
+            if (!self::acceptsInvitations($credential, $profile)) {
                 continue;
             }
             $provider    = $credential->getProvider();
@@ -570,10 +572,23 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         return $providers;
     }
 
-    private function providerCredential(string $provider): ?SocialLoginCredential
+    /**
+     * Whether the accept page offers (and starts) this credential: consumer providers that are listed (2.7.0) and whose
+     * effective `link_existing_account` is not `deny`. KL-L3 refuses a profile-wide deny with accept_page at compile
+     * time; a credential's own deny (2.7.0) is checked here, at run time: the provider could not reach the accepted
+     * account, so it is not offered for the acceptance.
+     */
+    private static function acceptsInvitations(SocialLoginCredential $credential, ProfileSettings $profile): bool
+    {
+        return !$credential->isEnterpriseSso()
+            && $credential->isListed()
+            && SocialCredentialPolicy::linkExistingAccount($credential, $profile) !== 'deny';
+    }
+
+    private function providerCredential(string $provider, ProfileSettings $profile): ?SocialLoginCredential
     {
         foreach ($this->socialCredentials?->findEnabledOrdered() ?? [] as $credential) {
-            if (!$credential->isEnterpriseSso() && $credential->getProvider() === $provider) {
+            if (self::acceptsInvitations($credential, $profile) && $credential->getProvider() === $provider) {
                 return $credential;
             }
         }

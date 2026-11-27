@@ -136,6 +136,12 @@ final readonly class MfaAuthenticationSubscriber
         } else {
             $rules = $profile->mfa['first_factors'] ?? [];
             $rule  = $rules[$factor] ?? $rules[MfaFirstFactor::DEFAULT] ?? MfaConfiguration::RULE_REQUIRED;
+            // 2.7.0: a social sign-in follows its provider credential's own policy when it has one (exempt_when_amr is
+            // already resolved against the validated ID token's amr by then).
+            $credentialRule = $factor === 'social' ? MfaFirstFactor::ruleOf($request) : null;
+            if ($credentialRule !== null) {
+                $rule = $credentialRule;
+            }
             if ($factor === MfaFirstFactor::WEBAUTHN && !$profile->webauthnMfa()) {
                 // 2.4.0 (audit ZBX-L1): a passkey is exempt only where it counts as a second factor (webauthn.mfa).
                 // With webauthn.mfa: false the profile says it is not one, so the user's second factor is still asked.

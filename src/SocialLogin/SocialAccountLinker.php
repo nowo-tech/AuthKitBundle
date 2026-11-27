@@ -19,6 +19,7 @@ use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\Port\UserStoreGate;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
+use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\Security\ExactIdentifier;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
@@ -79,6 +80,7 @@ final class SocialAccountLinker
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ?EntityManagerInterface $privateEntityManager = null,
         ?AuthKitTransactionRunner $transactions = null,
+        private readonly ?SocialLoginCredentialRepository $credentials = null,
     ) {
         $this->transactions = $transactions ?? new AuthKitTransactionRunner($privateEntityManager ?? $entityManager, $entityManager);
         $this->userLookup   = $userLookup ?? new UserDirectoryGate(new DoctrineUserLookup($entityManager, $this->identifierMatcher));
@@ -198,7 +200,7 @@ final class SocialAccountLinker
                 if ($requireVerified && $socialProfile->emailVerified !== true) {
                     throw new RuntimeException('Cannot link social identity to an existing account: the provider did not assert a verified email.');
                 }
-                $user = $this->linkExistingAccount($profile, $candidate, $events);
+                $user = $this->linkExistingAccount($profile, $provider, $candidate, $events);
             }
         }
 
@@ -340,14 +342,16 @@ final class SocialAccountLinker
      * SEC-004 M2: the local account may have been registered by someone else with this (unverified) address. Unless
      * the application verifies e-mail ownership (`keep`), the first link either is refused (`deny`) or replaces the
      * local password with a random one (`reset_password`): a password chosen by a pre-registering attacker, and the
-     * sessions authenticated with it, stop working.
+     * sessions authenticated with it, stop working. 2.7.0: the credential's `link_existing_account` wins over the
+     * profile's ({@see SocialCredentialPolicy::linkExistingAccount()}).
      */
     /**
      * @param list<object> $events receives a {@see CredentialsChangedEvent} when a host writer replaced the password
      */
-    private function linkExistingAccount(ProfileSettings $profile, UserInterface $user, array &$events): UserInterface
+    private function linkExistingAccount(ProfileSettings $profile, string $provider, UserInterface $user, array &$events): UserInterface
     {
-        $policy = $profile->socialLogin['link_existing_account'] ?? 'reset_password';
+        // 2.7.0: the provider credential's own policy wins over the profile's (every caller, host handlers included).
+        $policy = SocialCredentialPolicy::linkExistingAccount($this->credentials?->findOneByProvider($provider), $profile);
 
         if ($policy === 'deny') {
             throw new RuntimeException('A local account already uses this email address: sign in with it (link_existing_account is deny).');

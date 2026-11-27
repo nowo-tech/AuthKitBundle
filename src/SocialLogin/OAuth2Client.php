@@ -156,12 +156,13 @@ final class OAuth2Client
      * @param string|null $codeVerifier when set, adds `code_challenge` (S256) and `code_challenge_method`
      * @param array<string, mixed> $authorizationParams `social_login.authorization_params` of the profile; the
      *                                                  credential's own map always wins over it
+     * @param string|null $loginHint 2.7.0: a validated e-mail address sent as `login_hint` ({@see LoginHint})
      */
-    public function buildAuthorizeUrl(SocialLoginCredential $credential, string $redirectUri, string $state, ?string $codeVerifier = null, array $authorizationParams = []): string
+    public function buildAuthorizeUrl(SocialLoginCredential $credential, string $redirectUri, string $state, ?string $codeVerifier = null, array $authorizationParams = [], ?string $loginHint = null): string
     {
         $resolved = $this->endpoints->resolve($credential);
         // The bundle's own protocol parameters are written last, so nothing a host configures can replace them.
-        $params = array_merge($this->authorizationParams($credential, $authorizationParams), [
+        $params = array_merge($this->authorizationParams($credential, $authorizationParams), LoginHint::params($loginHint), [
             'client_id'     => $credential->getClientId(),
             'redirect_uri'  => $redirectUri,
             'response_type' => 'code',

@@ -15,6 +15,7 @@
 - [Registration flow](#registration-flow)
 - [Invitation flow](#invitation-flow)
 - [Login flow](#login-flow)
+  - [Organization sign-in (enterprise OIDC, 2.7.0)](#organization-sign-in-enterprise-oidc-270)
   - [Two-step verification code on OTP boxes (1.51)](#two-step-verification-code-on-otp-boxes-151)
   - [Identifiers and binary collations (1.49)](#identifiers-and-binary-collations-149)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
@@ -224,6 +225,13 @@ Full example: [INVITATIONS.md — Host with its own invitation UI](INVITATIONS.m
 2. Controller renders the form; POST is handled by Symfony `form_login` on the firewall.
 3. CSRF token id: `authenticate` (Symfony default).
 4. Optional device intelligence: layout `collect()` does not change the login form. After `LoginSuccess`, `new_device_notify` may set session `nowo_auth_kit.new_device` and call `NewDeviceLoginNotifierInterface`. Device ID is not a credential.
+
+### Organization sign-in (enterprise OIDC, 2.7.0)
+
+Home-realm discovery stays in the host: map the e-mail domain to an unlisted provider credential and redirect to
+`nowo_auth_kit_social_login_start` with `provider` and `login_hint`. An administrator's *Test sign-in* calls
+`SocialLoginTestStart::start()` and gets the validated claims in a `SocialLoginTestHandlerInterface`; nobody is signed
+in. Details: [SSO.md](SSO.md#enterprise-oidc-per-organization-270).
 
 ### Two-step verification code on OTP boxes (1.51)
 

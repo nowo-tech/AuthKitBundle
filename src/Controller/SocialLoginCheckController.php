@@ -7,10 +7,12 @@ namespace Nowo\AuthKitBundle\Controller;
 use LogicException;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
+use Nowo\AuthKitBundle\Enum\SocialLoginMode;
 use Nowo\AuthKitBundle\Flash\AuthKitFlashMessenger;
 use Nowo\AuthKitBundle\Mfa\MfaFirstFactor;
 use Nowo\AuthKitBundle\Port\Internal\SocialCallbackHandlerInterface;
 use Nowo\AuthKitBundle\Port\SocialCallbackStepGate;
+use Nowo\AuthKitBundle\Port\SocialLoginTestGate;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
@@ -22,10 +24,12 @@ use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcException;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialCredentialPolicy;
 use Nowo\AuthKitBundle\SocialLogin\SocialFormPostRelay;
 use Nowo\AuthKitBundle\SocialLogin\SocialHandlerSignInRollback;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginGate;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
+use Nowo\AuthKitBundle\SocialLogin\SocialLoginTestHandlerInterface;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\TransientFailureClassifier;
 use Psr\Log\LoggerInterface;
@@ -52,6 +56,7 @@ final class SocialLoginCheckController
 {
     /**
      * @param iterable<mixed> $callbackHandlers tagged `nowo_auth_kit.social_callback_handler` (either interface; checked at build time)
+     * @param iterable<mixed> $testHandlers 2.7.0: tagged {@see SocialLoginTestHandlerInterface::TAG}
      */
     public function __construct(
         private readonly SocialLoginGate $socialLoginGate,
@@ -69,6 +74,7 @@ final class SocialLoginCheckController
         private readonly ProgrammaticLoginAuthenticator $loginAuthenticator = new ProgrammaticLoginAuthenticator(),
         private readonly ?OidcClient $oidcClient = null,
         private readonly ?SocialFormPostRelay $formPostRelay = null,
+        private readonly iterable $testHandlers = [],
     ) {
     }
 
@@ -87,13 +93,25 @@ final class SocialLoginCheckController
             return $this->relayFormPost($request, $provider, $profile, $loginUrl);
         }
 
-        $params  = $posted ? $request->request : $request->query;
-        $handler = $this->handlerFor($request, $provider, $profile);
-        $state   = (string) $params->get('state', '');
-        $code    = (string) $params->get('code', '');
+        $params = $posted ? $request->request : $request->query;
+        $state  = (string) $params->get('state', '');
+        $code   = (string) $params->get('code', '');
+        // 2.7.0: a test sign-in is known only from the marker stored with this session's state (SocialLoginTestStart),
+        // never from a URL parameter. Its callback reaches the host's test handler alone and never signs in.
+        $testing = $this->stateStore->isTestPending($provider, $state);
+        $handler = $testing ? $this->testHandlerFor($profile) : $this->handlerFor($request, $provider, $profile);
+        if ($testing && !$handler instanceof SocialCallbackHandlerInterface) {
+            // The test handler went away since the start: burn the state, nothing else happens.
+            $this->stateStore->consume($provider, $state);
 
-        $credential = $this->socialLoginGate->isEnabled($profile->name) ? $this->credentials->findOneByProvider($provider) : null;
-        if (!$credential instanceof SocialLoginCredential || !$credential->isEnabled()) {
+            return $this->refused($request, $loginUrl, 'social.error.failed');
+        }
+
+        // A test may check a disabled credential (before it is enabled); social login must still be on for the profile.
+        $credential = $testing
+            ? (($profile->socialLogin['mode'] ?? null) === SocialLoginMode::Enabled->value ? $this->credentials->findOneByProvider($provider) : null)
+            : ($this->socialLoginGate->isEnabled($profile->name) ? $this->credentials->findOneByProvider($provider) : null);
+        if (!$credential instanceof SocialLoginCredential || (!$testing && !$credential->isEnabled())) {
             return $handler instanceof SocialCallbackHandlerInterface && $this->burnsState($provider, $state)
                 ? $this->failed($request, $provider, $handler, SocialCallbackFailure::Unavailable, $loginUrl)
                 : new RedirectResponse($loginUrl);
@@ -139,6 +157,8 @@ final class SocialLoginCheckController
             }
             if (!$handler instanceof SocialCallbackHandlerInterface) {
                 MfaFirstFactor::mark($request, 'social');
+                // 2.7.0: the credential's own first-factor policy (amr read from the validated ID token only).
+                MfaFirstFactor::markRule($request, SocialCredentialPolicy::mfaRule($credential, $social));
                 // A failed sign-in keeps nothing: no link, no replaced password, no session (GY-L9, GY-L10).
                 $this->guarded($request, fn () => $this->accountLinker->linkAndSignIn($profile, $provider, $social, $tokens, fn (UserInterface $user): ?Response => $this->security->login($user, $this->loginAuthenticator->nameFor($profile->firewall), $profile->firewall)));
             }
@@ -159,7 +179,7 @@ final class SocialLoginCheckController
         }
 
         if ($handler instanceof SocialCallbackHandlerInterface) {
-            return $this->handled($request, $handler, new SocialCallbackContext($profile, $provider, $social, $tokens), $loginUrl);
+            return $this->handled($request, $handler, new SocialCallbackContext($profile, $provider, $social, $tokens), $loginUrl, SocialCredentialPolicy::mfaRule($credential, $social));
         }
 
         $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
@@ -211,18 +231,38 @@ final class SocialLoginCheckController
     }
 
     /**
+     * 2.7.0: the host's test handler (the first tagged {@see SocialLoginTestHandlerInterface::TAG}) through its gate,
+     * or null when none is registered.
+     */
+    private function testHandlerFor(ProfileSettings $profile): ?SocialCallbackHandlerInterface
+    {
+        foreach ($this->testHandlers as $handler) {
+            if ($handler instanceof SocialLoginTestHandlerInterface) {
+                return new SocialLoginTestGate($handler, $profile);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Runs the handler. Whatever it throws, a sign-in it already made does not survive (GY-L1, GY-L6). HTTP exceptions
      * keep their status (the handler's own 403, 404, 429) and lock conflicts answer 409 (2.2.1); anything else takes the
      * failure path, logged by class because the message may hold provider data (GY-I1).
      */
-    private function handled(Request $request, SocialCallbackHandlerInterface $handler, SocialCallbackContext $context, string $loginUrl): Response
+    private function handled(Request $request, SocialCallbackHandlerInterface $handler, SocialCallbackContext $context, string $loginUrl, ?string $mfaRule): Response
     {
         MfaFirstFactor::mark($request, 'social');
+        MfaFirstFactor::markRule($request, $mfaRule);
 
         try {
             return $this->guarded($request, static fn (): Response => $handler->handle($request, $context));
         } catch (Throwable $exception) {
-            $this->logger?->error('AuthKit social callback handler {handler} failed for provider {provider}.', ['handler' => $handler instanceof SocialCallbackStepGate ? $handler->step()::class : $handler::class, 'provider' => $context->provider, 'exception' => $exception::class]);
+            $this->logger?->error('AuthKit social callback handler {handler} failed for provider {provider}.', ['handler' => match (true) {
+                $handler instanceof SocialCallbackStepGate => $handler->step()::class,
+                $handler instanceof SocialLoginTestGate    => $handler->handler()::class,
+                default                                    => $handler::class,
+            }, 'provider' => $context->provider, 'exception' => $exception::class]);
             // 2.2.1 (REQ-RUNTIME-003 rules 6 and 8): a lock conflict (deadlock, lock wait, serialization failure, an
             // AuthKit named lock not obtained) is never turned into a refusal: it goes on to StorageFailureSubscriber,
             // which answers 409 with its conflict code, as on the built-in linker path.

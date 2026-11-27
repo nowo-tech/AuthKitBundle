@@ -52,7 +52,7 @@ final class SocialLoginStateStoreTest extends TestCase
         $store = new SocialLoginStateStore($stack);
         $state = $store->issue('google', 'verifier-1');
 
-        self::assertSame(['code_verifier' => 'verifier-1', 'nonce' => null], $store->consumePending('google', $state));
+        self::assertSame(['code_verifier' => 'verifier-1', 'nonce' => null, 'test' => false], $store->consumePending('google', $state));
         self::assertNull($store->consumePending('google', $state));
     }
 
@@ -67,11 +67,11 @@ final class SocialLoginStateStoreTest extends TestCase
         self::assertNull($store->consumePending('google', 'nothing-issued'));
 
         $state = $store->issue('google', '');
-        self::assertSame(['code_verifier' => null, 'nonce' => null], $store->consumePending('google', $state));
+        self::assertSame(['code_verifier' => null, 'nonce' => null, 'test' => false], $store->consumePending('google', $state));
 
         $state = $store->issue('google', 'verifier-2');
         self::assertNull($store->consumePending('google', $state . 'x'));
-        self::assertSame(['code_verifier' => 'verifier-2', 'nonce' => null], $store->consumePending('google', $state), 'GY-L2: a mismatch leaves the real authorization alone.');
+        self::assertSame(['code_verifier' => 'verifier-2', 'nonce' => null, 'test' => false], $store->consumePending('google', $state), 'GY-L2: a mismatch leaves the real authorization alone.');
         self::assertNull($store->consumePending('google', $state), 'A match burns it.');
     }
 
@@ -84,9 +84,9 @@ final class SocialLoginStateStoreTest extends TestCase
 
         $store = new SocialLoginStateStore($stack);
         $state = $store->issue('okta', 'verifier-3', 'nonce-3');
-        self::assertSame(['code_verifier' => 'verifier-3', 'nonce' => 'nonce-3'], $store->consumePending('okta', $state));
+        self::assertSame(['code_verifier' => 'verifier-3', 'nonce' => 'nonce-3', 'test' => false], $store->consumePending('okta', $state));
 
         $state = $store->issue('okta', null, '');
-        self::assertSame(['code_verifier' => null, 'nonce' => null], $store->consumePending('okta', $state));
+        self::assertSame(['code_verifier' => null, 'nonce' => null, 'test' => false], $store->consumePending('okta', $state));
     }
 }

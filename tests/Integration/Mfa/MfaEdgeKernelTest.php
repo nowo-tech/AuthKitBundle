@@ -97,6 +97,36 @@ final class MfaEdgeKernelTest extends MfaKernelTestCase
         self::assertInstanceOf(NullToken::class, $event->getAuthenticatedToken());
     }
 
+    /** 2.7.0: a social sign-in follows its provider credential's rule; the rule never applies to another factor. */
+    public function testTheCredentialRuleOfASocialSignIn(): void
+    {
+        $member = $this->user('member@example.com');
+        $secret = $this->manager()->newSecret();
+        $this->manager()->enable($member, $secret, $this->code($secret));
+        $subscriber = self::getContainer()->get(MfaAuthenticationSubscriber::class . '.main');
+        self::assertInstanceOf(MfaAuthenticationSubscriber::class, $subscriber);
+        $requests = self::getContainer()->get(RequestStack::class);
+        self::assertInstanceOf(RequestStack::class, $requests);
+
+        $cases = [
+            ['social', null, true],
+            ['social', 'exempt', false],
+            ['social', 'required', true],
+            ['form_login', 'exempt', true],
+        ];
+        foreach ($cases as [$factor, $rule, $challenged]) {
+            $request = new Request();
+            MfaFirstFactor::mark($request, $factor);
+            MfaFirstFactor::markRule($request, $rule);
+            $requests->push($request);
+            $token = new UsernamePasswordToken($member, 'main', ['ROLE_USER']);
+            $event = new AuthenticationTokenCreatedEvent($token, new SelfValidatingPassport(new UserBadge('member@example.com')));
+            $subscriber->onTokenCreated($event);
+            self::assertSame($challenged, $event->getAuthenticatedToken() instanceof MfaPendingToken, $factor . ' / ' . ($rule ?? 'profile'));
+            $requests->pop();
+        }
+    }
+
     public function testContainmentKeepsGetTargetsAndLetsDebugRoutesThrough(): void
     {
         $member     = $this->user('member@example.com');

@@ -6,9 +6,11 @@ namespace Nowo\AuthKitBundle\SocialLogin\Oidc;
 
 use JsonException;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
+use Nowo\AuthKitBundle\SocialLogin\LoginHint;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\Pkce;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
+use Nowo\AuthKitBundle\SocialLogin\SocialLoginTestStart;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 
 use function array_merge;
@@ -81,22 +83,24 @@ final class OidcClient
      *
      * @param array<string, bool> $pkceOverrides `social_login.pkce`
      * @param array<string, mixed> $authorizationParams `social_login.authorization_params`
+     * @param string|null $loginHint 2.7.0: a validated e-mail address sent as `login_hint` ({@see LoginHint})
+     * @param bool $test 2.7.0: the state carries the one-shot test marker ({@see SocialLoginTestStart})
      *
      * @throws OidcException
      *
      * @return array{state: string, url: string}
      */
-    public function begin(SocialLoginCredential $credential, string $provider, string $redirectUri, SocialLoginStateStore $states, array $pkceOverrides = [], array $authorizationParams = []): array
+    public function begin(SocialLoginCredential $credential, string $provider, string $redirectUri, SocialLoginStateStore $states, array $pkceOverrides = [], array $authorizationParams = [], ?string $loginHint = null, bool $test = false): array
     {
         $settings = $this->catalog->resolve($credential);
         $metadata = $this->discovery->metadata($settings->issuer);
 
         $verifier = $this->usesPkce($settings, $metadata, $pkceOverrides) ? Pkce::generateVerifier() : null;
         $nonce    = $settings->useNonce ? Base64Url::encode(random_bytes(32)) : null;
-        $state    = $states->issue($provider, $verifier, $nonce);
+        $state    = $states->issue($provider, $verifier, $nonce, $test);
 
         // The bundle's own protocol parameters are written last: nothing a host configures replaces them.
-        $params = array_merge($this->oauth2Client->authorizationParams($credential, $authorizationParams), [
+        $params = array_merge($this->oauth2Client->authorizationParams($credential, $authorizationParams), LoginHint::params($loginHint), [
             'client_id'     => $credential->getClientId(),
             'redirect_uri'  => $redirectUri,
             'response_type' => 'code',
@@ -261,9 +265,11 @@ final class OidcClient
         }
         $name ??= $this->appleName($appleUser);
 
-        unset($merged['nonce']);
+        unset($merged['nonce'], $claims['nonce']);
 
-        return new SocialUserProfile($this->subject($claims), $email, $name, $merged, $verified, $issuer);
+        // 2.7.0: the validated ID token claims on their own; `$merged` lets userinfo fill claims the token lacks
+        // (an unsigned `amr` included), so policies read `idTokenClaims`, never `raw`.
+        return new SocialUserProfile($this->subject($claims), $email, $name, $merged, $verified, $issuer, $claims);
     }
 
     /**

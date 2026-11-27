@@ -607,7 +607,7 @@ final class SocialLoginControllerTest extends TestCase
 
         self::assertArrayNotHasKey('code_challenge', $query);
         self::assertArrayNotHasKey('code_challenge_method', $query);
-        self::assertSame(['code_verifier' => null, 'nonce' => null], $stateStore->consumePending('google', is_string($query['state'] ?? null) ? $query['state'] : ''));
+        self::assertSame(['code_verifier' => null, 'nonce' => null, 'test' => false], $stateStore->consumePending('google', is_string($query['state'] ?? null) ? $query['state'] : ''));
     }
 
     public function testCheckSendsStoredCodeVerifierToTokenEndpoint(): void

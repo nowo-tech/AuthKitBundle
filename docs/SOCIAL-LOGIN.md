@@ -19,7 +19,7 @@ Apple, LinkedIn, Slack; 2.3.0) are described in [OIDC-PROVIDERS.md](OIDC-PROVIDE
 
 | Entity | Table | Purpose |
 |--------|-------|---------|
-| `SocialLoginCredential` | `auth_kit_social_credential` | OAuth app credentials per provider (`google`, `github`, `microsoft`, `gitlab`, `apple`, `linkedin`, `slack`, or custom; OIDC `issuer` and `provider_settings` since 2.3.0) |
+| `SocialLoginCredential` | `auth_kit_social_credential` | OAuth app credentials per provider (`google`, `github`, `microsoft`, `gitlab`, `apple`, `linkedin`, `slack`, or custom; OIDC `issuer` and `provider_settings` since 2.3.0; `listed`, `link_existing_account`, `mfa_first_factor`, `mfa_accepted_amr` since 2.7.0, see [SSO.md](SSO.md#enterprise-oidc-per-organization-270)) |
 | `SocialLoginAccount` | `auth_kit_social_account` | Linked local user + tokens + provider subject |
 
 Run migrations / `doctrine:schema:update` after enabling the feature so both tables exist.
@@ -192,6 +192,10 @@ Public routes (also locale-prefixed when `locale.in_path` is `always`/`both`):
 Add matching `access_control` entries (`PUBLIC_ACCESS`), same pattern as magic login / password reset. The OAuth redirect URI registered at the IdP must match the **absolute** check URL (including locale prefix if you use one). With `absolute_url.base_uri` (1.24+) that URL is `{base_uri}` + check path for start and code exchange alike, independent of the request `Host` — register exactly that.
 
 ## Callback handlers
+
+2.7.0: `$context->socialProfile->idTokenClaims` holds the validated ID token claims alone (null for OAuth2); read
+organization claims (`hd`, `tid`, `amr`) there, never from `raw` (userinfo completes `raw`). A test sign-in never reaches
+these handlers: it goes to `SocialLoginTestHandlerInterface` ([SSO.md](SSO.md#test-sign-in)).
 
 Accepting an invitation with a provider needs no handler of your own since 1.42: set
 `invitations.social.accept_page: true` ([INVITATIONS.md](INVITATIONS.md#host-follow-ups-142)) and the accept page

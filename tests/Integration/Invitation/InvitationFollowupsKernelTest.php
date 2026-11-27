@@ -356,6 +356,31 @@ final class InvitationFollowupsKernelTest extends WebTestCase
         self::assertSame('/invitation/social/google', $crawler->filter('[data-testid="auth-kit-invitation-social-google"]')->form()->getFormNode()->getAttribute('action'));
     }
 
+    /**
+     * 2.7.0: a credential whose own link_existing_account is deny (it could not reach the accepted account; KL-L3 at run
+     * time) and an unlisted credential are neither offered nor started by the accept page.
+     */
+    public function testTheAcceptPageSkipsDenyAndUnlistedCredentials(): void
+    {
+        $em = $this->entityManager();
+        $em->persist((new SocialLoginCredential())->setProvider('github')->setLabel('GitHub')->setEnabled(true)->setClientId('id-placeholder')->setClientSecret('secret-placeholder')->setLinkExistingAccount('deny'));
+        $em->persist((new SocialLoginCredential())->setProvider('gitlab')->setLabel('GitLab')->setEnabled(true)->setClientId('id-placeholder')->setClientSecret('secret-placeholder')->setListed(false)
+            ->setAuthorizeUrl('https://gitlab.example.test/oauth/authorize')->setTokenUrl('https://gitlab.example.test/oauth/token')->setUserinfoUrl('https://gitlab.example.test/api/v4/user'));
+        $em->flush();
+        $em->clear();
+
+        $crawler = $this->open($this->inviteLink('page@example.com'));
+        self::assertCount(1, $crawler->filter('[data-testid="auth-kit-invitation-social-google"]'));
+        self::assertCount(0, $crawler->filter('[data-testid="auth-kit-invitation-social-github"]'), 'A credential deny is not offered.');
+        self::assertCount(0, $crawler->filter('[data-testid="auth-kit-invitation-social-gitlab"]'), 'An unlisted credential is not offered.');
+
+        $values = $crawler->filter('[data-testid="auth-kit-invitation-social-google"]')->form()->getPhpValues();
+        foreach (['github', 'gitlab'] as $provider) {
+            $this->client->request('POST', '/invitation/social/' . $provider, $values);
+            self::assertResponseRedirects('/invitation', 303);
+        }
+    }
+
     public function testAHostRefusalWhenTheLinkOpensConsumesNothing(): void
     {
         $hooks = $this->hooks();

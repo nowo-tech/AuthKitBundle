@@ -129,6 +129,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned as **2.7.0** (minor, Beacon spec 221 blocks 0 + A: enterprise OpenID Connect per organization). Four nullable
+columns, no BC break: null keeps the 2.6.0 behaviour.
+
+### Added
+
+- **Unlisted credentials.** `SocialLoginCredential::setListed(?bool)` / `isListed()` (column `listed BOOLEAN NULL`,
+  null = listed). An unlisted credential is never among `social_links` / `sso_links` nor on the invitation accept page;
+  it starts by name through `nowo_auth_kit_social_login_start`.
+- **`login_hint` on the start route.** `GET /login/social/{provider}?login_hint=<e-mail>` forwards the hint to the
+  provider's authorization request (OAuth2 and OpenID Connect) when it is a valid e-mail address of at most 254 bytes
+  without white space or control characters; anything else is dropped, never echoed (`SocialLogin\LoginHint`).
+  `OAuth2Client::buildAuthorizeUrl()` and `OidcClient::begin()` take an optional trailing `?string $loginHint`.
+- **`link_existing_account` per credential.** `setLinkExistingAccount(?string)` / `getLinkExistingAccount()` (column
+  `link_existing_account VARCHAR(16) NULL`: `reset_password` | `deny` | `keep`, null = the profile's). The linker reads it
+  for every caller (new optional constructor argument `?SocialLoginCredentialRepository $credentials`). A stored value
+  that is not a policy is read as `deny`. The invitation accept page skips a credential whose effective policy is `deny`
+  (run-time counterpart of the KL-L3 build-time check, which stays for the profile value).
+- **MFA first-factor policy per credential.** `setMfaFirstFactorPolicy(?string $policy, array $acceptedAmr = [])`,
+  `getMfaFirstFactor()`, `getMfaAcceptedAmr()` (columns `mfa_first_factor VARCHAR(16) NULL`, `mfa_accepted_amr JSON
+  NULL`): `required`, `exempt`, or `exempt_when_amr` with 1–16 accepted `amr` values; null = `mfa.first_factors.social`.
+  `exempt_when_amr` reads the `amr` of the **validated ID token** only: a userinfo `amr` (merged into `raw`) never
+  exempts; an OAuth2 credential is always `required` under it; an unknown stored value is read as `required`.
+  `MfaFirstFactor::markRule()` / `ruleOf()` carry the rule to `MfaAuthenticationSubscriber` (social factor only).
+- **Validated ID token claims.** `SocialUserProfile::$idTokenClaims` (new optional last constructor argument): the
+  claims of the validated ID token alone (`nonce` removed), null for OAuth2. Host callback handlers read `sub`, `email`,
+  `email_verified`, `amr`, `hd` / `tid` there.
+- **Test sign-in.** `SocialLogin\SocialLoginTestStart::start(Request, string $provider, ?string $loginHint = null):
+  string` (and `hasHandler()`) mints the authorization URL of a test: a one-shot marker is stored with the OAuth state in
+  the session (`SocialLoginStateStore::issue()` optional 4th argument `bool $test`, `isTestPending()`,
+  `consumePending()` returns the extra key `test`). The callback of that state runs every check, then only the new port
+  `SocialLogin\SocialLoginTestHandlerInterface` (autoconfigured, tag `nowo_auth_kit.social_test_handler`): no callback
+  step runs, nothing is linked or provisioned and nobody is signed in (a sign-in answer is refused). No URL parameter
+  can start or mark a test. Refusals: `SocialLogin\SocialLoginTestException` (`no_handler`, `social_disabled`,
+  `unknown_provider`, `provider`). A disabled credential can be tested.
+
+### Documentation
+
+- [SSO.md](SSO.md#enterprise-oidc-per-organization-270), [SECURITY.md](SECURITY.md), [MFA.md](MFA.md),
+  [SOCIAL-LOGIN.md](SOCIAL-LOGIN.md), [CONFIGURATION.md](CONFIGURATION.md), [USAGE.md](USAGE.md): the per-credential
+  settings, the test sign-in, and that `client_secret` is encrypted at rest only with DoctrineEncrypt configured
+  (unchanged behaviour; a fail-closed option is planned for 2.8.0 with RP-initiated logout).
+
 ## [2.6.0] - 2026-11-27
 
 ### Added

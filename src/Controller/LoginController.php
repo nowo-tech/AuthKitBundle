@@ -95,6 +95,10 @@ final class LoginController
         $socialProviders = [];
         $ssoProviders    = [];
         foreach ($credentials as $credential) {
+            // 2.7.0: an unlisted credential is started only by name from the host, never offered as a button.
+            if (!$credential->isListed()) {
+                continue;
+            }
             if ($credential->isEnterpriseSso()) {
                 $ssoProviders[] = $credential;
             } else {
