@@ -221,21 +221,23 @@ final class SocialLoginCheckController
             return;
         }
         $session = $request->getSession();
-        $idToken = $tokenResponse['id_token'] ?? null;
-        if (!$credential->isRpInitiatedLogout() || !is_string($idToken) || !$this->oidcClient instanceof OidcClient) {
+
+        // Audit ZDC-L2: the sign-in is complete; nothing here may turn it into an error (an identifier that is not
+        // UTF-8, a cache backend failure). Any failure keeps no hint: the sign-out is then local only.
+        try {
+            $idToken = $tokenResponse['id_token'] ?? null;
+            // Null for an OAuth2 credential (its token answer is not a validated ID token), or no published endpoint.
+            $endpoint = $credential->isRpInitiatedLogout() && $this->oidcClient instanceof OidcClient ? $this->oidcClient->endSessionEndpoint($credential) : null;
+            if ($endpoint === null || !is_string($idToken)) {
+                $this->rpLogout->forget($session);
+
+                return;
+            }
+            $this->rpLogout->remember($session, new RpLogoutHint($provider, $credential->getClientId(), $token->getUserIdentifier(), $endpoint, $idToken));
+        } catch (Throwable $exception) {
             $this->rpLogout->forget($session);
-
-            return;
+            $this->logger?->warning('AuthKit RP-initiated logout hint not kept for provider {provider}.', ['provider' => $provider, 'exception' => $exception::class]);
         }
-
-        // Null for an OAuth2 credential (its token answer is not a validated ID token), or no published endpoint.
-        $endpoint = $this->oidcClient->endSessionEndpoint($credential);
-        if ($endpoint === null) {
-            $this->rpLogout->forget($session);
-
-            return;
-        }
-        $this->rpLogout->remember($session, new RpLogoutHint($provider, $credential->getClientId(), $token->getUserIdentifier(), $endpoint, $idToken));
     }
 
     /**

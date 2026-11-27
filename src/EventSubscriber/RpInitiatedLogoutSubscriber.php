@@ -7,7 +7,7 @@ namespace Nowo\AuthKitBundle\EventSubscriber;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
-use Nowo\AuthKitBundle\SocialLogin\OAuthEndpointUrlValidator;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\EndSessionEndpointRule;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\PostLogoutRedirectUri;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\RpLogoutHint;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\RpLogoutSession;
@@ -38,20 +38,24 @@ use function str_contains;
  * other than a redirect, any error) keeps the plain local sign-out. No outbound request is made here.
  *
  * The local sign-out always completes: this runs on the firewall's `LogoutEvent` after the default target redirect
- * (priority 64) and before the session is invalidated (`SessionLogoutListener`, priority 0); it never throws, and the
+ * (priority 64) and the multi-account sign-out (32), before the session is invalidated (`SessionLogoutListener`, 0); it never throws, and the
  * token and session are cleared by Symfony afterwards as for any sign-out. The provider being down only affects the
  * page the browser lands on. Stateless (worker-safe).
  */
 final readonly class RpInitiatedLogoutSubscriber implements EventSubscriberInterface
 {
-    public const PRIORITY = 32;
+    /**
+     * After the default target (64) and the multi-account sign-out (`MultiAccountSubscriber::onLogout`, 32: with
+     * `logout_scope: current` its chooser redirect is the target this subscriber may replace, audit ZDC-I1); before the
+     * session is invalidated (`SessionLogoutListener`, 0).
+     */
+    public const PRIORITY = 16;
 
     public function __construct(
         private RpLogoutSession $hints,
         private SocialLoginCredentialRepository $credentials,
         private RequestProfileResolver $profiles,
         private ?LoggerInterface $logger = null,
-        private OAuthEndpointUrlValidator $urlValidator = new OAuthEndpointUrlValidator(),
     ) {
     }
 
@@ -100,8 +104,10 @@ final readonly class RpInitiatedLogoutSubscriber implements EventSubscriberInter
             || !hash_equals($credential->getClientId(), $hint->clientId)) {
             return null;
         }
-        // The endpoint passed these rules at discovery; checked again before the browser is sent there.
-        $this->urlValidator->assertSafeHttpsUrl($hint->endSessionEndpoint, 'end_session_endpoint');
+        // The endpoint passed this rule at discovery; checked again before the browser is sent there (audit ZDC-L1).
+        if (!EndSessionEndpointRule::isSafe($hint->endSessionEndpoint)) {
+            return null;
+        }
 
         $params = [];
         if ($hint->idToken !== null) {

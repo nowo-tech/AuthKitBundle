@@ -5,11 +5,19 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\SocialLogin\Oidc;
 
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
+use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\AppleClientSecret;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcClient;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcDiscovery;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcProviderCatalog;
+use Nowo\AuthKitBundle\SocialLogin\ProviderEndpointCatalog;
 use Nowo\AuthKitBundle\Tests\Support\Oidc\FakeIdp;
 use Nowo\AuthKitBundle\Tests\Support\Oidc\OidcStack;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Contracts\Cache\CacheInterface;
 
 use function str_repeat;
 
@@ -50,6 +58,10 @@ final class RpLogoutDiscoveryTest extends TestCase
         yield 'fragment' => ['https://idp.example.com/logout#x'];
         yield 'credentials' => ['https://user:pass@idp.example.com/logout'];
         yield 'unparsable' => ['https:///logout'];
+        yield 'short loopback (ZDC-L1)' => ['https://127.1/logout'];
+        yield 'bracketed loopback (ZDC-L1)' => ['https://[::1]/logout'];
+        yield 'single label (ZDC-L1)' => ['https://intranet/logout'];
+        yield 'CR LF (ZDC-L1)' => ["https://idp.example.com/logout\r\nX: y"];
         yield 'too long' => ['https://idp.example.com/' . str_repeat('a', OidcDiscovery::MAX_OPTIONAL_ENDPOINT_LENGTH)];
     }
 
@@ -81,6 +93,27 @@ final class RpLogoutDiscoveryTest extends TestCase
         $down                  = new FakeIdp();
         $down->discoveryStatus = 503;
         self::assertNull((new OidcStack($down))->client->endSessionEndpoint($generic), 'A failed discovery is no RP-initiated logout, never an error.');
+    }
+
+    /**
+     * Audit ZDC-L2: a cache backend failure is no RP-initiated logout, never an error.
+     */
+    public function testACacheFailureIsNullToo(): void
+    {
+        $stack = new OidcStack(new FakeIdp());
+        $cache = $this->createStub(CacheInterface::class);
+        $cache->method('get')->willThrowException(new RuntimeException('cache down'));
+        $client = new OidcClient(
+            new OidcProviderCatalog(),
+            new OidcDiscovery($stack->http, $cache, $stack->options),
+            $stack->validator,
+            $stack->http,
+            new OAuth2Client(new MockHttpClient(), new ProviderEndpointCatalog()),
+            new AppleClientSecret($stack->clock),
+        );
+        $generic = (new SocialLoginCredential())->setProvider('okta')->setClientId('client-placeholder')->setClientSecret('secret-placeholder')->setIssuer('https://idp.example.com');
+
+        self::assertNull($client->endSessionEndpoint($generic));
     }
 
     public function testTheCredentialOptInDefaultsToOff(): void

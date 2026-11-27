@@ -12,10 +12,8 @@ use Symfony\Contracts\Cache\ItemInterface;
 use function hash;
 use function is_array;
 use function is_string;
-use function parse_url;
 use function rtrim;
 use function sprintf;
-use function strlen;
 
 /**
  * OpenID Connect Discovery 1.0 (2.3.0): `<issuer>/.well-known/openid-configuration`, fetched through the SSRF guard,
@@ -134,36 +132,23 @@ final class OidcDiscovery
             $userinfo === null ? null : $this->endpoint($document, 'userinfo_endpoint'),
             $this->stringList($document['code_challenge_methods_supported'] ?? null),
             $this->stringList($document['token_endpoint_auth_methods_supported'] ?? null),
-            $this->optionalEndpoint($document, 'end_session_endpoint'),
+            $this->endSessionEndpoint($document),
         );
     }
 
     /**
-     * 2.8.0: an optional endpoint the sign-in does not need (`end_session_endpoint`). It passes the same HTTPS / SSRF
-     * rules as the others, without fragment or credentials; an absent, malformed or unsafe value is dropped (null: no RP-initiated logout), so it never
-     * fails a sign-in that worked in 2.7.0.
+     * 2.8.0: `end_session_endpoint`, which the sign-in does not need. It must pass {@see EndSessionEndpointRule} (HTTPS,
+     * public unambiguous host, no credentials, fragment, white space or control characters; audit ZDC-L1). An absent,
+     * malformed or unsafe value is dropped (null: no RP-initiated logout), so it never fails a sign-in that worked in
+     * 2.7.0.
      *
      * @param array<string, mixed> $document
      */
-    private function optionalEndpoint(array $document, string $name): ?string
+    private function endSessionEndpoint(array $document): ?string
     {
-        $url = $document[$name] ?? null;
-        if (!is_string($url) || $url === '' || strlen($url) > self::MAX_OPTIONAL_ENDPOINT_LENGTH) {
-            return null;
-        }
-        // Parameters are appended to it, and the browser is sent there: no fragment, no credentials.
-        $parts = parse_url($url);
-        if ($parts === false || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])) {
-            return null;
-        }
+        $url = $document['end_session_endpoint'] ?? null;
 
-        try {
-            $this->urlValidator->assertSafeHttpsUrl($url, $name);
-        } catch (InvalidArgumentException) {
-            return null;
-        }
-
-        return $url;
+        return is_string($url) && EndSessionEndpointRule::isSafe($url) ? $url : null;
     }
 
     /**

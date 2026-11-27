@@ -140,21 +140,25 @@ closed; clearer per-mode passkey state texts). One nullable column, no BC break 
   After a sign-in with such an OIDC credential, the session keeps a hint (`SocialLogin\Oidc\RpLogoutSession`, sealed
   with XChaCha20-Poly1305 under a key derived from `kernel.secret`, never logged): the provider key and client id, the
   signed-in user, the provider's `end_session_endpoint` and the ID token (at most 8 KiB, else `client_id` only). On
-  sign-out `EventSubscriber\RpInitiatedLogoutSubscriber` (firewall `LogoutEvent`, priority 32: after the default target,
-  before the session is invalidated) replaces the redirect with one to the `end_session_endpoint` with `id_token_hint`,
+  sign-out `EventSubscriber\RpInitiatedLogoutSubscriber` (firewall `LogoutEvent`, priority 16: after the default target
+  and the multi-account sign-out, before the session is invalidated) replaces the redirect with one to the `end_session_endpoint` with `id_token_hint`,
   `client_id` and `post_logout_redirect_uri`. Deny by default: the hint is removed first and any doubt keeps the plain
   local sign-out (no user, another user, credential gone / disabled / opted out / other client id, endpoint no longer
-  public HTTPS, a sign-out answered with something else than a redirect, any error, logged by class only). No outbound
+  passing the rule below, a sign-out answered with something else than a redirect, any error, logged by class only). No outbound
   request at sign-out; the local sign-out always completes, so a provider that is down only affects the page the
   browser lands on. A host callback handler that signs the user in gets the same; one that signs nobody in (a linking
-  step) keeps no hint, so a user signed in later after the host's linking challenge gets a local-only sign-out.
+  step) keeps no new hint, so a user signed in later after the host's linking challenge gets a local-only sign-out.
+  Keeping the hint never breaks a completed sign-in: any failure (an identifier that is not UTF-8, a cache error) keeps
+  no hint and logs the exception class (audit ZDC-L2).
 - **`social_login.rp_logout.post_logout_redirect_uris`** (per profile, default `[]`): allow-list of same-origin paths or
   absolute http(s) URLs (no credentials, fragment, `//host` or backslash; checked at build time). The sign-out's own
   target when listed, else the first entry, else none. Never taken from the request.
 - **`end_session_endpoint` from discovery.** `OidcProviderMetadata::$endSessionEndpoint` (new optional last constructor
-  argument) and `OidcClient::endSessionEndpoint(SocialLoginCredential): ?string` (never throws). The endpoint passes
-  the same HTTPS / SSRF rules as the others, without fragment or credentials, at most 2048 characters; an absent or
-  unsafe one is dropped (null), so the discovery of a provider that worked in 2.7.0 never fails because of it. The
+  argument) and `OidcClient::endSessionEndpoint(SocialLoginCredential): ?string` (never throws). The endpoint must
+  pass `SocialLogin\Oidc\EndSessionEndpointRule` (audit ZDC-L1), at discovery and again at sign-out: HTTPS, at most
+  2048 characters, no credentials, fragment, control characters, white space or `"<>\^`{|}`, a host name with at least
+  two labels, or an IP literal only in canonical form and public (no `127.1`, `0x7f.0.0.1`, `[::1]`, `intranet`). An
+  absent or unsafe one is dropped (null), so the discovery of a provider that worked in 2.7.0 never fails because of it. The
   discovery cache key changes (`nowo_auth_kit.oidc.metadata.v2.`): each issuer is fetched once more after the upgrade.
 
 - **Per-mode passkey state texts.** `webauthn/_ceremony.html.twig` reads `webauthn.<mode>.state.<state>` first and

@@ -12,6 +12,7 @@ use Nowo\AuthKitBundle\SocialLogin\Pkce;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginStateStore;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginTestStart;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
+use Throwable;
 
 use function array_merge;
 use function base64_encode;
@@ -159,13 +160,14 @@ final class OidcClient
     /**
      * 2.8.0: the provider's RP-Initiated Logout endpoint (`end_session_endpoint` of its discovery document, through the
      * same cache and checks as the sign-in endpoints), or null when it publishes none, the credential is not an OIDC one
-     * or the discovery fails (never throws: RP-initiated logout is best effort and never blocks a sign-in).
+     * or the discovery or its cache fails (never throws: RP-initiated logout is best effort and never blocks a sign-in).
      */
     public function endSessionEndpoint(SocialLoginCredential $credential): ?string
     {
         try {
             return $this->discovery->metadata($this->catalog->resolve($credential)->issuer)->endSessionEndpoint;
-        } catch (OidcException) {
+        } catch (Throwable) {
+            // Audit ZDC-L2: a cache backend failure is no RP-initiated logout either, never an error.
             return null;
         }
     }

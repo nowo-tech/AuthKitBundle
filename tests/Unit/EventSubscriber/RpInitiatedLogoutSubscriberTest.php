@@ -46,7 +46,7 @@ final class RpInitiatedLogoutSubscriberTest extends TestCase
 
     public function testItRunsAfterTheDefaultTargetAndBeforeTheSessionIsInvalidated(): void
     {
-        self::assertSame([LogoutEvent::class => ['onLogout', 32]], RpInitiatedLogoutSubscriber::getSubscribedEvents());
+        self::assertSame([LogoutEvent::class => ['onLogout', 16]], RpInitiatedLogoutSubscriber::getSubscribedEvents());
     }
 
     public function testTheSignOutGoesToTheProviderWithTheHintClientAndAllowedRedirect(): void
@@ -117,9 +117,13 @@ final class RpInitiatedLogoutSubscriberTest extends TestCase
 
     public function testAnEndpointThatNoLongerPassesTheRulesOrAnyErrorIsLoggedAndKeepsTheLocalSignOut(): void
     {
-        $event = $this->event(new RpLogoutHint('okta', 'client-placeholder', 'ada@example.com', 'http://idp.example.com/logout', null));
-        $this->subscriber($this->credential(), ['/'])->onLogout($event);
-        self::assertSame('https://app.example.com/', $this->location($event));
+        // Audit ZDC-L1: the same rule as discovery, checked again at sign-out (no exception, nothing logged).
+        foreach (['http://idp.example.com/logout', 'https://127.1/logout', 'https://[::1]/logout', 'https://intranet/logout', "https://idp.example.com/logout\r\nX: y"] as $endpoint) {
+            $event = $this->event(new RpLogoutHint('okta', 'client-placeholder', 'ada@example.com', $endpoint, null));
+            $this->subscriber($this->credential(), ['/'])->onLogout($event);
+            self::assertSame('https://app.example.com/', $this->location($event), $endpoint);
+        }
+        self::assertCount(0, $this->logger->records);
 
         $credentials = $this->createStub(SocialLoginCredentialRepository::class);
         $credentials->method('findOneByProvider')->willThrowException(new RuntimeException('database down: secret detail'));
@@ -127,8 +131,7 @@ final class RpInitiatedLogoutSubscriberTest extends TestCase
         (new RpInitiatedLogoutSubscriber($this->hints, $credentials, ProfileRegistryFactory::requestResolver(TestUser::class), $this->logger))->onLogout($event);
         self::assertSame('https://app.example.com/', $this->location($event));
 
-        self::assertCount(2, $this->logger->records);
-        self::assertSame(['exception' => RuntimeException::class], $this->logger->records[1][1], 'The class only, never the message.');
+        self::assertSame([['AuthKit RP-initiated logout skipped; the local sign-out goes on.', ['exception' => RuntimeException::class]]], $this->logger->records, 'The class only, never the message.');
     }
 
     public function testANullResponseGetsTheProviderRedirect(): void

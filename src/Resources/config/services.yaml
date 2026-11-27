@@ -34,6 +34,7 @@ services:
             - '../../SocialLogin/Oidc/OidcProviderMetadata.php'
             - '../../SocialLogin/Oidc/OidcProviderSettings.php'
             # 2.8.0: RP-initiated logout value object and static helper (never services).
+            - '../../SocialLogin/Oidc/EndSessionEndpointRule.php'
             - '../../SocialLogin/Oidc/PostLogoutRedirectUri.php'
             - '../../SocialLogin/Oidc/RpLogoutHint.php'
             # 2.7.0: static helpers and an exception (never services).

@@ -232,10 +232,10 @@ nowo_auth_kit:
    `end_session_endpoint` (from its discovery document) and the ID token. A provider whose discovery publishes no
    `end_session_endpoint` (or an unsafe one) gets no hint; an ID token larger than 8 KiB is not kept (the sign-out then
    sends `client_id` only). A new social sign-in replaces or removes the hint. A handler that signs nobody in (a
-   linking step) keeps none: a user the host signs in later, after its own linking challenge (another request), gets a
+   linking step) keeps no new hint (a previous one stays bound to its own user): a user the host signs in later, after its own linking challenge (another request), gets a
    **local-only sign-out** in 2.8.0. A public helper to record the hint for such deferred sign-ins may come later.
-2. **Sign-out.** The firewall's logout runs as usual; on its `LogoutEvent` (after the default target, before the session
-   is invalidated) AuthKit removes the hint and, when the signed-in user is the one it was issued for and the credential
+2. **Sign-out.** The firewall's logout runs as usual; on its `LogoutEvent` (priority 16: after the default target and
+   the multi-account sign-out, whose chooser redirect it replaces; before the session is invalidated) AuthKit removes the hint and, when the signed-in user is the one it was issued for and the credential
    is still enabled, opted in and has the same client id, answers a redirect to
    `end_session_endpoint?id_token_hint=…&client_id=…&post_logout_redirect_uri=…`. The local session and token are gone
    either way, so a provider that is down only changes the page the browser lands on.
@@ -246,6 +246,19 @@ nowo_auth_kit:
 Who may opt a credential in is the host's decision: the `end_session_endpoint` comes from whoever controls the issuer.
 Let only platform administrators, or organization administrators of IdPs you trust, set `rp_initiated_logout`
 ([SECURITY.md](SECURITY.md#enterprise-oidc-270)).
+
+Recommendations:
+
+- Turn on `logout.enable_csrf` on the firewall: with RP-initiated logout a forged sign-out link also ends the IdP
+  session, and with `id_token_hint` many IdPs skip their own confirmation.
+- Relative allow-list entries (`/signed-out`) are resolved from the request's host: set `framework.trusted_hosts` (the
+  IdP still matches the value against the URIs registered for the client).
+- The sealed hint is up to about 15 KiB per session: fine for file, Redis or database session storage, too large for
+  cookie-based session handlers (do not opt credentials in there).
+
+Local-only sign-outs (no hint in that session): sessions restored by remember-me, impersonation (`switch_user`: the
+impersonated user is not the one the hint was issued for), the other accounts of a multi-account
+`logout_scope: all`, and deferred sign-ins after a host linking challenge.
 
 Not covered: deferred sign-ins after a host linking challenge (local-only sign-out, see 1.), OAuth2-only credentials (no ID token), front- or back-channel logout (the provider calling the
 application), and sign-outs answered with something other than a redirect (an API logout keeps its own answer).

@@ -5,7 +5,7 @@
 2. Entity `SocialLoginCredential::$rpInitiatedLogout` (attribute and XML mapping).
 3. `RpLogoutHint` (value object) and `RpLogoutSession` (sealed session storage, bounds).
 4. `SocialLoginCheckController`: after a callback that changed the token, replace or drop the hint.
-5. `RpInitiatedLogoutSubscriber` on `LogoutEvent` (priority 32) and `PostLogoutRedirectUri` (allow-list, build-time
+5. `RpInitiatedLogoutSubscriber` on `LogoutEvent` (priority 16, after the multi-account sign-out) and `PostLogoutRedirectUri` (allow-list, build-time
    validation of `social_login.rp_logout.post_logout_redirect_uris`).
 6. `EnterpriseSecretEncryptionGuard` (`onFlush`) and `EnterpriseSecretNotEncryptedException`;
    `doctrine.require_enterprise_secret_encryption`.
