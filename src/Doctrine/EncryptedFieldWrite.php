@@ -10,7 +10,7 @@ use function str_ends_with;
 use function strlen;
 
 /**
- * 2.8.1: tells a value change of an `#[Encrypted]` property from the encryption layer swapping its stored form.
+ * 2.9.0: tells a value change of an `#[Encrypted]` property from the encryption layer swapping its stored form.
  *
  * nowo-tech/doctrine-encrypt-bundle writes an encrypted property through its setter when there is one (its default
  * `property_access: auto`): the plaintext after a load (`postLoad`) and after a flush (`postFlush`), the stored

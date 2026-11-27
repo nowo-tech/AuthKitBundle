@@ -187,6 +187,11 @@ services:
             $timeout: '%nowo_auth_kit.http_client.timeout%'
             $maxDuration: '%nowo_auth_kit.http_client.max_duration%'
             $discoveryFailureTtl: '%nowo_auth_kit.oidc.discovery_failure_ttl%'
+            $trustedPrivateHosts: '%nowo_auth_kit.oidc.trusted_private_hosts%'
+
+    Nowo\AuthKitBundle\SocialLogin\Oidc\OidcHttpClient:
+        arguments:
+            $logger: '@?logger'
 
     Nowo\AuthKitBundle\SocialLogin\Oidc\HostResolverInterface:
         alias: Nowo\AuthKitBundle\SocialLogin\Oidc\DnsHostResolver

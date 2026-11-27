@@ -7,16 +7,20 @@ namespace Nowo\AuthKitBundle\SocialLogin\Oidc;
 use InvalidArgumentException;
 use JsonException;
 use Nowo\AuthKitBundle\SocialLogin\OAuthEndpointUrlValidator;
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 use function array_is_list;
 use function filter_var;
+use function in_array;
 use function is_array;
 use function json_decode;
 use function parse_url;
+use function rtrim;
 use function sprintf;
 use function strlen;
+use function strtolower;
 use function trim;
 
 use const FILTER_VALIDATE_IP;
@@ -33,6 +37,10 @@ use const PHP_URL_HOST;
  *   enforced while downloading, not after;
  * - JSON objects only.
  *
+ * 2.9.0: a host named in `oidc.trusted_private_hosts` (test environment only; the extension refuses the list anywhere
+ * else) may resolve to private or loopback addresses ({@see PublicIpChecker::isTrustablePrivate()}); the cloud metadata
+ * addresses and the other reserved ranges stay refused, IP literals are never exempt, and each use is logged at debug.
+ *
  * Stateless: everything comes from the arguments (REQ-RUNTIME-002).
  */
 final class OidcHttpClient
@@ -43,6 +51,7 @@ final class OidcHttpClient
         private readonly HostResolverInterface $resolver = new DnsHostResolver(),
         private readonly OAuthEndpointUrlValidator $urlValidator = new OAuthEndpointUrlValidator(),
         private readonly PublicIpChecker $ipChecker = new PublicIpChecker(),
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -132,10 +141,19 @@ final class OidcHttpClient
         if ($addresses === []) {
             throw new OidcException(OidcException::REASON_ENDPOINT, sprintf('the %s endpoint host does not resolve.', $label));
         }
+        $trusted  = $this->options->trustedPrivateHosts !== [] && in_array(strtolower(rtrim($host, '.')), $this->options->trustedPrivateHosts, true);
+        $exempted = false;
         foreach ($addresses as $ip) {
-            if (!$this->ipChecker->isPublic($ip)) {
+            if ($this->ipChecker->isPublic($ip)) {
+                continue;
+            }
+            if (!$trusted || !$this->ipChecker->isTrustablePrivate($ip)) {
                 throw new OidcException(OidcException::REASON_ENDPOINT, sprintf('the %s endpoint host resolves to a private or reserved address.', $label));
             }
+            $exempted = true;
+        }
+        if ($exempted) {
+            $this->logger?->debug('AuthKit OIDC: the {label} endpoint host "{host}" resolves to a private address, accepted through oidc.trusted_private_hosts (test environment only).', ['label' => $label, 'host' => $host, 'addresses' => $addresses]);
         }
 
         return ['host' => $host, 'ip' => $addresses[0]];

@@ -27,7 +27,7 @@ use function str_ends_with;
 use function substr;
 
 /**
- * 2.8.1: reading a row with an `#[Encrypted]` property never leaves the unit of work dirty. DoctrineEncrypt writes the
+ * 2.9.0: reading a row with an `#[Encrypted]` property never leaves the unit of work dirty. DoctrineEncrypt writes the
  * decrypted value (postLoad, postFlush) and the stored ciphertext (preFlush) through the entity's setter; those writes
  * used to stamp `updatedAt`, so a read row was scheduled for update (a host transaction runner refused the unit of
  * work) and every flush rewrote `updated_at`.

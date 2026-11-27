@@ -164,6 +164,7 @@ nowo_auth_kit:
         max_response_bytes: 524288  # 4 KiB..5 MiB — any discovery / JWKS / token / userinfo answer
         discovery_failure_ttl: 30   # s, 0..300 — a failed discovery is not retried meanwhile (negative cache, per issuer)
         cache_pool: cache.app       # a Symfony\Contracts\Cache\CacheInterface pool (shared by workers; symfony/cache comes with FrameworkBundle)
+        trusted_private_hosts: []   # 2.9.0, kernel.environment "test" only: exact host names that may resolve to private / loopback addresses (CONFIGURATION.md)
     http_client:                    # deadlines of every OAuth2 and OIDC request (unchanged)
         timeout: 10
         max_duration: 20

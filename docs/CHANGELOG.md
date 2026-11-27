@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
-- [[2.8.1] - Unreleased](#281---unreleased)
 - [[2.8.0] - 2026-11-27](#280---2026-11-27)
 - [[2.7.1] - 2026-11-27](#271---2026-11-27)
 - [[2.7.0] - 2026-11-27](#270---2026-11-27)
@@ -133,7 +132,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.8.1] - Unreleased
+Planned as **2.9.0** (minor: one test-only option, plus a fix). No BC break, nothing for hosts to do.
+
+### Added
+
+- **`oidc.trusted_private_hosts` (test environment only).** A list of exact host names (default `[]`) whose private or
+  loopback addresses the OpenID Connect fetches (discovery, JWKS, token, userinfo) accept, for a simulated identity
+  provider container in end-to-end tests. Until now such a host was always refused by the SSRF guard. Safeguards: the
+  option is honoured only when `kernel.environment` is `test`, and a non-empty list makes the container fail to compile
+  in any other environment; entries are exact host names compared case-insensitively (wildcards, IP addresses and
+  ranges, ports are refused); cloud metadata addresses (`169.254.0.0/16`, `fd00:ec2::254`) and every other reserved
+  range stay refused even for a listed host; IP literals are never exempt; HTTPS, pinning and no-redirects are
+  unchanged; each use is logged at debug. New `PublicIpChecker::isTrustablePrivate()` / `isMetadata()`;
+  `OidcHttpClient` takes an optional logger. See [CONFIGURATION.md](CONFIGURATION.md#openid-connect-providers-oidc).
 
 ### Fixed
 

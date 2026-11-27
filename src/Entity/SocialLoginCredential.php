@@ -240,7 +240,7 @@ class SocialLoginCredential
 
     public function setClientSecret(string $clientSecret): self
     {
-        // 2.8.1: the encryption layer writes the decrypted / stored form through this setter (a load, a flush); only
+        // 2.9.0: the encryption layer writes the decrypted / stored form through this setter (a load, a flush); only
         // a real change stamps updatedAt, so reading the row never leaves it dirty.
         $changed = EncryptedFieldWrite::changes($this->clientSecret, $clientSecret);
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
