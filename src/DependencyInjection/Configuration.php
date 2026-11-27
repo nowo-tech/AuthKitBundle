@@ -18,6 +18,7 @@ use Nowo\AuthKitBundle\Profile\ProfileSettings;
 use Nowo\AuthKitBundle\Routing\AbsoluteUrlGenerator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcOptions;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\PostLogoutRedirectUri;
 use Nowo\AuthKitBundle\SocialLogin\ProviderMarkResolver;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Symfony\Component\Config\Definition\Builder\ArrayNodeDefinition;
@@ -38,6 +39,7 @@ use function in_array;
 use function is_array;
 use function is_bool;
 use function is_string;
+use function json_encode;
 use function preg_match;
 use function sprintf;
 use function strtolower;
@@ -393,6 +395,10 @@ final class Configuration implements ConfigurationInterface
                             ->values([self::MAPPING_TYPE_ATTRIBUTE, self::MAPPING_TYPE_XML])
                             ->info('Since 1.46.0: attribute (default) or xml (src/Resources/config/doctrine-xml/*.orm.xml: the same tables, columns, indexes and constraints) of the mapping the bundle registers on the default manager when register_mapping resolves to true (it also replaces the attribute driver an auto_mapping default manager would add for Nowo\\AuthKitBundle\\Entity). A manager named by doctrine.entity_manager keeps the mapping the host gives it.')
                             ->defaultValue(self::MAPPING_TYPE_ATTRIBUTE)
+                        ->end()
+                        ->booleanNode('require_enterprise_secret_encryption')
+                            ->info('2.8.0 (fail closed): true refuses to insert or update an enterprise credential (enterprise_sso) holding a client secret unless nowo-tech/doctrine-encrypt-bundle encrypts on the entity manager that writes it (EnterpriseSecretNotEncryptedException, nothing written). Set false only for tests and demos.')
+                            ->defaultTrue()
                         ->end()
                         ->enumNode('register_mapping')
                             ->values([true, false, self::REGISTER_MAPPING_AUTO])
@@ -1366,6 +1372,29 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                     ->defaultValue([])
+                ->end()
+                ->arrayNode('rp_logout')
+                    ->info('2.8.0: OpenID Connect RP-Initiated Logout (per credential: rp_initiated_logout). A sign-out after a sign-in with such a credential also sends the browser to the provider\'s end_session_endpoint.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->arrayNode('post_logout_redirect_uris')
+                            ->info('Allow-list of the post_logout_redirect_uri sent to the provider: same-origin paths ("/", "/signed-out") or absolute http(s) URLs (register them at the provider). The sign-out\'s own target when listed, else the first entry; empty: none (the provider shows its own page). Never taken from the request.')
+                            ->scalarPrototype()->end()
+                            ->defaultValue([])
+                            ->validate()
+                                ->always()
+                                ->then(static function (array $uris): array {
+                                    foreach ($uris as $uri) {
+                                        if (($error = PostLogoutRedirectUri::entryError($uri)) !== null) {
+                                            throw new InvalidArgumentException(sprintf('Invalid "nowo_auth_kit.*.social_login.rp_logout.post_logout_redirect_uris" entry %s: use %s.', json_encode($uri), $error));
+                                        }
+                                    }
+
+                                    return array_values($uris);
+                                })
+                            ->end()
+                        ->end()
+                    ->end()
                 ->end()
                 ->arrayNode('provider_marks')
                     ->info('Per-provider brand mark of the login button, keyed by provider. Not listed: the mark the bundle ships for google / github / microsoft, none for any other provider. `false` (or an empty path) removes the mark; a string is the asset path of the host\'s own mark.')

@@ -44,10 +44,12 @@ final class InvitationsFollowupsTestKernel extends InvitationsHostApiTestKernel
         $container->loadFromExtension('twig', ['paths' => ['%kernel.project_dir%/tests/Integration/Invitation/templates/followups' => 'InvitationFollowups']]);
         $container->loadFromExtension('nowo_auth_kit', [
             'attempt_limiter' => ['cache_pool' => self::POOL],
-            'oidc'            => ['cache_pool' => 'test.oidc_cache'],
-            'social_login'    => ['mode' => 'enabled'],
-            'web_ui'          => ['templates' => ['invitation_accept' => '@InvitationFollowups/invitation_accept.html.twig']],
-            'invitations'     => [
+            // 2.8.0: the escape hatch for tests (an enterprise credential with a secret, no doctrine-encrypt-bundle).
+            'doctrine'     => ['require_enterprise_secret_encryption' => false],
+            'oidc'         => ['cache_pool' => 'test.oidc_cache'],
+            'social_login' => ['mode' => 'enabled'],
+            'web_ui'       => ['templates' => ['invitation_accept' => '@InvitationFollowups/invitation_accept.html.twig']],
+            'invitations'  => [
                 'invite_rate_limit' => 10,
                 'accept_rate_limit' => 20,
                 'batch'             => ['max_size' => 3, 'rate_limit' => 1],

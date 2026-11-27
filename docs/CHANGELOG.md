@@ -130,6 +130,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned as **2.8.0** (minor, Beacon spec 221 items 5 and 6: RP-initiated logout and enterprise client secrets fail
+closed). One nullable column, no BC break for credentials without `enterprise_sso` or without a client secret.
+
+### Added
+
+- **OpenID Connect RP-Initiated Logout 1.0.** Per credential, opt-in: `SocialLoginCredential::setRpInitiatedLogout(?bool)`
+  / `isRpInitiatedLogout()` (column `rp_initiated_logout BOOLEAN NULL`; null or false = local sign-out only, as before).
+  After a sign-in with such an OIDC credential, the session keeps a hint (`SocialLogin\Oidc\RpLogoutSession`, sealed
+  with XChaCha20-Poly1305 under a key derived from `kernel.secret`, never logged): the provider key and client id, the
+  signed-in user, the provider's `end_session_endpoint` and the ID token (at most 8 KiB, else `client_id` only). On
+  sign-out `EventSubscriber\RpInitiatedLogoutSubscriber` (firewall `LogoutEvent`, priority 32: after the default target,
+  before the session is invalidated) replaces the redirect with one to the `end_session_endpoint` with `id_token_hint`,
+  `client_id` and `post_logout_redirect_uri`. Deny by default: the hint is removed first and any doubt keeps the plain
+  local sign-out (no user, another user, credential gone / disabled / opted out / other client id, endpoint no longer
+  public HTTPS, a sign-out answered with something else than a redirect, any error, logged by class only). No outbound
+  request at sign-out; the local sign-out always completes, so a provider that is down only affects the page the
+  browser lands on. A host callback handler that signs the user in gets the same; one that signs nobody in (a linking
+  step) keeps no hint.
+- **`social_login.rp_logout.post_logout_redirect_uris`** (per profile, default `[]`): allow-list of same-origin paths or
+  absolute http(s) URLs (no credentials, fragment, `//host` or backslash; checked at build time). The sign-out's own
+  target when listed, else the first entry, else none. Never taken from the request.
+- **`end_session_endpoint` from discovery.** `OidcProviderMetadata::$endSessionEndpoint` (new optional last constructor
+  argument) and `OidcClient::endSessionEndpoint(SocialLoginCredential): ?string` (never throws). The endpoint passes
+  the same HTTPS / SSRF rules as the others, without fragment or credentials, at most 2048 characters; an absent or
+  unsafe one is dropped (null), so the discovery of a provider that worked in 2.7.0 never fails because of it. The
+  discovery cache key changes (`nowo_auth_kit.oidc.metadata.v2.`): each issuer is fetched once more after the upgrade.
+
+### Changed
+
+- **Enterprise client secrets fail closed.** New `doctrine.require_enterprise_secret_encryption` (default `true`):
+  `Doctrine\EnterpriseSecretEncryptionGuard` (`onFlush`) refuses to insert or update a credential with
+  `enterprise_sso` true and a non-empty client secret unless nowo-tech/doctrine-encrypt-bundle's listener is registered
+  on the entity manager being flushed and has an encryptor. It throws
+  `Doctrine\EnterpriseSecretNotEncryptedException` (a `LogicException` naming the provider, never the secret) before
+  the flush opens its transaction: nothing is written, the manager stays open. Consumer credentials and enterprise
+  credentials without a secret are not affected. `false` is for tests and demos only.
+
+### Documentation
+
+- [SSO.md](SSO.md#rp-initiated-logout-280), [SECURITY.md](SECURITY.md#social-login-client-secrets),
+  [CONFIGURATION.md](CONFIGURATION.md), [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md), UPGRADING (schema,
+  fail-closed secrets, and audit ZCX-v-I1: after an admin deletes a NULL-issuer link row, the next sign-in links again
+  by e-mail under the credential's policy; with `deny` the user needs the host's own re-link flow).
+
 ## [2.7.0] - 2026-11-27
 
 Planned as **2.7.0** (minor, Beacon spec 221 blocks 0 + A: enterprise OpenID Connect per organization). Four nullable

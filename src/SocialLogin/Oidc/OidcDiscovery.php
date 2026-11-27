@@ -12,8 +12,10 @@ use Symfony\Contracts\Cache\ItemInterface;
 use function hash;
 use function is_array;
 use function is_string;
+use function parse_url;
 use function rtrim;
 use function sprintf;
+use function strlen;
 
 /**
  * OpenID Connect Discovery 1.0 (2.3.0): `<issuer>/.well-known/openid-configuration`, fetched through the SSRF guard,
@@ -28,7 +30,11 @@ use function sprintf;
  */
 final class OidcDiscovery
 {
-    private const CACHE_PREFIX = 'nowo_auth_kit.oidc.metadata.';
+    /** 2.8.0: `v2` documents carry `end_session_endpoint`; a 2.7.0 entry (without it) is never read back. */
+    private const CACHE_PREFIX = 'nowo_auth_kit.oidc.metadata.v2.';
+
+    /** 2.8.0: longest optional endpoint kept (it is stored in the session with the RP-initiated logout hint). */
+    public const MAX_OPTIONAL_ENDPOINT_LENGTH = 2048;
 
     private const FAILURE_PREFIX = 'nowo_auth_kit.oidc.metadata_failed.';
 
@@ -128,7 +134,36 @@ final class OidcDiscovery
             $userinfo === null ? null : $this->endpoint($document, 'userinfo_endpoint'),
             $this->stringList($document['code_challenge_methods_supported'] ?? null),
             $this->stringList($document['token_endpoint_auth_methods_supported'] ?? null),
+            $this->optionalEndpoint($document, 'end_session_endpoint'),
         );
+    }
+
+    /**
+     * 2.8.0: an optional endpoint the sign-in does not need (`end_session_endpoint`). It passes the same HTTPS / SSRF
+     * rules as the others, without fragment or credentials; an absent, malformed or unsafe value is dropped (null: no RP-initiated logout), so it never
+     * fails a sign-in that worked in 2.7.0.
+     *
+     * @param array<string, mixed> $document
+     */
+    private function optionalEndpoint(array $document, string $name): ?string
+    {
+        $url = $document[$name] ?? null;
+        if (!is_string($url) || $url === '' || strlen($url) > self::MAX_OPTIONAL_ENDPOINT_LENGTH) {
+            return null;
+        }
+        // Parameters are appended to it, and the browser is sent there: no fragment, no credentials.
+        $parts = parse_url($url);
+        if ($parts === false || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])) {
+            return null;
+        }
+
+        try {
+            $this->urlValidator->assertSafeHttpsUrl($url, $name);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
+
+        return $url;
     }
 
     /**

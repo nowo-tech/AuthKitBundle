@@ -3,9 +3,12 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Schema: one nullable column](#schema-one-nullable-column)
+  - [Enterprise client secrets fail closed](#enterprise-client-secrets-fail-closed)
+  - [Behaviour that changes](#behaviour-that-changes)
 - [To 2.7.0](#to-270)
   - [Schema: four nullable columns](#schema-four-nullable-columns)
-  - [Behaviour that changes](#behaviour-that-changes)
+  - [Behaviour that changes](#behaviour-that-changes-1)
 - [To 2.6.0](#to-260)
   - [To 2.6.0](#to-260-1)
 - [To 2.5.0](#to-250)
@@ -17,7 +20,7 @@
 - [To 2.3.0](#to-230)
   - [Schema: three nullable columns](#schema-three-nullable-columns)
   - [New providers](#new-providers)
-  - [Behaviour that changes](#behaviour-that-changes-1)
+  - [Behaviour that changes](#behaviour-that-changes-2)
 - [To 2.2.1](#to-221)
 - [To 2.2.0](#to-220)
   - [Password reset: one link stores one password (REQ-RUNTIME-003)](#password-reset-one-link-stores-one-password-req-runtime-003)
@@ -187,6 +190,66 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+Planned as **2.8.0** (minor), from **2.7.x**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+OpenID Connect RP-initiated logout (opt-in per credential) and enterprise client secrets that are never written
+unencrypted. See [SSO.md](SSO.md#rp-initiated-logout-280).
+
+<a id="schema-one-nullable-column-280"></a>
+### Schema: one nullable column
+
+`auth_kit_social_credential` gains `rp_initiated_logout` (`BOOLEAN NULL`). Existing rows keep `NULL` (local sign-out
+only, as in 2.7.0).
+
+```bash
+php bin/console doctrine:migrations:diff   # then review and migrate
+```
+
+```sql
+-- MySQL / MariaDB
+ALTER TABLE auth_kit_social_credential ADD rp_initiated_logout TINYINT(1) DEFAULT NULL;
+-- PostgreSQL
+ALTER TABLE auth_kit_social_credential ADD rp_initiated_logout BOOLEAN DEFAULT NULL;
+-- SQLite
+ALTER TABLE auth_kit_social_credential ADD COLUMN rp_initiated_logout BOOLEAN DEFAULT NULL;
+```
+
+Use your table prefix (`doctrine.table_prefix`) when you set one. Migrate before switching traffic.
+
+<a id="enterprise-client-secrets-fail-closed-280"></a>
+### Enterprise client secrets fail closed
+
+With the default `doctrine.require_enterprise_secret_encryption: true`, inserting or updating a credential with
+`enterprise_sso` true **and** a non-empty client secret throws `Doctrine\EnterpriseSecretNotEncryptedException`
+(nothing is written) unless nowo-tech/doctrine-encrypt-bundle encrypts on the entity manager that writes
+`auth_kit_social_credential`: the bundle registered and configured (a key), its listener on that connection
+(`nowo_doctrine_encrypt.connections` empty or listing it). Nothing changes for applications without enterprise
+credentials, for consumer credentials (`enterprise_sso` false) or for enterprise credentials without a secret; rows
+already stored are only checked when they are written again.
+
+Before upgrading, if you store enterprise secrets without DoctrineEncrypt: install and configure it, then encrypt the
+existing rows (`php bin/console doctrine:encrypt:database`). Set the option to `false` only in tests and demos.
+
+<a id="behaviour-that-changes-280"></a>
+### Behaviour that changes
+
+- The discovery cache key changes (`nowo_auth_kit.oidc.metadata.v2.`): each issuer's document is fetched once more
+  after the upgrade, then cached as before.
+- `OidcProviderMetadata` takes an optional 8th constructor argument (`?string $endSessionEndpoint`) and `toArray()`
+  returns one more key, `end_session_endpoint`.
+- `SocialLoginCheckController` takes an optional last constructor argument (`?RpLogoutSession $rpLogout`); a host that
+  builds it itself gets no RP-initiated logout without it.
+- The session gains `_nowo_auth_kit_rp_logout` after an OIDC sign-in with an opted-in credential (sealed; removed on
+  sign-out, replaced or removed by the next social sign-in).
+- Audit ZCX-v-I1 (2.7.0 note): after you delete an `auth_kit_social_account` row with a NULL issuer, the next sign-in
+  with that provider links again by e-mail under the credential's `link_existing_account` (or the profile's). With
+  `deny` that sign-in is refused: re-link the user through your own linking flow (see
+  [SSO.md](SSO.md#link_existing_account-per-credential)).
 
 ## To 2.7.0
 

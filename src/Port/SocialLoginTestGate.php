@@ -46,7 +46,7 @@ final readonly class SocialLoginTestGate implements SocialCallbackHandlerInterfa
     /**
      * @throws LogicException when the handler asks for a sign-in
      */
-    public function handle(Request $request, SocialCallbackContext $context): Response
+    public function handle(Request $request, SocialCallbackContext $context): RedirectResponse
     {
         $result = $this->handler->handle($this->context($request), $context);
         if ($result->signIn instanceof AuthUserRef) {

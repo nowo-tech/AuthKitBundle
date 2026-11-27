@@ -21,6 +21,8 @@ use Nowo\AuthKitBundle\Security\ProgrammaticLoginAuthenticator;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcClient;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcException;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\RpLogoutHint;
+use Nowo\AuthKitBundle\SocialLogin\Oidc\RpLogoutSession;
 use Nowo\AuthKitBundle\SocialLogin\SocialAccountLinker;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackContext;
 use Nowo\AuthKitBundle\SocialLogin\SocialCallbackStepInterface;
@@ -41,6 +43,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Throwable;
 
@@ -57,6 +60,7 @@ final class SocialLoginCheckController
     /**
      * @param iterable<mixed> $callbackHandlers tagged `nowo_auth_kit.social_callback_handler` (either interface; checked at build time)
      * @param iterable<mixed> $testHandlers 2.7.0: tagged {@see SocialLoginTestHandlerInterface::TAG}
+     * @param RpLogoutSession|null $rpLogout 2.8.0: keeps the RP-initiated logout hint of an OIDC sign-in
      */
     public function __construct(
         private readonly SocialLoginGate $socialLoginGate,
@@ -75,6 +79,7 @@ final class SocialLoginCheckController
         private readonly ?OidcClient $oidcClient = null,
         private readonly ?SocialFormPostRelay $formPostRelay = null,
         private readonly iterable $testHandlers = [],
+        private readonly ?RpLogoutSession $rpLogout = null,
     ) {
     }
 
@@ -146,6 +151,8 @@ final class SocialLoginCheckController
             return $this->refused($request, $loginUrl, 'social.error.failed');
         }
 
+        $tokenBefore = $this->security->getToken();
+
         try {
             $redirectUri = $this->urlGenerator->generate(
                 $profile->routes['social_login_check']['name'],
@@ -184,12 +191,51 @@ final class SocialLoginCheckController
         }
 
         if ($handler instanceof SocialCallbackHandlerInterface) {
-            return $this->handled($request, $handler, new SocialCallbackContext($profile, $provider, $social, $tokens), $loginUrl, SocialCredentialPolicy::mfaRule($credential, $social));
+            $response = $this->handled($request, $handler, new SocialCallbackContext($profile, $provider, $social, $tokens), $loginUrl, SocialCredentialPolicy::mfaRule($credential, $social));
+            if (!$testing) {
+                $this->rememberRpLogout($request, $credential, $provider, $tokens['raw'], $tokenBefore);
+            }
+
+            return $response;
         }
+        $this->rememberRpLogout($request, $credential, $provider, $tokens['raw'], $tokenBefore);
 
         $target = $profile->loginSuccessRoute ?? $profile->routes['login']['name'];
 
         return new RedirectResponse($this->urlGenerator->generate($target));
+    }
+
+    /**
+     * 2.8.0: after a callback that signed someone in (the token changed: AuthKit's linker or a host handler, an MFA
+     * pending token included), the session's RP-initiated logout hint is replaced: kept for an OIDC credential with
+     * `rp_initiated_logout` whose provider publishes an `end_session_endpoint`, dropped otherwise. A callback that
+     * signed nobody in (refused, failed, test, a handler that answers a linking step) leaves the session as it was.
+     * Never blocks the sign-in: a discovery failure only means no RP-initiated logout.
+     *
+     * @param array<string, mixed> $tokenResponse the token endpoint's answer (`id_token` for OIDC)
+     */
+    private function rememberRpLogout(Request $request, SocialLoginCredential $credential, string $provider, array $tokenResponse, ?TokenInterface $tokenBefore): void
+    {
+        $token = $this->security->getToken();
+        if (!$this->rpLogout instanceof RpLogoutSession || !$token instanceof TokenInterface || $token === $tokenBefore || !$request->hasSession()) {
+            return;
+        }
+        $session = $request->getSession();
+        $idToken = $tokenResponse['id_token'] ?? null;
+        if (!$credential->isRpInitiatedLogout() || !is_string($idToken) || !$this->oidcClient instanceof OidcClient) {
+            $this->rpLogout->forget($session);
+
+            return;
+        }
+
+        // Null for an OAuth2 credential (its token answer is not a validated ID token), or no published endpoint.
+        $endpoint = $this->oidcClient->endSessionEndpoint($credential);
+        if ($endpoint === null) {
+            $this->rpLogout->forget($session);
+
+            return;
+        }
+        $this->rpLogout->remember($session, new RpLogoutHint($provider, $credential->getClientId(), $token->getUserIdentifier(), $endpoint, $idToken));
     }
 
     /**

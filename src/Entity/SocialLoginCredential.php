@@ -162,6 +162,14 @@ class SocialLoginCredential
     #[ORM\Column(name: 'mfa_accepted_amr', type: Types::JSON, nullable: true)]
     private ?array $mfaAcceptedAmr = null;
 
+    /**
+     * 2.8.0: OpenID Connect RP-Initiated Logout for sign-ins with this credential. true: signing out of the application
+     * also sends the browser to the provider's `end_session_endpoint` (after the local session is gone). Null (every
+     * row before 2.8.0) or false: local sign-out only.
+     */
+    #[ORM\Column(name: 'rp_initiated_logout', type: Types::BOOLEAN, nullable: true)]
+    private ?bool $rpInitiatedLogout = null;
+
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
 
@@ -529,6 +537,27 @@ class SocialLoginCredential
         $this->mfaFirstFactor = $policy;
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->mfaAcceptedAmr = $policy === self::MFA_EXEMPT_WHEN_AMR ? array_values(array_unique($acceptedAmr)) : null;
+        $this->touch();
+
+        return $this;
+    }
+
+    /**
+     * Whether a sign-out also ends the provider session (2.8.0, OpenID Connect providers only; false for every row
+     * before 2.8.0).
+     */
+    public function isRpInitiatedLogout(): bool
+    {
+        return $this->rpInitiatedLogout === true;
+    }
+
+    /**
+     * @param bool|null $enabled true: RP-initiated logout at the provider's `end_session_endpoint`; null or false: off
+     */
+    public function setRpInitiatedLogout(?bool $enabled): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->rpInitiatedLogout = $enabled;
         $this->touch();
 
         return $this;

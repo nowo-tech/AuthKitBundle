@@ -554,7 +554,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
         $markOverrides = $profile->socialLogin['provider_marks'] ?? [];
         $providers     = [];
         foreach ($this->socialCredentials?->findEnabledOrdered() ?? [] as $credential) {
-            if (!self::acceptsInvitations($credential, $profile)) {
+            if (!$this->acceptsInvitations($credential, $profile)) {
                 continue;
             }
             $provider    = $credential->getProvider();
@@ -579,7 +579,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
      * time; a credential's own deny (2.7.0) is checked here, at run time: the provider could not reach the accepted
      * account, so it is not offered for the acceptance.
      */
-    private static function acceptsInvitations(SocialLoginCredential $credential, ProfileSettings $profile): bool
+    private function acceptsInvitations(SocialLoginCredential $credential, ProfileSettings $profile): bool
     {
         return !$credential->isEnterpriseSso()
             && $credential->isListed()
@@ -589,7 +589,7 @@ final class InvitationAcceptController implements SocialCallbackHandlerInterface
     private function providerCredential(string $provider, ProfileSettings $profile): ?SocialLoginCredential
     {
         foreach ($this->socialCredentials?->findEnabledOrdered() ?? [] as $credential) {
-            if (self::acceptsInvitations($credential, $profile) && $credential->getProvider() === $provider) {
+            if ($this->acceptsInvitations($credential, $profile) && $credential->getProvider() === $provider) {
                 return $credential;
             }
         }
