@@ -9,7 +9,9 @@ use Nowo\AuthKitBundle\Mfa\MfaLoginCompleter;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+use function array_fill_keys;
 use function bin2hex;
+use function method_exists;
 use function random_bytes;
 
 /**
@@ -31,6 +33,16 @@ final class MfaPendingToken implements TokenInterface
 
     /** The user must enrol now (required, grace over). */
     public const MODE_SETUP = 'setup';
+
+    /**
+     * RFC 8176 methods recorded on the first factor's token when the second step passes (Symfony 8.2 authentication
+     * proofs, read by `IS_AUTHENTICATED_RECENTLY`). Every second step also records `mfa`.
+     */
+    private const SECOND_STEP_PROOFS = [
+        'totp'      => ['otp', 'mfa'],
+        'enrolment' => ['otp', 'mfa'],
+        'webauthn'  => ['hwk', 'mfa'],
+    ];
 
     /** @var array<string, mixed> */
     private array $attributes = [self::PENDING_ATTRIBUTE => true];
@@ -190,8 +202,46 @@ final class MfaPendingToken implements TokenInterface
     }
 
     /**
-     * @return array<int, mixed>
+     * Symfony 8.2 authentication proofs: none while the sign-in is pending, so the token never satisfies
+     * `IS_AUTHENTICATED_RECENTLY` before the second step.
+     *
+     * @return array<string, int>
      */
+    public function getAuthenticationProofs(): array
+    {
+        return [];
+    }
+
+    /**
+     * Symfony 8.2 records the first factor's proof here at login: it is kept on the wrapped token, which
+     * {@see self::completedWith()} restores, so the proof survives the second step. A no-op where the wrapped token
+     * has no proofs (Symfony < 8.2).
+     *
+     * @param array<string, int> $proofs
+     */
+    public function setAuthenticationProofs(array $proofs): void
+    {
+        if (method_exists($this->inner, 'setAuthenticationProofs')) {
+            $this->inner->setAuthenticationProofs($proofs);
+        }
+    }
+
+    /**
+     * Ends the pending state: records the second step's proof (Symfony 8.2+) on the first factor's token, at $at
+     * (Unix time), and returns that token for the firewall.
+     */
+    public function completedWith(string $method, int $at): TokenInterface
+    {
+        $inner = $this->inner;
+        if (method_exists($inner, 'setAuthenticationProofs') && method_exists($inner, 'getAuthenticationProofs')) {
+            /** @var array<string, int> $previous */
+            $previous = $inner->getAuthenticationProofs();
+            $inner->setAuthenticationProofs(array_fill_keys(self::SECOND_STEP_PROOFS[$method] ?? ['mfa'], $at) + $previous);
+        }
+
+        return $inner;
+    }
+
     /**
      * Nothing to erase (Symfony < 8 interface method; no-op).
      */

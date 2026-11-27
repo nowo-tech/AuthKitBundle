@@ -132,6 +132,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- PHP 8.6 support: `composer.json` allows `>=8.2 <8.7`; CI runs a PHP 8.6 cell and a Symfony 8.2 cell (release
+  candidate packages, allowed to fail until 8.2.0 is stable).
+- Symfony 8.2 authentication proofs on `MfaPendingToken`: `getAuthenticationProofs()` returns none while the sign-in is
+  pending (the token never satisfies `IS_AUTHENTICATED_RECENTLY`), `setAuthenticationProofs()` keeps the first
+  factor's proof on the wrapped token, and the second step records `otp` (TOTP), `hwk` (passkey) and `mfa` on the
+  restored token. Implementing both methods removes the Symfony 8.2 deprecation for tokens without them. On Symfony
+  7.4 to 8.1 nothing changes.
+
 ## [2.8.0] - 2026-11-27
 
 Planned as **2.8.0** (minor, Beacon spec 221 items 5 and 6: RP-initiated logout and enterprise client secrets fail

@@ -19,7 +19,7 @@
 
 ## Requirements
 
-- PHP `>=8.2` (<8.6)
+- PHP `>=8.2` (<8.7)
 - Symfony **7.4** or **8.x**
 - Doctrine ORM (user entity persistence)
 - `symfony/security-bundle`, `symfony/form`, `symfony/twig-bundle`, `symfony/translation`

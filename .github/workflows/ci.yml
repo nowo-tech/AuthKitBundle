@@ -101,6 +101,15 @@ jobs:
             symfony: '8.1'
           - php: '8.3'
             symfony: '8.1'
+        # Forward cells (Beacon targets PHP 8.6 and Symfony 8.2): PHP 8.6 on the current Symfony, and Symfony 8.2 on
+        # PHP 8.5. Symfony 8.2 is a release candidate until 8.2.0 ships: the cell takes RC packages and may fail
+        # without failing the run (continue-on-error below); drop both once 8.2.0 is stable.
+        include:
+          - php: '8.6'
+            symfony: '8.1'
+          - php: '8.5'
+            symfony: '8.2'
+    continue-on-error: ${{ matrix.symfony == '8.2' }}
 
     env:
       HEAVY: ${{ needs.changes.outputs.mode != 'light' || (matrix.php == '8.5' && matrix.symfony == '8.1') }}
@@ -117,11 +126,23 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: json
-          coverage: pcov
+          coverage: ${{ matrix.php == '8.6' && 'none' || 'pcov' }}
           tools: composer:v2
 
       - run: composer validate --strict
         if: env.HEAVY == 'true'
+
+      # The nowo-tech packages this bundle requires cap PHP below 8.6 until their next releases: the PHP 8.6 cell
+      # ignores only the upper PHP bound of the dependencies (php+), never an extension requirement.
+      - name: PHP 8.6 - ignore the dependencies' upper PHP bound
+        if: env.HEAVY == 'true' && matrix.php == '8.6'
+        run: echo "COMPOSER_IGNORE_PLATFORM_REQ=php+" >> "$GITHUB_ENV"
+
+      - name: Symfony 8.2 - allow release candidates
+        if: env.HEAVY == 'true' && matrix.symfony == '8.2'
+        run: |
+          composer config minimum-stability RC
+          composer config prefer-stable true
 
       - name: Install dependencies
         if: env.HEAVY == 'true'
