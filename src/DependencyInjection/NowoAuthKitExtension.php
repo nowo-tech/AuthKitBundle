@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\DependencyInjection;
 
 use InvalidArgumentException;
+use LogicException;
 use Nowo\AuthKitBundle\Availability\FeatureAvailability;
 use Nowo\AuthKitBundle\Command\PurgeInvitationsCommand;
 use Nowo\AuthKitBundle\Config\FieldConfigNormalizer;
@@ -93,6 +94,7 @@ use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataEraser;
 use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataExportProvider;
 use Nowo\AuthKitBundle\Webauthn\WebauthnErasure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnStore;
+use OneLogin\Saml2\Auth;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExportProviderInterface;
@@ -345,6 +347,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         $this->registerMfa($container, $profiles, $loader, is_array($bundles) ? $bundles : null);
         $this->registerMultiAccount($container, $profiles, $loader);
         $this->registerWebauthn($container, $profiles, $loader);
+        $this->registerSaml($profiles, $loader);
         $this->registerPersonalDataPorts($container, $config['personal_data']);
         $this->registerPersonalDataErasers($container, $registerMapping, $config['personal_data']['enabled'] === true);
         $container->registerForAutoconfiguration(SocialCallbackStepInterface::class)->addTag('nowo_auth_kit.social_callback_handler');
@@ -952,7 +955,7 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
         }
 
         if ($registerMapping === false && $needed) {
-            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode, invitations.mode and webauthn.mode to be "disabled", mfa.enabled / multi_account.enabled false and password_reset.storage "user_entity" in every profile (their entities would not be mapped).');
+            throw new InvalidArgumentException('"nowo_auth_kit.doctrine.register_mapping: false" requires social_login.mode, qr_login.mode, invitations.mode, webauthn.mode and saml.mode to be "disabled", mfa.enabled / multi_account.enabled false and password_reset.storage "user_entity" in every profile (their entities would not be mapped).');
         }
 
         return (bool) $registerMapping;
@@ -983,6 +986,9 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 }
             }
             if (is_array($profile['webauthn'] ?? null) && ($profile['webauthn']['mode'] ?? null) === WebauthnConfiguration::MODE_ENABLED) {
+                return true;
+            }
+            if (is_array($profile['saml'] ?? null) && ($profile['saml']['mode'] ?? null) === SamlConfiguration::MODE_ENABLED) {
                 return true;
             }
         }
@@ -1268,6 +1274,27 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
                 ->setAutowired(true)
                 ->setPublic(true)
                 ->addTag('controller.service_arguments');
+        }
+    }
+
+    /**
+     * SAML 2.0 SP sign-in (2.10.0): with at least one `saml.mode: enabled` profile, loads `saml.yaml`. The library is
+     * optional for the bundle and required by the feature: the build fails with the command to run without it.
+     *
+     * @param array<string, array<string, mixed>> $profiles
+     */
+    private function registerSaml(array $profiles, YamlFileLoader $loader): void
+    {
+        foreach ($profiles as $name => $profile) {
+            if (($profile['saml']['mode'] ?? SamlConfiguration::MODE_DISABLED) !== SamlConfiguration::MODE_ENABLED) {
+                continue;
+            }
+            if (!class_exists(Auth::class)) {
+                throw new LogicException(sprintf('NowoAuthKitBundle: profiles.%s.saml requires onelogin/php-saml. Run "composer require onelogin/php-saml:^4.6", or disable SAML.', $name)); // @codeCoverageIgnore
+            }
+            $loader->load('saml.yaml');
+
+            return;
         }
     }
 

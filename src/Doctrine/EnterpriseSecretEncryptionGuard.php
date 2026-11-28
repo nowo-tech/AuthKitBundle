@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Doctrine;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Doctrine\ORM\Events;
+use Nowo\AuthKitBundle\Entity\SamlProvider;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\DoctrineEncryptBundle\Encryptors\EncryptorInterface;
 use Nowo\DoctrineEncryptBundle\Subscribers\DoctrineEncryptSubscriber;
@@ -17,6 +18,8 @@ use Nowo\DoctrineEncryptBundle\Subscribers\DoctrineEncryptSubscriber;
  * registered for `onFlush` on that manager's event manager and has an encryptor (the `#[Encrypted]` client secret is
  * then written encrypted). Thrown from `onFlush`, before the flush opens its transaction: nothing is written and the
  * manager stays open.
+ *
+ * 2.10.0: the same for a SAML provider row holding an SP private key (current or next slot, `#[Encrypted]`).
  *
  * Consumer credentials (`enterprise_sso` false) and enterprise credentials without a secret (public clients) are not
  * affected. Turned off only by `nowo_auth_kit.doctrine.require_enterprise_secret_encryption: false` (tests and demos).
@@ -32,6 +35,9 @@ final class EnterpriseSecretEncryptionGuard
             foreach ($entities as $entity) {
                 if ($entity instanceof SocialLoginCredential && $entity->isEnterpriseSso() && $entity->getClientSecret() !== '' && !self::encrypts($em)) {
                     throw EnterpriseSecretNotEncryptedException::forProvider($entity->getProvider());
+                }
+                if ($entity instanceof SamlProvider && ($entity->getSpPrivateKey() ?? $entity->getSpNextPrivateKey()) !== null && !self::encrypts($em)) {
+                    throw EnterpriseSecretNotEncryptedException::forSamlProvider($entity->getProvider());
                 }
             }
         }

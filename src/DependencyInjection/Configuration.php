@@ -194,6 +194,7 @@ final class Configuration implements ConfigurationInterface
         'mfa',
         'multi_account',
         'webauthn',
+        'saml',
         'routes',
         'firewall',
         'login_success_route',
@@ -601,6 +602,7 @@ final class Configuration implements ConfigurationInterface
                             ->append(MfaConfiguration::createNode())
                             ->append(MultiAccountConfiguration::createNode())
                             ->append(WebauthnConfiguration::createNode())
+                            ->append(SamlConfiguration::createNode())
                             ->append($this->createRoutesNode())
                             ->scalarNode('firewall')
                                 ->info('Symfony firewall name where form_login should point (documented for security.yaml).')

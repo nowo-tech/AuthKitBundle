@@ -38,6 +38,7 @@ final readonly class ProfileSettings
      * @param array<string, mixed> $mfa `mfa` node (1.34; empty = disabled)
      * @param array<string, mixed> $multiAccount `multi_account` node (1.34; empty = disabled)
      * @param array<string, mixed> $webauthn `webauthn` node (2.4.0; empty = disabled)
+     * @param array<string, mixed> $saml `saml` node (2.10.0; empty = disabled)
      */
     public function __construct(
         public string $name,
@@ -69,7 +70,16 @@ final readonly class ProfileSettings
         public array $mfa = [],
         public array $multiAccount = [],
         public array $webauthn = [],
+        public array $saml = [],
     ) {
+    }
+
+    /**
+     * Whether `saml.mode` is `enabled` (2.10.0).
+     */
+    public function samlEnabled(): bool
+    {
+        return ($this->saml['mode'] ?? 'disabled') === 'enabled';
     }
 
     /**
@@ -257,6 +267,7 @@ final readonly class ProfileSettings
             mfa: $config['mfa'] ?? [],
             multiAccount: $config['multi_account'] ?? [],
             webauthn: $config['webauthn'] ?? [],
+            saml: $config['saml'] ?? [],
         );
     }
 }

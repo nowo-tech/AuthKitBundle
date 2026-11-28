@@ -17,7 +17,7 @@ use function sys_get_temp_dir;
  * The OIDC kernel plus a host test handler (autoconfigured) and a host "Test sign-in" route (2.7.0), with
  * nowo-tech/doctrine-encrypt-bundle encrypting the client secrets (2.8.0: required for enterprise credentials).
  */
-final class EnterpriseOidcTestKernel extends OidcTestKernel
+class EnterpriseOidcTestKernel extends OidcTestKernel
 {
     public function registerBundles(): iterable
     {

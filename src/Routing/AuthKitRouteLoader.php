@@ -34,6 +34,8 @@ use Nowo\AuthKitBundle\Mfa\Controller\MfaAdminController;
 use Nowo\AuthKitBundle\Mfa\Controller\MfaChallengeController;
 use Nowo\AuthKitBundle\MultiAccount\Controller\AccountsController;
 use Nowo\AuthKitBundle\Profile\RequestProfileResolver;
+use Nowo\AuthKitBundle\Saml\Controller\SamlLoginController;
+use Nowo\AuthKitBundle\Saml\Controller\SamlMetadataController;
 use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnAccountController;
 use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnLoginController;
 use Nowo\AuthKitBundle\Webauthn\Controller\WebauthnMfaController;
@@ -198,6 +200,22 @@ final class AuthKitRouteLoader extends Loader
             $this->addControllerRoute($collection, $webauthnRoutes['register'], WebauthnAccountController::class, 'register', $profileDefaults);
             $this->addControllerRoute($collection, $webauthnRoutes['rename'], WebauthnAccountController::class, 'rename', $profileDefaults);
             $this->addControllerRoute($collection, $webauthnRoutes['delete'], WebauthnAccountController::class, 'delete', $profileDefaults);
+        }
+
+        // SAML (2.10.0): opt-in, registered only with saml.mode: enabled. Never localized: the ACS and metadata URLs are
+        // registered at the identity provider and must not change with the visitor's locale.
+        if (($profile['saml']['mode'] ?? 'disabled') === 'enabled') {
+            /** @var array<string, array{path: string, name: string}> $samlRoutes */
+            $samlRoutes = $profile['saml']['routes'];
+            foreach ([['start', SamlLoginController::class, 'start'], ['acs', SamlLoginController::class, 'acs'], ['metadata', SamlMetadataController::class, 'metadata']] as [$key, $controller, $action]) {
+                $attribute = self::routeAttribute($controller, $action);
+                $collection->add($samlRoutes[$key]['name'], $this->createBareRoute(
+                    $samlRoutes[$key]['path'],
+                    ['_controller' => $controller . '::' . $action] + $profileDefaults,
+                    array_values($attribute->methods),
+                    ['provider' => SamlLoginController::PROVIDER_REQUIREMENT],
+                ));
+            }
         }
 
         // MFA (1.34): opt-in, registered only with mfa.enabled; the admin reset page only with mfa.admin.routes.

@@ -51,6 +51,8 @@ services:
             - '../../PersonalData/'
             # 2.4.0: webauthn.yaml registers the passkey services only with webauthn.mode: enabled.
             - '../../Webauthn/'
+            # 2.10.0: saml.yaml registers the SAML services only with saml.mode: enabled.
+            - '../../Saml/'
             # 1.44: registered by NowoAuthKitExtension::registerLoginTarget() from the login_target / session_expired config.
             - '../../Security/LoginTarget/'
             - '../../Security/SessionExpired/'

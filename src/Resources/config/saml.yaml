@@ -1,0 +1,44 @@
+# SAML 2.0 Service Provider sign-in (2.10.0). Loaded only when a profile sets saml.mode: enabled
+# (NowoAuthKitExtension::registerSaml(), which also fails the build without onelogin/php-saml). The provider table and
+# its repository are mapped / registered with the other AuthKit entities, also while this file is not loaded.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: false
+        public: false
+
+    Nowo\AuthKitBundle\Saml\SamlSettingsFactory: ~
+    Nowo\AuthKitBundle\Saml\SamlRequestStore: ~
+    Nowo\AuthKitBundle\Saml\SamlUrls: ~
+    Nowo\AuthKitBundle\Saml\SamlResponseValidator: ~
+    Nowo\AuthKitBundle\Saml\SamlProfileMapper: ~
+    Nowo\AuthKitBundle\Saml\SamlPostRelay: ~
+    Nowo\AuthKitBundle\Saml\SamlLoginStart: ~
+
+    # Public API for hosts: test sign-in, SP key pairs, IdP metadata import, SP metadata.
+    Nowo\AuthKitBundle\Saml\SamlTestStart:
+        public: true
+        arguments:
+            $testHandlers: !tagged_iterator nowo_auth_kit.social_test_handler
+    Nowo\AuthKitBundle\Saml\SamlSpKeyGenerator:
+        public: true
+    Nowo\AuthKitBundle\Saml\SamlIdpMetadataImporter:
+        public: true
+    Nowo\AuthKitBundle\Saml\SamlSpMetadata:
+        public: true
+
+    Nowo\AuthKitBundle\Saml\Controller\SamlLoginController:
+        public: true
+        tags: [controller.service_arguments]
+        arguments:
+            $callbackHandlers: !tagged_iterator nowo_auth_kit.social_callback_handler
+            $testHandlers: !tagged_iterator nowo_auth_kit.social_test_handler
+            $logger: '@?logger'
+            $dispatcher: '@?event_dispatcher'
+            $rpLogout: '@?Nowo\AuthKitBundle\SocialLogin\Oidc\RpLogoutSession'
+
+    Nowo\AuthKitBundle\Saml\Controller\SamlMetadataController:
+        public: true
+        tags: [controller.service_arguments]
+        arguments:
+            $logger: '@?logger'

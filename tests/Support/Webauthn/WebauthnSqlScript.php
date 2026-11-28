@@ -29,7 +29,8 @@ use function str_contains;
 use function trim;
 
 /**
- * The shipped passkey SQL scripts (2.4.0, `src/Resources/sql/webauthn/<platform>.{up,down}.sql`) for the tests: the
+ * The shipped passkey SQL scripts (2.4.0, `src/Resources/sql/webauthn/<platform>.{up,down}.sql`; 2.10.0: also the SAML
+ * provider scripts of `src/Resources/sql/saml/`, with `$feature` / `$table` = `saml`) for the tests: the
  * statements of a script, the script of a connection's platform, and the schema differences left for the passkey
  * table once it ran.
  */
@@ -51,9 +52,9 @@ final class WebauthnSqlScript
     /**
      * Runs a script on the connection.
      */
-    public static function run(Connection $connection, string $direction): void
+    public static function run(Connection $connection, string $direction, string $feature = 'webauthn'): void
     {
-        foreach (self::statements(self::platform($connection), $direction) as $statement) {
+        foreach (self::statements(self::platform($connection), $direction, $feature) as $statement) {
             $connection->executeStatement($statement);
         }
     }
@@ -61,9 +62,9 @@ final class WebauthnSqlScript
     /**
      * @return list<string>
      */
-    public static function statements(string $platform, string $direction): array
+    public static function statements(string $platform, string $direction, string $feature = 'webauthn'): array
     {
-        $sql = (string) file_get_contents(dirname(__DIR__, 3) . '/src/Resources/sql/webauthn/' . $platform . '.' . $direction . '.sql');
+        $sql = (string) file_get_contents(dirname(__DIR__, 3) . '/src/Resources/sql/' . $feature . '/' . $platform . '.' . $direction . '.sql');
         $sql = (string) preg_replace('/^--.*$/m', '', $sql);
 
         return array_values(array_filter(array_map(trim(...), explode(";\n", $sql)), static fn (string $statement): bool => $statement !== ''));
@@ -72,11 +73,11 @@ final class WebauthnSqlScript
     /**
      * The statements the schema tool still wants for the passkey table (none when the script matches the mapping).
      */
-    public static function differences(EntityManagerInterface $em): string
+    public static function differences(EntityManagerInterface $em, string $table = 'webauthn'): string
     {
         $sql = array_values(array_filter(
             (new SchemaTool($em))->getUpdateSchemaSql($em->getMetadataFactory()->getAllMetadata()),
-            static fn (string $statement): bool => str_contains($statement, 'webauthn'),
+            static fn (string $statement): bool => str_contains($statement, $table),
         ));
         if (method_exists(Type::class, 'requiresSQLCommentHint')) {
             // DBAL 3 only: its `(DC2Type:…)` column comments (and, on PostgreSQL, the type restatement that comes with

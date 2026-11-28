@@ -9,6 +9,7 @@ use DateInterval;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Nowo\AuthKitBundle\Doctrine\EntityManagerRecovery;
+use Nowo\AuthKitBundle\Entity\SamlProvider;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Enum\RegistrationMode;
 use Nowo\AuthKitBundle\Port\Internal\UserFactoryInterface;
@@ -18,8 +19,10 @@ use Nowo\AuthKitBundle\Port\UserCreatorGate;
 use Nowo\AuthKitBundle\Port\UserDirectoryGate;
 use Nowo\AuthKitBundle\Port\UserStoreGate;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use Nowo\AuthKitBundle\Repository\SamlProviderRepository;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
+use Nowo\AuthKitBundle\Saml\SamlProviderPolicy;
 use Nowo\AuthKitBundle\Security\ExactIdentifier;
 use Nowo\AuthKitBundle\Security\RegistrationGate;
 use Nowo\AuthKitBundle\Security\UserIdentifierMatcher;
@@ -48,6 +51,9 @@ use function is_int;
 use function is_string;
 use function random_bytes;
 use function sprintf;
+use function str_starts_with;
+use function strlen;
+use function substr;
 
 /**
  * Resolves or creates the application user and persists social account credentials. Users are looked up, built and
@@ -81,6 +87,7 @@ final class SocialAccountLinker
         private readonly ?EntityManagerInterface $privateEntityManager = null,
         ?AuthKitTransactionRunner $transactions = null,
         private readonly ?SocialLoginCredentialRepository $credentials = null,
+        private readonly ?SamlProviderRepository $samlProviders = null,
     ) {
         $this->transactions = $transactions ?? new AuthKitTransactionRunner($privateEntityManager ?? $entityManager, $entityManager);
         $this->userLookup   = $userLookup ?? new UserDirectoryGate(new DoctrineUserLookup($entityManager, $this->identifierMatcher));
@@ -351,7 +358,10 @@ final class SocialAccountLinker
     private function linkExistingAccount(ProfileSettings $profile, string $provider, UserInterface $user, array &$events): UserInterface
     {
         // 2.7.0: the provider credential's own policy wins over the profile's (every caller, host handlers included).
-        $policy = SocialCredentialPolicy::linkExistingAccount($this->credentials?->findOneByProvider($provider), $profile);
+        // 2.10.0: a SAML identity (`saml:<key>`) takes its provider row's policy; no row (or no repository): deny.
+        $policy = str_starts_with($provider, SamlProvider::ACCOUNT_PROVIDER_PREFIX)
+            ? SamlProviderPolicy::linkExistingAccount($this->samlProviders?->findOneByProvider(substr($provider, strlen(SamlProvider::ACCOUNT_PROVIDER_PREFIX))), $profile)
+            : SocialCredentialPolicy::linkExistingAccount($this->credentials?->findOneByProvider($provider), $profile);
 
         if ($policy === 'deny') {
             throw new RuntimeException('A local account already uses this email address: sign in with it (link_existing_account is deny).');

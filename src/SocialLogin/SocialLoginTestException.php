@@ -22,7 +22,10 @@ final class SocialLoginTestException extends RuntimeException
     /** No credential with this provider key. */
     public const REASON_UNKNOWN_PROVIDER = 'unknown_provider';
 
-    /** The provider could not be reached or described (OpenID Connect discovery failed). */
+    /** 2.10.0: `saml.mode` is not `enabled` for the profile ({@see \Nowo\AuthKitBundle\Saml\SamlTestStart}). */
+    public const REASON_SAML_DISABLED = 'saml_disabled';
+
+    /** The provider could not be reached or described (OpenID Connect discovery failed; 2.10.0: an incomplete SAML row). */
     public const REASON_PROVIDER = 'provider';
 
     public function __construct(

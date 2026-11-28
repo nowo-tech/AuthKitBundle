@@ -23,6 +23,7 @@ use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Entity\MfaRecoveryCode;
 use Nowo\AuthKitBundle\Entity\MfaTrustedDevice;
 use Nowo\AuthKitBundle\Entity\QrLoginChallenge;
+use Nowo\AuthKitBundle\Entity\SamlProvider;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
 use Nowo\AuthKitBundle\Entity\WebauthnCredential;
@@ -62,6 +63,7 @@ final class XmlMappingParityTest extends TestCase
         MfaTrustedDevice::class,
         PasswordResetRequest::class,
         QrLoginChallenge::class,
+        SamlProvider::class,
         SocialLoginAccount::class,
         SocialLoginCredential::class,
         WebauthnCredential::class,
@@ -107,7 +109,7 @@ final class XmlMappingParityTest extends TestCase
         $from      = (new SchemaTool($attribute))->getSchemaFromMetadata($attribute->getMetadataFactory()->getAllMetadata());
         $to        = (new SchemaTool($xml))->getSchemaFromMetadata($xml->getMetadataFactory()->getAllMetadata());
 
-        self::assertCount(10, $xml->getMetadataFactory()->getAllMetadata());
+        self::assertCount(11, $xml->getMetadataFactory()->getAllMetadata());
         $schemaManager = $attribute->getConnection()->createSchemaManager();
         $comparator    = class_exists(ComparatorConfig::class) ? $schemaManager->createComparator((new ComparatorConfig())->withReportModifiedIndexes(false)) : $schemaManager->createComparator();
         self::assertTrue($comparator->compareSchemas($from, $to)->isEmpty());
@@ -116,7 +118,7 @@ final class XmlMappingParityTest extends TestCase
     #[Test]
     public function theEncryptedFieldsKeepTheirAttribute(): void
     {
-        foreach ([[MfaCredential::class, 'totpSecret'], [SocialLoginAccount::class, 'accessToken'], [SocialLoginAccount::class, 'refreshToken'], [SocialLoginCredential::class, 'clientSecret']] as [$class, $property]) {
+        foreach ([[MfaCredential::class, 'totpSecret'], [SocialLoginAccount::class, 'accessToken'], [SocialLoginAccount::class, 'refreshToken'], [SocialLoginCredential::class, 'clientSecret'], [SamlProvider::class, 'spPrivateKey'], [SamlProvider::class, 'spCertificate'], [SamlProvider::class, 'spNextPrivateKey'], [SamlProvider::class, 'spNextCertificate']] as [$class, $property]) {
             self::assertCount(1, (new ReflectionProperty($class, $property))->getAttributes(Encrypted::class), $class . '::$' . $property);
         }
     }
