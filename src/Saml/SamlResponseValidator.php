@@ -23,6 +23,8 @@ use function base64_decode;
 use function in_array;
 use function is_array;
 use function is_string;
+use function libxml_clear_errors;
+use function libxml_use_internal_errors;
 use function strlen;
 use function strtolower;
 use function trim;
@@ -142,6 +144,9 @@ final class SamlResponseValidator
      */
     private function libraryCheck(SamlProvider $provider, string $samlResponse, string $requestId, string $acsUrl, string $spEntityId, string $slot): array
     {
+        // Malformed XML from the network is a refusal, never a PHP warning (process-wide flag, restored in finally).
+        $internalErrors = libxml_use_internal_errors(true);
+
         try {
             $response = new Response($this->settingsFactory->create($provider, $spEntityId, $acsUrl, $slot), $samlResponse);
             if ($response->isValid($requestId)) {
@@ -150,9 +155,12 @@ final class SamlResponseValidator
             $error = $response->getErrorException();
         } catch (Throwable $exception) {
             $error = $exception;
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($internalErrors);
         }
 
-        return [null, new SamlFailure(self::reasonOf($error), 'The SAML response was refused by the protocol checks.')];
+        return [null, new SamlFailure($this->reasonOf($error), 'The SAML response was refused by the protocol checks.')];
     }
 
     /**
@@ -170,22 +178,22 @@ final class SamlResponseValidator
             // Defence in depth: the library refused such a document.
             throw new SamlFailure(SamlFailure::MALFORMED); // @codeCoverageIgnore
         }
-        $xpath = self::xpath($document);
+        $xpath = $this->xpath($document);
 
         foreach ([$original, $document] as $checked) {
-            foreach (self::nodes(self::xpath($checked), '//ds:SignatureMethod/@Algorithm | //ds:DigestMethod/@Algorithm') as $algorithm) {
+            foreach ($this->nodes($this->xpath($checked), '//ds:SignatureMethod/@Algorithm | //ds:DigestMethod/@Algorithm') as $algorithm) {
                 if (in_array(strtolower(trim($algorithm->textContent)), self::SHA1_ALGORITHMS, true)) {
                     throw new SamlFailure(SamlFailure::SIGNATURE, 'SHA-1 signatures and digests are refused.');
                 }
             }
         }
         // Re-checks of what the library enforced already (defence in depth: a library change must not open them).
-        $originalPath = self::xpath($original);
+        $originalPath = $this->xpath($original);
         if ((int) $originalPath->evaluate('count(//saml:Assertion) + count(//saml:EncryptedAssertion)') !== 1 || (int) $xpath->evaluate('count(//saml:Assertion)') !== 1) {
             // Defence in depth: also refused by the library.
             throw new SamlFailure(SamlFailure::SIGNATURE, 'The response must hold exactly one assertion.'); // @codeCoverageIgnore
         }
-        $assertion = self::nodes($xpath, '/samlp:Response/saml:Assertion')[0] ?? null;
+        $assertion = $this->nodes($xpath, '/samlp:Response/saml:Assertion')[0] ?? null;
         if (!$assertion instanceof DOMElement) {
             // Defence in depth: also refused by the library.
             throw new SamlFailure(SamlFailure::SIGNATURE, 'The assertion is not a child of the response.'); // @codeCoverageIgnore
@@ -204,9 +212,9 @@ final class SamlResponseValidator
         if ($root->getAttribute('Destination') !== $acsUrl) {
             throw new SamlFailure(SamlFailure::DESTINATION, 'The response Destination is not this ACS.');
         }
-        $idpEntityId = $provider->getIdpEntityId();
+        $idpEntityId     = $provider->getIdpEntityId();
         $assertionIssuer = null;
-        foreach (self::nodes($xpath, '/samlp:Response/saml:Issuer | /samlp:Response/saml:Assertion/saml:Issuer') as $issuer) {
+        foreach ($this->nodes($xpath, '/samlp:Response/saml:Issuer | /samlp:Response/saml:Assertion/saml:Issuer') as $issuer) {
             if (trim($issuer->textContent) !== $idpEntityId) {
                 // Defence in depth: also refused by the library.
                 throw new SamlFailure(SamlFailure::ISSUER, 'An issuer is not the configured identity provider.'); // @codeCoverageIgnore
@@ -223,8 +231,8 @@ final class SamlResponseValidator
         $now = $this->clock->now()->getTimestamp();
         $this->checkSubjectConfirmation($xpath, $assertion, $requestId, $acsUrl, $now, $clockSkew);
         $this->checkConditions($xpath, $assertion, $spEntityId, $now, $clockSkew);
-        foreach (self::nodes($xpath, 'saml:AuthnStatement/@SessionNotOnOrAfter', $assertion) as $sessionEnd) {
-            if (self::time($sessionEnd->textContent) + $clockSkew <= $now) {
+        foreach ($this->nodes($xpath, 'saml:AuthnStatement/@SessionNotOnOrAfter', $assertion) as $sessionEnd) {
+            if ($this->time($sessionEnd->textContent) + $clockSkew <= $now) {
                 throw new SamlFailure(SamlFailure::TIMING, 'The IdP session of the assertion has ended.');
             }
         }
@@ -239,7 +247,7 @@ final class SamlResponseValidator
             throw new SamlFailure(SamlFailure::MALFORMED, 'The assertion subject or attributes cannot be read.');
         }
         $contexts = [];
-        foreach (self::nodes($xpath, 'saml:AuthnStatement/saml:AuthnContext/saml:AuthnContextClassRef', $assertion) as $context) {
+        foreach ($this->nodes($xpath, 'saml:AuthnStatement/saml:AuthnContext/saml:AuthnContextClassRef', $assertion) as $context) {
             $value = trim($context->textContent);
             if ($value !== '' && !in_array($value, $contexts, true)) {
                 $contexts[] = $value;
@@ -252,8 +260,8 @@ final class SamlResponseValidator
             is_string($nameId) && $nameId !== '' ? $nameId : null,
             is_string($format) && $format !== '' ? $format : null,
             is_string($session) && $session !== '' ? $session : null,
-            self::stringLists($attributes),
-            self::stringLists($friendly),
+            $this->stringLists($attributes),
+            $this->stringLists($friendly),
             $contexts,
             $assertionId !== '' ? $assertionId : null,
         );
@@ -264,14 +272,14 @@ final class SamlResponseValidator
      */
     private function checkSubjectConfirmation(DOMXPath $xpath, DOMElement $assertion, string $requestId, string $acsUrl, int $now, int $clockSkew): void
     {
-        foreach (self::nodes($xpath, 'saml:Subject/saml:SubjectConfirmation[@Method="' . Constants::CM_BEARER . '"]/saml:SubjectConfirmationData', $assertion) as $data) {
+        foreach ($this->nodes($xpath, 'saml:Subject/saml:SubjectConfirmation[@Method="' . Constants::CM_BEARER . '"]/saml:SubjectConfirmationData', $assertion) as $data) {
             if (!$data instanceof DOMElement || $data->getAttribute('InResponseTo') !== $requestId || $data->getAttribute('Recipient') !== $acsUrl || !$data->hasAttribute('NotOnOrAfter')) {
                 continue;
             }
-            if (self::time($data->getAttribute('NotOnOrAfter')) + $clockSkew <= $now) {
+            if ($this->time($data->getAttribute('NotOnOrAfter')) + $clockSkew <= $now) {
                 continue;
             }
-            if ($data->hasAttribute('NotBefore') && self::time($data->getAttribute('NotBefore')) > $now + $clockSkew) {
+            if ($data->hasAttribute('NotBefore') && $this->time($data->getAttribute('NotBefore')) > $now + $clockSkew) {
                 continue;
             }
 
@@ -286,25 +294,25 @@ final class SamlResponseValidator
      */
     private function checkConditions(DOMXPath $xpath, DOMElement $assertion, string $spEntityId, int $now, int $clockSkew): void
     {
-        $conditions = self::nodes($xpath, 'saml:Conditions', $assertion)[0] ?? null;
+        $conditions = $this->nodes($xpath, 'saml:Conditions', $assertion)[0] ?? null;
         if (!$conditions instanceof DOMElement) {
             // Defence in depth: also refused by the library.
             throw new SamlFailure(SamlFailure::TIMING, 'The assertion has no conditions.'); // @codeCoverageIgnore
         }
-        if ($conditions->hasAttribute('NotBefore') && self::time($conditions->getAttribute('NotBefore')) > $now + $clockSkew) {
+        if ($conditions->hasAttribute('NotBefore') && $this->time($conditions->getAttribute('NotBefore')) > $now + $clockSkew) {
             throw new SamlFailure(SamlFailure::TIMING, 'The assertion is not valid yet.');
         }
-        if ($conditions->hasAttribute('NotOnOrAfter') && self::time($conditions->getAttribute('NotOnOrAfter')) + $clockSkew <= $now) {
+        if ($conditions->hasAttribute('NotOnOrAfter') && $this->time($conditions->getAttribute('NotOnOrAfter')) + $clockSkew <= $now) {
             throw new SamlFailure(SamlFailure::TIMING, 'The assertion has expired.');
         }
-        $restrictions = self::nodes($xpath, 'saml:AudienceRestriction', $conditions);
+        $restrictions = $this->nodes($xpath, 'saml:AudienceRestriction', $conditions);
         if ($restrictions === []) {
             throw new SamlFailure(SamlFailure::AUDIENCE, 'The assertion names no audience.');
         }
         // Every AudienceRestriction must name this SP (SAML core 2.5.1.4: the conditions are ANDed).
         foreach ($restrictions as $restriction) {
             $named = false;
-            foreach (self::nodes($xpath, 'saml:Audience', $restriction) as $audience) {
+            foreach ($this->nodes($xpath, 'saml:Audience', $restriction) as $audience) {
                 $named = $named || trim($audience->textContent) === $spEntityId;
             }
             if (!$named) {
@@ -318,14 +326,15 @@ final class SamlResponseValidator
      *
      * @throws SamlFailure
      */
-    private static function time(string $value): int
+    private function time(string $value): int
     {
         try {
             return (int) Utils::parseSAML2Time(trim($value));
+            // @codeCoverageIgnoreStart (defence in depth: the library parsed every time first)
         } catch (Throwable) {
-            // Defence in depth: the library parsed every time first.
-            throw new SamlFailure(SamlFailure::MALFORMED, 'A time of the assertion cannot be read.'); // @codeCoverageIgnore
+            throw new SamlFailure(SamlFailure::MALFORMED, 'A time of the assertion cannot be read.');
         }
+        // @codeCoverageIgnoreEnd
     }
 
     /**
@@ -333,7 +342,7 @@ final class SamlResponseValidator
      *
      * @return list<DOMNode>
      */
-    private static function nodes(DOMXPath $xpath, string $expression, ?DOMNode $context = null): array
+    private function nodes(DOMXPath $xpath, string $expression, ?DOMNode $context = null): array
     {
         $nodes = [];
         foreach ($xpath->query($expression, $context) ?: [] as $node) {
@@ -345,7 +354,7 @@ final class SamlResponseValidator
         return $nodes;
     }
 
-    private static function xpath(DOMDocument $document): DOMXPath
+    private function xpath(DOMDocument $document): DOMXPath
     {
         $xpath = new DOMXPath($document);
         $xpath->registerNamespace('samlp', Constants::NS_SAMLP);
@@ -360,7 +369,7 @@ final class SamlResponseValidator
      *
      * @return array<string, list<string>>
      */
-    private static function stringLists(array $attributes): array
+    private function stringLists(array $attributes): array
     {
         $lists = [];
         foreach ($attributes as $name => $values) {
@@ -374,7 +383,7 @@ final class SamlResponseValidator
     /**
      * The reason code of a library refusal (its message, which quotes values, is dropped).
      */
-    private static function reasonOf(?Throwable $error): string
+    private function reasonOf(?Throwable $error): string
     {
         if ($error instanceof Error) {
             // The library refused the row's settings (a misconfigured provider).

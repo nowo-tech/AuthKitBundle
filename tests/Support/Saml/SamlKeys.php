@@ -24,14 +24,14 @@ use const OPENSSL_KEYTYPE_RSA;
 final class SamlKeys
 {
     /** @var array<string, array{key: string, cert: string}> */
-    private static array $pairs = [];
+    private static array $pairs = []; // @phpstan-ignore frankenphp.worker.noMutableStaticProperty (test-only cache of throwaway keys)
 
     /**
      * @return array{key: string, cert: string} PEM private key and certificate of a named throwaway pair
      */
     public static function pair(string $name, int $days = 365): array
     {
-        return self::$pairs[$name . ':' . $days] ??= self::generate($name, $days);
+        return self::$pairs[$name . ':' . $days] ??= self::generate($name, $days); // @phpstan-ignore frankenphp.worker.noMutableStaticProperty (test-only cache)
     }
 
     /**

@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Saml;
 
 use DateTimeImmutable;
+use Nowo\AuthKitBundle\Entity\SamlProvider;
 use SensitiveParameter;
 
 /**
- * A generated SP key pair (2.10.0): PEM private key (secret: store it only through {@see \Nowo\AuthKitBundle\Entity\SamlProvider}
+ * A generated SP key pair (2.10.0): PEM private key (secret: store it only through {@see SamlProvider}
  * setters, never log or display it) and its self-signed certificate.
  */
 final readonly class SamlSpKeyPair

@@ -1,7 +1,7 @@
 # Feature Specification: SAML 2.0 Service Provider sign-in
 
 **Feature Branch**: `011-saml-sp` (`feat/2.10.0-saml-sp`)  
-**Status**: Contract (target v2.10.0, unreleased)  
+**Status**: Implemented (target v2.10.0, unreleased)  
 **Package**: `nowo-tech/auth-kit-bundle`  
 **Data**: new table `auth_kit_saml_provider`; linked identities reuse `auth_kit_social_account` (provider `saml:<key>`)  
 **Library**: `onelogin/php-saml` `^4.6` (optional: `suggest` + `conflict <4.6`; required only when a profile enables SAML)  
@@ -75,17 +75,17 @@ The host queries `idp_certificate_not_after`, `idp_next_certificate_not_after`, 
 | `enabled` | bool, default false | a new row signs nobody in until enabled (deny by default) |
 | `idp_entity_id` | varchar(512) | the only accepted `Issuer` |
 | `idp_sso_url` | varchar(512) | `https://` only; HTTP-Redirect binding |
-| `idp_certificate` | text | PEM, plain |
-| `idp_certificate_sha256` | char(64) | lowercase hex SHA-256 of the DER |
-| `idp_certificate_not_before` / `_not_after` | datetime_immutable | from the certificate |
+| `idp_certificate` | text null | PEM, plain (null until set) |
+| `idp_certificate_sha256` | varchar(64) null | lowercase hex SHA-256 of the DER |
+| `idp_certificate_not_before` / `_not_after` | datetime_immutable null | from the certificate |
 | `idp_next_certificate` (+ `_sha256`, `_not_before`, `_not_after`) | nullable | second accepted signing certificate (rollover) |
 | `sp_entity_id` | varchar(512) null | null = the absolute metadata URL |
-| `sp_private_key` / `sp_certificate` | text, `#[Encrypted]` | current SP pair (signs AuthnRequests, decrypts assertions) |
-| `sp_certificate_not_after` | datetime_immutable | plain copy for SQL |
+| `sp_private_key` / `sp_certificate` | text null, `#[Encrypted]` | current SP pair (signs AuthnRequests, decrypts assertions) |
+| `sp_certificate_not_after` | datetime_immutable null | plain copy for SQL |
 | `sp_next_private_key` / `sp_next_certificate` | text null, `#[Encrypted]` | next pair (published, decrypts) |
 | `sp_next_certificate_not_after` | datetime_immutable null | |
 | `name_id_format` | varchar(128) null | requested `NameIDPolicy/@Format`; null = unspecified |
-| `attribute_mapping` | json | keys `subject`, `email`, `first_name`, `last_name`, `display_name`, `groups` → attribute names (`Name` or `FriendlyName`) |
+| `attribute_mapping` | json null | keys `subject`, `email`, `first_name`, `last_name`, `display_name`, `groups` → attribute names (`Name` or `FriendlyName`) |
 | `email_verified` | bool, default false | true: the IdP is authoritative for the asserted e-mail (it counts as `email_verified`) |
 | `want_encrypted_assertions` | bool, default false | true refuses plain assertions |
 | `link_existing_account` | varchar(16) null | `reset_password` / `deny` / `keep`; null = the profile's `social_login.link_existing_account`; unknown = `deny` |
@@ -124,14 +124,15 @@ profile without `onelogin/php-saml` fails with a clear message.
 - `SamlIdpMetadataImporter::import(SamlProvider, string $xml, ?string $entityId = null): void` — entity id, HTTP-Redirect
   SSO URL and up to two signing certificates from IdP metadata XML (the host fetches the document; no URL fetch in
   2.10.0).
-- `SamlSpMetadata::build(SamlProvider, Request): string` — the metadata XML.
+- `SamlSpMetadata::build(SamlProvider, ProfileSettings): string` — the metadata XML.
 - `SamlProvider::setIdpCertificates()`, `setSpKeyPair()`, `setNextSpKeyPair()`, `promoteNextSpKeyPair()`.
 - `SamlProviderRepository::findOneByProvider()`, `findByScope()`.
 
 ### Event
 
-`Nowo\AuthKitBundle\Saml\Event\SamlResponseRejectedEvent` (`profile`, `provider`, `reason`): every refused ACS request
-that matched a pending request of this session, and every unsolicited response. Carries no assertion data.
+`Nowo\AuthKitBundle\Saml\Event\SamlResponseRejectedEvent` (`profile`, `provider`, `reason`): every refused relayed ACS
+request (unsolicited and crafted ones included; never the first, cross-site POST that is only relayed). Carries no
+assertion data.
 
 ### Reason codes (`SamlFailure`)
 
@@ -148,7 +149,7 @@ that matched a pending request of this session, and every unsolicited response. 
   to the login success route, or to the login page with a flash; lock conflicts while linking → 409 `CONFLICT_001` +
   `Retry-After` (or `CONFLICT_002` once part was committed) through `StorageFailureSubscriber`; the host EM is never
   cleared, reset or closed.
-- metadata: 200 XML for an existing row (enabled or not, so it can be set up before enabling), 404 otherwise.
+- metadata: 200 XML for an existing complete row (enabled or not, so it can be set up before enabling), 404 otherwise.
 
 ## Security rules
 

@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.10.0](#to-2100)
 - [To 2.9.0](#to-290)
 - [To 2.8.0](#to-280)
   - [Schema: one nullable column](#schema-one-nullable-column)
@@ -193,6 +194,29 @@
 - [Future upgrades](#future-upgrades)
 
 ## Unreleased
+
+## To 2.10.0
+
+Planned as **2.10.0** (minor), from **2.9.x**:
+
+```bash
+composer update nowo-tech/auth-kit-bundle
+```
+
+SAML 2.0 Service Provider sign-in, opt-in (`saml.mode: disabled` by default; nothing changes until a profile enables
+it). See [SAML.md](SAML.md).
+
+The entities now include `SamlProvider`: with the AuthKit entities mapped, `doctrine:migrations:diff` proposes the new
+table `auth_kit_saml_provider` (create it even when SAML stays off, as the other AuthKit tables). The shipped scripts
+are in `src/Resources/sql/saml/<platform>.up.sql` (MySQL 8.0+, MariaDB 10.5+, PostgreSQL 12+, SQLite; with
+`doctrine.table_prefix`, prefix the table and index names), and `<platform>.down.sql` removes it.
+
+To use SAML: `composer require onelogin/php-saml:^4.6`, set `saml.mode: enabled` on the profile, keep
+nowo-tech/doctrine-encrypt-bundle encrypting on the entity manager (the SP private keys are refused otherwise while
+`doctrine.require_enterprise_secret_encryption` is true), allow `^/login/saml` and `^/saml/` anonymously in
+`security.yaml`, set `absolute_url.base_uri`, then create a provider row per identity provider. SAML sign-ins follow the
+profile's `social_login.create_user_if_missing`, `require_verified_email` and `link_existing_account` (the row's own
+`link_existing_account` wins); host `SocialCallbackStepInterface` steps see the provider as `saml:<key>`.
 
 ## To 2.9.0
 

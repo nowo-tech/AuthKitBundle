@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Support\Saml;
 
 use DOMDocument;
 use DOMElement;
+use DOMNode;
 use OneLogin\Saml2\Constants;
 use RobRichards\XMLSecLibs\XMLSecEnc;
 use RobRichards\XMLSecLibs\XMLSecurityDSig;
@@ -132,7 +133,7 @@ final class SamlResponseBuilder
         }
         $imported = new DOMDocument();
         $imported->loadXML($assertion);
-        $assertionNode = $document->importNode($imported->documentElement, true);
+        $assertionNode = $document->importNode($imported->documentElement ?? throw new RuntimeException('No assertion.'), true);
         if ($this->encryptForCertificate !== null) {
             $root->appendChild($this->encrypted($document, $assertionNode));
         } elseif ($this->nestInExtensions) {
@@ -145,7 +146,7 @@ final class SamlResponseBuilder
         if ($this->wrap) {
             $evil = new DOMDocument();
             $evil->loadXML(str_replace(['subject-1', 'ada@example.com', '_assertion-'], ['attacker', 'eve@example.com', '_evil-'], $this->assertionXml($now)));
-            $root->insertBefore($document->importNode($evil->documentElement, true), $root->lastChild);
+            $root->insertBefore($document->importNode($evil->documentElement ?? throw new RuntimeException('No assertion.'), true), $root->lastChild);
         }
         $xml = (string) $document->saveXML($root);
         if ($this->sign === 'response' || $this->sign === 'both') {
@@ -161,7 +162,7 @@ final class SamlResponseBuilder
         $inResponse  = $this->responseInResponseTo ?? $this->requestId;
         $inResponse  = $inResponse === '' ? '' : ' InResponseTo="' . htmlspecialchars($inResponse) . '"';
 
-        return '<samlp:Response xmlns:samlp="' . Constants::NS_SAMLP . '" xmlns:saml="' . Constants::NS_SAML . '" ID="_response-' . bin2hex(random_bytes(8)) . '" Version="2.0" IssueInstant="' . self::time($now) . '"' . $destination . $inResponse . '>'
+        return '<samlp:Response xmlns:samlp="' . Constants::NS_SAMLP . '" xmlns:saml="' . Constants::NS_SAML . '" ID="_response-' . bin2hex(random_bytes(8)) . '" Version="2.0" IssueInstant="' . $this->time($now) . '"' . $destination . $inResponse . '>'
             . '<saml:Issuer>' . htmlspecialchars($this->responseIssuer ?? $this->idpEntityId) . '</saml:Issuer>'
             . '<samlp:Status><samlp:StatusCode Value="' . htmlspecialchars($this->status) . '"/></samlp:Status>'
             . '</samlp:Response>';
@@ -176,7 +177,7 @@ final class SamlResponseBuilder
         }
         $subjectInResponse = $this->subjectInResponseTo ?? $this->requestId;
         $attributes        = '';
-        $attributeList = [];
+        $attributeList     = [];
         foreach ($this->attributes as $name => $values) {
             $attributeList[] = [$name, $values];
         }
@@ -190,22 +191,22 @@ final class SamlResponseBuilder
             }
             $attributes .= '</saml:Attribute>';
         }
-        $session  = $this->sessionNotOnOrAfter !== null ? ' SessionNotOnOrAfter="' . self::time($now + $this->sessionNotOnOrAfter) . '"' : '';
+        $session  = $this->sessionNotOnOrAfter !== null ? ' SessionNotOnOrAfter="' . $this->time($now + $this->sessionNotOnOrAfter) . '"' : '';
         $audience = $this->omitAudience ? '' : '<saml:AudienceRestriction><saml:Audience>' . htmlspecialchars($this->audience ?? $this->spEntityId) . '</saml:Audience></saml:AudienceRestriction>';
         if ($this->foreignAudienceRestriction) {
             $audience .= '<saml:AudienceRestriction><saml:Audience>https://other-sp.example.com</saml:Audience></saml:AudienceRestriction>';
         }
-        $subjectTimes = ($this->omitSubjectNotOnOrAfter ? '' : ' NotOnOrAfter="' . self::time($now + $this->notOnOrAfter) . '"')
-            . ($this->subjectNotBefore !== null ? ' NotBefore="' . self::time($now + $this->subjectNotBefore) . '"' : '');
+        $subjectTimes = ($this->omitSubjectNotOnOrAfter ? '' : ' NotOnOrAfter="' . $this->time($now + $this->notOnOrAfter) . '"')
+            . ($this->subjectNotBefore !== null ? ' NotBefore="' . $this->time($now + $this->subjectNotBefore) . '"' : '');
 
-        return '<saml:Assertion xmlns:saml="' . Constants::NS_SAML . '" xmlns:xs="http://www.w3.org/2001/XMLSchema" ID="_assertion-' . bin2hex(random_bytes(8)) . '" Version="2.0" IssueInstant="' . self::time($now) . '">'
+        return '<saml:Assertion xmlns:saml="' . Constants::NS_SAML . '" xmlns:xs="http://www.w3.org/2001/XMLSchema" ID="_assertion-' . bin2hex(random_bytes(8)) . '" Version="2.0" IssueInstant="' . $this->time($now) . '">'
             . '<saml:Issuer>' . htmlspecialchars($this->assertionIssuer ?? $this->idpEntityId) . '</saml:Issuer>'
             . '<saml:Subject>' . $nameId
             . '<saml:SubjectConfirmation Method="' . Constants::CM_BEARER . '"><saml:SubjectConfirmationData' . $subjectTimes . ' Recipient="' . htmlspecialchars($this->recipient ?? $this->acsUrl) . '"'
             . ($subjectInResponse === '' ? '' : ' InResponseTo="' . htmlspecialchars($subjectInResponse) . '"') . '/></saml:SubjectConfirmation>'
             . '</saml:Subject>'
-            . '<saml:Conditions NotBefore="' . self::time($now + $this->notBefore) . '" NotOnOrAfter="' . self::time($now + ($this->conditionsNotOnOrAfter ?? $this->notOnOrAfter)) . '">' . $audience . '</saml:Conditions>'
-            . '<saml:AuthnStatement AuthnInstant="' . self::time($now) . '" SessionIndex="_session-1"' . $session . '><saml:AuthnContext><saml:AuthnContextClassRef>' . htmlspecialchars($this->authnContext) . '</saml:AuthnContextClassRef></saml:AuthnContext></saml:AuthnStatement>'
+            . '<saml:Conditions NotBefore="' . $this->time($now + $this->notBefore) . '" NotOnOrAfter="' . $this->time($now + ($this->conditionsNotOnOrAfter ?? $this->notOnOrAfter)) . '">' . $audience . '</saml:Conditions>'
+            . '<saml:AuthnStatement AuthnInstant="' . $this->time($now) . '" SessionIndex="_session-1"' . $session . '><saml:AuthnContext><saml:AuthnContextClassRef>' . htmlspecialchars($this->authnContext) . '</saml:AuthnContextClassRef></saml:AuthnContext></saml:AuthnStatement>'
             . ($attributes !== '' ? '<saml:AttributeStatement>' . $attributes . '</saml:AttributeStatement>' : '')
             . '</saml:Assertion>';
     }
@@ -235,7 +236,7 @@ final class SamlResponseBuilder
         return (string) $document->saveXML($root);
     }
 
-    private function encrypted(DOMDocument $document, \DOMNode $assertion): DOMElement
+    private function encrypted(DOMDocument $document, DOMNode $assertion): DOMElement
     {
         $wrapper = $document->createElementNS(Constants::NS_SAML, 'saml:EncryptedAssertion');
         $wrapper->appendChild($assertion);
@@ -254,7 +255,7 @@ final class SamlResponseBuilder
         return $wrapper;
     }
 
-    private static function time(int $timestamp): string
+    private function time(int $timestamp): string
     {
         return gmdate('Y-m-d\TH:i:s\Z', $timestamp);
     }

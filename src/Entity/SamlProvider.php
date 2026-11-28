@@ -183,8 +183,10 @@ class SamlProvider
 
     public function __construct()
     {
-        $now             = new DateTimeImmutable();
+        $now = new DateTimeImmutable();
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->createdAt = $now;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->updatedAt = $now;
     }
 
@@ -284,7 +286,7 @@ class SamlProvider
     public function setIdpEntityId(string $entityId): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->idpEntityId = self::entityId($entityId, 'IdP entity id');
+        $this->idpEntityId = $this->entityId($entityId, 'IdP entity id');
         $this->touch();
 
         return $this;
@@ -326,14 +328,21 @@ class SamlProvider
             throw new InvalidArgumentException('The second IdP certificate is the same as the first one.');
         }
         // @igor-ignore - Doctrine entity fields; instance-scoped, not a shared service.
-        $this->idpCertificate              = $certificate->pem;
-        $this->idpCertificateSha256        = $certificate->sha256;
-        $this->idpCertificateNotBefore     = $certificate->notBefore;
-        $this->idpCertificateNotAfter      = $certificate->notAfter;
-        $this->idpNextCertificate          = $second?->pem;
-        $this->idpNextCertificateSha256    = $second?->sha256;
+        $this->idpCertificate = $certificate->pem;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->idpCertificateSha256 = $certificate->sha256;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->idpCertificateNotBefore = $certificate->notBefore;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->idpCertificateNotAfter = $certificate->notAfter;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->idpNextCertificate = $second?->pem;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->idpNextCertificateSha256 = $second?->sha256;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->idpNextCertificateNotBefore = $second?->notBefore;
-        $this->idpNextCertificateNotAfter  = $second?->notAfter;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->idpNextCertificateNotAfter = $second?->notAfter;
         $this->touch();
 
         return $this;
@@ -407,7 +416,7 @@ class SamlProvider
     public function setSpEntityId(?string $entityId): self
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
-        $this->spEntityId = $entityId === null ? null : self::entityId($entityId, 'SP entity id');
+        $this->spEntityId = $entityId === null ? null : $this->entityId($entityId, 'SP entity id');
         $this->touch();
 
         return $this;
@@ -420,11 +429,13 @@ class SamlProvider
      */
     public function setSpKeyPair(string $privateKeyPem, string $certificatePem): self
     {
-        $certificate = self::keyPair($privateKeyPem, $certificatePem);
+        $certificate = $this->keyPair($privateKeyPem, $certificatePem);
         $changed     = EncryptedFieldWrite::changes($this->spPrivateKey, $privateKeyPem) || EncryptedFieldWrite::changes($this->spCertificate, $certificate->pem);
         // @igor-ignore - Doctrine entity fields; instance-scoped, not a shared service.
-        $this->spPrivateKey          = $privateKeyPem;
-        $this->spCertificate         = $certificate->pem;
+        $this->spPrivateKey = $privateKeyPem;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->spCertificate = $certificate->pem;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->spCertificateNotAfter = $certificate->notAfter;
         if ($changed) {
             $this->touch();
@@ -445,10 +456,12 @@ class SamlProvider
         if (($privateKeyPem === null) !== ($certificatePem === null)) {
             throw new InvalidArgumentException('The next SP key pair needs both the private key and its certificate (or neither).');
         }
-        $certificate = $privateKeyPem !== null && $certificatePem !== null ? self::keyPair($privateKeyPem, $certificatePem) : null;
+        $certificate = $privateKeyPem !== null && $certificatePem !== null ? $this->keyPair($privateKeyPem, $certificatePem) : null;
         // @igor-ignore - Doctrine entity fields; instance-scoped, not a shared service.
-        $this->spNextPrivateKey          = $privateKeyPem;
-        $this->spNextCertificate         = $certificate?->pem;
+        $this->spNextPrivateKey = $privateKeyPem;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->spNextCertificate = $certificate?->pem;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->spNextCertificateNotAfter = $certificate?->notAfter;
         $this->touch();
 
@@ -466,11 +479,16 @@ class SamlProvider
             throw new LogicException('There is no next SP key pair to promote.');
         }
         // @igor-ignore - Doctrine entity fields; instance-scoped, not a shared service.
-        $this->spPrivateKey              = $this->spNextPrivateKey;
-        $this->spCertificate             = $this->spNextCertificate;
-        $this->spCertificateNotAfter     = $this->spNextCertificateNotAfter;
-        $this->spNextPrivateKey          = null;
-        $this->spNextCertificate         = null;
+        $this->spPrivateKey = $this->spNextPrivateKey;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->spCertificate = $this->spNextCertificate;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->spCertificateNotAfter = $this->spNextCertificateNotAfter;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->spNextPrivateKey = null;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->spNextCertificate = null;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->spNextCertificateNotAfter = null;
         $this->touch();
 
@@ -679,7 +697,8 @@ class SamlProvider
             }
         }
         // @igor-ignore - Doctrine entity fields; instance-scoped, not a shared service.
-        $this->mfaFirstFactor           = $policy;
+        $this->mfaFirstFactor = $policy;
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->mfaAcceptedAuthnContexts = $values === [] ? null : $values;
         $this->touch();
 
@@ -711,7 +730,7 @@ class SamlProvider
         $this->updatedAt = new DateTimeImmutable();
     }
 
-    private static function entityId(string $entityId, string $label): string
+    private function entityId(string $entityId, string $label): string
     {
         if ($entityId === '' || strlen($entityId) > self::URL_MAX_LENGTH || preg_match('/[\s\x00-\x1f\x7f]/', $entityId) === 1) {
             throw new InvalidArgumentException(sprintf('The %s is 1 to 512 bytes without white space or control characters.', $label));
@@ -720,7 +739,7 @@ class SamlProvider
         return $entityId;
     }
 
-    private static function keyPair(string $privateKeyPem, string $certificatePem): SamlCertificate
+    private function keyPair(string $privateKeyPem, string $certificatePem): SamlCertificate
     {
         $certificate = SamlCertificate::fromPem($certificatePem);
         if (!$certificate->matchesPrivateKey($privateKeyPem)) {

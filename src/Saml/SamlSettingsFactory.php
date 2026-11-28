@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Saml;
 
 use Nowo\AuthKitBundle\Entity\SamlProvider;
+use OneLogin\Saml2\Auth;
 use OneLogin\Saml2\Constants;
+use OneLogin\Saml2\Error;
 use OneLogin\Saml2\Settings;
 use RobRichards\XMLSecLibs\XMLSecurityDSig;
 use RobRichards\XMLSecLibs\XMLSecurityKey;
@@ -28,7 +30,7 @@ final class SamlSettingsFactory
     /**
      * @param string $slot which SP key decrypts ({@see self::SLOT_CURRENT} signs AuthnRequests and is published first)
      *
-     * @throws \OneLogin\Saml2\Error when the row's values are refused by the library
+     * @throws Error when the row's values are refused by the library
      */
     public function create(SamlProvider $provider, string $spEntityId, string $acsUrl, string $slot = self::SLOT_CURRENT): Settings
     {
@@ -36,7 +38,7 @@ final class SamlSettingsFactory
     }
 
     /**
-     * The settings array (for {@see \OneLogin\Saml2\Auth}, which builds its own settings object).
+     * The settings array (for {@see Auth}, which builds its own settings object).
      *
      * @return array<string, mixed>
      */

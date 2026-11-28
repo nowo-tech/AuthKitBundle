@@ -10,8 +10,8 @@ use OpenSSLCertificate;
 use OpenSSLCertificateSigningRequest;
 use RuntimeException;
 
-use function hexdec;
 use function bin2hex;
+use function hexdec;
 use function openssl_csr_new;
 use function openssl_csr_sign;
 use function openssl_pkey_export;

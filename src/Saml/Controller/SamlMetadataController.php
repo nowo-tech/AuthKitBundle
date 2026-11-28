@@ -43,7 +43,7 @@ final class SamlMetadataController
         } catch (Throwable $exception) {
             $this->logger?->warning('AuthKit SAML metadata of provider {provider} could not be built.', ['provider' => $provider, 'exception' => $exception::class]);
 
-            throw new NotFoundHttpException('No SAML provider has this key.');
+            throw new NotFoundHttpException('No SAML provider has this key.', $exception);
         }
 
         return new Response($xml, Response::HTTP_OK, [

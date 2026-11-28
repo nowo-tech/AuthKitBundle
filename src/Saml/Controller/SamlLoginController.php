@@ -168,7 +168,7 @@ final class SamlLoginController
             $pending = $this->requestStore->consume($session, $profile->name, $provider, $relayState);
             // Defence in depth: the burned request must be of the mode chosen above.
             if ($pending['test'] !== $testing) {
-                throw new SamlFailure(SamlFailure::INVALID_STATE, 'The pending SAML sign-in changed mode.');
+                throw new SamlFailure(SamlFailure::INVALID_STATE, 'The pending SAML sign-in changed mode.'); // @codeCoverageIgnore
             }
             $samlResponse = $request->request->get('SAMLResponse');
             $assertion    = $this->validator->validate(

@@ -12,6 +12,8 @@ use Throwable;
 
 use function is_array;
 use function is_string;
+use function libxml_clear_errors;
+use function libxml_use_internal_errors;
 use function strlen;
 
 /**
@@ -36,10 +38,15 @@ final class SamlIdpMetadataImporter
             throw new InvalidArgumentException('The IdP metadata is empty or larger than 1 MiB.');
         }
 
+        $internalErrors = libxml_use_internal_errors(true);
+
         try {
             $parsed = IdPMetadataParser::parseXML($xml, $entityId, null, Constants::BINDING_HTTP_REDIRECT, Constants::BINDING_HTTP_REDIRECT);
         } catch (Throwable) {
             throw new InvalidArgumentException('The IdP metadata cannot be parsed.');
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($internalErrors);
         }
         $idp          = is_array($parsed['idp'] ?? null) ? $parsed['idp'] : [];
         $entity       = $idp['entityId'] ?? null;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\SocialLogin;
 
+use Nowo\AuthKitBundle\Saml\SamlTestStart;
 use RuntimeException;
 use Throwable;
 
@@ -22,7 +23,7 @@ final class SocialLoginTestException extends RuntimeException
     /** No credential with this provider key. */
     public const REASON_UNKNOWN_PROVIDER = 'unknown_provider';
 
-    /** 2.10.0: `saml.mode` is not `enabled` for the profile ({@see \Nowo\AuthKitBundle\Saml\SamlTestStart}). */
+    /** 2.10.0: `saml.mode` is not `enabled` for the profile ({@see SamlTestStart}). */
     public const REASON_SAML_DISABLED = 'saml_disabled';
 
     /** The provider could not be reached or described (OpenID Connect discovery failed; 2.10.0: an incomplete SAML row). */

@@ -16,6 +16,7 @@
 - [Invitation flow](#invitation-flow)
 - [Login flow](#login-flow)
   - [Organization sign-in (enterprise OIDC, 2.7.0)](#organization-sign-in-enterprise-oidc-270)
+  - [Organization sign-in with SAML 2.0 (2.10.0)](#organization-sign-in-with-saml-20-2100)
   - [Two-step verification code on OTP boxes (1.51)](#two-step-verification-code-on-otp-boxes-151)
   - [Identifiers and binary collations (1.49)](#identifiers-and-binary-collations-149)
 - [Embedded login/register (dropdown)](#embedded-loginregister-dropdown)
@@ -232,6 +233,13 @@ Home-realm discovery stays in the host: map the e-mail domain to an unlisted pro
 `nowo_auth_kit_social_login_start` with `provider` and `login_hint`. An administrator's *Test sign-in* calls
 `SocialLoginTestStart::start()` and gets the validated claims in a `SocialLoginTestHandlerInterface`; nobody is signed
 in. Details: [SSO.md](SSO.md#enterprise-oidc-per-organization-270).
+
+### Organization sign-in with SAML 2.0 (2.10.0)
+
+Same host role as for OpenID Connect: pick the provider row from the e-mail domain and redirect to
+`nowo_auth_kit_saml_login_start` with `provider` and `login_hint`. Give the identity provider administrator the
+metadata URL (`nowo_auth_kit_saml_metadata`); an administrator's *Test sign-in* calls `SamlTestStart::start()` and the
+checked assertion reaches the `SocialLoginTestHandlerInterface` (provider `saml:<key>`). Details: [SAML.md](SAML.md).
 
 ### Two-step verification code on OTP boxes (1.51)
 

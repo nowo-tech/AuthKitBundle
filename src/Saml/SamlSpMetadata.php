@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Saml;
 
 use Nowo\AuthKitBundle\Entity\SamlProvider;
 use Nowo\AuthKitBundle\Profile\ProfileSettings;
+use OneLogin\Saml2\Error;
 use OneLogin\Saml2\Settings;
 
 /**
@@ -23,7 +24,7 @@ final class SamlSpMetadata
     }
 
     /**
-     * @throws \OneLogin\Saml2\Error when the row's values are refused by the library
+     * @throws Error when the row's values are refused by the library
      */
     public function build(SamlProvider $provider, ProfileSettings $profile): string
     {

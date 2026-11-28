@@ -61,8 +61,8 @@ final class SamlResponseValidatorTest extends TestCase
         $builder->encryptForCertificate = SamlKeys::pair('sp')['cert'];
         self::assertSame('subject-1', $this->validate($builder)->nameId);
 
-        $next     = SamlKeys::pair('sp-next');
-        $provider = SamlProviders::acme()->setNextSpKeyPair($next['key'], $next['cert']);
+        $next                           = SamlKeys::pair('sp-next');
+        $provider                       = SamlProviders::acme()->setNextSpKeyPair($next['key'], $next['cert']);
         $builder->encryptForCertificate = $next['cert'];
         self::assertSame('subject-1', $this->validate($builder, $provider)->nameId);
 
@@ -95,7 +95,10 @@ final class SamlResponseValidatorTest extends TestCase
         yield 'tampered after signing' => [SamlFailure::SIGNATURE, static function (SamlResponseBuilder $b): void { $b->tamper = true; }];
         yield 'signed by another key' => [SamlFailure::SIGNATURE, static function (SamlResponseBuilder $b): void { $b->idpPair = SamlKeys::pair('attacker'); }];
         yield 'wrapped (a second assertion)' => [SamlFailure::SIGNATURE, static function (SamlResponseBuilder $b): void { $b->wrap = true; }];
-        yield 'wrapped signed response' => [SamlFailure::SIGNATURE, static function (SamlResponseBuilder $b): void { $b->wrap = true; $b->sign = 'response'; }];
+        yield 'wrapped signed response' => [SamlFailure::SIGNATURE, static function (SamlResponseBuilder $b): void {
+            $b->wrap = true;
+            $b->sign = 'response';
+        }];
         yield 'sha-1 digest' => [SamlFailure::SIGNATURE, static function (SamlResponseBuilder $b): void { $b->sha1Digest = true; }];
         yield 'another request' => [SamlFailure::IN_RESPONSE_TO, static function (SamlResponseBuilder $b): void { $b->responseInResponseTo = '_other'; }];
         yield 'unsolicited (no InResponseTo)' => [SamlFailure::IN_RESPONSE_TO, static function (SamlResponseBuilder $b): void { $b->responseInResponseTo = ''; }];
@@ -110,7 +113,10 @@ final class SamlResponseValidatorTest extends TestCase
         yield 'no audience' => [SamlFailure::AUDIENCE, static function (SamlResponseBuilder $b): void { $b->omitAudience = true; }];
         yield 'other assertion issuer' => [SamlFailure::ISSUER, static function (SamlResponseBuilder $b): void { $b->assertionIssuer = 'https://evil.example.com'; }];
         yield 'other response issuer' => [SamlFailure::ISSUER, static function (SamlResponseBuilder $b): void { $b->responseIssuer = 'https://evil.example.com'; }];
-        yield 'expired' => [SamlFailure::TIMING, static function (SamlResponseBuilder $b): void { $b->notOnOrAfter = -600; $b->notBefore = -900; }];
+        yield 'expired' => [SamlFailure::TIMING, static function (SamlResponseBuilder $b): void {
+            $b->notOnOrAfter = -600;
+            $b->notBefore    = -900;
+        }];
         yield 'not yet valid' => [SamlFailure::TIMING, static function (SamlResponseBuilder $b): void { $b->notBefore = 600; }];
         yield 'idp session ended' => [SamlFailure::TIMING, static function (SamlResponseBuilder $b): void { $b->sessionNotOnOrAfter = -600; }];
         // Accepted by the library (prefix / substring / missing / 180 s drift), refused by AuthKit's own checks.
@@ -121,7 +127,10 @@ final class SamlResponseValidatorTest extends TestCase
         yield 'conditions expired by 120 s' => [SamlFailure::TIMING, static function (SamlResponseBuilder $b): void { $b->conditionsNotOnOrAfter = -120; }];
         yield 'idp session ended 120 s ago' => [SamlFailure::TIMING, static function (SamlResponseBuilder $b): void { $b->sessionNotOnOrAfter = -120; }];
         yield 'a restriction to another sp' => [SamlFailure::AUDIENCE, static function (SamlResponseBuilder $b): void { $b->foreignAudienceRestriction = true; }];
-        yield 'assertion outside the signed response' => [SamlFailure::MALFORMED, static function (SamlResponseBuilder $b): void { $b->sign = 'response'; $b->nestInExtensions = true; }];
+        yield 'assertion outside the signed response' => [SamlFailure::MALFORMED, static function (SamlResponseBuilder $b): void {
+            $b->sign             = 'response';
+            $b->nestInExtensions = true;
+        }];
         yield 'duplicate attribute' => [SamlFailure::MALFORMED, static function (SamlResponseBuilder $b): void { $b->duplicateAttribute = true; }];
         yield 'idp status' => [SamlFailure::STATUS, static function (SamlResponseBuilder $b): void { $b->status = 'urn:oasis:names:tc:SAML:2.0:status:Requester'; }];
     }

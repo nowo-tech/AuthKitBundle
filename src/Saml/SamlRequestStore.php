@@ -67,7 +67,7 @@ final class SamlRequestStore
      */
     public function isTestPending(SessionInterface $session, string $profile, string $provider, string $relayState): bool
     {
-        return ($this->matching($session, $profile, $provider, $relayState)['test'] ?? false) === true;
+        return $this->matching($session, $profile, $provider, $relayState)['test'] ?? false;
     }
 
     /**

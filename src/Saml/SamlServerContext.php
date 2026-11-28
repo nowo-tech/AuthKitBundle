@@ -12,8 +12,10 @@ use function strtolower;
 
 /**
  * onelogin/php-saml computes the URL it compares `Destination` and `Recipient` with from its own static host / port /
+ * // @igor-ignore - Request-scoped superglobal pinned for this call only and restored in finally.
  * protocol / base path and from `$_SERVER` (REQUEST_URI, SCRIPT_NAME). Behind a proxy, under a test kernel or in a
  * FrankenPHP worker those can differ from the ACS URL AuthKit generated. {@see self::run()} pins them to the ACS URL
+ * // @igor-ignore - Request-scoped superglobal pinned for this call only and restored in finally.
  * for one call and restores `$_SERVER` and resets the statics afterwards, whatever happens (worker-safe: nothing
  * survives the call; a PHP thread runs one request at a time). AuthKit re-checks both values for exact equality after
  * the library ({@see SamlResponseValidator}).
@@ -40,6 +42,7 @@ final class SamlServerContext
         $path   = $parts['path'] ?? '/';
         $saved  = [];
         foreach (self::SERVER_KEYS as $key) {
+            // @igor-ignore - Request-scoped superglobal pinned for this call only and restored in finally.
             $saved[$key] = array_key_exists($key, $_SERVER) ? [$_SERVER[$key]] : null;
         }
         $proxyVars = Utils::getProxyVars();
@@ -52,15 +55,19 @@ final class SamlServerContext
             Utils::setSelfPort($parts['port'] ?? ($scheme === 'https' ? 443 : 80));
             // @igor-ignore - Request-scoped superglobal pinned for this call only and restored in finally.
             $_SERVER['REQUEST_URI'] = $path;
+            // @igor-ignore - Request-scoped superglobal pinned for this call only and restored in finally.
             $_SERVER['SCRIPT_NAME'] = $path;
+            // @igor-ignore - Request-scoped superglobal pinned for this call only and restored in finally.
             unset($_SERVER['QUERY_STRING'], $_SERVER['PATH_INFO']);
 
             return $call();
         } finally {
             foreach ($saved as $key => $value) {
                 if ($value === null) {
+                    // @igor-ignore - Request-scoped superglobal pinned for this call only and restored in finally.
                     unset($_SERVER[$key]);
                 } else {
+                    // @igor-ignore - Request-scoped superglobal pinned for this call only and restored in finally.
                     $_SERVER[$key] = $value[0];
                 }
             }

@@ -40,8 +40,8 @@ final class SamlProviderPolicy
     public static function mfaRule(SamlProvider $provider, array $authnContextClassRefs): ?string
     {
         return match ($provider->getMfaFirstFactor()) {
-            null                                       => null,
-            SamlProvider::MFA_EXEMPT                   => MfaConfiguration::RULE_EXEMPT,
+            null                                        => null,
+            SamlProvider::MFA_EXEMPT                    => MfaConfiguration::RULE_EXEMPT,
             SamlProvider::MFA_EXEMPT_WHEN_AUTHN_CONTEXT => array_intersect($authnContextClassRefs, $provider->getMfaAcceptedAuthnContexts()) !== []
                 ? MfaConfiguration::RULE_EXEMPT
                 : MfaConfiguration::RULE_REQUIRED,

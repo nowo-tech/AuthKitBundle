@@ -94,11 +94,11 @@ use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataEraser;
 use Nowo\AuthKitBundle\Webauthn\PersonalData\WebauthnPersonalDataExportProvider;
 use Nowo\AuthKitBundle\Webauthn\WebauthnErasure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnStore;
-use OneLogin\Saml2\Auth;
 use Nowo\TransactionDoctrine\Symfony\Conflict\ConflictResponsePolicy;
 use Nowo\UserKitBundle\PersonalData\PersonalDataEraserInterface;
 use Nowo\UserKitBundle\PersonalData\PersonalDataExportProviderInterface;
 use Nowo\UserKitBundle\Sessions\Event\UserSessionsRevokedEvent;
+use OneLogin\Saml2\Auth;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\Argument\BoundArgument;
@@ -843,6 +843,11 @@ final class NowoAuthKitExtension extends Extension implements PrependExtensionIn
             if (($profile['webauthn']['mode'] ?? WebauthnConfiguration::MODE_DISABLED) === WebauthnConfiguration::MODE_ENABLED) {
                 foreach ($profile['webauthn']['routes'] as $routeKey => $route) {
                     $routes['webauthn.' . $routeKey] = $route;
+                }
+            }
+            if (($profile['saml']['mode'] ?? SamlConfiguration::MODE_DISABLED) === SamlConfiguration::MODE_ENABLED) {
+                foreach ($profile['saml']['routes'] as $routeKey => $route) {
+                    $routes['saml.' . $routeKey] = $route;
                 }
             }
 

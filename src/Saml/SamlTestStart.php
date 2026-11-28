@@ -10,12 +10,13 @@ use Nowo\AuthKitBundle\Repository\SamlProviderRepository;
 use Nowo\AuthKitBundle\SocialLogin\LoginHint;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginTestException;
 use Nowo\AuthKitBundle\SocialLogin\SocialLoginTestHandlerInterface;
+use Nowo\AuthKitBundle\SocialLogin\SocialLoginTestStart;
 use Symfony\Component\HttpFoundation\Request;
 
 use function sprintf;
 
 /**
- * Mints a SAML *test sign-in* (2.10.0), as {@see \Nowo\AuthKitBundle\SocialLogin\SocialLoginTestStart} does for OAuth:
+ * Mints a SAML *test sign-in* (2.10.0), as {@see SocialLoginTestStart} does for OAuth:
  * the AuthnRequest URL of a provider row whose pending request carries a one-shot test marker in the session. Its
  * response runs every check of a real sign-in, then only the host's {@see SocialLoginTestHandlerInterface} (provider
  * `saml:<key>`): never signs in, links or provisions. No URL flag starts a test.
@@ -60,7 +61,7 @@ final class SamlTestStart
         try {
             return $this->loginStart->url($request, $profile, $row, LoginHint::normalize($loginHint), true);
         } catch (SamlFailure $failure) {
-            throw new SocialLoginTestException(SocialLoginTestException::REASON_PROVIDER, 'The SAML provider is not completely set up: ' . $failure->reason . '.');
+            throw new SocialLoginTestException(SocialLoginTestException::REASON_PROVIDER, 'The SAML provider is not completely set up: ' . $failure->reason . '.', $failure);
         }
     }
 

@@ -19,8 +19,8 @@ final readonly class SocialUserProfile
      *                                                 aud, exp/iat and nonce checked; `nonce` removed), never merged with
      *                                                 userinfo: read `amr`, `acr`, `hd`, `tid` from here. Null for OAuth2
      * @param array{issuer: string, name_id: ?string, name_id_format: ?string, session_index: ?string, authn_context_class_refs: list<string>, attributes: array<string, list<string>>, groups: list<string>, assertion_id: ?string}|null $samlAssertion
-     *                                                 2.10.0: the checked SAML assertion of a SAML sign-in (provider
-     *                                                 `saml:<key>`), never stored; null for OAuth2 / OpenID Connect
+     *                                                                                                                                                                                                                                                   2.10.0: the checked SAML assertion of a SAML sign-in (provider
+     *                                                                                                                                                                                                                                                   `saml:<key>`), never stored; null for OAuth2 / OpenID Connect
      */
     public function __construct(
         public string $id,

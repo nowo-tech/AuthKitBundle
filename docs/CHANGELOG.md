@@ -133,6 +133,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Planned as **2.10.0** (minor: SAML 2.0 Service Provider sign-in, opt-in). One new table, no BC break: nothing changes
+until a profile sets `saml.mode: enabled` and a provider row exists. See [SAML.md](SAML.md).
+
+### Added
+
+- **SAML 2.0 SP sign-in, SP-initiated only** (`profiles.<name>.saml`, `mode: disabled` by default; requires
+  `onelogin/php-saml` `^4.6`, now in `suggest`, with `conflict <4.6`). Routes `nowo_auth_kit_saml_login_start`
+  (`GET /login/saml/{provider}`, optional `login_hint`), `nowo_auth_kit_saml_acs` (`POST /login/saml/{provider}/acs`,
+  HTTP-POST binding, relayed same-site before the session is read) and `nowo_auth_kit_saml_metadata`
+  (`GET /saml/{provider}/metadata`), never localized. Keys `clock_skew` (0-180 s, default 60), `request_lifetime`
+  (60-3600 s, default 600), `start_rate_limit` / `start_rate_window`, `routes.*`.
+- **Entity `SamlProvider`** (table `auth_kit_saml_provider`, attribute and XML mapping, SQL scripts for MySQL, MariaDB,
+  PostgreSQL and SQLite in `src/Resources/sql/saml/`) and `SamlProviderRepository` (`findOneByProvider()`,
+  `findByScope()`): one row per identity provider with a host `scope`, the IdP entity id and HTTP-Redirect SSO URL, two
+  accepted IdP signing certificates in plain with their SHA-256 and validity dates, the SP key pair in two encrypted slots
+  (current, next) with their certificates' expiry in plain columns, the requested NameID format, the attribute mapping
+  (`subject`, `email`, `first_name`, `last_name`, `display_name`, `groups`), `email_verified`, `want_encrypted_assertions`,
+  `link_existing_account` and an MFA first-factor policy (`exempt_when_authn_context` with accepted
+  `AuthnContextClassRef` values). New rows are disabled.
+- **Response checks**: onelogin strict mode plus AuthKit's own exact checks (signature on the Response or the Assertion
+  always required, one assertion, no SHA-1, `InResponseTo` bound to the session's single-use pending request,
+  Destination, Recipient, Audience, Issuer, times with `clock_skew`); encrypted assertions accepted with the current or
+  the next SP key. Refusals carry a reason code, are logged without assertion data and are dispatched as
+  `Saml\Event\SamlResponseRejectedEvent`.
+- **The social pipeline for SAML identities** (`saml:<provider>`): `SocialAccountLinker` (the row's
+  `link_existing_account`; no row: `deny`), host `SocialCallbackStepInterface` steps, `SocialLoginTestHandlerInterface`
+  through `Saml\SamlTestStart`, MFA first-factor rule, rollback guard and the 409 conflict answers.
+  `SocialUserProfile::$samlAssertion` (new optional last constructor argument) carries the checked assertion to host
+  handlers; it is never stored.
+- **Helpers**: `Saml\SamlSpKeyGenerator` (RSA 3072 self-signed pairs), `Saml\SamlIdpMetadataImporter` (entity id, SSO URL
+  and two signing certificates from IdP metadata XML), `Saml\SamlSpMetadata`; `SamlProvider::setNextSpKeyPair()` /
+  `promoteNextSpKeyPair()` for rotation; `SocialLoginTestException::REASON_SAML_DISABLED`.
+- `EnterpriseSecretEncryptionGuard` also refuses to write a SAML provider row with an SP private key when
+  nowo-tech/doctrine-encrypt-bundle does not encrypt on that manager
+  (`EnterpriseSecretNotEncryptedException::forSamlProvider()`).
+
+### Changed
+
+- `doctrine.register_mapping: auto` also maps the entities for a profile with `saml.mode: enabled`.
+
 ## [2.9.0] - 2026-11-27
 
 Planned as **2.9.0** (minor: one test-only option, plus a fix). No BC break, nothing for hosts to do.

@@ -31,6 +31,7 @@ use function parse_str;
 use function parse_url;
 use function preg_match;
 use function str_starts_with;
+use function strlen;
 use function substr_count;
 
 use const PHP_URL_QUERY;
@@ -69,12 +70,12 @@ final class SamlKernelTest extends WebTestCase
         $em->persist(SamlProviders::acme('stepped')->setEmailVerified(true));
         $em->flush();
         $em->clear();
-        $this->handler()->handled  = [];
-        $this->handler()->failures = [];
-        $this->step()->handled     = [];
-        $this->step()->failures    = [];
-        $this->step()->throw       = null;
-        $this->failure()->throw    = null;
+        $this->handler()->handled   = [];
+        $this->handler()->failures  = [];
+        $this->step()->handled      = [];
+        $this->step()->failures     = [];
+        $this->step()->throw        = null;
+        $this->failure()->throw     = null;
         $this->listener()->rejected = [];
     }
 
@@ -108,8 +109,8 @@ final class SamlKernelTest extends WebTestCase
 
     public function testAFirstSignInCreatesTheAccountAndLinksTheSubject(): void
     {
-        [$requestId, $relayState] = $this->start('/login/saml/acme');
-        $builder                  = $this->builder($requestId);
+        [$requestId, $relayState]    = $this->start('/login/saml/acme');
+        $builder                     = $this->builder($requestId);
         $builder->attributes['mail'] = ['grace@example.com'];
         $this->acs('acme', $builder->build(), $relayState);
 
@@ -277,7 +278,7 @@ final class SamlKernelTest extends WebTestCase
         $context = $this->handler()->handled[0];
         self::assertSame('saml:acme', $context->provider);
         self::assertSame('subject-1', $context->socialProfile->samlAssertion['name_id'] ?? null);
-        self::assertSame(['staff', 'admins'], $context->socialProfile->samlAssertion['groups'] ?? null);
+        self::assertSame(['staff', 'admins'], $context->socialProfile->samlAssertion['groups']);
         self::assertSame('ada@example.com', $context->verifiedEmail());
 
         // A failed test reaches the test handler's failure answer.
@@ -426,7 +427,7 @@ final class SamlKernelTest extends WebTestCase
         $xml = (string) gzinflate((string) base64_decode($query['SAMLRequest'], true));
         self::assertSame(1, preg_match('/ ID="([^"]+)"/', $xml, $match));
 
-        return [$match[1], $query['RelayState'], $query, $xml];
+        return [$match[1] ?? '', $query['RelayState'], $query, $xml];
     }
 
     private function acs(string $provider, string $samlResponse, string $relayState): void

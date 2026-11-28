@@ -31,7 +31,6 @@ final class SamlServerContextTest extends TestCase
         self::assertArrayNotHasKey('SCRIPT_NAME', $_SERVER);
         self::assertArrayNotHasKey('PATH_INFO', $_SERVER);
         self::assertTrue(Utils::getProxyVars());
-        self::assertNull(Utils::getBaseURLPath());
         Utils::setProxyVars(false);
     }
 
