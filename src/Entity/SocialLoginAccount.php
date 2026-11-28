@@ -7,6 +7,7 @@ namespace Nowo\AuthKitBundle\Entity;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Nowo\AuthKitBundle\Doctrine\EncryptedFieldWrite;
 use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\DoctrineEncryptBundle\Configuration\Encrypted;
 
@@ -185,9 +186,14 @@ class SocialLoginAccount
 
     public function setAccessToken(?string $accessToken): self
     {
+        // 2.9.0: the encryption layer writes the decrypted / stored form through this setter (a load, a flush); only
+        // a real change stamps updatedAt, so reading the row never leaves it dirty.
+        $changed = EncryptedFieldWrite::changes($this->accessToken, $accessToken);
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->accessToken = $accessToken;
-        $this->touch();
+        if ($changed) {
+            $this->touch();
+        }
 
         return $this;
     }
@@ -199,9 +205,14 @@ class SocialLoginAccount
 
     public function setRefreshToken(?string $refreshToken): self
     {
+        // 2.9.0: the encryption layer writes the decrypted / stored form through this setter (a load, a flush); only
+        // a real change stamps updatedAt, so reading the row never leaves it dirty.
+        $changed = EncryptedFieldWrite::changes($this->refreshToken, $refreshToken);
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->refreshToken = $refreshToken;
-        $this->touch();
+        if ($changed) {
+            $this->touch();
+        }
 
         return $this;
     }

@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use InvalidArgumentException;
+use Nowo\AuthKitBundle\Doctrine\EncryptedFieldWrite;
 use Nowo\AuthKitBundle\Repository\SocialLoginCredentialRepository;
 use Nowo\AuthKitBundle\SocialLogin\OAuth2Client;
 use Nowo\AuthKitBundle\SocialLogin\Oidc\OidcCredentialRules;
@@ -239,9 +240,14 @@ class SocialLoginCredential
 
     public function setClientSecret(string $clientSecret): self
     {
+        // 2.9.0: the encryption layer writes the decrypted / stored form through this setter (a load, a flush); only
+        // a real change stamps updatedAt, so reading the row never leaves it dirty.
+        $changed = EncryptedFieldWrite::changes($this->clientSecret, $clientSecret);
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->clientSecret = $clientSecret;
-        $this->touch();
+        if ($changed) {
+            $this->touch();
+        }
 
         return $this;
     }

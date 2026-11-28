@@ -32,6 +32,7 @@ use function array_intersect;
 use function array_key_exists;
 use function array_keys;
 use function array_map;
+use function array_unique;
 use function array_values;
 use function class_exists;
 use function implode;
@@ -358,6 +359,22 @@ final class Configuration implements ConfigurationInterface
                             ->info('Largest discovery / JWKS / token / userinfo response accepted, in bytes (enforced while downloading).')
                             ->defaultValue(OidcOptions::DEFAULT_MAX_RESPONSE_BYTES)
                             ->min(4096)->max(5242880)
+                        ->end()
+                        ->arrayNode('trusted_private_hosts')
+                            ->info('2.9.0, TEST ENVIRONMENT ONLY (refused at compile time unless kernel.environment is "test"): exact host names (no wildcard, no IP, case-insensitive) whose private or loopback addresses the OIDC fetches accept, e.g. a simulated identity provider container in end-to-end tests. Cloud metadata addresses stay refused; HTTPS stays required.')
+                            ->scalarPrototype()->end()
+                            ->defaultValue([])
+                            ->validate()
+                                ->always(static function (array $hosts): array {
+                                    foreach ($hosts as $host) {
+                                        if (($error = OidcOptions::trustedPrivateHostError($host)) !== null) {
+                                            throw new InvalidArgumentException($error);
+                                        }
+                                    }
+
+                                    return array_values(array_unique(array_map(static fn (string $host): string => strtolower($host), $hosts)));
+                                })
+                            ->end()
                         ->end()
                         ->scalarNode('cache_pool')
                             ->info('Cache pool service (Symfony\\Contracts\\Cache\\CacheInterface) holding discovery documents and key sets. Shared between workers and processes; never a service property.')
