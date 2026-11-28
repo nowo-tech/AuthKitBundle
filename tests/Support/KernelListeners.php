@@ -21,12 +21,9 @@ use const E_USER_DEPRECATED;
  */
 final class KernelListeners
 {
-    /**
-     * @param callable $listener
-     */
     public static function add(EventDispatcherInterface $dispatcher, string $eventName, callable $listener, int $priority = 0): void
     {
-        set_error_handler(static fn (int $level, string $message): bool => str_contains($message, 'ScopedEventDispatcher'), E_USER_DEPRECATED);
+        set_error_handler(static fn (int $level, string $message): bool => str_contains($message, 'ScopedEventDispatcher'), E_USER_DEPRECATED); // @phpstan-ignore frankenphp.worker.noSetErrorExceptionHandler (test helper; restored in finally)
 
         try {
             $dispatcher->addListener($eventName, $listener, $priority);

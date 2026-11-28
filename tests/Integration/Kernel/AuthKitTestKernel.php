@@ -9,11 +9,11 @@ use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\PasswordReset\PasswordResetNotifierInterface;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\PathRedirectController;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\PasswordToggleBundle\NowoPasswordToggleBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Psr\Log\NullLogger;
-use Symfony\Bundle\FrameworkBundle\Controller\RedirectController;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -149,7 +149,7 @@ class AuthKitTestKernel extends Kernel
         // REQ-SF-004: the Symfony 7.3+ recipe import must not register the AuthKit controller attributes again.
         $routes->import('routing.controllers');
         $routes->add('kernel_home', '/home')
-            ->controller(RedirectController::class . '::urlRedirectAction')
+            ->controller(PathRedirectController::class . '::redirect')
             ->defaults(['path' => '/login', 'permanent' => false]);
     }
 }

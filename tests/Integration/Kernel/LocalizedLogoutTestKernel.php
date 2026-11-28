@@ -8,11 +8,11 @@ use Composer\InstalledVersions;
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\AuthKitBundle\NowoAuthKitBundle;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\PathRedirectController;
 use Nowo\FormKitBundle\NowoFormKitBundle;
 use Nowo\PasswordToggleBundle\NowoPasswordToggleBundle;
 use Nowo\UiKitBundle\NowoUiKitBundle;
 use Psr\Log\NullLogger;
-use Symfony\Bundle\FrameworkBundle\Controller\RedirectController;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Bundle\SecurityBundle\SecurityBundle;
@@ -136,7 +136,7 @@ final class LocalizedLogoutTestKernel extends Kernel
     {
         $routes->import('@NowoAuthKitBundle/Resources/config/routing.yaml');
         $routes->add('kernel_home', '/home')
-            ->controller(RedirectController::class . '::urlRedirectAction')
+            ->controller(PathRedirectController::class . '::redirect')
             ->defaults(['path' => '/en/login', 'permanent' => false]);
         $routes->add('kernel_logout_link', '/logout-link')->controller(LocalizedLogoutPagesController::class . '::logoutLink');
     }
