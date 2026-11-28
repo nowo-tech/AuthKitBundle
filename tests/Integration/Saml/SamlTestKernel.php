@@ -35,12 +35,13 @@ final class SamlTestKernel extends EnterpriseOidcTestKernel
     protected function configureContainer(ContainerBuilder $container, LoaderInterface $loader): void
     {
         parent::configureContainer($container, $loader);
+        $container->loadFromExtension('framework', ['lock' => 'flock']);
         $container->loadFromExtension('nowo_auth_kit', [
             'absolute_url' => ['base_uri' => self::ORIGIN],
             'social_login' => ['create_user_if_missing' => true],
             'saml'         => ['mode' => 'enabled'],
         ]);
-        $container->register(RecordingSamlStep::class)->setAutoconfigured(true)->setPublic(true);
+        $container->register(RecordingSamlStep::class)->setAutoconfigured(true)->setAutowired(true)->setPublic(true);
         $container->register(SamlTestSignInController::class)->setAutowired(true)->setPublic(true)->addTag('controller.service_arguments');
         $container->register(RecordingSamlListener::class)->setAutoconfigured(true)->setPublic(true);
         $container->register(SignInFailureListener::class)->setAutoconfigured(true)->setPublic(true);

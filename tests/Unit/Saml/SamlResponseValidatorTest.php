@@ -16,6 +16,7 @@ use OneLogin\Saml2\Constants;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RobRichards\XMLSecLibs\XMLSecurityKey;
 use Symfony\Component\Clock\MockClock;
 
 use function base64_encode;
@@ -78,6 +79,38 @@ final class SamlResponseValidatorTest extends TestCase
         $this->assertRefused(SamlFailure::SIGNATURE, $builder);
 
         $provider = SamlProviders::acme()->setIdpCertificates(SamlKeys::pair('idp')['cert'], SamlKeys::pair('idp-next')['cert']);
+        self::assertSame('subject-1', $this->validate($builder, $provider)->nameId);
+    }
+
+    public function testAnOaepKeyTransportWithASha1MaskDigestIsAccepted(): void
+    {
+        $builder                        = $this->builder();
+        $builder->encryptForCertificate = SamlKeys::pair('sp')['cert'];
+        $builder->oaepSha1Digest        = true;
+        self::assertSame('subject-1', $this->validate($builder)->nameId);
+    }
+
+    public function testCbcEncryptionNeedsASignedResponse(): void
+    {
+        $builder                        = $this->builder();
+        $builder->encryptForCertificate = SamlKeys::pair('sp')['cert'];
+        $builder->encryptionAlgorithm   = XMLSecurityKey::AES256_CBC;
+        $this->assertRefused(SamlFailure::DECRYPTION, $builder);
+
+        foreach (['response', 'both'] as $sign) {
+            $builder->sign = $sign;
+            self::assertSame('subject-1', $this->validate($builder)->nameId, $sign);
+        }
+    }
+
+    public function testASignedAssertionCanBeRequired(): void
+    {
+        $provider      = SamlProviders::acme()->setWantAssertionsSigned(true);
+        $builder       = $this->builder();
+        $builder->sign = 'response';
+        $this->assertRefused(SamlFailure::SIGNATURE, $builder, $provider);
+
+        $builder->sign = 'both';
         self::assertSame('subject-1', $this->validate($builder, $provider)->nameId);
     }
 

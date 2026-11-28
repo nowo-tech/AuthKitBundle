@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\Saml;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use LogicException;
 use Nowo\AuthKitBundle\Entity\SamlProvider;
 use Nowo\AuthKitBundle\Entity\SocialLoginAccount;
 use Nowo\AuthKitBundle\Enum\SocialCallbackFailure;
@@ -74,6 +75,7 @@ final class SamlKernelTest extends WebTestCase
         $this->handler()->failures  = [];
         $this->step()->handled      = [];
         $this->step()->failures     = [];
+        $this->step()->seen         = [];
         $this->step()->throw        = null;
         $this->failure()->throw     = null;
         $this->listener()->rejected = [];
@@ -91,6 +93,24 @@ final class SamlKernelTest extends WebTestCase
         self::assertStringContainsString('AssertionConsumerServiceURL="' . self::ACS . '"', $xml);
         self::assertStringContainsString('<saml:Issuer>' . self::ENTITY . '</saml:Issuer>', $xml);
         self::assertStringContainsString('Destination="https://idp.example.com/sso"', $xml);
+    }
+
+    public function testForceAuthnIsRequestedOnDemand(): void
+    {
+        self::assertStringNotContainsString('ForceAuthn="true"', $this->start('/login/saml/acme')[3]);
+        self::assertStringContainsString('ForceAuthn="true"', $this->start('/login/saml/acme?force_authn=1')[3]);
+    }
+
+    public function testTheEntityIdOfALinkedRowIsLocked(): void
+    {
+        [$requestId, $relayState] = $this->start('/login/saml/acme');
+        $this->acs('acme', $this->builder($requestId)->build(), $relayState);
+        self::assertResponseRedirects('/home');
+
+        $this->row('acme')->setIdpEntityId('https://other-idp.example.com');
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('cannot change while accounts are linked');
+        $this->em()->flush();
     }
 
     public function testTheIdpPostIsRelayedWithoutTheSession(): void
@@ -312,6 +332,8 @@ final class SamlKernelTest extends WebTestCase
         $builder->sign            = 'none';
         $this->acs('stepped', $builder->build(), $relayState);
         self::assertResponseRedirects('/host/saml-failed');
+        // The event is dispatched first, and the reason code is on the request for the failure answer.
+        self::assertSame([['reason' => SamlFailure::SIGNATURE, 'eventsBefore' => 1]], $this->step()->seen);
 
         $this->step()->throw      = new RuntimeException('Host step failure.');
         [$requestId, $relayState] = $this->start('/login/saml/stepped');

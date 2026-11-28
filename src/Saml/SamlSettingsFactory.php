@@ -16,8 +16,9 @@ use RobRichards\XMLSecLibs\XMLSecurityKey;
  * The onelogin/php-saml settings of one provider row (2.10.0), always strict: signed AuthnRequests (RSA-SHA256), the
  * Destination required and matched, unsolicited responses with an InResponseTo refused, schema validation, RSA 1.5 key
  * transport refused, both IdP certificates accepted for the signature. A signature on the Response or the Assertion
- * is always required by the library (`NO_SIGNATURE_FOUND`), so neither `wantMessagesSigned` nor `wantAssertionsSigned`
- * forces one of them (IdPs sign one or the other); {@see SamlResponseValidator} checks it again. Stateless.
+ * is always required by the library (`NO_SIGNATURE_FOUND`), so `wantMessagesSigned` stays off and `wantAssertionsSigned`
+ * follows the row's `want_assertions_signed` (default off: IdPs sign one or the other); {@see SamlResponseValidator}
+ * checks both again. Stateless.
  *
  * @internal
  */
@@ -76,7 +77,7 @@ final class SamlSettingsFactory
                 'logoutResponseSigned'                       => false,
                 'signMetadata'                               => false,
                 'wantMessagesSigned'                         => false,
-                'wantAssertionsSigned'                       => false,
+                'wantAssertionsSigned'                       => $provider->isWantAssertionsSigned(),
                 'wantAssertionsEncrypted'                    => $provider->isWantEncryptedAssertions(),
                 'wantNameId'                                 => false,
                 'wantNameIdEncrypted'                        => false,

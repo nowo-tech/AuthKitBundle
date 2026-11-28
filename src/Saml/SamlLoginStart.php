@@ -32,7 +32,10 @@ final class SamlLoginStart
     /**
      * @throws SamlFailure `unavailable` when the row is incomplete or refused by the library
      */
-    public function url(Request $request, ProfileSettings $profile, SamlProvider $provider, ?string $loginHint, bool $test = false): string
+    /**
+     * @param bool $forceAuthn asks the IdP to authenticate the user again (`ForceAuthn="true"`), not to reuse its session
+     */
+    public function url(Request $request, ProfileSettings $profile, SamlProvider $provider, ?string $loginHint, bool $test = false, bool $forceAuthn = false): string
     {
         if (!$provider->isComplete()) {
             throw new SamlFailure(SamlFailure::UNAVAILABLE, 'The SAML provider is not completely set up.');
@@ -41,7 +44,7 @@ final class SamlLoginStart
 
         try {
             $auth = new Auth($this->settingsFactory->toArray($provider, $this->urls->spEntityId($profile, $provider), $this->urls->acsUrl($profile, $provider->getProvider())));
-            $url  = $auth->login($relayState, $loginHint !== null ? ['login_hint' => $loginHint] : [], false, false, true);
+            $url  = $auth->login($relayState, $loginHint !== null ? ['login_hint' => $loginHint] : [], $forceAuthn, false, true);
             $id   = $auth->getLastRequestID();
         } catch (Throwable) {
             throw new SamlFailure(SamlFailure::UNAVAILABLE, 'The SAML request could not be built from the provider settings.');

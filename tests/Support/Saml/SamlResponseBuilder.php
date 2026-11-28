@@ -101,6 +101,12 @@ final class SamlResponseBuilder
     /** The first attribute appears twice. */
     public bool $duplicateAttribute = false;
 
+    /** Data encryption of an encrypted assertion (GCM by default). */
+    public string $encryptionAlgorithm = XMLSecurityKey::AES256_GCM;
+
+    /** The OAEP key transport names SHA-1 as its mask digest (as many identity providers write it). */
+    public bool $oaepSha1Digest = false;
+
     public string $authnContext = 'urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport';
 
     /** @var array{key: string, cert: string} */
@@ -241,7 +247,7 @@ final class SamlResponseBuilder
         $wrapper = $document->createElementNS(Constants::NS_SAML, 'saml:EncryptedAssertion');
         $wrapper->appendChild($assertion);
 
-        $symmetric = new XMLSecurityKey(XMLSecurityKey::AES256_GCM);
+        $symmetric = new XMLSecurityKey($this->encryptionAlgorithm);
         $symmetric->generateSessionKey();
         $public = new XMLSecurityKey(XMLSecurityKey::RSA_OAEP_MGF1P, ['type' => 'public']);
         $public->loadKey((string) $this->encryptForCertificate, false, true);
@@ -251,6 +257,14 @@ final class SamlResponseBuilder
         $encryption->type = XMLSecEnc::Element;
         $encryption->encryptKey($public, $symmetric);
         $encryption->encryptNode($symmetric);
+        if ($this->oaepSha1Digest) {
+            foreach ($wrapper->getElementsByTagNameNS('http://www.w3.org/2001/04/xmlenc#', 'EncryptedKey') as $key) {
+                $method = $key->getElementsByTagNameNS('http://www.w3.org/2001/04/xmlenc#', 'EncryptionMethod')->item(0);
+                $digest = $document->createElementNS('http://www.w3.org/2000/09/xmldsig#', 'ds:DigestMethod');
+                $digest->setAttribute('Algorithm', 'http://www.w3.org/2000/09/xmldsig#sha1');
+                $method?->appendChild($digest);
+            }
+        }
 
         return $wrapper;
     }

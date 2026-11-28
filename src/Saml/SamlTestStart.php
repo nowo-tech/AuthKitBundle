@@ -41,10 +41,11 @@ final class SamlTestStart
      * The URL to send the administrator's browser to.
      *
      * @param string|null $loginHint an e-mail address forwarded as `login_hint` when valid
+     * @param bool $forceAuthn asks the IdP to authenticate the administrator again (`ForceAuthn="true"`)
      *
      * @throws SocialLoginTestException `no_handler`, `saml_disabled`, `unknown_provider`, `provider` (incomplete row)
      */
-    public function start(Request $request, string $provider, ?string $loginHint = null): string
+    public function start(Request $request, string $provider, ?string $loginHint = null, bool $forceAuthn = false): string
     {
         if (!$this->hasHandler()) {
             throw new SocialLoginTestException(SocialLoginTestException::REASON_NO_HANDLER, sprintf('No "%s" is registered: a test sign-in would have no handler.', SocialLoginTestHandlerInterface::class));
@@ -59,7 +60,7 @@ final class SamlTestStart
         }
 
         try {
-            return $this->loginStart->url($request, $profile, $row, LoginHint::normalize($loginHint), true);
+            return $this->loginStart->url($request, $profile, $row, LoginHint::normalize($loginHint), true, $forceAuthn);
         } catch (SamlFailure $failure) {
             throw new SocialLoginTestException(SocialLoginTestException::REASON_PROVIDER, 'The SAML provider is not completely set up: ' . $failure->reason . '.', $failure);
         }

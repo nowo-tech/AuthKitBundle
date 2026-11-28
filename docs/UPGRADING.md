@@ -211,7 +211,8 @@ table `auth_kit_saml_provider` (create it even when SAML stays off, as the other
 are in `src/Resources/sql/saml/<platform>.up.sql` (MySQL 8.0+, MariaDB 10.5+, PostgreSQL 12+, SQLite; with
 `doctrine.table_prefix`, prefix the table and index names), and `<platform>.down.sql` removes it.
 
-To use SAML: `composer require onelogin/php-saml:^4.6`, set `saml.mode: enabled` on the profile, keep
+To use SAML: `composer require onelogin/php-saml:^4.6 symfony/lock`, use a shared `attempt_limiter.cache_pool` (the build
+fails with an in-memory one outside `test`), set `saml.mode: enabled` on the profile, keep
 nowo-tech/doctrine-encrypt-bundle encrypting on the entity manager (the SP private keys are refused otherwise while
 `doctrine.require_enterprise_secret_encryption` is true), allow `^/login/saml` and `^/saml/` anonymously in
 `security.yaml`, set `absolute_url.base_uri`, then create a provider row per identity provider. SAML sign-ins follow the

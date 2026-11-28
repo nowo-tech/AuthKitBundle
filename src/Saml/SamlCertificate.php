@@ -14,7 +14,9 @@ use function chunk_split;
 use function hash;
 use function is_array;
 use function is_int;
+use function openssl_pkey_get_details;
 use function openssl_pkey_get_private;
+use function openssl_pkey_get_public;
 use function openssl_x509_check_private_key;
 use function openssl_x509_parse;
 use function preg_match;
@@ -22,15 +24,23 @@ use function preg_replace;
 use function strlen;
 use function trim;
 
+use const OPENSSL_KEYTYPE_RSA;
+
 /**
  * An X.509 certificate of a SAML provider row (2.10.0): the normalised PEM, the lowercase hex SHA-256 of its DER and
  * its validity dates, so expiry can be queried in SQL. A certificate is public data: it is stored in plain (IdP) or
  * encrypted with its private key (SP slots). Immutable, stateless.
+ *
+ * Public API (2.10.0): `pem`, `sha256`, `notBefore`, `notAfter` and {@see self::fromPem()} are stable; hosts may use
+ * them to show or check a certificate before they store it. Only RSA keys of at least 2048 bits are accepted (the
+ * signature algorithms SAML uses here are RSA; DSA, EC and short RSA keys are refused).
  */
 final readonly class SamlCertificate
 {
     /** Longest PEM accepted (a 16384-bit RSA certificate with extensions stays well below it). */
     public const MAX_PEM_LENGTH = 16384;
+
+    public const MIN_RSA_BITS = 2048;
 
     private function __construct(
         public string $pem,
@@ -66,6 +76,12 @@ final readonly class SamlCertificate
         $parsed = @openssl_x509_parse($pem);
         if (!is_array($parsed) || !is_int($parsed['validFrom_time_t'] ?? null) || !is_int($parsed['validTo_time_t'] ?? null)) {
             throw new InvalidArgumentException('The certificate cannot be read.');
+        }
+
+        $key     = openssl_pkey_get_public($pem);
+        $details = $key instanceof OpenSSLAsymmetricKey ? openssl_pkey_get_details($key) : false;
+        if (!is_array($details) || ($details['type'] ?? null) !== OPENSSL_KEYTYPE_RSA || ($details['bits'] ?? 0) < self::MIN_RSA_BITS) {
+            throw new InvalidArgumentException('The certificate key must be RSA of at least 2048 bits.');
         }
 
         return new self(

@@ -32,6 +32,8 @@ final class SamlProviderTest extends TestCase
         self::assertSame([], $row->getMfaAcceptedAuthnContexts());
         self::assertFalse($row->isEmailVerified());
         self::assertFalse($row->isWantEncryptedAssertions());
+        self::assertFalse($row->isWantAssertionsSigned());
+        self::assertFalse($row->isRequirePersistentSubject());
         self::assertSame('saml:acme', SamlProvider::accountProvider('acme'));
         self::assertEquals($row->getCreatedAt(), $row->getUpdatedAt());
     }
@@ -54,7 +56,9 @@ final class SamlProviderTest extends TestCase
             ->setNameIdFormat('urn:oasis:names:tc:SAML:2.0:nameid-format:persistent')
             ->setAttributeMapping(['email' => ' mail ', 'groups' => null, 'subject' => ''])
             ->setEmailVerified(true)
-            ->setWantEncryptedAssertions(true);
+            ->setWantEncryptedAssertions(true)
+            ->setWantAssertionsSigned(true)
+            ->setRequirePersistentSubject(true);
 
         self::assertTrue($row->isComplete());
         self::assertSame('org-1_a', $row->getProvider());
@@ -79,6 +83,8 @@ final class SamlProviderTest extends TestCase
         self::assertSame(['email' => 'mail'], $row->getAttributeMapping());
         self::assertTrue($row->isEmailVerified());
         self::assertTrue($row->isWantEncryptedAssertions());
+        self::assertTrue($row->isWantAssertionsSigned());
+        self::assertTrue($row->isRequirePersistentSubject());
 
         $row->setIdpCertificates($idp['cert'], ' ')->setScope(null)->setSpEntityId(null)->setNameIdFormat(null);
         self::assertCount(1, $row->getIdpCertificates());

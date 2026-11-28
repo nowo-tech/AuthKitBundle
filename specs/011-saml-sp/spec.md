@@ -88,6 +88,8 @@ The host queries `idp_certificate_not_after`, `idp_next_certificate_not_after`, 
 | `attribute_mapping` | json null | keys `subject`, `email`, `first_name`, `last_name`, `display_name`, `groups` → attribute names (`Name` or `FriendlyName`) |
 | `email_verified` | bool, default false | true: the IdP is authoritative for the asserted e-mail (it counts as `email_verified`) |
 | `want_encrypted_assertions` | bool, default false | true refuses plain assertions |
+| `want_assertions_signed` | bool, default false | true: the Assertion itself must be signed (a Response-only signature is refused) |
+| `require_persistent_subject` | bool, default false | true: without a `subject` attribute only a persistent NameID is a subject |
 | `link_existing_account` | varchar(16) null | `reset_password` / `deny` / `keep`; null = the profile's `social_login.link_existing_account`; unknown = `deny` |
 | `mfa_first_factor` | varchar(32) null | `required` / `exempt` / `exempt_when_authn_context`; null = `mfa.first_factors.social`; unknown = `required` |
 | `mfa_accepted_authn_contexts` | json null | `AuthnContextClassRef` values that exempt (≤ 16, ≤ 255 bytes each) |
@@ -117,11 +119,12 @@ profile without `onelogin/php-saml` fails with a clear message.
 
 ### Services (public API)
 
-- `SamlTestStart::start(Request, string $provider, ?string $loginHint = null): string` — test sign-in URL; throws
+- `SamlTestStart::start(Request, string $provider, ?string $loginHint = null, bool $forceAuthn = false): string` — test sign-in URL; throws
   `SocialLoginTestException` (`no_handler`, `saml_disabled`, `unknown_provider`).
 - `SamlSpKeyGenerator::generate(string $commonName, int $validDays = 730): SamlSpKeyPair` — RSA 3072 key and
   self-signed certificate (PEM) for a slot.
-- `SamlIdpMetadataImporter::import(SamlProvider, string $xml, ?string $entityId = null): void` — entity id, HTTP-Redirect
+- `SamlIdpMetadataImporter::parse(string $xml, ?string $entityId = null): SamlIdpMetadata` (dry run) and
+  `import(SamlProvider, string $xml, ?string $entityId = null): SamlIdpMetadata` — entity id, HTTP-Redirect
   SSO URL and up to two signing certificates from IdP metadata XML (the host fetches the document; no URL fetch in
   2.10.0).
 - `SamlSpMetadata::build(SamlProvider, ProfileSettings): string` — the metadata XML.
@@ -169,8 +172,9 @@ assertion data.
   `SubjectConfirmationData/@NotOnOrAfter` and `AuthnStatement/@SessionNotOnOrAfter` with `clock_skew`.
 - **S-06** Encrypted assertions accepted (current or next SP key), required with `want_encrypted_assertions`. RSA 1.5
   key transport refused.
-- **S-07** Subject: the mapped `subject` attribute, else a NameID whose format is not transient; must pass
-  `ExactIdentifier` (≤ 255). Issuer stored on the link: a link made under another IdP entity id no longer signs in.
+- **S-07** Subject: the mapped `subject` attribute (one value), else a NameID that is not transient, of the row's
+  `name_id_format` when one is set, and persistent with `require_persistent_subject`; must pass `ExactIdentifier`
+  (≤ 255). The IdP entity id is locked while links exist (`SamlIssuerGuard`). Issuer stored on the link: a link made under another IdP entity id no longer signs in.
 - **S-08** E-mail: linking to an existing account or creating one needs a verified-equivalent e-mail (provider
   `email_verified` true) under `require_verified_email`, as for OpenID Connect.
 - **S-09** Never logged at info level or above: keys, certificates' private parts, the response, the assertion,
@@ -179,6 +183,12 @@ assertion data.
   decoding.
 - **S-11** No per-request state in services (REQ-RUNTIME-003, FrankenPHP worker mode); onelogin's static URL helpers
   are pinned to the ACS URL for one validation and restored.
+
+- **S-12** (review) SHA-1 refused in signatures only; CBC data encryption only inside a signed Response (checked before
+  decryption); IdP certificates RSA ≥ 2048; identity attributes with several values refused; a SAML profile needs
+  symfony/lock and, outside `test`, a claim pool that is not in process memory; the claim lives `request_lifetime` +
+  180 s + 60 s and an unreachable store fails closed; the refusal code is on the request
+  (`_nowo_auth_kit_saml_failure`) and the event is dispatched before a host `handleFailure()`.
 
 ## Out of scope (2.10.0)
 

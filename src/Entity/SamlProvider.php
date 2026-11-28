@@ -165,6 +165,17 @@ class SamlProvider
     #[ORM\Column(name: 'want_encrypted_assertions', type: Types::BOOLEAN, options: ['default' => false])]
     private bool $wantEncryptedAssertions = false;
 
+    /** True: the Assertion itself must be signed (a signature on the Response alone is refused). */
+    #[ORM\Column(name: 'want_assertions_signed', type: Types::BOOLEAN, options: ['default' => false])]
+    private bool $wantAssertionsSigned = false;
+
+    /**
+     * True: without a `subject` attribute only a persistent NameID is a subject (an e-mail, unspecified or any other
+     * format is refused: an address can be reassigned to someone else).
+     */
+    #[ORM\Column(name: 'require_persistent_subject', type: Types::BOOLEAN, options: ['default' => false])]
+    private bool $requirePersistentSubject = false;
+
     #[ORM\Column(name: 'link_existing_account', type: Types::STRING, length: 16, nullable: true)]
     private ?string $linkExistingAccount = null;
 
@@ -617,6 +628,37 @@ class SamlProvider
     {
         // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
         $this->wantEncryptedAssertions = $want;
+        $this->touch();
+
+        return $this;
+    }
+
+    public function isWantAssertionsSigned(): bool
+    {
+        return $this->wantAssertionsSigned;
+    }
+
+    /**
+     * @param bool $want true: a response whose Assertion is not signed itself is refused, even with a signed Response
+     */
+    public function setWantAssertionsSigned(bool $want): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->wantAssertionsSigned = $want;
+        $this->touch();
+
+        return $this;
+    }
+
+    public function isRequirePersistentSubject(): bool
+    {
+        return $this->requirePersistentSubject;
+    }
+
+    public function setRequirePersistentSubject(bool $require): self
+    {
+        // @igor-ignore - Doctrine entity field; instance-scoped, not a shared service.
+        $this->requirePersistentSubject = $require;
         $this->touch();
 
         return $this;

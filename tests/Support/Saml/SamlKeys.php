@@ -15,6 +15,7 @@ use function openssl_pkey_export;
 use function openssl_pkey_new;
 use function openssl_x509_export;
 
+use const OPENSSL_KEYTYPE_EC;
 use const OPENSSL_KEYTYPE_RSA;
 
 /**
@@ -29,18 +30,20 @@ final class SamlKeys
     /**
      * @return array{key: string, cert: string} PEM private key and certificate of a named throwaway pair
      */
-    public static function pair(string $name, int $days = 365): array
+    public static function pair(string $name, int $days = 365, int $bits = 2048, string $type = 'rsa'): array
     {
-        return self::$pairs[$name . ':' . $days] ??= self::generate($name, $days); // @phpstan-ignore frankenphp.worker.noMutableStaticProperty (test-only cache)
+        return self::$pairs[$name . ':' . $days . ':' . $bits . ':' . $type] ??= self::generate($name, $days, $bits, $type); // @phpstan-ignore frankenphp.worker.noMutableStaticProperty (test-only cache)
     }
 
     /**
      * @return array{key: string, cert: string}
      */
-    private static function generate(string $name, int $days): array
+    private static function generate(string $name, int $days, int $bits, string $type): array
     {
-        $options = ['private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => 2048, 'digest_alg' => 'sha256'];
-        $key     = openssl_pkey_new($options);
+        $options = $type === 'ec'
+            ? ['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1', 'digest_alg' => 'sha256']
+            : ['private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => $bits, 'digest_alg' => 'sha256'];
+        $key = openssl_pkey_new($options);
         if (!$key instanceof OpenSSLAsymmetricKey) {
             throw new RuntimeException('No test key.');
         }

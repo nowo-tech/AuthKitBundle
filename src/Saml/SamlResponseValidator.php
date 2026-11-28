@@ -25,6 +25,7 @@ use function is_array;
 use function is_string;
 use function libxml_clear_errors;
 use function libxml_use_internal_errors;
+use function str_ends_with;
 use function strlen;
 use function strtolower;
 use function trim;
@@ -119,6 +120,8 @@ final class SamlResponseValidator
             throw new SamlFailure(SamlFailure::MALFORMED, 'The SAMLResponse is empty, too large or not base64.');
         }
 
+        $this->refuseUnsignedCbc($samlResponse);
+
         $slots    = $provider->getSpNextPrivateKey() !== null ? [SamlSettingsFactory::SLOT_CURRENT, SamlSettingsFactory::SLOT_NEXT] : [SamlSettingsFactory::SLOT_CURRENT];
         $response = null;
         $failure  = null;
@@ -137,6 +140,40 @@ final class SamlResponseValidator
         }
 
         return $this->assertion($response, $provider, $requestId, $acsUrl, $spEntityId, $clockSkew);
+    }
+
+    /**
+     * Before anything is decrypted: CBC data encryption has no integrity of its own, so an EncryptedAssertion encrypted
+     * with an `aes*-cbc` algorithm is accepted only inside a signed Response (an Assertion signature sits inside the
+     * ciphertext and cannot protect it; refusing it here leaves no padding oracle). GCM is always accepted. A document
+     * that cannot be read is left to the library (its refusal is the same as before).
+     *
+     * @throws SamlFailure `decryption`
+     */
+    private function refuseUnsignedCbc(string $samlResponse): void
+    {
+        $internalErrors = libxml_use_internal_errors(true);
+
+        try {
+            $document = Utils::loadXML(new DOMDocument(), (string) base64_decode($samlResponse, true));
+        } catch (Throwable) {
+            $document = false;
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($internalErrors);
+        }
+        if (!$document instanceof DOMDocument) {
+            return;
+        }
+        $xpath = $this->xpath($document);
+        if ((int) $xpath->evaluate('count(/samlp:Response/ds:Signature)') > 0) {
+            return;
+        }
+        foreach ($this->nodes($xpath, '/samlp:Response/saml:EncryptedAssertion/xenc:EncryptedData/xenc:EncryptionMethod/@Algorithm') as $algorithm) {
+            if (str_ends_with(strtolower(trim($algorithm->textContent)), '-cbc')) {
+                throw new SamlFailure(SamlFailure::DECRYPTION, 'A CBC-encrypted assertion needs a signed Response.');
+            }
+        }
     }
 
     /**
@@ -181,7 +218,8 @@ final class SamlResponseValidator
         $xpath = $this->xpath($document);
 
         foreach ([$original, $document] as $checked) {
-            foreach ($this->nodes($this->xpath($checked), '//ds:SignatureMethod/@Algorithm | //ds:DigestMethod/@Algorithm') as $algorithm) {
+            // Signatures only: the OAEP key transport of an encrypted assertion carries a SHA-1 mask digest legitimately.
+            foreach ($this->nodes($this->xpath($checked), '//ds:Signature/ds:SignedInfo/ds:SignatureMethod/@Algorithm | //ds:Signature/ds:SignedInfo/ds:Reference/ds:DigestMethod/@Algorithm') as $algorithm) {
                 if (in_array(strtolower(trim($algorithm->textContent)), self::SHA1_ALGORITHMS, true)) {
                     throw new SamlFailure(SamlFailure::SIGNATURE, 'SHA-1 signatures and digests are refused.');
                 }
@@ -200,6 +238,10 @@ final class SamlResponseValidator
         }
         $responseSigned  = (int) $originalPath->evaluate('count(/samlp:Response/ds:Signature)') === 1;
         $assertionSigned = (int) $xpath->evaluate('count(/samlp:Response/saml:Assertion/ds:Signature)') === 1;
+        if ($provider->isWantAssertionsSigned() && !$assertionSigned) {
+            // Defence in depth: also refused by the library (wantAssertionsSigned).
+            throw new SamlFailure(SamlFailure::SIGNATURE, 'The provider requires a signed Assertion.'); // @codeCoverageIgnore
+        }
         if (!$responseSigned && !$assertionSigned) {
             // Defence in depth: also refused by the library.
             throw new SamlFailure(SamlFailure::SIGNATURE, 'Neither the response nor the assertion is signed.'); // @codeCoverageIgnore
@@ -328,9 +370,10 @@ final class SamlResponseValidator
      */
     private function time(string $value): int
     {
+        // Defence in depth: the library parsed every time first.
+        // @codeCoverageIgnoreStart
         try {
             return (int) Utils::parseSAML2Time(trim($value));
-            // @codeCoverageIgnoreStart (defence in depth: the library parsed every time first)
         } catch (Throwable) {
             throw new SamlFailure(SamlFailure::MALFORMED, 'A time of the assertion cannot be read.');
         }
@@ -360,6 +403,7 @@ final class SamlResponseValidator
         $xpath->registerNamespace('samlp', Constants::NS_SAMLP);
         $xpath->registerNamespace('saml', Constants::NS_SAML);
         $xpath->registerNamespace('ds', Constants::NS_DS);
+        $xpath->registerNamespace('xenc', Constants::NS_XENC);
 
         return $xpath;
     }

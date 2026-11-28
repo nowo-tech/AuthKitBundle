@@ -165,6 +165,14 @@ until a profile sets `saml.mode: enabled` and a provider row exists. See [SAML.m
 - **Helpers**: `Saml\SamlSpKeyGenerator` (RSA 3072 self-signed pairs), `Saml\SamlIdpMetadataImporter` (entity id, SSO URL
   and two signing certificates from IdP metadata XML), `Saml\SamlSpMetadata`; `SamlProvider::setNextSpKeyPair()` /
   `promoteNextSpKeyPair()` for rotation; `SocialLoginTestException::REASON_SAML_DISABLED`.
+- **Hardening of the review** (before release): `want_assertions_signed` and `require_persistent_subject` row flags; a
+  NameID of another format than the row's `name_id_format` is never the subject; identity attributes with several
+  values are refused; SHA-1 is refused in signatures only (OAEP SHA-1 mask digests accepted); CBC-encrypted assertions
+  only inside a signed Response; IdP certificates RSA ≥ 2048 only; `Saml\SamlIssuerGuard` locks the IdP entity id while
+  `saml:<key>` links exist (flush and metadata import); `SamlIdpMetadataImporter::parse()` dry run returning
+  `Saml\SamlIdpMetadata` (duplicates merged, more than two certificates refused); `force_authn=1` / `forceAuthn`;
+  the refusal code on the request (`_nowo_auth_kit_saml_failure`) before a host `handleFailure()`; a SAML profile
+  requires symfony/lock and, outside `test`, a claim pool that is not in process memory.
 - `EnterpriseSecretEncryptionGuard` also refuses to write a SAML provider row with an SP private key when
   nowo-tech/doctrine-encrypt-bundle does not encrypt on that manager
   (`EnterpriseSecretNotEncryptedException::forSamlProvider()`).

@@ -19,6 +19,7 @@ use Nowo\AuthKitBundle\DependencyInjection\Compiler\PrivateEntityManagerPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\ProgrammaticLoginAuthenticatorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\QrCodeGeneratorPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\RemovedPortsPass;
+use Nowo\AuthKitBundle\DependencyInjection\Compiler\SamlSharedClaimPoolPass;
 use Nowo\AuthKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuthKitBundle\DependencyInjection\NowoAuthKitExtension;
 use Symfony\Component\DependencyInjection\Compiler\PassConfig;
@@ -41,6 +42,7 @@ class NowoAuthKitBundle extends Bundle
         $container->addCompilerPass(new LoginLinkHandlerLocatorPass());
         $container->addCompilerPass(new CsrfProtectionPass());
         $container->addCompilerPass(new MfaLockRequiredPass());
+        $container->addCompilerPass(new SamlSharedClaimPoolPass());
         $container->addCompilerPass(new InvitationsPass());
         $container->addCompilerPass(new MultiAccountPass());
         $container->addCompilerPass(new ProgrammaticLoginAuthenticatorPass());

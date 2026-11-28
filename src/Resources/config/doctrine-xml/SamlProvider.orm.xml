@@ -51,6 +51,16 @@
                 <option name="default">0</option>
             </options>
         </field>
+        <field name="wantAssertionsSigned" column="want_assertions_signed" type="boolean">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="requirePersistentSubject" column="require_persistent_subject" type="boolean">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
         <field name="linkExistingAccount" column="link_existing_account" type="string" length="16" nullable="true"/>
         <field name="mfaFirstFactor" column="mfa_first_factor" type="string" length="32" nullable="true"/>
         <field name="mfaAcceptedAuthnContexts" column="mfa_accepted_authn_contexts" type="json" nullable="true"/>

@@ -42,6 +42,18 @@ final class SamlCertificateTest extends TestCase
         self::assertFalse($certificate->matchesPrivateKey('not a key'));
     }
 
+    public function testShortRsaAndOtherKeyTypesAreRefused(): void
+    {
+        foreach ([SamlKeys::pair('short', 365, 1024)['cert'], SamlKeys::pair('ec', 365, 0, 'ec')['cert']] as $pem) {
+            try {
+                SamlCertificate::fromPem($pem);
+                self::fail('Accepted.');
+            } catch (InvalidArgumentException $exception) {
+                self::assertStringContainsString('2048', $exception->getMessage());
+            }
+        }
+    }
+
     /**
      * @return iterable<string, array{string}>
      */

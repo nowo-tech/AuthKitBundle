@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-28 (2.10.0, SAML 2.0 SP: 24 PHP + 10 Resources; 2.9.0: + `Doctrine/EncryptedFieldWrite.php`; 2.6.0: + 6 PHP, runtime WebAuthn relying party; 2.4.1: + `Webauthn/WebauthnErasure.php`; 2.4.0, passkeys: 23 PHP + 14 Resources)  
-**Units**: **587** (`492` PHP under `src/` + `95` Resources)
+**Last audited**: 2026-11-28 (2.10.0, SAML 2.0 SP: 27 PHP + 10 Resources; 2.9.0: + `Doctrine/EncryptedFieldWrite.php`; 2.6.0: + 6 PHP, runtime WebAuthn relying party; 2.4.1: + `Webauthn/WebauthnErasure.php`; 2.4.0, passkeys: 23 PHP + 14 Resources)  
+**Units**: **590** (`495` PHP under `src/` + `95` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -818,6 +818,7 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
+| `DependencyInjection/Compiler/SamlSharedClaimPoolPass.php` | production | FR-SAML-001 | Mapped |
 | `DependencyInjection/SamlConfiguration.php` | production | FR-SAML-001 | Mapped |
 | `Entity/SamlProvider.php` | production | FR-SAML-002 | Mapped |
 | `Repository/SamlProviderRepository.php` | production | FR-SAML-002 | Mapped |
@@ -837,7 +838,9 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 | `Saml/SamlAssertion.php` | production | FR-SAML-003 | Mapped |
 | `Saml/SamlCertificate.php` | production | FR-SAML-002 | Mapped |
 | `Saml/SamlFailure.php` | production | FR-SAML-005 | Mapped |
+| `Saml/SamlIdpMetadata.php` | production | FR-SAML-006 | Mapped |
 | `Saml/SamlIdpMetadataImporter.php` | production | FR-SAML-006 | Mapped |
+| `Saml/SamlIssuerGuard.php` | production | FR-SAML-002 | Mapped |
 | `Saml/SamlLoginStart.php` | production | FR-SAML-004 | Mapped |
 | `Saml/SamlPostRelay.php` | production | FR-SAML-004 | Mapped |
 | `Saml/SamlProfileMapper.php` | production | FR-SAML-003 | Mapped |

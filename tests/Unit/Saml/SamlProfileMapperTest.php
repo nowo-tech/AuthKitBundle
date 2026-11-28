@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Tests\Unit\Saml;
 
+use Nowo\AuthKitBundle\Entity\SamlProvider;
 use Nowo\AuthKitBundle\Saml\SamlAssertion;
 use Nowo\AuthKitBundle\Saml\SamlFailure;
 use Nowo\AuthKitBundle\Saml\SamlProfileMapper;
@@ -62,6 +63,29 @@ final class SamlProfileMapperTest extends TestCase
         $this->assertRefused(SamlFailure::UNUSABLE_SUBJECT, new SamlAssertion('i', str_repeat('a', 256), null, null, ['mail' => ['a@example.com']], [], [], null));
     }
 
+    public function testTheRequestedNameIdFormatAndThePersistentRuleBindTheSubject(): void
+    {
+        $assertion = static fn (string $format): SamlAssertion => new SamlAssertion('i', 'ada@example.com', $format, null, ['mail' => ['ada@example.com']], [], [], null);
+        $row       = SamlProviders::acme()->setNameIdFormat(Constants::NAMEID_PERSISTENT);
+        $this->assertRefused(SamlFailure::UNUSABLE_SUBJECT, $assertion(Constants::NAMEID_EMAIL_ADDRESS), $row);
+        self::assertSame('ada@example.com', (new SamlProfileMapper())->map($row, $assertion(Constants::NAMEID_PERSISTENT))->id);
+
+        $strict = SamlProviders::acme()->setRequirePersistentSubject(true);
+        $this->assertRefused(SamlFailure::UNUSABLE_SUBJECT, $assertion(Constants::NAMEID_EMAIL_ADDRESS), $strict);
+        $this->assertRefused(SamlFailure::UNUSABLE_SUBJECT, $assertion(Constants::NAMEID_UNSPECIFIED), $strict);
+        self::assertSame('ada@example.com', (new SamlProfileMapper())->map($strict, $assertion(Constants::NAMEID_PERSISTENT))->id);
+        // A subject attribute is the subject whatever the NameID.
+        $mapped = SamlProviders::acme()->setRequirePersistentSubject(true)->setAttributeMapping(['subject' => 'oid', 'email' => 'mail']);
+        self::assertSame('7', (new SamlProfileMapper())->map($mapped, new SamlAssertion('i', 'x', Constants::NAMEID_EMAIL_ADDRESS, null, ['mail' => ['a@example.com'], 'oid' => ['7', ' 7 ']], [], [], null))->id);
+    }
+
+    public function testAnIdentityAttributeWithSeveralValuesIsRefused(): void
+    {
+        $this->assertRefused(SamlFailure::MISSING_EMAIL, new SamlAssertion('i', 'subject-1', Constants::NAMEID_PERSISTENT, null, ['mail' => ['a@example.com', 'b@example.com']], [], [], null));
+        $row = SamlProviders::acme()->setAttributeMapping(['subject' => 'oid', 'email' => 'mail']);
+        $this->assertRefused(SamlFailure::UNUSABLE_SUBJECT, new SamlAssertion('i', 'subject-1', null, null, ['mail' => ['a@example.com'], 'oid' => ['1', '2']], [], [], null), $row);
+    }
+
     public function testAMissingOrInvalidEmailIsRefused(): void
     {
         $this->assertRefused(SamlFailure::MISSING_EMAIL, new SamlAssertion('i', 'subject-1', Constants::NAMEID_PERSISTENT, null, [], [], [], null));
@@ -86,10 +110,10 @@ final class SamlProfileMapperTest extends TestCase
         );
     }
 
-    private function assertRefused(string $reason, SamlAssertion $assertion): void
+    private function assertRefused(string $reason, SamlAssertion $assertion, ?SamlProvider $row = null): void
     {
         try {
-            (new SamlProfileMapper())->map(SamlProviders::acme(), $assertion);
+            (new SamlProfileMapper())->map($row ?? SamlProviders::acme(), $assertion);
             self::fail('Mapped.');
         } catch (SamlFailure $failure) {
             self::assertSame($reason, $failure->reason);

@@ -108,10 +108,12 @@ final class DatabaseTestKernel extends InvitationsTestKernel
         }
         if ($this->environment === 'test_saml') {
             // 2.10.0: SAML on with just-in-time creation, for the SAML identity locks on a real server.
+            $container->loadFromExtension('framework', ['lock' => 'flock']);
             $container->loadFromExtension('nowo_auth_kit', [
-                'social_login' => ['create_user_if_missing' => true],
-                'saml'         => ['mode' => 'enabled'],
-                'doctrine'     => ['require_enterprise_secret_encryption' => false],
+                'registration_mode' => 'always',
+                'social_login'      => ['create_user_if_missing' => true],
+                'saml'              => ['mode' => 'enabled'],
+                'doctrine'          => ['require_enterprise_secret_encryption' => false],
             ]);
         }
         $container->register(SlowUserPersist::class)->addTag('doctrine.event_listener', ['event' => 'prePersist']);

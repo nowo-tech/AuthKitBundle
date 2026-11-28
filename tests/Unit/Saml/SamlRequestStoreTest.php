@@ -9,6 +9,8 @@ use Nowo\AuthKitBundle\Saml\SamlRequestStore;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use Psr\Cache\CacheItemPoolInterface;
+use RuntimeException;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\HttpFoundation\Session\Session;
@@ -26,7 +28,7 @@ final class SamlRequestStoreTest extends TestCase
     protected function setUp(): void
     {
         $this->clock = new MockClock();
-        $this->cache = new ArrayAdapter();
+        $this->cache = new ArrayAdapter(0, true, 0, 0, $this->clock);
     }
 
     public function testAPendingRequestIsUsedOnce(): void
@@ -86,6 +88,34 @@ final class SamlRequestStoreTest extends TestCase
 
         $this->store()->consume($first, 'default', 'acme', 'relay-1');
         $this->assertRefused(SamlFailure::REPLAYED, $second, 'acme', 'relay-1');
+    }
+
+    public function testAnUnreachableClaimStoreFailsClosed(): void
+    {
+        $session = $this->session();
+        $pool    = $this->createStub(CacheItemPoolInterface::class);
+        $pool->method('getItem')->willThrowException(new RuntimeException('The cache is down.'));
+        $store = new SamlRequestStore(new AuthKitAttemptLimiter($pool), $this->clock);
+        $store->issue($session, 'default', 'acme', '_req-1', 'relay-1', 600);
+
+        $this->expectException(RuntimeException::class);
+        $store->consume($session, 'default', 'acme', 'relay-1');
+    }
+
+    public function testTheClaimOutlivesTheLifetimeAndTheLargestSkew(): void
+    {
+        $session = $this->session();
+        $this->store()->issue($session, 'default', 'acme', '_req-1', 'relay-1', 600);
+        $this->store()->consume($session, 'default', 'acme', 'relay-1');
+        // Still claimed after lifetime + 180 s: a copy of the session cannot use it.
+        $this->clock->sleep(600 + 180);
+        $copy = $this->session();
+        $copy->set(SamlRequestStore::SESSION_KEY, ['profile' => 'default', 'provider' => 'acme', 'request_id' => '_req-1', 'relay_state' => 'relay-1', 'expires' => $this->clock->now()->getTimestamp() + 10, 'lifetime' => 600, 'test' => false]);
+        $this->assertRefused(SamlFailure::REPLAYED, $copy, 'acme', 'relay-1');
+        // And released once the window is over.
+        $this->clock->sleep(61);
+        $copy->set(SamlRequestStore::SESSION_KEY, ['profile' => 'default', 'provider' => 'acme', 'request_id' => '_req-1', 'relay_state' => 'relay-1', 'expires' => $this->clock->now()->getTimestamp() + 10, 'lifetime' => 600, 'test' => false]);
+        self::assertSame('_req-1', $this->store()->consume($copy, 'default', 'acme', 'relay-1')['request_id']);
     }
 
     public function testABrokenSessionValueIsNoPendingRequest(): void

@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Unit\Saml;
 
 use InvalidArgumentException;
+use LogicException;
 use Nowo\AuthKitBundle\Entity\SamlProvider;
+use Nowo\AuthKitBundle\Repository\SocialLoginAccountRepository;
 use Nowo\AuthKitBundle\Saml\SamlCertificate;
+use Nowo\AuthKitBundle\Saml\SamlIdpMetadata;
 use Nowo\AuthKitBundle\Saml\SamlIdpMetadataImporter;
+use Nowo\AuthKitBundle\Saml\SamlIssuerGuard;
 use Nowo\AuthKitBundle\Tests\Support\Saml\SamlKeys;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -17,12 +21,15 @@ use function str_repeat;
 use function trim;
 
 #[CoversClass(SamlIdpMetadataImporter::class)]
+#[CoversClass(SamlIdpMetadata::class)]
 final class SamlIdpMetadataImporterTest extends TestCase
 {
     public function testTheEntitySsoUrlAndTwoSigningCertificatesAreImported(): void
     {
-        $row = new SamlProvider();
-        (new SamlIdpMetadataImporter())->import($row, $this->metadata(['idp', 'idp-next', 'attacker']));
+        $row    = new SamlProvider();
+        $parsed = (new SamlIdpMetadataImporter())->import($row, $this->metadata(['idp', 'idp-next', 'idp']));
+        self::assertCount(2, $parsed->certificates, 'Identical certificates count once.');
+        self::assertSame('https://idp.example.com/saml', $parsed->entityId);
 
         self::assertSame('https://idp.example.com/saml', $row->getIdpEntityId());
         self::assertSame('https://idp.example.com/sso/redirect', $row->getIdpSsoUrl());
@@ -31,6 +38,32 @@ final class SamlIdpMetadataImporterTest extends TestCase
 
         (new SamlIdpMetadataImporter())->import($row, $this->metadata(['idp']));
         self::assertNull($row->getIdpNextCertificate());
+    }
+
+    public function testParseIsADryRunAndMoreThanTwoCertificatesAreRefused(): void
+    {
+        $parsed = (new SamlIdpMetadataImporter())->parse($this->metadata(['idp']));
+        self::assertSame('https://idp.example.com/sso/redirect', $parsed->ssoUrl);
+        self::assertSame(SamlCertificate::fromPem(SamlKeys::pair('idp')['cert'])->sha256, $parsed->certificates[0]->sha256);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('3 distinct');
+        (new SamlIdpMetadataImporter())->parse($this->metadata(['idp', 'idp-next', 'attacker']));
+    }
+
+    public function testAnImportCannotMoveALinkedRowToAnotherEntityId(): void
+    {
+        $accounts = $this->createStub(SocialLoginAccountRepository::class);
+        $accounts->method('count')->willReturn(1);
+        $row = (new SamlProvider())->setProvider('acme')->setIdpEntityId('https://old.example.com');
+
+        try {
+            (new SamlIdpMetadataImporter(new SamlIssuerGuard($accounts)))->import($row, $this->metadata(['idp']));
+            self::fail('Moved.');
+        } catch (LogicException $exception) {
+            self::assertStringContainsString('"acme"', $exception->getMessage());
+            self::assertSame('https://old.example.com', $row->getIdpEntityId());
+        }
     }
 
     public function testIncompleteOrUnreadableMetadataChangesNothing(): void

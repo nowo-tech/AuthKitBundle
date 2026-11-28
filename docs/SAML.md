@@ -31,11 +31,15 @@ Contract: [specs/011-saml-sp/spec.md](../specs/011-saml-sp/spec.md).
 ## Install
 
 ```bash
-composer require onelogin/php-saml:^4.6
+composer require onelogin/php-saml:^4.6 symfony/lock
 ```
 
 The library is optional for the bundle and required by the feature: a container with a profile that sets
-`saml.mode: enabled` fails to build without it. The provider table `auth_kit_saml_provider` is mapped with the other
+`saml.mode: enabled` fails to build without it, without symfony/lock (`lock.factory`), or, outside the `test`
+environment, with an `attempt_limiter.cache_pool` kept in process memory (`cache.adapter.array`): the single-use claim
+of a pending request must be seen by every worker and every replica. A filesystem pool serves the workers of one host;
+several hosts need a shared pool (Redis, database), which the build cannot check. When the pool is unreachable the ACS
+fails (an error, never a sign-in without the claim). The provider table `auth_kit_saml_provider` is mapped with the other
 AuthKit entities; create it with a migration (`doctrine:migrations:diff`) or the shipped scripts in
 `src/Resources/sql/saml/` (MySQL, MariaDB, PostgreSQL, SQLite; see [UPGRADING.md](UPGRADING.md#to-2100)).
 
@@ -87,6 +91,8 @@ decides on it. A new row is disabled until `setEnabled(true)`.
 | `attribute_mapping` | `subject`, `email`, `first_name`, `last_name`, `display_name`, `groups` → attribute `Name` (or `FriendlyName`) |
 | `email_verified` | true: the identity provider is authoritative for the e-mail it asserts (default false) |
 | `want_encrypted_assertions` | true: plain assertions are refused (default false; encrypted ones are always accepted) |
+| `want_assertions_signed` | true: the Assertion itself must be signed (default false: a signature on the Response alone is accepted) |
+| `require_persistent_subject` | true: without a `subject` attribute only a persistent NameID is a subject (never an e-mail or unspecified NameID) |
 | `link_existing_account` | `reset_password` / `deny` / `keep`; null: the profile's `social_login.link_existing_account` |
 | `mfa_first_factor`, `mfa_accepted_authn_contexts` | see [MFA after a SAML sign-in](#mfa-after-a-saml-sign-in) |
 
@@ -113,13 +119,24 @@ $em->flush();
 ```
 
 Never log, display or export the private key; the row's setters validate every value (the key must belong to its
-certificate).
+certificate; certificates must carry an RSA key of at least 2048 bits). `SamlCertificate::fromPem()` (`pem`, `sha256`,
+`notBefore`, `notAfter`) is public API, for example to show a certificate before storing it.
+
+Persist the SP entity id at creation (`setSpEntityId('https://app.example.com/saml/<key>/metadata')`, the metadata URL, or your own URI): left null it is
+computed per request from the metadata route, so it changes if the host name or `absolute_url.base_uri` changes. Without
+`absolute_url.base_uri` the ACS URL and the default entity id follow the request's Host header.
+
+The IdP entity id of a row is locked while `saml:<key>` links exist (`Saml\SamlIssuerGuard`): a flush that changes it is
+refused, `SamlIssuerGuard::entityIdChangeError()` lets an administration screen say so first, and the metadata import
+refuses it too. Unlink the accounts first, or create a row with a new key.
 
 ### IdP metadata
 
 `SamlIdpMetadataImporter::import($row, $xml, $entityId = null)` reads the entity id, the HTTP-Redirect
-SingleSignOnService and the first two signing certificates of an IdP metadata document (an aggregate needs
-`$entityId`). The row changes only when every value is accepted. AuthKit does not fetch metadata URLs: fetch the
+SingleSignOnService and the signing certificates of an IdP metadata document (an aggregate needs `$entityId`) and
+returns them (`SamlIdpMetadata`). Identical certificates count once; more than two distinct signing certificates are
+refused (a row accepts the current one and one for a rollover). The row changes only when every value is accepted.
+`parse($xml, $entityId)` is the dry run: the same checks and result, nothing written. AuthKit does not fetch metadata URLs: fetch the
 document with your own HTTP client and SSRF policy (and refresh it on a schedule if you want), or let the administrator
 upload it.
 
@@ -129,7 +146,9 @@ upload it.
   once the identity provider switched.
 - **SP key**: `setNextSpKeyPair($key, $certificate)` publishes the next certificate next to the current one in the SP
   metadata and decrypts with it too; after the overlap the identity provider needs (for example 14 days),
-  `promoteNextSpKeyPair()` makes it current (AuthnRequests are then signed with it) and empties the next slot.
+  `promoteNextSpKeyPair()` makes it current (AuthnRequests are then signed with it) and empties the next slot. The old
+  key is dropped at once: an assertion still encrypted for it fails, so schedule the promotion after the identity
+  provider switched (the overlap is the host's job).
 
 ### Certificate expiry
 
@@ -145,12 +164,15 @@ WHERE idp_certificate_not_after < :soon OR idp_next_certificate_not_after < :soo
 
 | Method | Path | Name | |
 |---|---|---|---|
-| `GET` | `/login/saml/{provider}` | `nowo_auth_kit_saml_login_start` | optional `?login_hint=<e-mail>` |
+| `GET` | `/login/saml/{provider}` | `nowo_auth_kit_saml_login_start` | optional `?login_hint=<e-mail>`, `?force_authn=1` |
 | `POST` | `/login/saml/{provider}/acs` | `nowo_auth_kit_saml_acs` | HTTP-POST binding |
 | `GET` | `/saml/{provider}/metadata` | `nowo_auth_kit_saml_metadata` | `application/samlmetadata+xml` |
 
 1. The host sends the browser to the start route (home-realm discovery stays in the host, as for OpenID Connect). A
-   valid `login_hint` is forwarded to the identity provider.
+   valid `login_hint` is forwarded to the identity provider; `force_authn=1` asks it to authenticate again
+   (`ForceAuthn="true"`, also `SamlTestStart::start(..., forceAuthn: true)`). The start is a GET, as the OAuth start:
+   another site can make a visitor start a sign-in (login CSRF at the start). The pending request is bound to the
+   visitor's session, so only an identity the visitor authenticates at the identity provider can complete it.
 2. AuthKit stores the pending request (request id, a random RelayState, expiry) in the session and redirects with a
    signed AuthnRequest (RSA-SHA256, current SP key).
 3. The identity provider posts the response to the ACS. That cross-site POST does not carry a SameSite session cookie,
@@ -168,9 +190,11 @@ rotation).
 
 A SAML identity follows exactly the rules of an enterprise OpenID Connect credential (`SocialAccountLinker`):
 
-- **subject**: the mapped `subject` attribute, else the NameID unless it is transient. A response without a stable
-  subject is refused (`unusable_subject`).
-- **e-mail**: the mapped `email` attribute, else an `emailAddress` NameID; required (`missing_email`). It counts as
+- **subject**: the mapped `subject` attribute, else the NameID unless it is transient, of another format than the row's
+  `name_id_format`, or (with `require_persistent_subject`) not persistent. Prefer a persistent NameID or an immutable
+  subject attribute: an e-mail address can later be given to someone else. A response without a stable subject, or a
+  subject attribute with several values, is refused (`unusable_subject`).
+- **e-mail**: the mapped `email` attribute (one value), else an `emailAddress` NameID; required (`missing_email`). It counts as
   verified only with `email_verified: true` on the row.
 - an existing link of the subject signs in (the link remembers the IdP entity id: after the row moves to another entity
   id the old links no longer sign in);
@@ -179,7 +203,8 @@ A SAML identity follows exactly the rules of an enterprise OpenID Connect creden
 - no account: created only with `social_login.create_user_if_missing: true`, a verified-equivalent e-mail and a
   `registration_mode` that allows it.
 
-The link stores the mapped values (`email`, `name`, `first_name`, `last_name`, `groups`), never the assertion.
+The link stores the mapped values (`email`, `name`, `first_name`, `last_name`, `groups`), never the assertion. The
+SessionIndex and the NameID are not stored (a future Single Logout would need them).
 
 ## Host callback steps and the test sign-in
 
@@ -214,6 +239,10 @@ Every refused relayed POST is logged at warning level with the provider key and 
 `destination`, `subject_confirmation`, `audience`, `issuer`, `timing`, `encryption_required`, `decryption`,
 `unusable_subject`, `missing_email`, `unavailable`.
 
+The reason code is also on the request (attribute `_nowo_auth_kit_saml_failure`,
+`SamlLoginController::FAILURE_ATTRIBUTE`); the event is always dispatched before a host step's `handleFailure()`, in the
+same request.
+
 The user sees the social error messages (`social.error.invalid_state` for an unsolicited or crafted POST,
 `social.error.failed` otherwise). A host step gets `handleFailure()` with `SocialCallbackFailure::Unavailable` (row
 unknown, disabled or incomplete) or `Failed`, only once the pending request was proved.
@@ -228,14 +257,18 @@ onelogin/php-saml runs in strict mode, then AuthKit checks the same document aga
   store under its lock before the response is parsed, so parallel posts of one session cannot both use it; it expires
   after `request_lifetime`. A RelayState that does not match leaves it untouched.
 - **signature always required** on the Response or the Assertion, verified with the row's certificates only (never a
-  certificate the document carries). Exactly one assertion (encrypted or not) in the whole document, one signature per
+  certificate the document carries). A signature on the Response alone is accepted although the SP metadata says
+  `WantAssertionsSigned="true"` (many identity providers sign only the Response); `want_assertions_signed` on the row
+  enforces the stricter rule. Exactly one assertion (encrypted or not) in the whole document, one signature per
   signed element referencing its parent's ID, and the data is read from the signed assertion (signature wrapping
   refused). SHA-1 signatures and digests are refused.
 - **Destination** required and equal to the ACS URL; **Recipient** equal to the ACS URL; **Audience** present and equal
   to the SP entity id in every AudienceRestriction; every **Issuer** equal to `idp_entity_id`; `NotBefore`,
   `NotOnOrAfter` and `SessionNotOnOrAfter` with `clock_skew` (the library also applies its own fixed drift).
 - **encryption**: encrypted assertions are decrypted with the current or the next SP key; RSA 1.5 key transport is
-  refused; `want_encrypted_assertions` refuses plain ones.
+  refused; `want_encrypted_assertions` refuses plain ones. CBC data encryption (`aes*-cbc`) has no integrity of its own:
+  it is accepted only inside a signed Response and refused before decryption otherwise; GCM is always accepted. The SHA-1
+  refusal concerns signatures only (an OAEP key transport naming a SHA-1 mask digest is fine).
 - **XML** is parsed without DTD or external entities; a response over 512 KiB is refused before decoding; parse errors
   never surface as PHP warnings.
 - **logs**: never the response, the assertion, NameIDs, attribute values or keys.
@@ -244,7 +277,8 @@ onelogin/php-saml runs in strict mode, then AuthKit checks the same document aga
 ## Worker mode and concurrency
 
 The services keep no per-request state (FrankenPHP worker mode with `kernel.reset: false`): the pending request lives in
-the session, its single-use claim in the attempt limiter's cache pool (use a shared pool on several hosts). onelogin's
+the session, its single-use claim in the attempt limiter's cache pool (shared by every worker and replica; it is kept for
+`request_lifetime` + 180 s + 60 s, longer than any response that could still pass). onelogin's
 static URL helpers are pinned to the ACS URL for one validation and reset in `finally`.
 
 Linking and creation run in AuthKit's unit of work under the named locks of the social pipeline (REQ-RUNTIME-003 rule

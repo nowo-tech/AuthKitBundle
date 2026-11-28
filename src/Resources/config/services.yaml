@@ -319,6 +319,12 @@ services:
         tags:
             - { name: doctrine.event_listener, event: onFlush }
 
+    # 2.10.0: the IdP entity id of a SAML provider row is locked while saml:<key> links exist (also outside saml.mode).
+    Nowo\AuthKitBundle\Saml\SamlIssuerGuard:
+        public: true
+        tags:
+            - { name: doctrine.event_listener, event: onFlush }
+
     # 2.7.0: host-minted test sign-in (one-shot marker bound to the OAuth state; no URL flag).
     Nowo\AuthKitBundle\SocialLogin\SocialLoginTestStart:
         arguments:

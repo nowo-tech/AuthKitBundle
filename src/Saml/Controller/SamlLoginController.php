@@ -71,6 +71,9 @@ final class SamlLoginController
     /** Route requirement of `{provider}` (the provider key pattern of {@see SamlProvider}). */
     public const PROVIDER_REQUIREMENT = '[a-z0-9_\-]{1,59}';
 
+    /** Request attribute holding the {@see SamlFailure} reason code of a refused ACS request. */
+    public const FAILURE_ATTRIBUTE = '_nowo_auth_kit_saml_failure';
+
     /** The token answer of a SAML sign-in: SAML has none (the link stores no access token). */
     private const NO_TOKENS = ['access_token' => '', 'refresh_token' => null, 'expires_in' => null, 'raw' => []];
 
@@ -125,7 +128,8 @@ final class SamlLoginController
         }
 
         try {
-            return new RedirectResponse($this->loginStart->url($request, $profile, $row, LoginHint::normalize($request->query->all()[LoginHint::PARAMETER] ?? null)));
+            // `force_authn=1` asks the IdP to authenticate again (re-authentication before a sensitive action).
+            return new RedirectResponse($this->loginStart->url($request, $profile, $row, LoginHint::normalize($request->query->all()[LoginHint::PARAMETER] ?? null), false, $request->query->get('force_authn') === '1'));
         } catch (SamlFailure $failure) {
             $this->logger?->warning('AuthKit SAML sign-in could not start for provider {provider} ({reason}).', ['provider' => $provider, 'reason' => $failure->reason]);
 
@@ -242,6 +246,8 @@ final class SamlLoginController
      */
     private function rejected(Request $request, ProfileSettings $profile, string $provider, ?SocialCallbackHandlerInterface $handler, SamlFailure $failure, string $loginUrl): Response
     {
+        // The reason code, for a host failure answer (handleFailure() runs after the event, in this same request).
+        $request->attributes->set(self::FAILURE_ATTRIBUTE, $failure->reason);
         $this->logger?->warning('AuthKit SAML sign-in refused for provider {provider} ({reason}).', ['provider' => $provider, 'reason' => $failure->reason]);
         $this->dispatcher?->dispatch(new SamlResponseRejectedEvent($profile->name, $provider, $failure->reason));
 

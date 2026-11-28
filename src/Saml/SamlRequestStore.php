@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuthKitBundle\Saml;
 
+use Nowo\AuthKitBundle\DependencyInjection\SamlConfiguration;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
@@ -92,7 +93,9 @@ final class SamlRequestStore
         if ($payload['expires'] <= $this->clock->now()->getTimestamp()) {
             throw new SamlFailure(SamlFailure::EXPIRED_REQUEST, 'The SAML sign-in took too long at the identity provider.');
         }
-        if (!$this->limiter->consume('saml:request:' . hash('sha256', $payload['request_id']), 1, $payload['lifetime'] + 60)) {
+        // The claim outlives every response that could still pass: the request lifetime, the largest clock skew and a margin.
+        // An unreachable store throws: never a sign-in without the claim (fail closed).
+        if (!$this->limiter->consume('saml:request:' . hash('sha256', $payload['request_id']), 1, $payload['lifetime'] + SamlConfiguration::MAX_CLOCK_SKEW + 60)) {
             throw new SamlFailure(SamlFailure::REPLAYED, 'The SAML request was already used.');
         }
 
