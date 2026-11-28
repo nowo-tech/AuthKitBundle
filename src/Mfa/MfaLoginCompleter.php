@@ -41,7 +41,7 @@ final readonly class MfaLoginCompleter
 
     public function complete(Request $request, MfaPendingToken $pending, string $method): RedirectResponse
     {
-        $token = $pending->inner();
+        $token = $pending->completedWith($method, $this->manager->now()->getTimestamp());
         $user  = $token->getUser();
         $this->tokens->setToken($token);
         if ($request->hasSession()) {

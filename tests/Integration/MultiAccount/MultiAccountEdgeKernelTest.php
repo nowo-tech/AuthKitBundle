@@ -8,6 +8,7 @@ use Nowo\AuthKitBundle\MultiAccount\AccountRemovalReason;
 use Nowo\AuthKitBundle\MultiAccount\Event\AccountRemovedEvent;
 use Nowo\AuthKitBundle\MultiAccount\Event\AccountSwitchingEvent;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -125,7 +126,7 @@ final class MultiAccountEdgeKernelTest extends MultiAccountKernelTestCase
     {
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        $dispatcher->addListener(AccountSwitchingEvent::class, static function (AccountSwitchingEvent $event): void {
+        KernelListeners::add($dispatcher, AccountSwitchingEvent::class, static function (AccountSwitchingEvent $event): void {
             $event->refuse('accounts.flash.not_now');
         });
         $this->signIn('member@example.com', 'member-password-123');

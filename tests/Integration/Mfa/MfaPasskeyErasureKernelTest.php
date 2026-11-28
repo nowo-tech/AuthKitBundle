@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuthKitBundle\Mfa\MfaOwner;
 use Nowo\AuthKitBundle\Mfa\MfaOwnerResolver;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRemovedEvent;
 use Nowo\AuthKitBundle\Webauthn\WebauthnErasure;
 use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
@@ -31,7 +32,7 @@ final class MfaPasskeyErasureKernelTest extends MfaKernelTestCase
         $removed    = [];
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        $dispatcher->addListener(WebauthnCredentialRemovedEvent::class, static function (WebauthnCredentialRemovedEvent $event) use (&$removed): void {
+        KernelListeners::add($dispatcher, WebauthnCredentialRemovedEvent::class, static function (WebauthnCredentialRemovedEvent $event) use (&$removed): void {
             $removed[] = $event->reason;
         });
         $admin  = $this->ownerOf('admin@example.com');

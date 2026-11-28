@@ -101,6 +101,13 @@ jobs:
             symfony: '8.1'
           - php: '8.3'
             symfony: '8.1'
+        # Forward cells (Beacon targets PHP 8.6 and Symfony 8.2): PHP 8.6 on the current Symfony, and the stable
+        # Symfony 8.2 on PHP 8.5.
+        include:
+          - php: '8.6'
+            symfony: '8.1'
+          - php: '8.5'
+            symfony: '8.2'
 
     env:
       HEAVY: ${{ needs.changes.outputs.mode != 'light' || (matrix.php == '8.5' && matrix.symfony == '8.1') }}
@@ -117,11 +124,17 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: json
-          coverage: pcov
+          coverage: ${{ matrix.php == '8.6' && 'none' || 'pcov' }}
           tools: composer:v2
 
       - run: composer validate --strict
         if: env.HEAVY == 'true'
+
+      # The nowo-tech packages this bundle requires cap PHP below 8.6 until their next releases: the PHP 8.6 cell
+      # ignores only the upper PHP bound of the dependencies (php+), never an extension requirement.
+      - name: PHP 8.6 - ignore the dependencies' upper PHP bound
+        if: env.HEAVY == 'true' && matrix.php == '8.6'
+        run: echo "COMPOSER_IGNORE_PLATFORM_REQ=php+" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         if: env.HEAVY == 'true'
@@ -142,7 +155,7 @@ jobs:
         run: composer audit --locked
 
 
-      - run: composer test
+      - run: composer test -- --display-deprecations
         if: env.HEAVY == 'true'
 
       - name: Validate 100% coverage

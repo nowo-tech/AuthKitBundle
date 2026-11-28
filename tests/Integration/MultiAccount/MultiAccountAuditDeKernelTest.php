@@ -13,6 +13,7 @@ use Nowo\AuthKitBundle\MultiAccount\AccountVault;
 use Nowo\AuthKitBundle\MultiAccount\Event\AccountRemovedEvent;
 use Nowo\AuthKitBundle\MultiAccount\Event\AccountSwitchingEvent;
 use Nowo\AuthKitBundle\MultiAccount\EventSubscriber\MultiAccountSubscriber;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Nowo\UserKitBundle\Sessions\UserSessionManager;
 use Psr\Cache\CacheItemPoolInterface;
 use RuntimeException;
@@ -105,7 +106,7 @@ final class MultiAccountAuditDeKernelTest extends MultiAccountKernelTestCase
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
         $failing = new ArrayObject(['on' => true]);
-        $dispatcher->addListener(AccountSwitchingEvent::class, static function () use ($failing): void {
+        KernelListeners::add($dispatcher, AccountSwitchingEvent::class, static function () use ($failing): void {
             if ($failing['on'] === true) {
                 throw new RuntimeException('host listener bug');
             }

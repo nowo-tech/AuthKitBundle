@@ -194,6 +194,10 @@
 
 ## Unreleased
 
+- PHP 8.6 is allowed (`>=8.2 <8.7`). Nothing to change in the host.
+- Symfony 8.2: after a second step, the firewall token carries the authentication proofs (`otp` / `hwk` and `mfa`, plus
+  the first factor's), so `IS_AUTHENTICATED_RECENTLY` counts the second step. A pending sign-in has no proof.
+
 ## To 2.9.0
 
 From **2.8.0**:

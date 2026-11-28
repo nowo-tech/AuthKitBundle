@@ -28,6 +28,7 @@ use stdClass;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Authentication\Token\NullToken;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 use Symfony\Component\Security\Core\User\InMemoryUser;
@@ -124,6 +125,55 @@ final class MfaModelTest extends TestCase
             }
         };
         self::assertSame('form_login', MfaFirstFactor::fromAuthenticator($wrapped), 'Debug wrappers are unwrapped.');
+    }
+
+    public function testPendingTokenAuthenticationProofs(): void
+    {
+        $user  = new InMemoryUser('ana', null, ['ROLE_USER']);
+        $inner = new class($user, 'main', ['ROLE_USER']) extends UsernamePasswordToken {
+            /** @var array<string, int> */
+            private array $proofs = [];
+
+            /** @return array<string, int> */
+            public function getAuthenticationProofs(): array
+            {
+                return $this->proofs;
+            }
+
+            /** @param array<string, int> $proofs */
+            public function setAuthenticationProofs(array $proofs): void
+            {
+                $this->proofs = $proofs;
+            }
+        };
+        $token = new MfaPendingToken($inner, 'main', 'default', 'form_login', MfaPendingToken::MODE_CHALLENGE, 100);
+
+        // Symfony 8.2 records the first factor at login on the pending token: kept on the wrapped token, never
+        // exposed while pending.
+        $token->setAuthenticationProofs(['pwd' => 100]);
+        self::assertSame([], $token->getAuthenticationProofs());
+        self::assertSame(['pwd' => 100], $inner->getAuthenticationProofs());
+
+        self::assertSame($inner, $token->completedWith('totp', 160));
+        self::assertSame(['otp' => 160, 'mfa' => 160, 'pwd' => 100], $inner->getAuthenticationProofs());
+
+        $copy = new MfaPendingToken($inner, 'main', 'default', 'form_login', MfaPendingToken::MODE_CHALLENGE, 100);
+        $copy->completedWith('webauthn', 200);
+        self::assertSame(['hwk' => 200, 'mfa' => 200, 'otp' => 160, 'pwd' => 100], $inner->getAuthenticationProofs());
+        $copy->completedWith('recovery', 300);
+        self::assertSame(300, $inner->getAuthenticationProofs()['mfa']);
+        self::assertSame(200, $inner->getAuthenticationProofs()['hwk']);
+    }
+
+    public function testPendingTokenProofsWithoutProofSupport(): void
+    {
+        $inner = $this->createMock(TokenInterface::class);
+        $token = new MfaPendingToken($inner, 'main', 'default', 'form_login', MfaPendingToken::MODE_SETUP, 100);
+
+        // A wrapped token without proofs (Symfony < 8.2 tokens): both calls are no-ops.
+        $token->setAuthenticationProofs(['pwd' => 100]);
+        self::assertSame([], $token->getAuthenticationProofs());
+        self::assertSame($inner, $token->completedWith('enrolment', 160));
     }
 
     public function testPendingTokenAndVoter(): void
