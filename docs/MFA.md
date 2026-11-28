@@ -112,7 +112,7 @@ Routes: `challenge` `/login/mfa`, `setup` `/login/mfa/setup`, `account` `/accoun
 | --- | --- | --- |
 | `form_login` | `required` | Password form |
 | `login_link` | `required` | Magic link (firewall check route or the confirm interstitial) |
-| `social` | `required` | Social login / SSO (`exempt` trusts the identity provider's own MFA) |
+| `social` | `required` | Social login / SSO, and SAML sign-ins (2.10.0) (`exempt` trusts the identity provider's own MFA; a SAML provider row may set its own rule from `AuthnContextClassRef`, [SAML.md](SAML.md#mfa-after-a-saml-sign-in)) |
 | `registration` | `required` | Auto-login after sign-up |
 | `invitation` | `required` | Auto-login after accepting an invitation |
 | `qr` | `exempt` | QR login: the approving phone session already passed MFA |

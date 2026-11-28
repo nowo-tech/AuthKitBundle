@@ -10,6 +10,7 @@
 - [Invitations](#invitations)
 - [Two-factor authentication (MFA)](#two-factor-authentication-mfa)
 - [Passkeys (webauthn)](#passkeys-webauthn)
+- [SAML 2.0 sign-in (saml)](#saml-20-sign-in-saml)
 - [Several accounts at once](#several-accounts-at-once)
 - [Field configuration](#field-configuration)
   - [Login](#login)
@@ -395,6 +396,31 @@ signed-in users.
 in your database; every answer is validated per ceremony and an invalid one disables passkeys (the password still
 works). `allow_http_localhost` (`null` = `kernel.debug`) decides whether `http://localhost` origins are accepted. See
 [WEBAUTHN.md](WEBAUTHN.md#relying-party-at-runtime-260).
+
+## SAML 2.0 sign-in (saml)
+
+Opt-in per profile (2.10.0, `saml.mode: disabled` by default). Needs `onelogin/php-saml` `^4.6` (the build fails
+without it while a profile enables it), the AuthKit entities mapped (table `auth_kit_saml_provider`) and
+nowo-tech/doctrine-encrypt-bundle encrypting the SP private keys. Copy-paste:
+
+```yaml
+nowo_auth_kit:
+    absolute_url:
+        base_uri: 'https://app.example.com'
+    saml:
+        mode: enabled
+        clock_skew: 60           # 0-180 seconds
+        request_lifetime: 600    # 60-3600 seconds
+        start_rate_limit: 20     # 0 disables
+        start_rate_window: 60
+```
+
+`routes.start` (`/login/saml/{provider}`), `routes.acs` (`/login/saml/{provider}/acs`) and `routes.metadata`
+(`/saml/{provider}/metadata`) take `path` (holding `{provider}`) and `name`; they are never localized. Linking and
+creation follow `social_login.create_user_if_missing`, `require_verified_email` and `link_existing_account` (the
+provider row's `link_existing_account` wins); `social_login.mode` itself may stay `disabled`. Host firewall layer:
+`^/login/saml` and `^/saml/` with `PUBLIC_ACCESS`. Provider rows, metadata, rotation and the security checks:
+[SAML.md](SAML.md).
 
 ## Several accounts at once
 

@@ -9,7 +9,9 @@ use Doctrine\ORM\Events;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuthKitBundle\Doctrine\EnterpriseSecretEncryptionGuard;
 use Nowo\AuthKitBundle\Doctrine\EnterpriseSecretNotEncryptedException;
+use Nowo\AuthKitBundle\Entity\SamlProvider;
 use Nowo\AuthKitBundle\Entity\SocialLoginCredential;
+use Nowo\AuthKitBundle\Tests\Support\Saml\SamlProviders;
 use Nowo\AuthKitBundle\Tests\Support\SqliteManagerRegistry;
 use Nowo\DoctrineEncryptBundle\Encryptors\EncryptorInterface;
 use Nowo\DoctrineEncryptBundle\Subscribers\DoctrineEncryptSubscriber;
@@ -107,6 +109,26 @@ final class EnterpriseSecretEncryptionGuardTest extends TestCase
         $em->flush();
     }
 
+    /**
+     * 2.10.0: a SAML provider row with an SP private key is refused unencrypted too; one without a key is not.
+     */
+    public function testASamlSpPrivateKeyIsNotStoredWithoutEncryption(): void
+    {
+        $em = $this->manager(false);
+        $em->persist((new SamlProvider())->setProvider('draft')->setLabel('Draft'));
+        $em->flush();
+        $em->persist(SamlProviders::acme());
+
+        try {
+            $em->flush();
+            self::fail('The unencrypted SP private key was written.');
+        } catch (EnterpriseSecretNotEncryptedException $exception) {
+            self::assertStringContainsString('"acme"', $exception->getMessage());
+            self::assertFalse(str_contains($exception->getMessage(), 'PRIVATE KEY'));
+        }
+        self::assertSame(1, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM auth_kit_saml_provider'));
+    }
+
     private function manager(bool $encrypted): EntityManagerInterface
     {
         $em = (new SqliteManagerRegistry(['default' => self::BUNDLE_ENTITIES]))->getManager();
@@ -128,7 +150,7 @@ final class EnterpriseSecretEncryptionGuardTest extends TestCase
             );
         }
         $em->getEventManager()->addEventListener([Events::onFlush], new EnterpriseSecretEncryptionGuard());
-        (new SchemaTool($em))->createSchema([$em->getClassMetadata(SocialLoginCredential::class)]);
+        (new SchemaTool($em))->createSchema([$em->getClassMetadata(SocialLoginCredential::class), $em->getClassMetadata(SamlProvider::class)]);
 
         return $em;
     }

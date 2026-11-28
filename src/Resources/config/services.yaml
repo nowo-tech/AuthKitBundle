@@ -51,6 +51,8 @@ services:
             - '../../PersonalData/'
             # 2.4.0: webauthn.yaml registers the passkey services only with webauthn.mode: enabled.
             - '../../Webauthn/'
+            # 2.10.0: saml.yaml registers the SAML services only with saml.mode: enabled.
+            - '../../Saml/'
             # 1.44: registered by NowoAuthKitExtension::registerLoginTarget() from the login_target / session_expired config.
             - '../../Security/LoginTarget/'
             - '../../Security/SessionExpired/'
@@ -314,6 +316,12 @@ services:
     # 2.8.0 (fail closed): no enterprise client secret is written unencrypted. Removed by the extension with
     # nowo_auth_kit.doctrine.require_enterprise_secret_encryption: false (tests and demos only).
     Nowo\AuthKitBundle\Doctrine\EnterpriseSecretEncryptionGuard:
+        tags:
+            - { name: doctrine.event_listener, event: onFlush }
+
+    # 2.10.0: the IdP entity id of a SAML provider row is locked while saml:<key> links exist (also outside saml.mode).
+    Nowo\AuthKitBundle\Saml\SamlIssuerGuard:
+        public: true
         tags:
             - { name: doctrine.event_listener, event: onFlush }
 

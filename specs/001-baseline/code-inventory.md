@@ -2,8 +2,8 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/auth-kit-bundle`  
-**Last audited**: 2026-11-26 (2.6.0: + 6 PHP, runtime WebAuthn relying party; 2.4.1: + `Webauthn/WebauthnErasure.php`; 2.4.0, passkeys: 23 PHP + 14 Resources)  
-**Units**: **538** (`453` PHP under `src/` + `85` Resources)
+**Last audited**: 2026-11-28 (2.10.0, SAML 2.0 SP: 27 PHP + 10 Resources; 2.9.0: + `Doctrine/EncryptedFieldWrite.php`; 2.6.0: + 6 PHP, runtime WebAuthn relying party; 2.4.1: + `Webauthn/WebauthnErasure.php`; 2.4.0, passkeys: 23 PHP + 14 Resources)  
+**Units**: **590** (`495` PHP under `src/` + `95` Resources)
 
 Every production file under `src/` is listed exactly once. Status **Mapped** means a FR in `spec.md` owns it.
 
@@ -814,3 +814,49 @@ Every production file under `src/` is listed exactly once. Status **Mapped** mea
 - PHPUnit: `make test-coverage-100` (100% lines on `src/`, justified exclusions only).
 - Spec Kit: this inventory MUST stay in lockstep with `find src -type f` (PHP + Resources).
 
+## SAML 2.0 sign-in (2.10.0)
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `DependencyInjection/Compiler/SamlSharedClaimPoolPass.php` | production | FR-SAML-001 | Mapped |
+| `DependencyInjection/SamlConfiguration.php` | production | FR-SAML-001 | Mapped |
+| `Entity/SamlProvider.php` | production | FR-SAML-002 | Mapped |
+| `Repository/SamlProviderRepository.php` | production | FR-SAML-002 | Mapped |
+| `Resources/config/doctrine-xml/SamlProvider.orm.xml` | production | FR-SAML-002 | Mapped |
+| `Resources/config/saml.yaml` | production | FR-SAML-001 | Mapped |
+| `Resources/sql/saml/mariadb.down.sql` | production | FR-SAML-002 | Mapped |
+| `Resources/sql/saml/mariadb.up.sql` | production | FR-SAML-002 | Mapped |
+| `Resources/sql/saml/mysql.down.sql` | production | FR-SAML-002 | Mapped |
+| `Resources/sql/saml/mysql.up.sql` | production | FR-SAML-002 | Mapped |
+| `Resources/sql/saml/postgresql.down.sql` | production | FR-SAML-002 | Mapped |
+| `Resources/sql/saml/postgresql.up.sql` | production | FR-SAML-002 | Mapped |
+| `Resources/sql/saml/sqlite.down.sql` | production | FR-SAML-002 | Mapped |
+| `Resources/sql/saml/sqlite.up.sql` | production | FR-SAML-002 | Mapped |
+| `Saml/Controller/SamlLoginController.php` | production | FR-SAML-004 | Mapped |
+| `Saml/Controller/SamlMetadataController.php` | production | FR-SAML-004 | Mapped |
+| `Saml/Event/SamlResponseRejectedEvent.php` | production | FR-SAML-005 | Mapped |
+| `Saml/SamlAssertion.php` | production | FR-SAML-003 | Mapped |
+| `Saml/SamlCertificate.php` | production | FR-SAML-002 | Mapped |
+| `Saml/SamlFailure.php` | production | FR-SAML-005 | Mapped |
+| `Saml/SamlIdpMetadata.php` | production | FR-SAML-006 | Mapped |
+| `Saml/SamlIdpMetadataImporter.php` | production | FR-SAML-006 | Mapped |
+| `Saml/SamlIssuerGuard.php` | production | FR-SAML-002 | Mapped |
+| `Saml/SamlLoginStart.php` | production | FR-SAML-004 | Mapped |
+| `Saml/SamlPostRelay.php` | production | FR-SAML-004 | Mapped |
+| `Saml/SamlProfileMapper.php` | production | FR-SAML-003 | Mapped |
+| `Saml/SamlProviderPolicy.php` | production | FR-SAML-003 | Mapped |
+| `Saml/SamlRequestStore.php` | production | FR-SAML-003 | Mapped |
+| `Saml/SamlResponseValidator.php` | production | FR-SAML-003 | Mapped |
+| `Saml/SamlServerContext.php` | production | FR-SAML-003 | Mapped |
+| `Saml/SamlSettingsFactory.php` | production | FR-SAML-003 | Mapped |
+| `Saml/SamlSpKeyGenerator.php` | production | FR-SAML-006 | Mapped |
+| `Saml/SamlSpKeyPair.php` | production | FR-SAML-006 | Mapped |
+| `Saml/SamlSpMetadata.php` | production | FR-SAML-006 | Mapped |
+| `Saml/SamlTestStart.php` | production | FR-SAML-004 | Mapped |
+| `Saml/SamlUrls.php` | production | FR-SAML-004 | Mapped |
+
+## Encrypted fields (2.9.0)
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Doctrine/EncryptedFieldWrite.php` | production | FR-SOCIAL-001 | Mapped |

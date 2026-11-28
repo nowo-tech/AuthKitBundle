@@ -2,7 +2,7 @@
 
 AuthKit exposes **organization / SSO** sign-in by reusing the existing OAuth/OIDC social-login pipeline with an `enterprise_sso` flag on `SocialLoginCredential`.
 
-**Status (v1.12.0):** OIDC SSO via social credentials is supported. Native SAML 2.0 is **not** implemented yet (see roadmap below).
+**Status (v1.12.0):** OIDC SSO via social credentials is supported. **2.10.0:** native SAML 2.0 Service Provider sign-in (opt-in, SP-initiated) through the same pipeline: [SAML.md](SAML.md).
 
 ## Table of contents
 
@@ -271,7 +271,7 @@ application), and sign-outs answered with something other than a redirect (an AP
 
 ## Roadmap
 
-- SAML 2.0 SP (metadata, ACS, signed assertions)
+- SAML 2.0 SP (metadata, ACS, signed assertions): done in 2.10.0 ([SAML.md](SAML.md)); IdP-initiated sign-in and Single Logout are not planned yet
 - Per-tenant IdP discovery stays in the host (2.7.0 adds unlisted credentials and `login_hint` for it)
 - RP-initiated logout: done in 2.8.0 ([above](#rp-initiated-logout-280)); front- and back-channel logout are not planned yet
 - Just-in-time role/group mapping from claims

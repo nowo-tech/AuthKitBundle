@@ -20,6 +20,9 @@ Planned direction for Auth Kit Bundle. Items are grouped by horizon and may chan
 - **Several accounts at once** (1.34, opt-in): account switcher with per-account sessions — [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md).
 - **Passkeys / WebAuthn** (2.4.0, opt-in): passwordless first factor with conditional UI and second factor next to
   TOTP — [WEBAUTHN.md](WEBAUTHN.md).
+- **SAML 2.0 Service Provider sign-in** (2.10.0, opt-in): SP-initiated, signed AuthnRequests, strict response checks,
+  provider rows per tenant with certificate rollover and SP key rotation — [SAML.md](SAML.md). Later: IdP-initiated
+  sign-in (if ever), Single Logout, IdP metadata refreshed from a URL.
 
 ## Short term
 

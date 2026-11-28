@@ -124,7 +124,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ### Social / enterprise SSO
 
-- **FR-SOCIAL-001**: `SocialLoginGate`, `OAuth2Client`, endpoint catalog + URL validator, state store, account linker, profile DTO, credential/account entities + repos, start/check controllers, `SocialLoginMode` enum. Enterprise SSO reuses the same pipeline with `enterpriseSso` on credentials (no separate SAML stack). Authorization-code requests use PKCE S256 (`Pkce`). Token / userinfo calls are bounded by `http_client.timeout` / `http_client.max_duration` (REQ-RUNTIME-001).
+- **FR-SOCIAL-001**: `SocialLoginGate`, `OAuth2Client`, endpoint catalog + URL validator, state store, account linker, profile DTO, credential/account entities + repos, start/check controllers, `SocialLoginMode` enum. Enterprise SSO reuses the same pipeline with `enterpriseSso` on credentials (2.10.0: SAML 2.0 identities `saml:<provider>` reuse the same linker and callback handlers, [spec 011](../011-saml-sp/spec.md)). Authorization-code requests use PKCE S256 (`Pkce`). Token / userinfo calls are bounded by `http_client.timeout` / `http_client.max_duration` (REQ-RUNTIME-001).
 - **FR-SOCIAL-002** (2.3.0): OpenID Connect providers. `OidcProviderCatalog` decides per credential: presets `gitlab` (issuer `https://gitlab.com` or the credential's self-hosted base URL), `apple`, `linkedin`, `slack` (fixed issuers), any other key with `issuer` = generic provider; preset keys with their own OAuth2 URLs and keys without issuer stay on `OAuth2Client`. `OidcDiscovery` reads `<issuer>/.well-known/openid-configuration`, requires the document's `issuer` to be the configured one (trailing slash tolerated) and every endpoint to be a public HTTPS URL. Issuer and provider settings (`team_id`, `key_id`) are validated by `OidcCredentialRules` on write (entity setters) and on read.
 - **FR-SOCIAL-003** (2.3.0): `OidcClient::begin()` issues state + nonce (unless the preset says the provider does not echo it: LinkedIn) + PKCE S256 (override, preset, else discovery `S256`), merges `authorization_params` under the reserved protocol parameters, adds `response_mode=form_post` for Apple. `authenticate()` exchanges the code (`client_secret_post` or `client_secret_basic` per preset / discovery), requires `access_token` and `id_token`, verifies the ID token, fetches userinfo when the provider has one (same `sub` required) and builds `SocialUserProfile` (e-mail and `email_verified` from one source; Apple's unsigned `user` field only for the display name). Account linking is `SocialAccountLinker`, unchanged.
 - **FR-SOCIAL-004** (2.3.0): `IdTokenValidator`: compact JWS, `alg` on `oidc.allowed_algorithms` (RS*/ES*, never none/HS*), no `crit`, key only from the issuer JWKS and fitting kty/crv/use/alg/key_ops (RSA ≥ 2048, no private members, `JwkConverter`), `iss` exact, `aud`/`azp`, `exp`/`iat`/`nbf` with skew and max age, nonce in constant time, non-empty `sub`. Failures are `OidcException` (RuntimeException, `reason` code, no secret in the message) and take the social failure path.
@@ -228,6 +228,15 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 - **FR-MFA-007**: `Totp` (RFC 6238) and `Base32` (RFC 4648) implement the authenticator-app format.
 - **FR-MFA-008**: Twig `MfaExtension`, `MfaCodeFormType`, the `mfa/*` templates, `form/mfa_otp_widget.html.twig` and the progressive-enhancement script `nowo-auth-kit-otp.js`.
 
+### SAML 2.0 sign-in (v2.10.0, opt-in `saml.mode: enabled`; [spec 011](../011-saml-sp/spec.md))
+
+- **FR-SAML-001**: `SamlConfiguration` (`profiles.<name>.saml`: mode, clock skew, request lifetime, start rate limit, routes) and `Resources/config/saml.yaml` (loaded only with an enabled profile; the build fails without onelogin/php-saml).
+- **FR-SAML-002**: Entity `SamlProvider` (IdP entity id, HTTP-Redirect SSO URL, two IdP certificates with SHA-256 and validity, SP key pair in two `#[Encrypted]` slots, attribute mapping, link and MFA policies), `SamlProviderRepository`, `SamlCertificate`, XML mapping and the SQL scripts under `Resources/sql/saml/`; `EnterpriseSecretEncryptionGuard` covers the SP private keys.
+- **FR-SAML-003**: `SamlSettingsFactory`, `SamlServerContext`, `SamlRequestStore` (session, single-use claim), `SamlResponseValidator` (onelogin strict mode + exact re-checks), `SamlAssertion`, `SamlProfileMapper` and `SamlProviderPolicy`; `SocialAccountLinker` reads the row's `link_existing_account` for `saml:` identities; `SocialUserProfile::$samlAssertion`.
+- **FR-SAML-004**: `SamlLoginController` (start, relayed ACS through the social pipeline), `SamlMetadataController`, `SamlLoginStart`, `SamlPostRelay`, `SamlUrls`, `SamlTestStart`.
+- **FR-SAML-005**: `SamlFailure` reason codes and `SamlResponseRejectedEvent`.
+- **FR-SAML-006**: `SamlSpKeyGenerator` / `SamlSpKeyPair`, `SamlIdpMetadataImporter`, `SamlSpMetadata`.
+
 ### Passkeys / WebAuthn (v2.4.0, opt-in `webauthn.mode: enabled`; [spec 008](../008-webauthn/spec.md))
 
 - **FR-WEBAUTHN-001**: `WebauthnManager` is the public API of the passkeys (list, registration options and verification, passwordless sign-in, second step, rename, remove); `WebauthnCeremonies` runs the ceremonies on web-auth/webauthn-lib with session-bound, single-use challenges (claimed once under the attempt limiter's lock), user verification required and exact origins; `WebauthnStore` (DBAL statements, detached `WebauthnCredentialRecord` values, conditional counter UPDATE); VOs `WebauthnPasskey`, `WebauthnRemoval`, `WebauthnFailure`, helper `Base64Url`. `WebauthnConfiguration` and `Resources/config/webauthn.yaml` register nothing while disabled.
@@ -321,7 +330,7 @@ Drop-in Symfony **authentication kit**: login/logout, gated registration, rememb
 
 ## Explicit non-goals
 
-- Native **SAML 2.0** — enterprise SSO is OIDC-via-social only; SAML is roadmap.
+- IdP-initiated **SAML 2.0** sign-in and SAML Single Logout (SP-initiated SAML ships in 2.10.0, [spec 011](../011-saml-sp/spec.md)).
 - Authorization voters beyond registration role assignment / host security.
 
 ---

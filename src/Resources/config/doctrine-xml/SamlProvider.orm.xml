@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 2.10.0 (doctrine.mapping_type: xml): the same table, columns, indexes and constraints as the attributes of
+     SamlProvider. Kept in parity by tests/Unit/Doctrine/XmlMappingParityTest. -->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\AuthKitBundle\Entity\SamlProvider" table="auth_kit_saml_provider" repository-class="Nowo\AuthKitBundle\Repository\SamlProviderRepository">
+        <indexes>
+            <index name="idx_auth_kit_saml_provider_scope" columns="scope"/>
+        </indexes>
+        <unique-constraints>
+            <unique-constraint name="uniq_auth_kit_saml_provider_key" columns="provider"/>
+        </unique-constraints>
+        <id name="id" type="integer">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="provider" type="string" length="59"/>
+        <field name="scope" type="string" length="191" nullable="true"/>
+        <field name="label" type="string" length="128"/>
+        <field name="enabled" type="boolean">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="idpEntityId" column="idp_entity_id" type="string" length="512"/>
+        <field name="idpSsoUrl" column="idp_sso_url" type="string" length="512"/>
+        <field name="idpCertificate" column="idp_certificate" type="text" nullable="true"/>
+        <field name="idpCertificateSha256" column="idp_certificate_sha256" type="string" length="64" nullable="true"/>
+        <field name="idpCertificateNotBefore" column="idp_certificate_not_before" type="datetime_immutable" nullable="true"/>
+        <field name="idpCertificateNotAfter" column="idp_certificate_not_after" type="datetime_immutable" nullable="true"/>
+        <field name="idpNextCertificate" column="idp_next_certificate" type="text" nullable="true"/>
+        <field name="idpNextCertificateSha256" column="idp_next_certificate_sha256" type="string" length="64" nullable="true"/>
+        <field name="idpNextCertificateNotBefore" column="idp_next_certificate_not_before" type="datetime_immutable" nullable="true"/>
+        <field name="idpNextCertificateNotAfter" column="idp_next_certificate_not_after" type="datetime_immutable" nullable="true"/>
+        <field name="spEntityId" column="sp_entity_id" type="string" length="512" nullable="true"/>
+        <field name="spPrivateKey" column="sp_private_key" type="text" nullable="true"/>
+        <field name="spCertificate" column="sp_certificate" type="text" nullable="true"/>
+        <field name="spCertificateNotAfter" column="sp_certificate_not_after" type="datetime_immutable" nullable="true"/>
+        <field name="spNextPrivateKey" column="sp_next_private_key" type="text" nullable="true"/>
+        <field name="spNextCertificate" column="sp_next_certificate" type="text" nullable="true"/>
+        <field name="spNextCertificateNotAfter" column="sp_next_certificate_not_after" type="datetime_immutable" nullable="true"/>
+        <field name="nameIdFormat" column="name_id_format" type="string" length="128" nullable="true"/>
+        <field name="attributeMapping" column="attribute_mapping" type="json" nullable="true"/>
+        <field name="emailVerified" column="email_verified" type="boolean">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="wantEncryptedAssertions" column="want_encrypted_assertions" type="boolean">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="wantAssertionsSigned" column="want_assertions_signed" type="boolean">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="requirePersistentSubject" column="require_persistent_subject" type="boolean">
+            <options>
+                <option name="default">0</option>
+            </options>
+        </field>
+        <field name="linkExistingAccount" column="link_existing_account" type="string" length="16" nullable="true"/>
+        <field name="mfaFirstFactor" column="mfa_first_factor" type="string" length="32" nullable="true"/>
+        <field name="mfaAcceptedAuthnContexts" column="mfa_accepted_authn_contexts" type="json" nullable="true"/>
+        <field name="createdAt" column="created_at" type="datetime_immutable"/>
+        <field name="updatedAt" column="updated_at" type="datetime_immutable"/>
+    </entity>
+</doctrine-mapping>

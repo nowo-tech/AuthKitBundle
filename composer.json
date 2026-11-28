@@ -67,7 +67,8 @@
     "conflict": {
         "nowo-tech/otp-input-bundle": "<1.9",
         "nowo-tech/password-toggle-bundle": "<2.0.3",
-        "nowo-tech/user-kit-bundle": "<1.13"
+        "nowo-tech/user-kit-bundle": "<1.13",
+        "onelogin/php-saml": "<4.6"
     },
     "suggest": {
         "nowo-tech/device-intelligence-bundle": "Device observation on auth pages, new-device notify, QR trusted-device step-up (^1.1; PHP 8.3+)",
@@ -81,7 +82,8 @@
         "symfony/lock": "Serializes AuthKitAttemptLimiter read-modify-write so concurrent requests cannot exceed rate limits; required with MFA (^7.4 || ^8.0; use a shared store on multi-host setups)",
         "symfony/mailer": "Sends the invitation e-mails (invitations.mode: enabled; ^7.4 || ^8.0). Without it the inviter can be shown the link once (invitations.show_link_when_undelivered)",
         "endroid/qr-code": "PNG/SVG data-URI QR codes for QR phone login (^6.0; PNG needs ext-gd)",
-        "nowo-tech/user-kit-bundle": "GDPR erasure and export: registers the AuthKit personal-data erasers and export sections (^1.13)"
+        "nowo-tech/user-kit-bundle": "GDPR erasure and export: registers the AuthKit personal-data erasers and export sections (^1.13)",
+        "onelogin/php-saml": "SAML 2.0 Service Provider sign-in (profiles.<name>.saml.mode: enabled; ^4.6)"
     },
     "require-dev": {
         "endroid/qr-code": "^6.0",
@@ -94,6 +96,7 @@
         "nowo-tech/phpstan-frankenphp": "^1.4",
         "nowo-tech/slide-to-confirm-bundle": "^1.0",
         "nowo-tech/user-kit-bundle": "^1.15",
+        "onelogin/php-saml": "^4.6",
         "phpstan/phpstan": "^2.0",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",
