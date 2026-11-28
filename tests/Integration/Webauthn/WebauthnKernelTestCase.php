@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuthKitBundle\Tests\Integration\Webauthn;
 
 use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaKernelTestCase;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Nowo\AuthKitBundle\Tests\Support\Webauthn\SoftwareAuthenticator;
 use Nowo\AuthKitBundle\Webauthn\WebauthnManager;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -29,7 +30,7 @@ abstract class WebauthnKernelTestCase extends MfaKernelTestCase
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
         foreach (['WebauthnCredentialAddedEvent', 'WebauthnCredentialUsedEvent', 'WebauthnCredentialRenamedEvent', 'WebauthnCredentialRemovedEvent', 'WebauthnAuthenticationFailedEvent'] as $event) {
-            $dispatcher->addListener('Nowo\\AuthKitBundle\\Webauthn\\Event\\' . $event, function (object $e): void {
+            KernelListeners::add($dispatcher, 'Nowo\\AuthKitBundle\\Webauthn\\Event\\' . $event, function (object $e): void {
                 $this->events[] = $e;
             });
         }

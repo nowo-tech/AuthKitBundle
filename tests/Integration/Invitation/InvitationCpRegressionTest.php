@@ -21,6 +21,7 @@ use Nowo\AuthKitBundle\Invitation\Security\InvitationActionPolicyInterface;
 use Nowo\AuthKitBundle\Repository\InvitationRepository;
 use Nowo\AuthKitBundle\SocialLogin\SocialUserProfile;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Nowo\AuthKitBundle\ValueObject\AuthUserRef;
 use Psr\Cache\CacheItemPoolInterface;
 use RuntimeException;
@@ -188,7 +189,7 @@ final class InvitationCpRegressionTest extends WebTestCase
         $url        = (string) $this->manager()->invite($this->user('super@example.com'), 'default', new InvitationRequest('t@example.com', ['ROLE_EDITOR'], returnLink: true))->url;
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        $dispatcher->addListener(InvitationAcceptingEvent::class, static function (): never {
+        KernelListeners::add($dispatcher, InvitationAcceptingEvent::class, static function (): never {
             throw new RuntimeException('listener down');
         });
         $this->client->request('GET', (string) parse_url($url, PHP_URL_PATH));

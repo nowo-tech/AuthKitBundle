@@ -6,6 +6,7 @@ namespace Nowo\AuthKitBundle\Tests\Integration\MultiAccount;
 
 use Nowo\AuthKitBundle\MultiAccount\VaultCookie;
 use Nowo\AuthKitBundle\Tests\Integration\Mfa\MfaKernelTestCase;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -27,7 +28,7 @@ abstract class MultiAccountKernelTestCase extends MfaKernelTestCase
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
         foreach (['AccountAddedEvent', 'AccountSwitchingEvent', 'AccountSwitchedEvent', 'AccountRemovedEvent'] as $event) {
-            $dispatcher->addListener('Nowo\\AuthKitBundle\\MultiAccount\\Event\\' . $event, function (object $e): void {
+            KernelListeners::add($dispatcher, 'Nowo\\AuthKitBundle\\MultiAccount\\Event\\' . $event, function (object $e): void {
                 $this->events[] = $e;
             });
         }

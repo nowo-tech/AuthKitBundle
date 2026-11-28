@@ -10,6 +10,7 @@ use Nowo\AuthKitBundle\Entity\MfaCredential;
 use Nowo\AuthKitBundle\Mfa\MfaManager;
 use Nowo\AuthKitBundle\Mfa\Totp\Totp;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -59,7 +60,7 @@ abstract class MfaKernelTestCase extends WebTestCase
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
         foreach (['MfaEnabledEvent', 'MfaDisabledEvent', 'MfaResetByAdminEvent', 'MfaRecoveryCodesRegeneratedEvent', 'MfaRecoveryCodeUsedEvent', 'MfaChallengeFailedEvent', 'MfaLockedOutEvent', 'MfaChallengePassedEvent', 'MfaLoginCompletedEvent', 'MfaTrustedDeviceAddedEvent', 'MfaTrustedDevicesForgottenEvent'] as $event) {
-            $dispatcher->addListener('Nowo\\AuthKitBundle\\Mfa\\Event\\' . $event, function (object $e): void {
+            KernelListeners::add($dispatcher, 'Nowo\\AuthKitBundle\\Mfa\\Event\\' . $event, function (object $e): void {
                 $this->events[] = $e;
             });
         }

@@ -17,6 +17,7 @@ use Nowo\AuthKitBundle\Mfa\MfaOwner;
 use Nowo\AuthKitBundle\Tests\Database\Support\DatabaseTestKernel;
 use Nowo\AuthKitBundle\Tests\Database\Support\LoadDatabaseTestCase;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Nowo\AuthKitBundle\Tests\Support\Webauthn\WebauthnSqlScript;
 use Nowo\AuthKitBundle\Webauthn\Base64Url;
 use Nowo\AuthKitBundle\Webauthn\Event\WebauthnCredentialRenamedEvent;
@@ -121,7 +122,7 @@ final class WebauthnDatabaseTest extends LoadDatabaseTestCase
         $record  = $this->passkey('ada@example.com', 'cred-ada');
         $manager = $this->get('load.webauthn', WebauthnManager::class);
         $events  = [];
-        $this->get('event_dispatcher', EventDispatcherInterface::class)->addListener(WebauthnCredentialRenamedEvent::class, static function (WebauthnCredentialRenamedEvent $event) use (&$events): void {
+        KernelListeners::add($this->get('event_dispatcher', EventDispatcherInterface::class), WebauthnCredentialRenamedEvent::class, static function (WebauthnCredentialRenamedEvent $event) use (&$events): void {
             $events[] = [$event->oldLabel, $event->newLabel];
         });
         $user       = (new KernelUser())->setEmail('ada@example.com')->setPassword('unused-password');

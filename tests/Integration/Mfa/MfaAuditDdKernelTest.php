@@ -9,6 +9,7 @@ use Nowo\AuthKitBundle\Mfa\Event\MfaTrustedDevicesForgottenEvent;
 use Nowo\AuthKitBundle\Mfa\MfaCheck;
 use Nowo\AuthKitBundle\Security\AuthKitAttemptLimiter;
 use Nowo\AuthKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuthKitBundle\Tests\Support\KernelListeners;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 use function str_replace;
@@ -30,7 +31,7 @@ final class MfaAuditDdKernelTest extends MfaKernelTestCase
         $seen       = null;
         $dispatcher = self::getContainer()->get('event_dispatcher');
         self::assertInstanceOf(EventDispatcherInterface::class, $dispatcher);
-        $dispatcher->addListener(MfaRecoveryCodeUsedEvent::class, static function () use ($limiter, &$seen): void {
+        KernelListeners::add($dispatcher, MfaRecoveryCodeUsedEvent::class, static function () use ($limiter, &$seen): void {
             // Runs during the verification: the attempt must already be counted (a concurrent guess would be refused).
             $seen = $limiter->count('mfa:account:default:' . KernelUser::class . '#member@example.com');
         });
